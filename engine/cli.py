@@ -29,7 +29,20 @@ spine open <assembly> --title T [--issue N]
 spine open <assembly> --parent <id> --step <step-id>   open a dispatched child
 spine                               every open run"""
 
+CHECK_TIMEOUT = 600  # a check that never returns wedges the agent's turn
 _GATE_ADJUDICATION_FORM = "forms/GATE_TRANSITION.toml"  # see run-an-issue's execute segment
+
+
+def _check_id(wid):
+    """A work id names a directory under .agent-work; anything that could
+    climb out of it is refused rather than sanitized, because a sanitized id
+    no longer addresses the run the caller asked for."""
+    parts = str(wid).split(".")
+    if (not wid or "/" in wid or "\\" in wid or pathlib.Path(wid).is_absolute()
+            or any(p in ("", "..") for p in parts)):
+        raise SystemExit(render.refusal("work id", f"{wid!r} is not a usable name -- "
+                                        "letters, digits, and dots between parts"))
+    return wid
 
 
 def mint_id(issue=None):
@@ -91,7 +104,7 @@ def cmd_open(argv):
         return _open_child(assembly, parent, _opt(argv, "--step"))
     title = _opt(argv, "--title") or ""
     issue = _opt(argv, "--issue")
-    wid = _opt(argv, "--id") or mint_id(issue=issue)
+    wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue))
     if journal.exists(wid):
         raise SystemExit(f"{wid} already exists")
     asm = runmod.load_assembly(assembly)
@@ -112,7 +125,7 @@ def _open_child(assembly, parent, pstep_id):
     pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
     if pstep is None or not pstep.get("dispatches"):
         raise SystemExit(render.refusal(pstep_id or "step", "not a dispatch step"))
-    wid = pstep.get("child") or f"{parent}.{pstep_id}"
+    wid = _check_id(pstep.get("child") or f"{parent}.{pstep_id}")
     if journal.exists(wid):
         raise SystemExit(f"{wid} already exists")
     pasm = runmod.load_assembly(pst["assembly"])
@@ -216,18 +229,42 @@ def cmd_submit(argv):
         cmd = _resolve_command(orders.get(f["id"], ""))
         if not cmd:
             continue
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        try:
+            r = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                               timeout=CHECK_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            journal.append(wid, "check", step=step["id"], command=cmd,
+                           exit=-1, output=f"no result after {CHECK_TIMEOUT}s")
+            raise SystemExit(render.refusal(
+                f["id"], f"`{cmd}` did not finish in {CHECK_TIMEOUT}s -- fix the "
+                f"command, or drop this step: spine {wid} amend close {step['id']} "
+                "--reason ..."))
         checks[f["id"]] = {"command": cmd, "exit": r.returncode,
                            "output": (r.stdout + r.stderr)[-4000:]}
         if r.returncode != 0:
             journal.append(wid, "check", step=step["id"], **checks[f["id"]])
             raise SystemExit(render.refusal(f["id"], f"`{cmd}` exited {r.returncode}"))
 
+    _check_plan(form, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
     _mint(wid, asm, step, form, fields)
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
+
+
+def _check_plan(form, fields):
+    """A plan field must be a list of blocks. Checked before anything is
+    journaled: a submit is durable the moment it lands, so minting that dies
+    afterwards would leave a run that looks advanced and has no work in it."""
+    for f in form["fields"]:
+        if f.get("kind") != "plan" or f["id"] not in fields:
+            continue
+        rows = fields[f["id"]]
+        if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+            raise SystemExit(render.refusal(
+                f["id"], "must be one or more [[" + f["id"] + "]] blocks, not a "
+                "single value -- nothing was recorded"))
 
 
 def _mint(wid, asm, step, form, fields):
@@ -292,10 +329,16 @@ def cmd_note(argv):
     st = runmod.state(wid)
     if st is None:
         raise SystemExit(f"no run named {wid}")
-    n = len([e for e in journal.read(wid) if e.get("kind") == "note"]) + 1
-    journal.append(wid, "note", id=f"n{n}", kind_detail=kind, text=text,
+    # `note resumed n1` names the block it clears; the rest of the words are
+    # the note. Counting existing notes to pick an id collides when two
+    # sessions note at once, and a shared id would clear the wrong block.
+    about = argv[2] if kind == "resumed" and len(argv) > 2 else ""
+    if about:
+        text = " ".join(argv[3:])
+    journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail=kind,
+                   text=text, about=about,
                    step=(st["current"] or {}).get("id", ""))
-    print(f"noted n{n} ({kind})")
+    print(f"noted {kind}" + (f" — cleared {about}" if about else ""))
     return 0
 
 
@@ -326,8 +369,10 @@ def _amend_add(wid, st, argv, reason):
     asm = runmod.load_assembly(st["assembly"])
     if not any(s["id"] == seg for s in asm["segment"]):
         raise SystemExit(render.refusal("segment", f"no segment named {seg!r}"))
-    n = len([s for s in st["steps"] if s["segment"] == seg]) + 1
-    sid = f"{seg}-a{n}"
+    # Random, not counted: two sessions amending at once both compute the same
+    # next number, and duplicate ids are worse than ugly -- `done` is keyed by
+    # step id, so one submit would silently complete every step sharing it.
+    sid = f"{seg}-a{secrets.token_hex(2)}"
     # a dispatched run's own prefill (its orders) rides its amended steps too --
     # that is how a `check` field on the interior's own form (IMPLEMENT.toml's
     # `done`) finds the gate spec's command without a --prefill flag to type.
@@ -403,8 +448,17 @@ def cmd_close(argv):
     summary = _summary(st)
     journal.append(wid, "closed", fields=fields, summary=summary)
     if st.get("parent") and st.get("parent_step"):
-        journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
-                       fields=fields, summary=summary)
+        if journal.exists(st["parent"]):
+            journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
+                           fields=fields, summary=summary)
+        else:
+            # Writing anyway would create the parent's journal from nothing --
+            # a run with no opening, no title, no assembly, sitting in the
+            # ledger. Say the return went nowhere instead.
+            journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
+                           kind_detail="blocked", about="",
+                           text=f"parent {st['parent']} not found -- return not delivered")
+            print(f"warning: parent {st['parent']} not found -- return not delivered")
     print(f"closed {wid}\n")
     return cmd_status([wid])
 

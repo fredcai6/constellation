@@ -67,9 +67,28 @@ def append(work_id: str, kind: str, **data) -> dict:
 
 
 def read(work_id: str) -> list[dict]:
-    """All entries in append order; a missing journal reads as no history."""
+    """All entries in append order; a missing journal reads as no history.
+
+    A torn tail reads as the history up to the tear. An append interrupted
+    partway -- Ctrl-C, a harness timeout, an OOM kill, a full disk -- leaves
+    a half-written block that fails the whole parse, and since state is a
+    fold over this file, a raising read would brick every verb on the run.
+    Entries are blank-line separated by construction, so the last intact
+    boundary is recoverable: drop the torn block, keep the work.
+    """
     path = journal_path(work_id)
     if not path.exists():
         return []
-    with open(path, "rb") as f:
-        return tomllib.load(f).get("entry", [])
+    text = path.read_text(encoding="utf-8", errors="replace")
+    try:
+        return tomllib.loads(text).get("entry", [])
+    except tomllib.TOMLDecodeError:
+        pass
+    blocks = text.split("\n\n")
+    while blocks:
+        blocks.pop()  # the torn tail, and any block it broke
+        try:
+            return tomllib.loads("\n\n".join(blocks)).get("entry", [])
+        except tomllib.TOMLDecodeError:
+            continue
+    return []
