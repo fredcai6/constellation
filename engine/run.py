@@ -122,6 +122,17 @@ def _ordered(raw_steps, seg_order):
     return ordered
 
 
+def merged_verdict(returns):
+    """Escalate outranks revise outranks pass: a wrong spec outranks a wrong
+    diff, and any blocking finding outranks a clean one."""
+    vs = [(r.get("fields") or {}).get("verdict", "").strip().lower() for r in returns]
+    if any(v.startswith("escalate") for v in vs):
+        return "escalate"
+    if any(v.startswith("revise") for v in vs):
+        return "revise"
+    return "pass"
+
+
 def state(work_id):
     """Fold the journal: the run's identity, its steps, and where it stands."""
     entries = journal.read(work_id)
@@ -148,13 +159,20 @@ def state(work_id):
             # same step id, and each must stay attributable to its child.
             # `done` only lands once every expected panelist has answered; a
             # step with no `panel` expects one, so a single-child dispatch
-            # completes on its first (and only) return exactly as before.
+            # completes on its first (and only) return exactly as before. A
+            # step carrying both a panel and a form is the two-voices
+            # transition: the returns are the panel's voice, the form is the
+            # conductor's, so a full house only lands in `done` here when the
+            # merged verdict is not `pass` -- exactly like a panel-only step,
+            # which releases on any verdict because it has no form to hold
+            # for. A `pass` instead leaves it open; it completes on submit.
             step = next((s for s in raw_steps if s["id"] == e["step"]), None)
             expected = len(step["panel"]) if step and step.get("panel") else 1
             returns = st["returns"].setdefault(e["step"], [])
             returns.append(e)
             st["returns_by_child"][e.get("child", "")] = e
-            if len(returns) >= expected:
+            two_voices = bool(step and step.get("panel") and step.get("form"))
+            if len(returns) >= expected and not (two_voices and merged_verdict(returns) == "pass"):
                 st["done"][e["step"]] = e
         elif kind == "check":
             st["checks"].append({"command": e.get("command"), "exit": e.get("exit"),
@@ -197,3 +215,13 @@ def blocks(st):
     resumed = {n.get("about") for n in st["notes"] if n.get("kind_detail") == "resumed"}
     return [n for n in st["notes"]
             if n.get("kind_detail") == "blocked" and n.get("id") not in resumed]
+
+
+def panel_outstanding(st, step):
+    """A step's panel has not finished voting -- fewer returns than
+    panelists. True the same way for a panel-only step and a two-voices one;
+    the difference between them shows up only once this is false, since a
+    two-voices step whose panel resolved anything but `pass` is already
+    `done` by then and can no longer be `st["current"]`."""
+    panel = step.get("panel")
+    return bool(panel) and len(st["returns"].get(step["id"], [])) < len(panel)

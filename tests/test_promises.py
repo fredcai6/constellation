@@ -130,3 +130,16 @@ def test_every_form_a_run_can_reach_loads():
                 path = ROOT / ref if ref.startswith("skills/") else a.parent / ref
                 assert path.exists(), f"{a.parent.name}: {ref} does not exist"
                 forms.load(path)  # raises if the form is malformed
+
+
+def test_every_panel_names_a_form_the_panelist_actually_fills():
+    """A panel declares the form its panelist fills. The engine opened every
+    panelist under one assembly whose form was fixed, so a critic panel
+    declaring CRITIC.toml was handed REVIEW.toml and the key went unread."""
+    src = (ROOT / "engine" / "cli.py").read_text()
+    assert 'panelist["form"]' in src or "panelist.get(\"form\")" in src, \
+        "nothing reads a panel's declared form"
+    for a in ASSEMBLIES:
+        for seg in tomllib.load(open(a, "rb"))["segment"]:
+            for p in seg.get("transition", {}).get("panel", []):
+                assert (ROOT / p["form"]).exists(), f"{a.parent.name}: {p['form']}"

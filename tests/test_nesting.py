@@ -139,6 +139,27 @@ residue = "waived: none"
 ''')
 
 
+def _fill_critic(wid, verdict, findings="none: waived: clean"):
+    """The plan panel declares CRITIC.toml, which has no `verify` field -- a
+    critic judges the plan's soundness, not what it exercised."""
+    _fill(journal.location(wid) / "CRITIC.toml",
+          'findings = "%s"\nvocabulary = "waived: consistent"\nverdict = "%s"\n'
+          % (findings, verdict))
+
+
+def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean"):
+    """Open plan-to-execute's one panelist, fill and close it -- the
+    two-voices transition's panel half, which must pass before its form
+    (PLAN_TO_EXECUTE.toml) is even reachable."""
+    step_id = runmod.state(wid)["current"]["id"]
+    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p1"])
+    panelist = f"{wid}.{step_id}.p1"
+    _fill_critic(panelist, verdict, findings)
+    cli.main([panelist, "submit"])
+    cli.main([panelist, "close"])
+    return step_id
+
+
 def _mint_two_gates(wid="issue17"):
     """Open a run-an-issue and drive it to the freshly minted g1 dispatch step."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
@@ -149,6 +170,7 @@ def _mint_two_gates(wid="issue17"):
     cli.main([wid, "submit"])
     _fill_plan(wid)
     cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid)
     _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
 
@@ -265,10 +287,12 @@ def test_child_close_completes_dispatch_step_and_carries_mechanical_summary(work
     closed = next(e for e in child_entries if e["kind"] == "closed")
     assert closed["fields"]["residue"] == "nothing surprising"
 
-    # a return landed in the PARENT's journal, keyed to the dispatch step
+    # a return landed in the PARENT's journal, keyed to the dispatch step --
+    # not the first return overall, since the plan-to-execute panel's own
+    # return landed earlier
     parent_entries = journal.read("issue17")
-    ret = next(e for e in parent_entries if e["kind"] == "return")
-    assert ret["step"] == "g1" and ret["child"] == "issue17.g1"
+    ret = next(e for e in parent_entries if e["kind"] == "return" and e["step"] == "g1")
+    assert ret["child"] == "issue17.g1"
     assert ret["fields"]["residue"] == "nothing surprising"
 
     # the return completes "g1" in the parent's fold; "g1-adjudicate" is current

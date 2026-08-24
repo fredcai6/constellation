@@ -90,7 +90,7 @@ def _current_form(st):
     step = st["current"]
     if step.get("dispatches"):
         return asm, step, None  # rendered as a command, not a form
-    if step.get("panel") and not step.get("form"):
+    if runmod.panel_outstanding(st, step):
         return asm, step, None  # rendered as N commands; the outcome is mechanical
     return asm, step, forms.load(runmod.resolve_form(asm, step["form"]))
 
@@ -170,6 +170,11 @@ def _open_child(assembly, parent, pstep_id):
                    parent_step=step_id, model=tier)
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
+        # A panel names the form its panelist fills -- a critic reads a plan
+        # with the critic's form, not the reviewer's. Without this the panel's
+        # own `form` key is declared and unread.
+        if tag and panelist.get("form"):
+            step = {**step, "form": panelist["form"]}
         journal.append(wid, "step", **step)
     print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
     return cmd_status([wid])
@@ -224,7 +229,7 @@ def cmd_status(argv):
     if step.get("dispatches"):
         print(_dispatch_status(wid, st, asm, step, runmod.blocks(st)))
         return 0
-    if step.get("panel") and not step.get("form"):
+    if runmod.panel_outstanding(st, step):
         print(_panel_status(wid, st, asm, step, runmod.blocks(st)))
         return 0
     dest = _response_path(st, step)
@@ -257,7 +262,7 @@ def cmd_submit(argv):
             step["id"],
             f"a dispatch step is not submitted -- open its child: "
             f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"))
-    if step.get("panel") and not step.get("form"):
+    if runmod.panel_outstanding(st, step):
         raise SystemExit(render.refusal(
             step["id"], "a panel step is not submitted -- the panelists' verdicts "
             f"complete it", escape=f"who is outstanding: spine {wid}"))
@@ -502,43 +507,42 @@ def _amend_reorder(wid, st, step_id, reason, before):
     return cmd_status([wid])
 
 
-def _merged_verdict(returns):
-    """Escalate outranks revise outranks pass: a wrong spec outranks a wrong
-    diff, and any blocking finding outranks a clean one."""
-    vs = [(r.get("fields") or {}).get("verdict", "").strip().lower() for r in returns]
-    if any(v.startswith("escalate") for v in vs):
-        return "escalate"
-    if any(v.startswith("revise") for v in vs):
-        return "revise"
-    return "pass"
-
-
 def _act_on_verdicts(pwid, step_id):
     """Once every panelist named by `step_id` has returned, the transition
-    acts. Pass and escalate release: nothing more to mint, the verdict
-    itself rides the summary up to whoever adjudicates next. Revise refills
-    the interior with a fresh step of the segment's step-form and a fresh
-    instance of the same panel -- findings concatenated, never summarised,
+    acts on the merged verdict. Pass releases: for a panel-only step there is
+    nothing more to mint, the verdict itself rides the summary up to whoever
+    adjudicates next; for a two-voices step, `state()` has already left it
+    open instead, so this is a no-op and the form is what releases it.
+    Revise refills the interior with a fresh step of the segment's step-form
+    and a fresh instance of the same panel, carrying the form forward too
+    when the transition had one -- findings concatenated, never summarised,
     and attributed to the panelist that raised them."""
     pst = runmod.state(pwid)
     step = next((s for s in pst["steps"] if s["id"] == step_id), None)
-    if not step or not step.get("panel") or step.get("form") or step_id not in pst["done"]:
+    if not step or not step.get("panel") or runmod.panel_outstanding(pst, step):
         return
     returns = pst["returns"][step_id]
-    if _merged_verdict(returns) != "revise":
+    if runmod.merged_verdict(returns) != "revise":
         return
     findings = "\n\n".join(
         f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
         for r in returns)
     seg = next(s for s in runmod.load_assembly(pst["assembly"])["segment"]
               if s["id"] == step["segment"])
-    tag = secrets.token_hex(2)
-    journal.append(pwid, "step", id=f"{step['segment']}-a{tag}", segment=step["segment"],
-                   form=seg["step-form"], filler=seg.get("worker", "conductor"),
-                   prefill={"findings": findings}, anchor=False, terminal=False,
-                   validates="", source="mint")
-    journal.append(pwid, "step", id=f"{step_id}-a{tag}", segment=step["segment"],
-                   panel=step["panel"], anchor=False, terminal=False, source="panel")
+    # Two independent tags, not one shared: a transition's id defaults to its
+    # segment's id (run-an-issue's "plan" names both), and `f"{seg}-a{tag}"`
+    # would then equal `f"{step_id}-a{tag}"` for the same tag -- one mint
+    # silently overwriting the other in the journal.
+    journal.append(pwid, "step", id=f"{step['segment']}-a{secrets.token_hex(2)}",
+                   segment=step["segment"], form=seg["step-form"],
+                   filler=seg.get("worker", "conductor"), prefill={"findings": findings},
+                   anchor=False, terminal=False, validates="", source="mint")
+    fresh_panel = {"id": f"{step_id}-a{secrets.token_hex(2)}", "segment": step["segment"],
+                   "panel": step["panel"], "anchor": False, "terminal": False,
+                   "source": "panel"}
+    if step.get("form"):
+        fresh_panel["form"] = step["form"]  # the two-voices shape survives a revise round
+    journal.append(pwid, "step", **fresh_panel)
 
 
 def _summary(st):
@@ -556,7 +560,7 @@ def _summary(st):
         if s.get("panel") and not s.get("form"):
             rs = st["returns"].get(s["id"]) or []
             if rs:
-                verdict = _merged_verdict(rs)
+                verdict = runmod.merged_verdict(rs)
     amends = [{"action": a.get("action", ""), "step": a.get("step", ""),
                "segment": a.get("segment", ""), "reason": a.get("reason", ""),
                "anchor": a.get("anchor", False)} for a in st.get("amends", [])]
@@ -580,10 +584,11 @@ def cmd_close(argv):
     pending = [s for s in st["steps"] if s["id"] not in st["done"]]
     if pending:
         step = pending[0]
-        # The way past a pending step depends on what kind it is: a panel step
-        # has no form to fill, a dispatch step has no form either, and offering
-        # the wrong escape is worse than offering none.
-        if step.get("panel") and not step.get("form"):
+        # The way past a pending step depends on what kind it is: a step whose
+        # panel is still outstanding has no form to fill yet -- true whether
+        # or not it has one at all -- a dispatch step has no form either, and
+        # offering the wrong escape is worse than offering none.
+        if runmod.panel_outstanding(st, step):
             how = f"its panelists complete it: spine {wid}"
         elif step.get("dispatches"):
             how = f"open its child: spine open {step['dispatches']} --parent {wid} " \
