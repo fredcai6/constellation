@@ -34,6 +34,12 @@ note = "New terms this plan introduces; each cites its glossary entry or propose
 [[field]]
 id = "findings-addressed"
 kind = "evidence"
+record-only = true
 note = """
-Rework only: each critic finding accepted (name the edit) or contested (with
-the reason). First pass: waived: first pass."""
+Rework only, and only the round just past: each finding accepted, naming the
+edit, or contested, with the reason. A ledger, not a narrative.
+
+This is for the record and the conductor, never for the next critic — it
+stays out of a panelist's prefill, because a reviewer told what was wrong
+last time is aimed at those spots and steered off everything else. First
+pass: waived: first pass."""

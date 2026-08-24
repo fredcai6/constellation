@@ -206,10 +206,15 @@ def test_revise_refills_with_every_panelists_findings_concatenated_and_attribute
     assert findings.index("off by one") != findings.index("sibling parser")  # not merged into one line
     assert "[p1]" in findings and "[p2]" in findings                 # attributed
 
-    # a fresh review step exists too -- the panel re-fires for the new round
+    # a fresh review step exists too -- the panel re-fires for the new round,
+    # read from the assembly's own transition (not copied from the fixture's
+    # step, which the test overrides above to exercise multi-panelist
+    # attribution independent of what run-a-gate's real panel declares)
     fresh_review = next(s for s in st["steps"]
                         if s.get("panel") and s["id"] not in ("review",))
-    assert fresh_review["panel"] == st["steps"][1]["panel"]  # same panel config carried forward
+    asm_panel = next(s for s in runmod.load_assembly("run-a-gate")["segment"]
+                     if s["id"] == "work")["transition"]["panel"]
+    assert fresh_review["panel"] == asm_panel
     assert st["current"]["id"] == fresh["id"]                # work resumes, not close
 
 

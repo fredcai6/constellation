@@ -157,7 +157,17 @@ def _open_child(assembly, parent, pstep_id):
         prior = [s for s in pst["steps"]
                 if s["segment"] == pstep["segment"] and s["id"] != step_id]
         artifact = pst["done"].get(prior[-1]["id"], {}) if prior else {}
-        prefill = {**(pst.get("prefill") or {}), **artifact.get("fields", {}),
+        # A panelist gets the artifact and its criteria. Fields marked
+        # record-only stay behind: they are the producer's account of a
+        # previous round, and a reviewer told what was wrong last time is
+        # aimed at those spots and steered off everything else. A finding
+        # that was not really fixed gets found again, which is the check
+        # working rather than a gap in it.
+        pform = forms.load(runmod.resolve_form(pasm, pstep["form"])) if pstep.get("form") else {}
+        private = {f["id"] for f in pform.get("fields", []) if f.get("record-only")}
+        prefill = {**(pst.get("prefill") or {}),
+                   **{k: v for k, v in artifact.get("fields", {}).items()
+                      if k not in private},
                    "criteria": panelist.get("criteria", "")}
         title = f"verdict: {step_id}"
     else:
@@ -328,9 +338,11 @@ def cmd_submit(argv):
                 f"  or drop this step: spine {wid} amend close {step['id']} --reason ...")
 
     _check_plan(form, fields)
+    _check_outcome(st, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
     _mint(wid, asm, step, form, fields)
+    _act_on_outcome(wid, asm, step, fields)
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
 
@@ -347,6 +359,84 @@ def _check_plan(form, fields):
             raise SystemExit(render.refusal(
                 f["id"], "must be one or more [[" + f["id"] + "]] blocks, not a "
                 "single value -- nothing was recorded"))
+
+
+def _own_gate(step_id):
+    """The gate an adjudication step decides -- itself, never a valid target
+    for that same step's own outcome."""
+    suffix = "-adjudicate"
+    return step_id[:-len(suffix)] if step_id.endswith(suffix) else step_id
+
+
+def _pending_gates(st, exclude=""):
+    """Gate ids with an unfinished dispatch or adjudication step -- the gate
+    under decision excluded, so an outcome can never name itself."""
+    gates = [s["id"] for s in st["steps"] if s.get("dispatches") == "run-a-gate"]
+    return [g for g in gates if g != exclude
+            and (g not in st["done"] or f"{g}-adjudicate" not in st["done"])]
+
+
+def _check_outcome(st, step, fields):
+    """GATE_TRANSITION's decision, validated before anything is journaled --
+    a submit is durable the moment it lands, so a bad drop target or an empty
+    remint would otherwise strand as a decision the run cannot act on."""
+    if step.get("form") != _GATE_ADJUDICATION_FORM:
+        return
+    outcome = fields.get("plan-holds", "").strip()
+    pending = _pending_gates(st, exclude=_own_gate(step["id"]))
+    if outcome.lower().startswith("drop"):
+        parts = outcome.split(None, 1)
+        target = parts[1].strip() if len(parts) > 1 else ""
+        if not target:
+            raise SystemExit(render.refusal(
+                "plan-holds", "drop needs a gate id -- drop <gate-id>",
+                escape="pending: " + (", ".join(pending) or "none")))
+        if target not in pending:
+            raise SystemExit(render.refusal(
+                "plan-holds", f"{target!r} is not a pending gate",
+                escape="pending: " + (", ".join(pending) or "none")))
+    elif outcome.lower() == "remint":
+        if not fields.get("gate-spec"):
+            raise SystemExit(render.refusal(
+                "gate-spec", "remint needs a new gate spec -- a remint with no "
+                "spec is a drop wearing the wrong name"))
+
+
+def _act_on_outcome(wid, asm, step, fields):
+    """Perform the amends GATE_TRANSITION's outcome names, each journaled
+    with the outcome as its reason -- against freshly folded state, taken
+    now that the submit recording the decision is already journaled, so the
+    deciding step is already done and out of reach of anything this does.
+    `advance` performs nothing."""
+    if step.get("form") != _GATE_ADJUDICATION_FORM:
+        return
+    outcome = fields.get("plan-holds", "").strip()
+    if outcome.lower().startswith("drop"):
+        target = outcome.split(None, 1)[1].strip()
+        st = runmod.state(wid)
+        _close_gate(wid, st, target, outcome)
+    elif outcome.lower() == "remint":
+        seg = next(s for s in asm["segment"] if s.get("dispatches") == "run-a-gate")
+        _mint_gates(wid, seg, fields["gate-spec"])
+    elif outcome.lower() == "replan":
+        # Every gate still pending gets closed by name -- explicit entries,
+        # never a silent sweep -- and the plan segment gets one fresh round
+        # to try again, carrying what this gate taught us.
+        st = runmod.state(wid)
+        for gid in _pending_gates(st, exclude=_own_gate(step["id"])):
+            _close_gate(wid, st, gid, outcome)
+        _mint_segment_round(wid, asm, "plan", prefill={"findings": fields.get("learned", "")})
+
+
+def _close_gate(wid, st, gate_id, reason):
+    """Close one gate's dispatch and adjudication steps by name -- the move
+    both `drop` (one named target) and `replan` (every pending gate) need.
+    Already-done steps are left alone: history is not amendable."""
+    for sid in (gate_id, f"{gate_id}-adjudicate"):
+        s = next((x for x in st["steps"] if x["id"] == sid), None)
+        if s and sid not in st["done"]:
+            journal.append(wid, "amend", action="close", segment=s["segment"],
+                           step=sid, reason=reason, anchor=s.get("anchor", False))
 
 
 def _mint(wid, asm, step, form, fields):
@@ -371,9 +461,17 @@ def _mint(wid, asm, step, form, fields):
 def _mint_gates(wid, seg, gates):
     """Each gate block becomes a dispatch step and, right after it, the
     adjudication step that will hold its returns -- the pair the execute
-    segment's worklist is made of."""
+    segment's worklist is made of.
+
+    Ids are journal-aware: numbering by position was safe only while closing
+    a gate freed its id. A remint no longer closes, so a derived id still
+    live in the journal (its gate ran and stands) collides -- `done` is
+    keyed by step id, and a duplicate would silently complete both."""
+    existing = {s["id"] for s in runmod.state(wid)["steps"]}
     for i, gate in enumerate(gates, start=1):
-        gid = gate.get("id") or f"g{i}"
+        gid = _unique_id(gate.get("id") or f"g{i}", existing)
+        existing.add(gid)
+        existing.add(f"{gid}-adjudicate")
         prefill = {k: v for k, v in gate.items() if k != "id"}
         child = f"{wid}.{gid}"
         journal.append(wid, "step", id=gid, segment=seg["id"], dispatches="run-a-gate",
@@ -382,6 +480,22 @@ def _mint_gates(wid, seg, gates):
         journal.append(wid, "step", id=f"{gid}-adjudicate", segment=seg["id"],
                        form=_GATE_ADJUDICATION_FORM, filler="conductor", child=child,
                        anchor=False, terminal=False, validates="", source="mint")
+
+
+def _unique_id(base, existing):
+    """`base` if it is free, else `base` with a random distinguishing suffix
+    -- readable in the common case, and a collision (which would silently
+    complete every step sharing the id) becomes structurally impossible
+    rather than merely unlikely. Random, not counted, matching `amend add`
+    and the verdict refill: a counted suffix only needs to be right once,
+    read at the moment of the check, and a check-then-suffix window is
+    exactly the race that produces the duplicate this guards against."""
+    if base not in existing:
+        return base
+    while True:
+        candidate = f"{base}-a{secrets.token_hex(2)}"
+        if candidate not in existing:
+            return candidate
 
 
 def _seed_board(template, dest, rows):
@@ -516,16 +630,41 @@ def _amend_reorder(wid, st, step_id, reason, before):
     return cmd_status([wid])
 
 
+def _mint_segment_round(wid, asm, seg_id, prefill=None):
+    """Mint one fresh round of a segment: its step-form as a fresh interior
+    step, plus its transition's panel -- both read from the assembly, never
+    copied from whatever minted last. The shared move a revise and a replan
+    both need: the segment reopened for another pass, carrying the same
+    challenge that judges it.
+
+    Two independent random tags, not one shared: a transition's id defaults
+    to its segment's id (run-an-issue's "plan" names both), and
+    `f"{seg_id}-a{tag}"` would then equal `f"{step_id}-a{tag}"` for the same
+    tag -- one mint silently overwriting the other in the journal.
+    """
+    seg = next(s for s in asm["segment"] if s["id"] == seg_id)
+    t = seg.get("transition", {})
+    journal.append(wid, "step", id=f"{seg_id}-a{secrets.token_hex(2)}", segment=seg_id,
+                   form=seg["step-form"], filler=seg.get("worker", "conductor"),
+                   prefill=prefill or {}, anchor=False, terminal=False, validates="",
+                   source="mint")
+    fresh_panel = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
+                   "panel": t["panel"], "anchor": False, "terminal": False,
+                   "source": "panel"}
+    if t.get("form"):
+        fresh_panel["form"] = t["form"]  # the two-voices shape survives a fresh round
+    journal.append(wid, "step", **fresh_panel)
+
+
 def _act_on_verdicts(pwid, step_id):
     """Once every panelist named by `step_id` has returned, the transition
     acts on the merged verdict. Pass releases: for a panel-only step there is
     nothing more to mint, the verdict itself rides the summary up to whoever
     adjudicates next; for a two-voices step, `state()` has already left it
     open instead, so this is a no-op and the form is what releases it.
-    Revise refills the interior with a fresh step of the segment's step-form
-    and a fresh instance of the same panel, carrying the form forward too
-    when the transition had one -- findings concatenated, never summarised,
-    and attributed to the panelist that raised them."""
+    Revise refills the interior with a fresh round of the segment (see
+    `_mint_segment_round`) -- findings concatenated, never summarised, and
+    attributed to the panelist that raised them."""
     pst = runmod.state(pwid)
     step = next((s for s in pst["steps"] if s["id"] == step_id), None)
     if not step or not step.get("panel") or runmod.panel_outstanding(pst, step):
@@ -536,22 +675,8 @@ def _act_on_verdicts(pwid, step_id):
     findings = "\n\n".join(
         f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
         for r in returns)
-    seg = next(s for s in runmod.load_assembly(pst["assembly"])["segment"]
-              if s["id"] == step["segment"])
-    # Two independent tags, not one shared: a transition's id defaults to its
-    # segment's id (run-an-issue's "plan" names both), and `f"{seg}-a{tag}"`
-    # would then equal `f"{step_id}-a{tag}"` for the same tag -- one mint
-    # silently overwriting the other in the journal.
-    journal.append(pwid, "step", id=f"{step['segment']}-a{secrets.token_hex(2)}",
-                   segment=step["segment"], form=seg["step-form"],
-                   filler=seg.get("worker", "conductor"), prefill={"findings": findings},
-                   anchor=False, terminal=False, validates="", source="mint")
-    fresh_panel = {"id": f"{step_id}-a{secrets.token_hex(2)}", "segment": step["segment"],
-                   "panel": step["panel"], "anchor": False, "terminal": False,
-                   "source": "panel"}
-    if step.get("form"):
-        fresh_panel["form"] = step["form"]  # the two-voices shape survives a revise round
-    journal.append(pwid, "step", **fresh_panel)
+    asm = runmod.load_assembly(pst["assembly"])
+    _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings})
 
 
 def _summary(st):

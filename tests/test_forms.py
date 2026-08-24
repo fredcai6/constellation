@@ -51,8 +51,13 @@ def test_load_implement():
 
 def test_load_gate_transition():
     form = forms.load(GATE_TRANSITION)
-    assert _ids(form) == ["learned", "plan-holds"]
-    assert set(_kinds(form).values()) == {"evidence"}
+    assert _ids(form) == ["learned", "plan-holds", "gate-spec"]
+    kinds = _kinds(form)
+    assert kinds["learned"] == kinds["plan-holds"] == "evidence"
+    assert kinds["gate-spec"] == "plan"
+    spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
+    assert spec["optional"] is True
+    assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "done", "model"]
 
 
 def test_load_defaults_kind_and_note_and_optional():

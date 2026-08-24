@@ -131,6 +131,60 @@ plan-holds = "advance"
 ''')
 
 
+def _fill_gate_transition_drop(wid, gate_id):
+    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+learned = "no longer needed"
+plan-holds = "drop %s"
+''' % gate_id)
+
+
+def _fill_gate_transition_remint(wid, purpose="a corrected gate", scope="src/ only",
+                                 done="true"):
+    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+learned = "the spec was wrong, needs a redo"
+plan-holds = "remint"
+
+[[gate-spec]]
+purpose = "%s"
+scope = "%s"
+done = "%s"
+''' % (purpose, scope, done))
+
+
+def _fill_gate_transition_replan(wid, learned="the cut was wrong from the start"):
+    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+learned = "%s"
+plan-holds = "replan"
+''' % learned)
+
+
+def _fill_gate_transition_remint_no_spec(wid):
+    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+learned = "reconsidering, but not sure what yet"
+plan-holds = "remint"
+''')
+
+
+def _mint_n_gates(n, wid="issue17"):
+    """Like `_mint_two_gates`, but with `n` bare gate blocks -- purpose/scope
+    only, no id, so every gate's id is derived by position."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _fill_plan(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid)
+    blocks = "\n\n".join(
+        '[[gates]]\npurpose = "gate %d purpose"\nscope = "gate %d scope"\ndone = "true"'
+        % (i, i) for i in range(1, n + 1))
+    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
+          'plan = ".agent-work/%s/plan.md"\n\n%s\n' % (wid, blocks))
+    cli.main([wid, "submit"])
+
+
 def _fill_close(wid):
     _fill(journal.location(wid) / "CLOSE.toml", '''
 disposition = "merged to main"
@@ -396,3 +450,287 @@ def test_close_refuses_while_a_step_is_unfinished(workdir, capsys):
         cli.main(["issue22", "close"])
     assert "open" in str(e.value)
     assert "waived:" in str(e.value) or "submit" in str(e.value)
+
+
+# -- GATE_TRANSITION's outcome: the engine acts on the decision --------------
+
+
+def test_advance_performs_no_amends(workdir, capsys):
+    _mint_two_gates()
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    before = len(journal.read("issue17"))
+    _fill_gate_transition("issue17")  # plan-holds = "advance"
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    entries = journal.read("issue17")
+    assert len(entries) == before + 1  # nothing beyond the submit itself
+    assert entries[-1]["kind"] == "submit"
+    assert runmod.state("issue17")["current"]["id"] == "g2"
+
+
+def test_drop_closes_only_the_named_gate_and_never_the_deciding_step(workdir, capsys):
+    _mint_n_gates(3)
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
+
+    _fill_gate_transition_drop("issue17", "g3")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    amends = [e for e in journal.read("issue17") if e["kind"] == "amend"]
+    assert {a["step"] for a in amends} == {"g3", "g3-adjudicate"}
+    assert all(a["action"] == "close" and a["reason"] == "drop g3" for a in amends)
+
+    st = runmod.state("issue17")
+    ids = {s["id"] for s in st["steps"]}
+    assert not ({"g3", "g3-adjudicate"} & ids)             # the named gate is gone
+    assert {"g2", "g2-adjudicate"} <= ids                   # the other gate: untouched
+    assert "g2" not in st["done"]
+    assert st["current"]["id"] == "g2"                      # skips the dropped gate
+    # the deciding step landed via its own submit, never as an amend target
+    assert st["done"]["g1-adjudicate"]["kind"] == "submit"
+
+
+def test_drop_on_a_gate_not_pending_refuses_and_names_pending(workdir, capsys):
+    _mint_n_gates(3)
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    before = len(journal.read("issue17"))
+
+    # its own gate is never a legal target, even though its dispatch and
+    # adjudication are the only steps "current" points near
+    _fill_gate_transition_drop("issue17", "g1")
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    assert "g2" in str(e.value) and "g3" in str(e.value)
+
+    # a made-up id refuses the same way, naming the same pending set
+    _fill_gate_transition_drop("issue17", "gXX")
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    assert "g2" in str(e.value) and "g3" in str(e.value)
+
+    # neither refused attempt journaled anything -- not even the submit
+    assert len(journal.read("issue17")) == before
+    assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
+
+
+def test_remint_with_empty_spec_refuses(workdir, capsys):
+    _mint_two_gates()
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    before = len(journal.read("issue17"))
+    _fill_gate_transition_remint_no_spec("issue17")
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    assert "gate-spec" in str(e.value)
+    assert len(journal.read("issue17")) == before
+    assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
+
+
+def test_remint_mints_a_gate_that_is_reachable_not_already_done(workdir, capsys):
+    _mint_two_gates()
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    _fill_gate_transition_remint("issue17", purpose="redo the fix", scope="src/parser.c")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("issue17")
+    new_gates = [s for s in st["steps"] if s.get("dispatches") == "run-a-gate"
+                and s["id"] not in ("g1", "g2")]
+    assert len(new_gates) == 1
+    new_gate = new_gates[0]
+    assert new_gate["id"] != "g1"                # default "g1" collided, took a suffix
+    assert new_gate["id"].startswith("g1-a")
+    assert new_gate["id"] not in st["done"]
+    assert f"{new_gate['id']}-adjudicate" not in st["done"]
+    assert new_gate["prefill"]["purpose"] == "redo the fix"
+
+    # remint closed nothing -- least of all the gate that just ran
+    assert not any(e["kind"] == "amend" for e in journal.read("issue17"))
+    assert "g1" in st["done"] and "g1-adjudicate" in st["done"]
+
+    # genuinely reachable, not a step that merely looks done: drive it closed
+    child_wid = _dispatch_and_close_child("issue17", new_gate["id"])
+    assert journal.exists(child_wid)
+    assert new_gate["id"] in runmod.state("issue17")["done"]
+
+
+def test_reminting_twice_derives_distinct_ids_from_the_same_default(workdir, capsys):
+    """Two reminds that both leave the id blank both derive the same default
+    ("g1", position 1 within their own block) and both collide with the
+    original g1 -- this is what the suffix mechanism must actually resolve,
+    not merely tolerate once."""
+    _mint_two_gates()
+    capsys.readouterr()
+
+    _dispatch_and_close_child("issue17", "g1")
+    _fill_gate_transition_remint("issue17", purpose="first redo")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+    st = runmod.state("issue17")
+    first_new = next(s["id"] for s in st["steps"]
+                     if s.get("dispatches") == "run-a-gate" and s["id"] not in ("g1", "g2"))
+
+    _dispatch_and_close_child("issue17", "g2")
+    _fill_gate_transition_remint("issue17", purpose="second redo")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+    st = runmod.state("issue17")
+    new_ids = {s["id"] for s in st["steps"] if s.get("dispatches") == "run-a-gate"} \
+        - {"g1", "g2"}
+    second_new = (new_ids - {first_new}).pop()
+
+    assert first_new != second_new
+    assert first_new.startswith("g1-a") and second_new.startswith("g1-a")
+
+
+# -- replan: close every pending gate by name, re-enter plan -----------------
+
+
+def test_replan_closes_every_pending_gate_by_name_leaving_closed_gates_and_the_decider_untouched(
+        workdir, capsys):
+    _mint_n_gates(3)
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+    assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
+
+    _fill_gate_transition_replan("issue17", learned="the cut was wrong from the start")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    amends = [e for e in journal.read("issue17") if e["kind"] == "amend"]
+    closed = {a["step"] for a in amends}
+    assert closed == {"g2", "g2-adjudicate", "g3", "g3-adjudicate"}  # every pending gate, named
+    assert all(a["action"] == "close" and a["reason"] == "replan" for a in amends)
+    assert "g1" not in closed and "g1-adjudicate" not in closed  # the deciding step: untouched
+                                                                  # by its own outcome
+
+    st = runmod.state("issue17")
+    ids = {s["id"] for s in st["steps"]}
+    assert not ({"g2", "g2-adjudicate", "g3", "g3-adjudicate"} & ids)  # gone from the worklist
+    assert "g1" in st["done"] and "g1-adjudicate" in st["done"]        # closed gate: untouched
+    assert st["done"]["g1-adjudicate"]["kind"] == "submit"             # via its own submit,
+                                                                        # never as an amend target
+
+
+def test_replan_with_nothing_pending_closes_nothing_and_still_reenters_plan(workdir, capsys):
+    """A replan on the last (only) gate has no other pending gate to close --
+    it should mint the fresh plan round and journal no amends at all, rather
+    than refusing for lack of anything to sweep."""
+    _mint_n_gates(1)
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    before = len(journal.read("issue17"))
+    _fill_gate_transition_replan("issue17")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    entries = journal.read("issue17")
+    assert not any(e["kind"] == "amend" for e in entries)  # nothing pending, nothing closed
+    assert len(entries) == before + 3  # the submit, plus the two fresh "plan" steps minted
+    assert "g1" in runmod.state("issue17")["done"]
+
+
+def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_reachable(
+        workdir, capsys):
+    _mint_n_gates(2)
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    _fill_gate_transition_replan("issue17", learned="the cut was wrong from the start")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("issue17")
+    fresh_plan = next(s for s in st["steps"]
+                      if s["segment"] == "plan" and s.get("source") == "mint")
+    assert fresh_plan["form"] == "forms/PLAN.toml"
+    assert fresh_plan["prefill"]["findings"] == "the cut was wrong from the start"
+
+    fresh_panel = next(s for s in st["steps"] if s.get("source") == "panel")
+    assert fresh_panel["segment"] == "plan"
+    assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"   # the two-voices shape survives
+    assert fresh_panel["panel"][0]["criteria"].startswith("intent-fit")  # the real critic panel
+
+    # genuinely reachable, not a step that merely looks minted
+    assert st["current"]["id"] == fresh_plan["id"]
+
+    _fill_plan("issue17")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+    assert runmod.state("issue17")["current"]["id"] == fresh_panel["id"]
+
+    # carry the fresh plan through its critic to confirm the panel really fires
+    _dispatch_plan_critic("issue17", verdict="pass")
+    capsys.readouterr()
+    st = runmod.state("issue17")
+    assert st["current"]["id"] == fresh_panel["id"]  # resolved, waiting on its own form now
+
+    _fill(pathlib.Path(".agent-work/issue17/PLAN_TO_EXECUTE.toml"), '''
+plan = ".agent-work/issue17/plan.md"
+
+[[gates]]
+purpose = "redo the cut correctly"
+scope = "src/ only"
+done = "true"
+''')
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("issue17")
+    # g1 (already done) is still on record; g2 was swept by the replan --
+    # the only other dispatch step left is the fresh cut
+    new_gates = [s for s in st["steps"] if s.get("dispatches") == "run-a-gate" and s["id"] != "g1"]
+    assert len(new_gates) == 1
+    assert new_gates[0]["prefill"]["purpose"] == "redo the cut correctly"
+
+
+def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsys):
+    """`_act_on_verdicts` now mints through `_mint_segment_round`, the same
+    primitive replan uses -- this pins that a plan-to-execute revise round
+    still behaves exactly as before the extraction."""
+    wid = "issue18"
+    cli.main(["open", "run-an-issue", "--issue", "18", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _fill_plan(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable")
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    fresh_plan = next(s for s in st["steps"]
+                      if s["segment"] == "plan" and s.get("source") == "mint")
+    assert fresh_plan["form"] == "forms/PLAN.toml"
+    assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
+    assert "[p1]" in fresh_plan["prefill"]["findings"]
+
+    fresh_panel = next(s for s in st["steps"]
+                       if s.get("panel") and s["id"] != "plan")
+    assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"
+    assert fresh_panel["panel"] == st["steps"][3]["panel"]  # same panel config
+    assert st["current"]["id"] == fresh_plan["id"]

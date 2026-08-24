@@ -20,4 +20,36 @@ kind = "evidence"
 note = """
 advance | remint | drop <gate-id> | replan — on anything but advance, the
 amend is the evidence. Adjudicate the child's amend summary: accept or
-contest each entry."""
+contest each entry. remint fills gate-spec below with the fresh gate; it
+closes nothing, since this gate has already run and history is not
+amendable. drop closes the named gate's dispatch and adjudication steps —
+it must be pending, and never this one."""
+
+[[field]]
+id = "gate-spec"
+kind = "plan"
+optional = true
+note = """
+Only for remint: the fresh gate replacing the one that just ran, same shape
+as a plan-to-execute gate block. Leave empty for advance, drop, or replan —
+an empty spec on a remint is refused."""
+
+  [[field.item]]
+  id = "purpose"
+  note = "What this gate accomplishes, and why the plan needs it."
+
+  [[field.item]]
+  id = "scope"
+  note = "Where the change lives, and what is out of bounds."
+
+  [[field.item]]
+  id = "done"
+  kind = "check"
+  note = """
+The commands whose output shows the gate filled its spec. Reference the
+command palette (constellation.toml) rather than hardcoding where it applies."""
+
+  [[field.item]]
+  id = "model"
+  optional = true
+  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
