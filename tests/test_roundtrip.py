@@ -31,17 +31,20 @@ def test_open_mints_the_skeleton(workdir, capsys):
     st = runmod.state("issue17")
     assert st["assembly"] == "run-an-issue"
     assert st["title"] == "parser drops last record"
-    # one step per segment transition that has a form to fill
-    assert [s["id"] for s in st["steps"]] == ["open", "understand", "plan", "execute"]
+    # per segment: its first interior step (when it declares one), then its
+    # transition. A worklist starts with one step -- the work is what the
+    # segment is for.
+    assert [s["id"] for s in st["steps"]] == [
+        "open", "understand", "plan-1", "plan", "execute"]
     assert st["current"]["id"] == "open"
-    assert all(s["anchor"] for s in st["steps"])
+    assert all(s["anchor"] for s in st["steps"] if not s["id"].endswith("-1"))
 
 
 def test_status_is_a_room_description(workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     out = capsys.readouterr().out
 
-    assert "issue17 · run-an-issue · open (1 of 4)" in out
+    assert "issue17 · run-an-issue · open (1 of 5)" in out
     assert "issue17: parser drops last record" in out
     # the imperative is rendered, not the raw form
     assert "Confirm what this run is solving" in out
@@ -99,7 +102,7 @@ def test_submit_advances_and_seeds_the_board(workdir, capsys):
     st = runmod.state("issue17")
     assert "open" in st["done"]
     assert st["current"]["id"] == "understand"
-    assert "understand (2 of 4)" in out
+    assert "understand (2 of 5)" in out
 
     # the plan field minted board rows, and the board keeps its guidance
     board = pathlib.Path(".agent-work/issue17/UNDERSTAND.toml")
@@ -118,7 +121,7 @@ def test_the_journal_is_the_only_state(workdir):
     # every fact above is recoverable from the file alone
     kinds = [e["kind"] for e in journal.read("issue17")]
     assert kinds[0] == "run"
-    assert kinds.count("step") == 4
+    assert kinds.count("step") == 5
     assert "submit" in kinds and "board" in kinds
     assert not list(pathlib.Path(".agent-work/issue17").glob("*state*"))
 

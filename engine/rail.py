@@ -50,6 +50,10 @@ def _event_name():
 
 def _block(st, label, verb):
     i, n, seg = runmod.position(st, None)
+    if st.get("awaiting_close"):
+        # The quietest way to strand a parent: finish every step and walk away.
+        return [f"{st['id']} needs closing · returns not yet stamped",
+                f"  close it: spine {st['id']} close"]
     lines = [f"{st['id']} {label} · {seg} ({i} of {n})",
              f"  {verb}: spine {st['id']}"]
     for b in runmod.blocks(st):

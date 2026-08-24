@@ -37,6 +37,7 @@ def _open_run(wid="issue17", blocked=False):
 
 def _close_run(wid="issue17"):
     journal.append(wid, "submit", step="execute", fields={})
+    journal.append(wid, "closed")
 
 
 # -- never raises, always exits 0, no output on failure ----------------------

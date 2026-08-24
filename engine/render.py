@@ -60,6 +60,14 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append(f"  resume with: spine {wid} note resumed {b.get('id','')}")
         out.append("")
 
+    if st.get("awaiting_close"):
+        out.append("  Every step is done. The run is not finished until it is")
+        out.append("  closed -- closing is what stamps the returns to whoever")
+        out.append("  dispatched this run.")
+        out.append("")
+        out.append(f"  close it with:     spine {wid} close")
+        return "\n".join(out)
+
     if not st.get("open"):
         out.append("  This run is closed. Its record is in "
                    f".agent-work/{wid.replace('.', '/')}/journal.toml")
