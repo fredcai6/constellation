@@ -103,8 +103,19 @@ def _is_blank(v) -> bool:
     return v == "" or (isinstance(v, str) and v.strip() == "") or v == []
 
 
-def parse(dest_path) -> dict:
+def _parse_impl(dest_path) -> dict:
     with open(dest_path, "rb") as f:
         raw = tomllib.load(f)
     cleaned = {k: _clean(v) for k, v in raw.items()}
     return {k: v for k, v in cleaned.items() if not _is_blank(v)}
+
+
+def parse(dest_path):
+    """Read a filled response form. A file the agent broke while filling it is
+    a refusal naming the line, never a traceback -- the agent is mid-edit and
+    needs to know where to look."""
+    try:
+        return _parse_impl(dest_path)
+    except tomllib.TOMLDecodeError as e:
+        raise SystemExit(f"{Path(dest_path).name}: not valid TOML -- {e}\n"
+                         "  fix the file and submit again; nothing was recorded")

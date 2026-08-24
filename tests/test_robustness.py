@@ -175,3 +175,52 @@ def test_status_names_the_board_it_will_validate(workdir, capsys):
     out = capsys.readouterr().out
     assert "UNDERSTAND.toml" in out
     assert "will not pass while a row is open" in out
+
+
+def test_every_refusal_states_an_escape_that_works(workdir):
+    """A refusal used to append one hardcoded suffix -- correct for a form
+    field, wrong for a board row (which takes deferred:, not waived:), and
+    nonsensical for a lookup. Printing an escape that does not work is worse
+    than printing none."""
+    _open()
+    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+        'issue = "gh:17"\nauthority = "T."\n[[questions]]\nquestion = "q?"\ntype = "fact"\n')
+    cli.main(["issue17", "submit"])
+    pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
+        'learnings = "x"\nkey-terms = "waived: none"\nsettle = "waived: none"\n')
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    msg = str(e.value)
+    assert "deferred:" in msg
+    assert "waived:" not in msg   # the escape boards.validate does not accept
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "amend", "close", "nosuch", "--reason", "r"])
+    assert "pending:" in str(e.value)   # names the ids that were in scope all along
+
+
+def test_a_crash_is_never_a_refusal(workdir):
+    """Two paths raised bare Python errors: nothing journaled, no way forward.
+    Worse than an illegitimate refusal."""
+    _open()
+    with pytest.raises(SystemExit):
+        cli.main(["issue17", "amend"])            # was IndexError
+
+    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text('issue = "unclosed\n')
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])           # was TOMLDecodeError
+    assert "not valid TOML" in str(e.value)
+    assert "nothing was recorded" in str(e.value)
+
+
+def test_an_amended_anchor_is_flagged_where_it_will_be_read(workdir):
+    """The design's freeze is visibility, not refusal: amending an anchor is
+    allowed and must be loud in the record the tier above reads."""
+    _open()
+    cli.main(["issue17", "amend", "close", "understand",
+              "--reason", "issue already states it"])
+    from engine import render
+    lines = render.amends(runmod.state("issue17")["amends"])
+    assert lines and lines[0].startswith("ANCHOR ")
+    assert "issue already states it" in lines[0]

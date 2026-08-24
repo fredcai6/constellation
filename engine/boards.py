@@ -37,7 +37,8 @@ def validate(board_path) -> list[str]:
     for i, row in enumerate(found):
         rid = row.get("id") or f"row {i + 1}"
         if not row.get("question") or not row.get("type"):
-            problems.append(f"{rid}: missing question or type -- malformed row")
+            problems.append(f"{rid}: missing question or type -- fill both, "
+                            "or drop the row")
             continue
         status = str(row.get("status", "open"))
         reason = status[len(_DEFERRED):].strip() if status.startswith(_DEFERRED) else None
@@ -51,7 +52,10 @@ def validate(board_path) -> list[str]:
         elif status.startswith("deferred"):
             problems.append(f"{rid}: deferred with no reason -- deferred: <reason>")
         else:
-            problems.append(f"{rid}: still {status} -- resolve it, or answer deferred: <reason>")
+            problems.append(
+                f"{rid}: sent up and not answered yet -- record the principal's "
+                "answer, or deferred: <reason>" if status == "up" else
+                f"{rid}: still {status} -- resolve it, or answer deferred: <reason>")
     return problems
 
 

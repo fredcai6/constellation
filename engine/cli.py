@@ -109,7 +109,7 @@ def cmd_open(argv):
     issue = _opt(argv, "--issue")
     wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue))
     if journal.exists(wid):
-        raise SystemExit(f"{wid} already exists")
+        raise SystemExit(f"{wid} already exists\n  where it stands: spine {wid}")
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""))
@@ -124,13 +124,15 @@ def _open_child(assembly, parent, pstep_id):
     tier it runs under all come from the parent's dispatch step."""
     pst = runmod.state(parent)
     if pst is None:
-        raise SystemExit(f"no run named {parent}")
+        raise SystemExit(f"no run named {parent}\n  open runs: spine")
     pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
     if pstep is None or not pstep.get("dispatches"):
-        raise SystemExit(render.refusal(pstep_id or "step", "not a dispatch step"))
+        raise SystemExit(render.refusal(
+            pstep_id or "step", "not a dispatch step",
+            escape=f"steps here: " + ", ".join(s["id"] for s in pst["steps"])))
     wid = _check_id(pstep.get("child") or f"{parent}.{pstep_id}")
     if journal.exists(wid):
-        raise SystemExit(f"{wid} already exists")
+        raise SystemExit(f"{wid} already exists\n  where it stands: spine {wid}")
     pasm = runmod.load_assembly(pst["assembly"])
     tier = _tier(pstep, pasm)
     asm = runmod.load_assembly(assembly)
@@ -167,7 +169,7 @@ def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}")
+        raise SystemExit(f"no run named {wid}\n  open runs: spine")
     if not st["open"] or st["awaiting_close"]:
         print(render.status(st, {}, "", position=runmod.position(st, None)))
         return 0
@@ -180,6 +182,10 @@ def cmd_status(argv):
         forms.materialize(form, dest, work_id=wid, submit=f"spine {wid} submit")
     ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
     returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
+    if returns and returns.get("amends"):
+        # the child's amends, spelled out rather than left as a raw list --
+        # this is the field the adjudicating tier is meant to act on
+        returns["amends"] = "; ".join(render.amends(returns["amends"])) or "none"
     board = st["boards"].get(step["segment"]) if step.get("validates") == "board" else None
     print(render.status(st, form, dest, prefill=st.get("prefill") or step.get("prefill"),
                         returns=returns, blocked=runmod.blocks(st),
@@ -210,7 +216,7 @@ def cmd_submit(argv):
         problems = boards.validate(board) if board else []
         if problems:
             raise SystemExit(render.refusal(pathlib.Path(board).name,
-                                            "\n  ".join(problems)))
+                                            "\n  ".join(problems), escape=""))
 
     checks, fields = {}, {}
     for f in form["fields"]:
@@ -344,7 +350,7 @@ def cmd_note(argv):
         raise SystemExit(f"no note kind {kind!r} -- one of: {', '.join(NOTE_KINDS)}")
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}")
+        raise SystemExit(f"no run named {wid}\n  open runs: spine")
     # `note resumed n1` names the block it clears; the rest of the words are
     # the note. Counting existing notes to pick an id collides when two
     # sessions note at once, and a shared id would clear the wrong block.
@@ -359,13 +365,15 @@ def cmd_note(argv):
 
 
 def cmd_amend(argv):
+    if len(argv) < 2:
+        raise SystemExit("spine <work-id> amend add|close|reorder ... --reason \"...\"")
     wid, action = argv[0], argv[1]
     reason = _opt(argv, "--reason")
     if not reason:
         raise SystemExit(render.refusal("reason", "amend needs --reason"))
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}")
+        raise SystemExit(f"no run named {wid}\n  open runs: spine")
     if action == "add":
         return _amend_add(wid, st, argv[2:], reason)
     if action == "close":
@@ -384,7 +392,9 @@ def _amend_add(wid, st, argv, reason):
         raise SystemExit(render.refusal("form", "amend add needs --form"))
     asm = runmod.load_assembly(st["assembly"])
     if not any(s["id"] == seg for s in asm["segment"]):
-        raise SystemExit(render.refusal("segment", f"no segment named {seg!r}"))
+        raise SystemExit(render.refusal(
+            "segment", f"no segment named {seg!r}",
+            escape="segments: " + ", ".join(s["id"] for s in asm["segment"])))
     # Random, not counted: two sessions amending at once both compute the same
     # next number, and duplicate ids are worse than ugly -- `done` is keyed by
     # step id, so one submit would silently complete every step sharing it.
@@ -401,12 +411,21 @@ def _amend_add(wid, st, argv, reason):
     return cmd_status([wid])
 
 
+def _pending(st):
+    """The steps an amend can still touch -- named at every refusal, because
+    the ids are right here and making the agent go look them up is the whole
+    thing this engine exists not to do."""
+    return "pending: " + (", ".join(
+        s["id"] for s in st["steps"] if s["id"] not in st["done"]) or "none")
+
+
 def _amend_close(wid, st, step_id, reason):
     step = next((s for s in st["steps"] if s["id"] == step_id), None)
     if step is None:
-        raise SystemExit(render.refusal(step_id, "no such step"))
+        raise SystemExit(render.refusal(step_id, "no such step", _pending(st)))
     if step_id in st["done"]:
-        raise SystemExit(render.refusal(step_id, "already complete -- amend cannot drop done work"))
+        raise SystemExit(render.refusal(
+            step_id, "already complete -- history is not amendable", _pending(st)))
     journal.append(wid, "amend", action="close", segment=step["segment"], step=step_id,
                    reason=reason, anchor=step.get("anchor", False))
     print(f"amended: closed {step_id}\n")
@@ -416,11 +435,12 @@ def _amend_close(wid, st, step_id, reason):
 def _amend_reorder(wid, st, step_id, reason, before):
     step = next((s for s in st["steps"] if s["id"] == step_id), None)
     if step is None:
-        raise SystemExit(render.refusal(step_id, "no such step"))
+        raise SystemExit(render.refusal(step_id, "no such step", _pending(st)))
     if not before:
         raise SystemExit(render.refusal("before", "amend reorder needs --before"))
     if step_id in st["done"]:
-        raise SystemExit(render.refusal(step_id, "already complete -- amend cannot reorder done work"))
+        raise SystemExit(render.refusal(
+            step_id, "already complete -- history is not amendable", _pending(st)))
     journal.append(wid, "amend", action="reorder", segment=step["segment"], step=step_id,
                    before=before, reason=reason, anchor=step.get("anchor", False))
     print(f"amended: reordered {step_id} before {before}\n")
@@ -452,7 +472,7 @@ def cmd_close(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}")
+        raise SystemExit(f"no run named {wid}\n  open runs: spine")
     if st.get("closed"):
         raise SystemExit(f"{wid} is already closed")
     pending = [s["id"] for s in st["steps"] if s["id"] not in st["done"]]

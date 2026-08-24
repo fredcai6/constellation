@@ -21,6 +21,18 @@ def _para(text, indent="  "):
     return "\n\n".join(out)
 
 
+def amends(entries):
+    """One line per amend, anchors called out. This is the whole enforcement
+    of the freeze: the tier above reads it and accepts or contests. A flag
+    nobody renders is not a safeguard, it is inert data."""
+    out = []
+    for a in entries or []:
+        mark = "ANCHOR " if a.get("anchor") else ""
+        out.append(f"{mark}{a.get('action','')} {a.get('step','')} "
+                   f"in {a.get('segment','')} — {a.get('reason','')}".strip())
+    return out
+
+
 def _pairs(rows, indent="    "):
     """Aligned label/value lines, wrapped under the label."""
     if not rows:
@@ -84,7 +96,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         return "\n".join(out)
 
     if prefill:
-        out.append("  your orders — contest them up, never edit them")
+        out.append("  your orders")
         out.append(_pairs(list(prefill.items())))
         out.append("")
 
@@ -106,11 +118,18 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     return "\n".join(out)
 
 
-def refusal(field_id, why):
-    """A refusal names the failing field and nothing else -- no lecture, and
-    always the way out."""
-    return (f"{field_id}: {why}\n"
-            f"  fill it, or answer  waived: <reason>  /  unknown: <reason>")
+FILL_OR_NULL = "fill it, or answer  waived: <reason>  /  unknown: <reason>"
+
+
+def refusal(field_id, why, escape=FILL_OR_NULL):
+    """A refusal names what failed and how to get past it -- no lecture.
+
+    The escape is a parameter because it is not always the same one. A board
+    row takes `deferred:`, not `waived:`; a lookup takes a different command
+    entirely. One hardcoded suffix made half the refusals in this engine
+    print an escape that does not work, which is worse than printing none.
+    """
+    return f"{field_id}: {why}" + (f"\n  {escape}" if escape else "")
 
 
 def ledger(rows):
