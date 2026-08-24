@@ -126,15 +126,17 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
                    child="issue17.g1", source="mint")
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     child = "issue17.g1"
-    # the review transition mints a panel step with no form -- dispatching it
-    # is later work the engine doesn't render yet, so drop it by amend before
-    # work-1 is submitted (submitting renders the new current step, which
-    # would need to render the panel step itself first)
-    cli.main([child, "amend", "close", "review",
-              "--reason", "panel dispatch not yet rendered"])
     pathlib.Path(f".agent-work/issue17/g1/IMPLEMENT.toml").write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([child, "submit"])
+    # drive the review panel for real: one panelist, a pass verdict
+    cli.main(["open", "give-a-verdict", "--parent", child, "--step", "review.p1"])
+    panelist = f"{child}.review.p1"
+    pathlib.Path(f".agent-work/issue17/g1/review/p1/REVIEW.toml").write_text(
+        'verify = "read it"\nfindings = "none: waived: clean"\n'
+        'vocabulary = "waived: consistent"\nverdict = "pass"\n')
+    cli.main([panelist, "submit"])
+    cli.main([panelist, "close"])
     pathlib.Path(f".agent-work/issue17/g1/GATE_CLOSE.toml").write_text(
         'residue = "waived: none"\n')
     cli.main([child, "submit"])

@@ -1,0 +1,16 @@
+# Assembly: one panelist's verdict. Opened by a transition's panel, one
+# child per panelist -- the artifact under review and the panelist's own
+# criteria arrive as prefill. A single anchored, terminal step: there is
+# nothing here but the verdict, so review never grows an interior of its own.
+
+assembly = "give-a-verdict"
+conductor = "reviewer"
+
+[[segment]]
+id = "verdict"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "skills/reviewer/forms/REVIEW.toml"
+filler = "reviewer"

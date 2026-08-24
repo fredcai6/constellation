@@ -7,6 +7,7 @@ never your run.
 """
 
 import pathlib
+import re
 import secrets
 import subprocess
 import sys
@@ -89,6 +90,8 @@ def _current_form(st):
     step = st["current"]
     if step.get("dispatches"):
         return asm, step, None  # rendered as a command, not a form
+    if step.get("panel") and not step.get("form"):
+        return asm, step, None  # rendered as N commands; the outcome is mechanical
     return asm, step, forms.load(runmod.resolve_form(asm, step["form"]))
 
 
@@ -119,28 +122,52 @@ def cmd_open(argv):
     return cmd_status([wid])
 
 
+_PANEL_TAG = re.compile(r"^(.+)\.(p\d+)$")  # "<step-id>.pN" addresses one panelist
+
+
 def _open_child(assembly, parent, pstep_id):
     """A child is dispatched, never composed: its id, its orders, and the
-    tier it runs under all come from the parent's dispatch step."""
+    tier it runs under all come from the parent's step. A panelist is the
+    same mechanism one entry finer -- `<step-id>.pN` names which panel
+    entry, and the tag rides the work id so several children can share one
+    parent step without colliding."""
     pst = runmod.state(parent)
     if pst is None:
         raise SystemExit(f"no run named {parent}\n  open runs: spine")
-    pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
-    if pstep is None or not pstep.get("dispatches"):
+    m = _PANEL_TAG.match(pstep_id or "")
+    step_id, tag = (m.group(1), m.group(2)) if m else (pstep_id, "")
+    n = int(tag[1:]) if tag else 0
+    pstep = next((s for s in pst["steps"] if s["id"] == step_id), None)
+    if pstep is None or not (pstep.get("dispatches") or
+                             (tag and pstep.get("panel") and 1 <= n <= len(pstep["panel"]))):
         raise SystemExit(render.refusal(
-            pstep_id or "step", "not a dispatch step",
-            escape=f"steps here: " + ", ".join(s["id"] for s in pst["steps"])))
+            pstep_id or "step", "not a dispatch step or a panelist",
+            escape="steps here: " + ", ".join(s["id"] for s in pst["steps"])))
     wid = _check_id(pstep.get("child") or f"{parent}.{pstep_id}")
     if journal.exists(wid):
         raise SystemExit(f"{wid} already exists\n  where it stands: spine {wid}")
     pasm = runmod.load_assembly(pst["assembly"])
-    tier = _tier(pstep, pasm)
+    if tag:
+        panelist = pstep["panel"][n - 1]
+        assembly = "give-a-verdict"
+        seg = next((s for s in pasm["segment"] if s["id"] == pstep["segment"]), {})
+        tier = panelist.get("model") or seg.get("model", "")
+        # the artifact under review is whatever the segment's most recent
+        # non-panel step produced -- the latest implement, cycles included
+        prior = [s for s in pst["steps"]
+                if s["segment"] == pstep["segment"] and s["id"] != step_id]
+        artifact = pst["done"].get(prior[-1]["id"], {}) if prior else {}
+        prefill = {**(pst.get("prefill") or {}), **artifact.get("fields", {}),
+                   "criteria": panelist.get("criteria", "")}
+        title = f"verdict: {step_id}"
+    else:
+        tier = _tier(pstep, pasm)
+        prefill = pstep.get("prefill") or {}
+        title = prefill.get("purpose", pstep_id)
     asm = runmod.load_assembly(assembly)
-    prefill = pstep.get("prefill") or {}
-    title = prefill.get("purpose", pstep_id)
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
-                   parent_step=pstep_id, model=tier)
+                   parent_step=step_id, model=tier)
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
         journal.append(wid, "step", **step)
@@ -165,6 +192,26 @@ def _dispatch_status(wid, st, asm, step, blocked):
     return "\n".join(lines)
 
 
+def _panel_status(wid, st, asm, step, blocked):
+    """A panel step renders one command per panelist -- copied, never
+    composed -- with who has returned and who is still outstanding."""
+    seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
+    returned = {r["child"].rsplit(".", 1)[-1] for r in st["returns"].get(step["id"], [])}
+    lines = render.preamble(st, blocked, runmod.position(st, asm))
+    for i, panelist in enumerate(step["panel"], start=1):
+        tag = f"p{i}"
+        tier = panelist.get("model") or seg.get("model", "")
+        runner = _runner(tier)
+        lines.append(f"  panelist {tag} ({'returned' if tag in returned else 'outstanding'})"
+                     f" -- criteria: {panelist.get('criteria', '')}")
+        lines.append(f"    tier {tier or '(unset)'}, runner "
+                     f"{runner or '(unresolved -- check constellation.toml [models])'}")
+        lines.append(f"    spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}")
+        lines.append("")
+    lines.append(render.legal_moves(wid))
+    return "\n".join(lines)
+
+
 def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -177,6 +224,9 @@ def cmd_status(argv):
     if step.get("dispatches"):
         print(_dispatch_status(wid, st, asm, step, runmod.blocks(st)))
         return 0
+    if step.get("panel") and not step.get("form"):
+        print(_panel_status(wid, st, asm, step, runmod.blocks(st)))
+        return 0
     dest = _response_path(st, step)
     if not dest.exists():
         forms.materialize(form, dest, work_id=wid, submit=f"spine {wid} submit")
@@ -187,7 +237,8 @@ def cmd_status(argv):
         # this is the field the adjudicating tier is meant to act on
         returns["amends"] = "; ".join(render.amends(returns["amends"])) or "none"
     board = st["boards"].get(step["segment"]) if step.get("validates") == "board" else None
-    print(render.status(st, form, dest, prefill=st.get("prefill") or step.get("prefill"),
+    prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
+    print(render.status(st, form, dest, prefill=prefill,
                         returns=returns, blocked=runmod.blocks(st),
                         position=runmod.position(st, asm), board=board))
     return 0
@@ -206,6 +257,10 @@ def cmd_submit(argv):
             step["id"],
             f"a dispatch step is not submitted -- open its child: "
             f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"))
+    if step.get("panel") and not step.get("form"):
+        raise SystemExit(render.refusal(
+            step["id"], "a panel step is not submitted -- the panelists' verdicts "
+            f"complete it", escape=f"who is outstanding: spine {wid}"))
     dest = _response_path(st, step)
     if not dest.exists():
         raise SystemExit(f"no response form yet — run: spine {wid}")
@@ -447,21 +502,67 @@ def _amend_reorder(wid, st, step_id, reason, before):
     return cmd_status([wid])
 
 
+def _merged_verdict(returns):
+    """Escalate outranks revise outranks pass: a wrong spec outranks a wrong
+    diff, and any blocking finding outranks a clean one."""
+    vs = [(r.get("fields") or {}).get("verdict", "").strip().lower() for r in returns]
+    if any(v.startswith("escalate") for v in vs):
+        return "escalate"
+    if any(v.startswith("revise") for v in vs):
+        return "revise"
+    return "pass"
+
+
+def _act_on_verdicts(pwid, step_id):
+    """Once every panelist named by `step_id` has returned, the transition
+    acts. Pass and escalate release: nothing more to mint, the verdict
+    itself rides the summary up to whoever adjudicates next. Revise refills
+    the interior with a fresh step of the segment's step-form and a fresh
+    instance of the same panel -- findings concatenated, never summarised,
+    and attributed to the panelist that raised them."""
+    pst = runmod.state(pwid)
+    step = next((s for s in pst["steps"] if s["id"] == step_id), None)
+    if not step or not step.get("panel") or step.get("form") or step_id not in pst["done"]:
+        return
+    returns = pst["returns"][step_id]
+    if _merged_verdict(returns) != "revise":
+        return
+    findings = "\n\n".join(
+        f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
+        for r in returns)
+    seg = next(s for s in runmod.load_assembly(pst["assembly"])["segment"]
+              if s["id"] == step["segment"])
+    tag = secrets.token_hex(2)
+    journal.append(pwid, "step", id=f"{step['segment']}-a{tag}", segment=step["segment"],
+                   form=seg["step-form"], filler=seg.get("worker", "conductor"),
+                   prefill={"findings": findings}, anchor=False, terminal=False,
+                   validates="", source="mint")
+    journal.append(pwid, "step", id=f"{step_id}-a{tag}", segment=step["segment"],
+                   panel=step["panel"], anchor=False, terminal=False, source="panel")
+
+
 def _summary(st):
     """The mechanical record a `close` writes -- assembled from the journal,
     never typed: how many steps landed, how many were minted or amended into
-    each segment beyond its first (the implement/review loop count), every
-    check the engine ran, the tier this run was dispatched under, and one
-    line per amend."""
+    each segment beyond its first (the implement/review loop count), the
+    review panel's verdict where this run had one, every check the engine
+    ran, the tier this run was dispatched under, and one line per amend."""
     cycles = {}
     for s in st["steps"]:
         if s.get("source") in ("mint", "amend"):
             cycles[s["segment"]] = cycles.get(s["segment"], 0) + 1
+    verdict = ""
+    for s in st["steps"]:
+        if s.get("panel") and not s.get("form"):
+            rs = st["returns"].get(s["id"]) or []
+            if rs:
+                verdict = _merged_verdict(rs)
     amends = [{"segment": a.get("segment", ""), "reason": a.get("reason", ""),
                "anchor": a.get("anchor", False)} for a in st.get("amends", [])]
     return {
         "steps_completed": len(st["done"]),
         "cycles": [{"segment": seg, "count": n} for seg, n in cycles.items()],
+        "verdict": verdict,
         "checks": list(st.get("checks", [])),
         "model": st.get("model", ""),
         "amends": amends,
@@ -475,10 +576,22 @@ def cmd_close(argv):
         raise SystemExit(f"no run named {wid}\n  open runs: spine")
     if st.get("closed"):
         raise SystemExit(f"{wid} is already closed")
-    pending = [s["id"] for s in st["steps"] if s["id"] not in st["done"]]
+    pending = [s for s in st["steps"] if s["id"] not in st["done"]]
     if pending:
+        step = pending[0]
+        # The way past a pending step depends on what kind it is: a panel step
+        # has no form to fill, a dispatch step has no form either, and offering
+        # the wrong escape is worse than offering none.
+        if step.get("panel") and not step.get("form"):
+            how = f"its panelists complete it: spine {wid}"
+        elif step.get("dispatches"):
+            how = f"open its child: spine open {step['dispatches']} --parent {wid} " \
+                  f"--step {step['id']}"
+        else:
+            how = f"fill its form and submit it: spine {wid} submit"
         raise SystemExit(render.refusal(
-            pending[0], "not complete -- submit it, open its child, or amend it away"))
+            step["id"], "not complete",
+            escape=f"{how}\n  or drop it: spine {wid} amend close {step['id']} --reason ..."))
     terminal = next((s for s in st["steps"] if s.get("terminal")), None)
     fields = st["done"][terminal["id"]].get("fields", {}) if terminal else {}
     summary = _summary(st)
@@ -487,6 +600,7 @@ def cmd_close(argv):
         if journal.exists(st["parent"]):
             journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
                            fields=fields, summary=summary)
+            _act_on_verdicts(st["parent"], st["parent_step"])
         else:
             # Writing anyway would create the parent's journal from nothing --
             # a run with no opening, no title, no assembly, sitting in the

@@ -102,6 +102,28 @@ def _fill_gate_close(wid):
     _fill(journal.location(wid) / "GATE_CLOSE.toml", 'residue = "nothing surprising"\n')
 
 
+def _fill_review(wid, verdict="pass", findings="none: waived: clean"):
+    _fill(journal.location(wid) / "REVIEW.toml", '''
+verify = "read the diff line by line"
+findings = "%s"
+vocabulary = "waived: consistent"
+verdict = "%s"
+''' % (findings, verdict))
+
+
+def _dispatch_review(child_wid, verdict="pass", findings="none: waived: clean"):
+    """Open the review panel's one panelist, fill and close it -- the same
+    nesting mechanics as a gate dispatch, one step down. Returns the step id
+    that fired, since a revise round mints a fresh review step."""
+    step_id = runmod.state(child_wid)["current"]["id"]
+    cli.main(["open", "give-a-verdict", "--parent", child_wid, "--step", f"{step_id}.p1"])
+    panelist = f"{child_wid}.{step_id}.p1"
+    _fill_review(panelist, verdict, findings)
+    cli.main([panelist, "submit"])
+    cli.main([panelist, "close"])
+    return step_id
+
+
 def _fill_gate_transition(wid):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
 learned = "the fix landed cleanly, no follow-on scope"
@@ -132,29 +154,24 @@ def _mint_two_gates(wid="issue17"):
 
 
 def _dispatch_and_close_child(parent_wid, step_id, cycles=0):
-    """Open the child a dispatch step names, work its implement steps, close it.
+    """Open the child a dispatch step names, work its implement steps and
+    its review panel, close it.
 
-    A gate opens with one implement step already -- the work is what the gate
-    is for. `cycles` counts the REWORK beyond that first pass, each added by
-    amend the way a revise verdict would add it.
-
-    The review transition mints a panel step with no form of its own -- the
-    conductor fires the panel rather than filling one -- and dispatching that
-    panel is later work the engine doesn't render yet, so this helper drops
-    it by amend, before work-1 is submitted, the same way a hanging check
-    would be dropped (dropping it after would first require rendering it).
+    A gate opens with one implement step already -- the work is what the
+    gate is for. `cycles` drives the real review mechanism through `cycles`
+    revise rounds -- a panelist raising a real finding, a fresh implement
+    step prefilled with it, before the eventual pass.
     """
     cli.main(["open", "run-a-gate", "--parent", parent_wid, "--step", step_id])
     child_wid = f"{parent_wid}.{step_id}"
-    cli.main([child_wid, "amend", "close", "review",
-              "--reason", "panel dispatch not yet rendered"])
     _fill_implement(child_wid, step_id)
     cli.main([child_wid, "submit"])
     for i in range(cycles):
-        cli.main([child_wid, "amend", "add", "--segment", "work", "--form",
-                  "skills/implementer/forms/IMPLEMENT.toml", "--reason", f"cycle {i+1}"])
-        _fill_implement(child_wid, step_id)
+        _dispatch_review(child_wid, verdict="revise", findings=f"gap: needs rework {i+1}")
+        cur = runmod.state(child_wid)["current"]["id"]
+        _fill_implement(child_wid, cur)
         cli.main([child_wid, "submit"])
+    _dispatch_review(child_wid)
     _fill_gate_close(child_wid)
     cli.main([child_wid, "submit"])
     cli.main([child_wid, "close"])
@@ -266,13 +283,17 @@ def test_child_close_completes_dispatch_step_and_carries_mechanical_summary(work
     assert "returns" in out
     assert "nothing surprising" in out
 
-    # the mechanical summary: a first pass, two reworks, and a real engine-run
-    # check -- none of it typed by the agent
+    # the mechanical summary: a first pass, two reworks each driven by a real
+    # review panelist, a final pass, and a real engine-run check -- none of
+    # it typed by the agent
     summary = ret["summary"]
-    assert summary["steps_completed"] == 4  # first-pass implement + 2 rework + close
-    # `cycles` counts rework beyond the first pass, which is the number that
-    # tells the tier above a gate is churning
+    # first-pass implement + first review + 2 rework rounds (implement +
+    # review each) + final review + close
+    assert summary["steps_completed"] == 7
+    # `cycles` counts rework beyond the first pass -- the re-fired review
+    # steps do not double-count it, only the fresh implement steps do
     assert {"segment": "work", "count": 2} in summary["cycles"]
+    assert summary["verdict"] == "pass"  # the panel's final verdict rides the summary
     assert any(c["command"] == "true" and c["exit"] == 0 for c in summary["checks"])
     assert summary["model"] == "standard"
 
