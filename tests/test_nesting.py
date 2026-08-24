@@ -137,9 +137,17 @@ def _dispatch_and_close_child(parent_wid, step_id, cycles=0):
     A gate opens with one implement step already -- the work is what the gate
     is for. `cycles` counts the REWORK beyond that first pass, each added by
     amend the way a revise verdict would add it.
+
+    The review transition mints a panel step with no form of its own -- the
+    conductor fires the panel rather than filling one -- and dispatching that
+    panel is later work the engine doesn't render yet, so this helper drops
+    it by amend, before work-1 is submitted, the same way a hanging check
+    would be dropped (dropping it after would first require rendering it).
     """
     cli.main(["open", "run-a-gate", "--parent", parent_wid, "--step", step_id])
     child_wid = f"{parent_wid}.{step_id}"
+    cli.main([child_wid, "amend", "close", "review",
+              "--reason", "panel dispatch not yet rendered"])
     _fill_implement(child_wid, step_id)
     cli.main([child_wid, "submit"])
     for i in range(cycles):

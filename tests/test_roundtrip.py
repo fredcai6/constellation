@@ -39,6 +39,35 @@ def test_open_mints_the_skeleton(workdir, capsys):
     assert st["current"]["id"] == "open"
     assert all(s["anchor"] for s in st["steps"] if not s["id"].endswith("-1"))
 
+    # the plan segment's transition declares both a form and a critic panel;
+    # its step carries both, unabridged
+    plan = next(s for s in st["steps"] if s["id"] == "plan")
+    assert plan["form"] == "forms/PLAN_TO_EXECUTE.toml"
+    assert plan["panel"][0]["form"] == "skills/reviewer/forms/CRITIC.toml"
+    assert plan["panel"][0]["worker"] == "reviewer"
+
+
+def test_run_a_gate_skeleton_mints_a_review_step_for_its_panel(workdir, capsys):
+    # run-a-gate's review transition declares a panel and no form -- it used
+    # to mint nothing, which is why a gate ran implement -> close with no
+    # reviewer ever involved
+    steps = runmod.skeleton(runmod.load_assembly("run-a-gate"))
+    assert [s["id"] for s in steps] == ["work-1", "review", "close"]
+
+    review = steps[1]
+    assert "form" not in review  # no form to fill -- the conductor fires the panel
+    assert review["panel"] == [{
+        "form": "skills/reviewer/forms/REVIEW.toml",
+        "worker": "reviewer",
+        "model": "standard",
+        "criteria": "the gate spec, whole and only",
+    }]
+
+    # close's transition still declares only a form -- unaffected by the fix
+    close = steps[2]
+    assert close["form"] == "forms/GATE_CLOSE.toml"
+    assert "panel" not in close
+
 
 def test_status_is_a_room_description(workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])

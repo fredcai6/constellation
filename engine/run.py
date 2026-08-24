@@ -47,6 +47,10 @@ def skeleton(assembly):
     opens with nothing to implement, or a plan phase with nothing to plan, is
     a worklist that cannot be started. Interiors minted by a `plan` field
     (gates) and boards are seeded by their own entries, not here.
+
+    A transition mints a step when it declares a `form`, a `panel`, or both --
+    a panel-only step has a conductor standing there to fire it, not a form to
+    fill. `form` is therefore omitted from the step, not carried empty.
     """
     steps = []
     for seg in assembly["segment"]:
@@ -56,20 +60,23 @@ def skeleton(assembly):
                           "filler": seg.get("worker", "conductor"), "anchor": False,
                           "terminal": False, "validates": "", "source": "open"})
         t = seg.get("transition", {})
-        if not t.get("form"):
-            continue  # a mechanical transition (verdicts decide it) has no step to fill
-        steps.append(
-            {
-                "id": t.get("id", seg["id"]),
-                "segment": seg["id"],
-                "form": t["form"],
-                "filler": t.get("filler", "conductor"),
-                "anchor": t.get("anchor", False),
-                "terminal": t.get("terminal", False),
-                "validates": t.get("validates", ""),
-                "source": "open",
-            }
-        )
+        panel = t.get("panel")
+        if not t.get("form") and not panel:
+            continue  # nothing to stand on: no form to fill and no panel to fire
+        step = {
+            "id": t.get("id", seg["id"]),
+            "segment": seg["id"],
+            "filler": t.get("filler", "conductor"),
+            "anchor": t.get("anchor", False),
+            "terminal": t.get("terminal", False),
+            "validates": t.get("validates", ""),
+            "source": "open",
+        }
+        if t.get("form"):
+            step["form"] = t["form"]
+        if panel:
+            step["panel"] = panel
+        steps.append(step)
     return steps
 
 

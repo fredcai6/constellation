@@ -126,6 +126,12 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
                    child="issue17.g1", source="mint")
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     child = "issue17.g1"
+    # the review transition mints a panel step with no form -- dispatching it
+    # is later work the engine doesn't render yet, so drop it by amend before
+    # work-1 is submitted (submitting renders the new current step, which
+    # would need to render the panel step itself first)
+    cli.main([child, "amend", "close", "review",
+              "--reason", "panel dispatch not yet rendered"])
     pathlib.Path(f".agent-work/issue17/g1/IMPLEMENT.toml").write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([child, "submit"])
