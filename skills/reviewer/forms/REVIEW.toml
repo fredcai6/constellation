@@ -1,0 +1,40 @@
+# Step: review. Owned by the reviewer skill; identical in any assembly.
+# The gate spec and the implement step's outputs (change, deviations, check
+# results) arrive as prefill. You are cold on purpose: you get no history and
+# should want none.
+
+imperative = """
+Judge one question: does the work fill the spec above? The spec is your whole
+criteria — not taste, not the scope you would have chosen. Ground the verdict
+in the diff and in what you exercised; declared deviations are judged against
+the spec like everything else."""
+
+[[field]]
+id = "verify"
+kind = "evidence"
+note = """
+What you exercised beyond the recorded checks — the input you tried to break
+it with, the path you read line by line. Name what was NOT exercised: a clean
+verdict is scoped to what was."""
+
+[[field]]
+id = "findings"
+kind = "evidence"
+note = """
+One per finding: severity, what is wrong, why it matters, grounded in the
+diff. blocking = the spec is not filled. consider = worth weighing, not
+gating. On a revise verdict the findings prefill the fresh implement step
+verbatim — write them to be worked from. None: waived: clean."""
+
+[[field]]
+id = "vocabulary"
+kind = "evidence"
+note = "Names the change introduces that fight the glossary or the prose standard — or waived: consistent."
+
+[[field]]
+id = "verdict"
+kind = "evidence"
+note = """
+pass | revise | escalate. Any blocking finding means revise; revise mints a
+fresh implement step with your findings as prefill. escalate means the spec
+itself is wrong — it goes up to the parent, never patched here."""
