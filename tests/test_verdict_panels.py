@@ -303,3 +303,19 @@ def test_every_close_refusal_escape_is_a_command_that_runs(workdir, capsys):
     assert "spine g1 submit" in msg            # the verb, not a bare status call
     assert "amend close" in msg
     assert "waived:" not in msg
+
+
+def test_a_returned_amend_still_names_what_was_amended(workdir):
+    """render.amends calls itself the whole enforcement of the freeze: the tier
+    above reads it and accepts or contests. Rendered from a child's return it
+    dropped the verb and the step id, so the tier above could see that
+    something was amended but never what."""
+    from engine import render
+    cli.main(["open", "run-a-gate", "--id", "g1"])
+    cli.main(["g1", "amend", "close", "review", "--reason", "no panel needed"])
+
+    st = runmod.state("g1")
+    direct = render.amends(st["amends"])
+    returned = render.amends(cli._summary(st)["amends"])
+    assert direct == returned          # the tier above sees what the run sees
+    assert "close review" in returned[0]

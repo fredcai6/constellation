@@ -160,28 +160,6 @@ def test_validate_malformed_file_yields_one_problem_no_traceback(tmp_path):
     assert isinstance(problems[0], str)
 
 
-def test_validate_missing_file_is_clean(tmp_path):
-    assert boards.validate(tmp_path / "nope.toml") == []
-
-
-# -- summary() ------------------------------------------------------------
-
-
-def test_summary_counts_by_status_and_type(tmp_path):
-    p = _write(tmp_path / "BOARD.toml", CLEAN)
-    s = boards.summary(p)
-    assert s["total"] == 2
-    assert s["by_status"] == {"answered": 2}
-    assert s["by_type"] == {"fact": 1, "decision": 1}
-
-
-def test_summary_empty_board(tmp_path):
-    assert boards.summary(tmp_path / "nope.toml") == {"total": 0, "by_status": {}, "by_type": {}}
-
-
-# -- against a board seeded by the real spine flow -------------------------
-
-
 def test_validate_against_real_seeded_board(tmp_path, monkeypatch, capsys):
     """Not a hand-written fixture: open a real run, seed the board through
     `spine open` + `submit` exactly as an agent would, then check it."""

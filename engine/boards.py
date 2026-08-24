@@ -57,16 +57,3 @@ def validate(board_path) -> list[str]:
                 "answer, or deferred: <reason>" if status == "up" else
                 f"{rid}: still {status} -- resolve it, or answer deferred: <reason>")
     return problems
-
-
-def summary(board_path) -> dict:
-    """Counts by status and by type, for the transition's record and the
-    ledger. Cheap; no judgment."""
-    found = rows(board_path)
-    by_status, by_type = {}, {}
-    for row in found:
-        s = str(row.get("status", "open"))
-        by_status[s] = by_status.get(s, 0) + 1
-        t = row.get("type", "")
-        by_type[t] = by_type.get(t, 0) + 1
-    return {"total": len(found), "by_status": by_status, "by_type": by_type}

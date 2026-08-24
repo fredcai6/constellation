@@ -557,7 +557,8 @@ def _summary(st):
             rs = st["returns"].get(s["id"]) or []
             if rs:
                 verdict = _merged_verdict(rs)
-    amends = [{"segment": a.get("segment", ""), "reason": a.get("reason", ""),
+    amends = [{"action": a.get("action", ""), "step": a.get("step", ""),
+               "segment": a.get("segment", ""), "reason": a.get("reason", ""),
                "anchor": a.get("anchor", False)} for a in st.get("amends", [])]
     return {
         "steps_completed": len(st["done"]),
