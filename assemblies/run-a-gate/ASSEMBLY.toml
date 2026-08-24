@@ -14,6 +14,10 @@ model = "standard"
 
 [segment.transition]
 id = "review"
+anchor = true
+# Anchored because a gate reaching close without review has graded its own
+# work: amending this away stays one journaled step, but it is loud in the
+# ledger and in the parent's adjudication view.
 # no conductor form: release/refill/up is mechanical from the verdicts —
 # pass releases, any revise refills the interior with merged findings,
 # escalate goes up

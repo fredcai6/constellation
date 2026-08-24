@@ -319,3 +319,20 @@ def test_a_returned_amend_still_names_what_was_amended(workdir):
     returned = render.amends(cli._summary(st)["amends"])
     assert direct == returned          # the tier above sees what the run sees
     assert "close review" in returned[0]
+
+
+def test_dropping_review_is_loud_in_the_parents_adjudication_view(workdir):
+    """A gate that reaches close without review has graded its own work. The
+    freeze is visibility, not refusal: amending review away stays one
+    journaled step, and the tier above must see that it happened."""
+    from engine import render
+    _open_gate()
+    cli.main(["g1", "amend", "close", "review", "--reason", "in a hurry"])
+
+    st = runmod.state("g1")
+    amend = st["amends"][0]
+    assert amend["anchor"] is True
+
+    line = render.amends(cli._summary(st)["amends"])[0]
+    assert line.startswith("ANCHOR ")          # flagged where the parent reads it
+    assert "close review" in line and "in a hurry" in line

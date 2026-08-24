@@ -262,7 +262,6 @@ forms, and the standards — not a merged identity.
 | `admiral` | epic tier: conducts run-an-epic; cuts waves, dispatches issue runs, adjudicates at wave transitions |
 | `commander` | one issue, live human principal; conducts run-an-issue |
 | `commander-delegated` | one issue, frozen launch order; genuine gaps go up, never improvised |
-| `gate-executor` | one gate; conducts run-a-gate: pump implement steps, fire the review transition, return |
 | `implementer` | bounded diff from a prefilled gate spec |
 | `reviewer` | cold verdict panelist, dispatched by transitions; judges only the criteria it is handed |
 | `prototyper` | one named question, throwaway code, disposed |
@@ -271,8 +270,8 @@ forms, and the standards — not a merged identity.
 
 **Conductors judge at transitions, pump in between.** A conductor's interior role is
 mechanical — `status`, dispatch, relay — and its judgment engages only at its transitions. This
-is what keeps a commander's context small enough to survive k gates, and it is why the gate
-executor exists: the implement–review loop conducts at the gate tier, not the commander's.
+is what keeps a commander's context small enough to survive k gates: the implement–review loop
+conducts at the gate tier, not the commander's, and the implementer conducts it.
 
 **Two review questions, kept apart by their forms.** The review panel at the gate's transition
 answers *did the work fill the spec* — `pass` releases to close, `revise` refills the interior
@@ -322,9 +321,13 @@ k*[ dispatch run-a-gate → <gate adjudication> ]
 <close>           returns stamped up if parented
 ```
 
-- **run-a-gate** (conductor: gate-executor):
-  `<open (prefilled spec)> → [implement]* → <review: panel; pass | revise | escalate> →
-  <close (returns)>`
+- **run-a-gate** (conductor: implementer): `<open (prefilled spec)> → [implement]* →
+  <review: panel; pass | revise | escalate> → <close (returns)>`. A gate is n cycles of
+  implement-then-review; the implementer's submit is what fires the review transition, and
+  between the two there is no judgment for a separate executor to exercise. **The review
+  transition is an anchor**: a gate reaching close without it has graded its own work, so
+  amending it away stays one journaled step and is loud in the ledger and the parent's
+  adjudication view.
 
 ### Model tiers
 
@@ -404,7 +407,7 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 
 Draft per-skill word budgets, forms included — revised at wave boundaries, enforced at cutover
 with `wc`: explorer 2,500 · admiral 1,500 · commander 1,500 · commander-delegated 500 ·
-gate-executor 300 · interrogator 800 · reviewer 1,000 · implementer 800 · prototyper 600 ·
+interrogator 800 · reviewer 1,000 · implementer 800 · prototyper 600 ·
 triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum ≈ 14,100 against the
 15,000 cap.
 
