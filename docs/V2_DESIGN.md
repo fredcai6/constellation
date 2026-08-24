@@ -223,8 +223,8 @@ refusals, the MCP server, and every CLI-vs-door distinction. Bind/release descen
 ### Size
 
 One budget for **total machinery** — engine, CLI, rail, assembly loading, Windows support,
-install copy: **≤ 1,500 lines.** The bar is aspirational and deliberately tough — everything
-earns its keep — and it is one number: a green engine achieved by relocating lines into another
+install copy: **≤ 2,500 lines.** The bar is an aspiration, not a wall — its job is to keep
+pressure on every line earning its keep — and it is one number: a green engine achieved by relocating lines into another
 component counts as a miss. Forms and templates are corpus words, not machinery lines.
 Greenfield rewrite; the old machinery stays untouched until cutover.
 
@@ -397,7 +397,7 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 | Measure | v1 | v2 target |
 |---|---|---|
 | Corpus words | ~57,000 | ≤ 15,000 |
-| Machinery lines (engine + CLI + rail + loader + Windows + install) | ~10,000 | ≤ 1,500 |
+| Machinery lines (engine + CLI + rail + loader + Windows + install) | ~10,000 | ≤ 2,500 |
 | Engine verbs | 18 | 6 |
 | Conductor pre-reading | 20–30k tokens of doctrine | the issue + the authority block |
 | Shared doctrine prose | ~11,000 words (`_shared/`) | one page + standards |
@@ -427,7 +427,11 @@ triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum ≈ 14
 
 - Explorer and interrogator share the understanding form only if one form serves both postures
   in drafting. If the forms fight, split them — a cheap pivot.
-- Total machinery passing ~2,000 lines means something crept back in. Stop and name it.
+- Approaching the machinery cap is the prompt for one question, asked aloud: **what do we not
+  need?** Answer it with a real audit — a call-site census, a dead-key sweep — not a guess. The
+  answer may well be that it is all load-bearing; that is a valid outcome and the audit is
+  still worth its cost. Raise the number deliberately when it is reached, never by drifting one
+  feature at a time, which is how v1 arrived at ~10,000.
 - A validation run needing doctrine beyond its forms means the missing knowledge moves into a
   form or an error message — never into a new shared doc.
 - Fresh-at-boundary handoffs losing understanding means the form is missing fields. Fix the
