@@ -143,9 +143,19 @@ def state(work_id):
             st["done"][e["step"]] = e
             st["checks"].extend(e.get("checks") or [])
         elif kind == "return":
-            st["done"][e["step"]] = e
-            st["returns"][e["step"]] = e
+            # `returns` accumulates in arrival order rather than overwriting --
+            # a panel step gets one return per dispatched panelist, all on the
+            # same step id, and each must stay attributable to its child.
+            # `done` only lands once every expected panelist has answered; a
+            # step with no `panel` expects one, so a single-child dispatch
+            # completes on its first (and only) return exactly as before.
+            step = next((s for s in raw_steps if s["id"] == e["step"]), None)
+            expected = len(step["panel"]) if step and step.get("panel") else 1
+            returns = st["returns"].setdefault(e["step"], [])
+            returns.append(e)
             st["returns_by_child"][e.get("child", "")] = e
+            if len(returns) >= expected:
+                st["done"][e["step"]] = e
         elif kind == "check":
             st["checks"].append({"command": e.get("command"), "exit": e.get("exit"),
                                  "output": e.get("output")})
