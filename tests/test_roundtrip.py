@@ -144,3 +144,49 @@ def test_ledger_lists_open_runs(workdir, capsys):
     out = capsys.readouterr().out
     assert "issue17" in out and "parser eof" in out
     assert "issue18" in out and "writer atomicity" in out
+
+
+def _board(path, **repl):
+    t = path.read_text()
+    for old, new in repl.items():
+        t = t.replace(old.replace("_", " ") if False else old, new, 1)
+    path.write_text(t)
+
+
+def test_consolidate_refuses_an_unworked_board(workdir, capsys):
+    """The assembly declares validates = "board" and CONSOLIDATE.toml tells the
+    agent the engine checks it. This proves the engine actually does -- the
+    wiring was missing once, and a form that lies about the engine is the
+    worst failure available to a system whose doctrine lives in forms."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
+        'learnings = "x"\nkey-terms = "waived: none"\nsettle = "waived: none"\n')
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    msg = str(e.value)
+    assert "q1" in msg and "q2" in msg          # names every unresolved row
+    assert "deferred:" in msg                    # and states the way out
+    assert runmod.state("issue17")["current"]["id"] == "understand"  # did not advance
+
+
+def test_the_board_escape_is_one_step(workdir, capsys):
+    """deferred: <reason> passes in a single edit -- the corollary that makes
+    this check legal at all."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
+    cli.main(["issue17", "submit"])
+    pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
+        'learnings = "x"\nkey-terms = "waived: none"\nsettle = "waived: none"\n')
+
+    board = pathlib.Path(".agent-work/issue17/UNDERSTAND.toml")
+    board.write_text(board.read_text()
+                     .replace('status = "open"', 'status = "deferred: principal away"'))
+    capsys.readouterr()
+
+    cli.main(["issue17", "submit"])
+    assert runmod.state("issue17")["current"]["id"] == "plan-1"

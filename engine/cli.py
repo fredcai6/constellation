@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tomllib
 
+from engine import boards
 from engine import forms
 from engine import journal
 from engine import render
@@ -31,14 +32,14 @@ spine                               every open run"""
 _GATE_ADJUDICATION_FORM = "forms/GATE_TRANSITION.toml"  # see run-an-issue's execute segment
 
 
-def mint_id(kind="issue", issue=None):
+def mint_id(issue=None):
     """A tracker number when there is one -- it is already collision-free and
     it associates the run to the issue for free. Otherwise random: two
     worktrees allocating in parallel cannot see each other's next number."""
     if issue:
-        return f"{kind}{issue}"
+        return f"issue{issue}"
     while True:
-        wid = f"{kind}{secrets.token_hex(2)}"
+        wid = f"issue{secrets.token_hex(2)}"
         if not journal.exists(wid):
             return wid
 
@@ -135,22 +136,14 @@ def _dispatch_status(wid, st, asm, step, blocked):
     there is to type."""
     tier = _tier(step, asm)
     runner = _runner(tier)
-    i, n, seg = runmod.position(st, asm)
-    lines = [f"{wid} · {st.get('assembly','')} · {seg} ({i} of {n})", ""]
-    if st.get("title"):
-        lines.append(f"  {wid}: {st['title']}")
-        lines.append("")
-    for b in blocked:
-        lines.append(f"  BLOCKED — {b.get('text','')}".rstrip())
-        lines.append(f"  resume with: spine {wid} note resumed {b.get('id','')}")
-        lines.append("")
+    lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(f"  dispatch {step['dispatches']} -- tier {tier or '(unset)'}, "
                  f"runner {runner or '(unresolved -- check constellation.toml [models])'}")
     lines.append("")
     lines.append("  open the child with:")
     lines.append(f"    spine open {step['dispatches']} --parent {wid} --step {step['id']}")
     lines.append("")
-    lines.append(f"  also legal:        spine {wid} note ...   spine {wid} amend ...")
+    lines.append(render.legal_moves(wid))
     return "\n".join(lines)
 
 
@@ -194,6 +187,13 @@ def cmd_submit(argv):
     if not dest.exists():
         raise SystemExit(f"no response form yet — run: spine {wid}")
     filled = forms.parse(dest)
+
+    if step.get("validates") == "board":
+        board = st["boards"].get(step["segment"], "")
+        problems = boards.validate(board) if board else []
+        if problems:
+            raise SystemExit(render.refusal(pathlib.Path(board).name,
+                                            "\n  ".join(problems)))
 
     checks, fields = {}, {}
     for f in form["fields"]:

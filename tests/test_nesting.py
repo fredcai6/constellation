@@ -46,6 +46,15 @@ type = "fact"
 ''')
 
 
+def _work_the_board(wid):
+    """Resolve the seeded board before the transition that validates it --
+    the engine refuses to leave understand with an unresolved row."""
+    b = pathlib.Path(f".agent-work/{wid}/UNDERSTAND.toml")
+    b.write_text(b.read_text().replace(
+        'status = "open"',
+        'status = "answered"\nanswer = "EOF without a trailing newline only."'))
+
+
 def _fill_consolidate(wid):
     _fill(pathlib.Path(f".agent-work/{wid}/CONSOLIDATE.toml"), '''
 learnings = "EOF without a trailing newline drops the last record."
@@ -113,6 +122,7 @@ def _mint_two_gates(wid="issue17"):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     _fill_open(wid)
     cli.main([wid, "submit"])
+    _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     _fill_plan(wid)

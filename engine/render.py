@@ -35,6 +35,30 @@ def _pairs(rows, indent="    "):
     return "\n".join(out)
 
 
+def preamble(st, blocked=(), position=None):
+    """Where you are, and anything blocking -- the opening of every status
+    view, whatever kind of step you are standing on. One copy, because a
+    second one drifts."""
+    wid = st["id"]
+    head = f"{wid} · {st.get('assembly','')}"
+    if position:
+        i, n, seg = position
+        head += f" · {seg} ({i} of {n})" if st.get("open") else " · closed"
+    out = [head]
+    if st.get("title"):
+        out.append(f"  {wid}: {st['title']}")
+    out.append("")
+    for b in blocked:
+        out.append(f"  BLOCKED — {b.get('text','')}".rstrip())
+        out.append(f"  resume with: spine {wid} note resumed {b.get('id','')}")
+        out.append("")
+    return out
+
+
+def legal_moves(wid):
+    return f"  also legal:        spine {wid} note ...   spine {wid} amend ..."
+
+
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None):
     """The room description.
@@ -44,21 +68,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     imperative; then the one way to reply.
     """
     wid = st["id"]
-    out = []
-
-    head = f"{wid} · {st.get('assembly','')}"
-    if position:
-        i, n, seg = position
-        head += f" · {seg} ({i} of {n})" if st.get("open") else " · closed"
-    out.append(head)
-    if st.get("title"):
-        out.append(f"  {wid}: {st['title']}")
-    out.append("")
-
-    for b in blocked:
-        out.append(f"  BLOCKED — {b.get('text','')}".rstrip())
-        out.append(f"  resume with: spine {wid} note resumed {b.get('id','')}")
-        out.append("")
+    out = preamble(st, blocked, position)
 
     if st.get("awaiting_close"):
         out.append("  Every step is done. The run is not finished until it is")
@@ -88,7 +98,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
 
     out.append(f"  your response form: {response_path}")
     out.append(f"  fill it, then:     spine {wid} submit")
-    out.append(f"  also legal:        spine {wid} note ...   spine {wid} amend ...")
+    out.append(legal_moves(wid))
     return "\n".join(out)
 
 
