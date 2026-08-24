@@ -42,7 +42,11 @@ def drive(workdir, prompt, timeout=240):
     engine beyond what it can read from `spine` itself. That is the point: the
     room description is supposed to be sufficient.
     """
-    env = {**os.environ, "CONSTELLATION_SESSION": "eval"}
+    # `spine` on PATH, the way an installed constellation puts it there. An
+    # agent is told to run `spine <id>`; if the command is not findable it
+    # cannot, and the first eval run failed for exactly that reason.
+    env = {**os.environ, "CONSTELLATION_SESSION": "eval",
+           "PATH": f"{ROOT}:{os.environ.get('PATH', '')}"}
     r = subprocess.run(
         ["claude", "-p", prompt, "--model", light_model(),
          "--allowedTools", "Bash", "Read", "Write", "Edit"],
