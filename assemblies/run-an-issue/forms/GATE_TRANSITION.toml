@@ -1,0 +1,23 @@
+# Step: gate adjudication. Owned by run-an-issue; filled by the conductor.
+# Minted per gate by the plan-to-execute transition; the gate's returns stamp
+# here when the child closes. Not a re-review: the panel already judged
+# whether the work fills the spec. You judge whether the spec achieved the
+# goal — act on the plan, never on the diff.
+
+imperative = """
+The gate has returned. Root-verify the returns — open the artifact, re-run a
+check; outputs and roots, not belief — then decide whether the spec achieved
+the goal and whether the plan still holds."""
+
+[[field]]
+id = "learned"
+kind = "evidence"
+note = "What this gate taught us."
+
+[[field]]
+id = "plan-holds"
+kind = "evidence"
+note = """
+advance | remint | drop <gate-id> | replan — on anything but advance, the
+amend is the evidence. Adjudicate the child's amend summary: accept or
+contest each entry."""

@@ -1,6 +1,7 @@
-# Step: criticize a plan-shaped artifact. Owned by the reviewer skill;
-# identical wherever one needs cold critique. The issue and the artifact
-# arrive as prefill; you get no history and should want none.
+# Verdict: criticize a plan-shaped artifact. Dispatched by a transition's
+# panel; identical wherever one needs cold critique. Owned by the reviewer
+# skill. The issue, the artifact, and your criteria arrive as prefill; your
+# verdict returns to the transition. You get no history and should want none.
 
 imperative = """
 Attack the plan. You are cold on purpose: read the issue and the plan, hold

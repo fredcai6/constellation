@@ -1,0 +1,34 @@
+# Assembly: run one gate. Opened by dispatch from a plan's gate spec; the
+# spec (purpose, scope, done, model) is the opening prefill — there is
+# nothing to fill at open, so it has no form.
+
+assembly = "run-a-gate"
+conductor = "gate-executor"
+
+[[segment]]
+id = "work"
+interior = "steps"
+step-form = "skills/implementer/forms/IMPLEMENT.toml"
+worker = "implementer"
+model = "standard"
+
+[segment.transition]
+id = "review"
+# no conductor form: release/refill/up is mechanical from the verdicts —
+# pass releases, any revise refills the interior with merged findings,
+# escalate goes up
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/REVIEW.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "the gate spec, whole and only"
+
+[[segment]]
+id = "close"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "forms/GATE_CLOSE.toml"
+filler = "conductor"

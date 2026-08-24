@@ -1,7 +1,7 @@
 # Step: plan. Owned by run-an-issue; filled by the conductor.
-# The consolidate's learnings and key terms arrive as prefill. On a rework
-# pass (a critic verdict of revise), the critic's findings arrive as prefill
-# too.
+# The consolidate's learnings and key terms arrive as prefill. On a refill
+# (the plan-to-execute transition's panel said revise), the merged findings
+# arrive as prefill too.
 
 imperative = """
 Produce the plan: how this issue gets solved, cut into gates. A fresh-context

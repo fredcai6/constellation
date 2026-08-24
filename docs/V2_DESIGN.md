@@ -62,12 +62,21 @@ child runs.
   dispatched child's returns: a child dispatched from a row (a prototyper spike) stamps its
   returns back to that row, the same mechanics as a gate one level earlier. An amend names the segment it
   inserts into; closed segments are history, not addresses.
-- **Transitions look back, decide, and instantiate.** Every transition form has two parts: the
-  look-back (*what did this segment teach us — does the plan still hold?*) and the look-forward,
-  a `plan` field whose submitted content is minted as the next segment's interior. The v1
-  concepts "refine step," "OODA beat," and "replan" are all this one step. The cheap path — two
-  sentences, no action — must stay cheap in mechanics (one short field, one command), but the
-  form's prose stays neutral: field notes say what a field is, never what the answer usually is.
+- **Transitions look back, decide, and instantiate.** A transition is its segment's exit gate:
+  it fires when the interior drains, and each firing does one of three things — **releases**
+  (advance, filling the look-forward: a `plan` field minted as what comes next), **refills**
+  the interior (rework: a fresh step with the findings as prefill), or **goes up** (escalate).
+  Cycling is the transition re-firing; the engine has no loop concept, and the firing count
+  rides the returns. The v1 concepts "refine step," "OODA beat," "replan," and every
+  review/criticize step are all this one mechanism. The cheap path — two sentences, no
+  action — must stay cheap in mechanics (one short field, one command), but the form's prose
+  stays neutral: field notes say what a field is, never what the answer usually is.
+- **Transitions dispatch verdict panels; review never lives in an interior.** A transition may
+  dispatch 0..n reviewers — each a child prefilled with focused criteria, cold by
+  construction — whose verdicts land as returns to the transition. Any `revise` refills, with
+  findings merged; panel composition is the conductor's call at fire time, defaulting to one
+  and scaling with criticality. Interiors contain only production. A generator transition has
+  two voices: the panel's verdict, then the conductor's decide-and-mint on pass.
 - **Anchors.** A template step may be marked `anchor` (open, transitions, close). Amending an
   anchor away works like any amend — one journaled step with a reason — but the ledger and the
   parent's adjudication view flag it loudly. The freeze is enforced by the tier above reading
@@ -118,9 +127,9 @@ Two run states the verbs must express:
 - **Blocked / awaiting a decision** — a `note` with kind `blocked` naming the gap and where it
   went; the run stays open and `status` surfaces the block first — a parent's `status` surfaces
   its children's blocks first. Unblocking is a `note` with kind `resumed`.
-- **Rework** — a reviewer's `revise` verdict mints a fresh implement step prefilled with the
-  findings; the loop is visible in the worklist. Steps are never resubmitted; `submit` advances
-  monotonically.
+- **Rework** — a `revise` verdict refills the interior: a fresh step prefilled with the
+  findings, the cycle visible in the worklist and counted in the returns. Steps are never
+  resubmitted; `submit` advances monotonically.
 
 ### The door is a CLI, shaped like a text adventure
 
@@ -245,9 +254,9 @@ forms, and the standards — not a merged identity.
 | `admiral` | epic tier: conducts run-an-epic; cuts waves, dispatches issue runs, adjudicates at wave transitions |
 | `commander` | one issue, live human principal; conducts run-an-issue |
 | `commander-delegated` | one issue, frozen launch order; genuine gaps go up, never improvised |
-| `gate-executor` | one gate; conducts run-a-gate: dispatch implementer and reviewer, pump the loop, return |
+| `gate-executor` | one gate; conducts run-a-gate: pump implement steps, fire the review transition, return |
 | `implementer` | bounded diff from a prefilled gate spec |
-| `reviewer` | cold context; *did the work fill the spec?* — verdict against the gate spec and only the gate spec |
+| `reviewer` | cold verdict panelist, dispatched by transitions; judges only the criteria it is handed |
 | `prototyper` | one named question, throwaway code, disposed |
 | `triage` | route candidates into issues per the standard; runs at close |
 | `how-to-talk` | prose standard, unchanged |
@@ -257,13 +266,13 @@ mechanical — `status`, dispatch, relay — and its judgment engages only at it
 is what keeps a commander's context small enough to survive k gates, and it is why the gate
 executor exists: the implement–review loop conducts at the gate tier, not the commander's.
 
-**Two review questions, kept apart by their forms.** The reviewer answers *did the work fill
-the spec* — verdict `pass` (advance to close), `revise` (findings prefill a fresh implement
-step; the loop cycles mechanically), or `escalate` (the gate itself is wrong; goes up early).
-The commander at the gate transition answers *did the spec achieve the goal* — it acts on the
-plan (advance / remint the gate / drop a now-pointless gate / replan), never on the diff. The
-reviewer's form cites the gate spec and nothing else; the transition form cites the plan and
-the returns and has no field for re-examining the work.
+**Two review questions, kept apart by their forms.** The review panel at the gate's transition
+answers *did the work fill the spec* — `pass` releases to close, `revise` refills the interior
+with the findings, `escalate` sends the spec itself up. The commander at its gate-adjudication
+step answers *did the spec achieve the goal* — it acts on the plan (advance / remint the gate /
+drop a now-pointless gate / replan), never on the diff. The reviewer's form cites the gate spec
+and nothing else; the adjudication form cites the plan and the returns and has no field for
+re-examining the work.
 
 Absorbed, with their essence relocated: `replan` → the transition step (every transition *is*
 the OODA beat); `to-initial-issues` → the epic assembly's opening transition (cut the confirmed
@@ -297,15 +306,17 @@ each conductor dispatches the tier below and judges at its transitions:
                   to the principal one at a time, ~3 options with pros/cons
                   and a recommendation — effort scales with criticality
 <consolidate>     learnings + key terms — the prefill for fresh-context
-                  planning; the engine validates the board here
-[plan → critic]*  produce/criticize loop; design-it-twice lives here
-<plan→execute>    the plan field mints k gate dispatches from the plan's gate specs
-k*[ dispatch run-a-gate → <gate transition> ]
+                  planning; the engine is the verdict here, validating the board
+[plan]*           the plan produced; design-it-twice lives here
+<plan→execute>    critic panel verdicts return here; revise refills plan, pass
+                  mints k gate dispatches with their adjudication steps
+k*[ dispatch run-a-gate → <gate adjudication> ]
 <close>           returns stamped up if parented
 ```
 
 - **run-a-gate** (conductor: gate-executor):
-  `<open (prefilled spec)> → [implement → review]* → <close (verdict, loop count, artifacts)>`
+  `<open (prefilled spec)> → [implement]* → <review: panel; pass | revise | escalate> →
+  <close (returns)>`
 
 ### Model tiers
 
@@ -361,12 +372,11 @@ layer first.
 1. **Key-terms field** on understanding and plan forms: the author names the artifact's
    load-bearing terms; each cites its glossary entry or is proposed as a new one. New vocabulary
    enters the glossary through this field — coining a synonym instead is a defect.
-2. **Vocabulary lens** on criticize forms: one check — terms consistent with the glossary and
+2. **Vocabulary lens** on verdict forms: one check — terms consistent with the glossary and
    the prose standard; name violations.
-3. **Language reviewer**, dispatched only for prose-heavy artifacts (design specs, shaped
-   briefs, standards): the criticize move with a prose/vocabulary posture — `how-to-talk` plus
-   the glossary as its review criteria. In the explorer's critic panel it is one lens among the
-   cold critics.
+3. **Language reviewer**, a focused panelist dispatched only for prose-heavy artifacts (design
+   specs, shaped briefs, standards): its criteria are `how-to-talk` plus the glossary — one
+   panelist among the cold critics.
 
 ## Terminology: pivot criteria
 

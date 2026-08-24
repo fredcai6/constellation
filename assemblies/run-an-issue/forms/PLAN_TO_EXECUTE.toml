@@ -1,4 +1,6 @@
-# Transition: plan → execute. Owned by run-an-issue; filled by the conductor.
+# Transition: plan → execute. Owned by run-an-issue. Two voices: the critic
+# panel's verdicts return here (any revise refills the plan interior with the
+# findings; escalate goes up); on pass the conductor fills the mint below.
 
 imperative = """
 The plan has passed critique. Cut it into gates — each gate is dispatched as

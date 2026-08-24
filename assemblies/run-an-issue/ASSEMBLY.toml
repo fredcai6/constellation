@@ -1,0 +1,58 @@
+# Assembly: run one issue end to end. The skeleton is fixed; interiors are
+# worked. Everything is a segment: an anchor step is a segment with no
+# interior, only its transition. Default model tiers per segment; a gate spec
+# may override its own.
+
+assembly = "run-an-issue"
+conductor = "commander"
+
+[[segment]]
+id = "open"
+
+[segment.transition]
+anchor = true
+form = "forms/OPEN.toml"
+filler = "conductor"
+
+[[segment]]
+id = "understand"
+interior = "board"
+board = "skills/interrogator/forms/UNDERSTAND.toml"
+worker = "interrogator"
+model = "standard"
+
+[segment.transition]
+anchor = true
+form = "forms/CONSOLIDATE.toml"
+filler = "conductor"
+validates = "board"   # engine refuses an open row or a self-answered decision
+
+[[segment]]
+id = "plan"
+interior = "steps"
+step-form = "forms/PLAN.toml"
+worker = "conductor"
+
+[segment.transition]
+anchor = true
+form = "forms/PLAN_TO_EXECUTE.toml"
+filler = "conductor"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "intent-fit: does the plan serve the issue; testability: can each gate's done be exercised; simplicity: what can be deleted"
+
+[[segment]]
+id = "execute"
+interior = "steps"
+minted-by = "plan-to-execute"   # pairs: dispatch run-a-gate + forms/GATE_TRANSITION.toml
+dispatches = "run-a-gate"
+model = "standard"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "forms/CLOSE.toml"
+filler = "conductor"

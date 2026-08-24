@@ -16,8 +16,12 @@ forms; coining a synonym for a term below is a defect.
   seeded at entry, worked freely in place, validated by the engine at the transition. The
   understand board; the explore ideas board. Blocked is per-row, never per-run; a row
   resolves by prose evidence, an artifact, or a dispatched child's returns.
-- **transition** — the step that ends a segment: looks back (what did we learn — does the plan
-  hold?), decides, and mints the next interior. The OODA beat.
+- **transition** — a segment's exit gate: fires when the interior drains, and each firing
+  releases (advance, minting what comes next), refills the interior (rework, findings as
+  prefill), or goes up (escalate). The OODA beat; cycling is re-firing.
+- **verdict panel** — 0..n reviewers a transition dispatches, each cold and prefilled with
+  focused criteria; verdicts return to the transition. Any revise refills, findings merged.
+  Review never lives in an interior.
 - **anchor** — a template step flagged so that amending it away is loud in the ledger and the
   parent's adjudication view. Still one journaled step to amend; never a refusal.
 - **form** — one step's imperative, fields, and field notes; the unit that carries doctrine.
@@ -38,8 +42,8 @@ forms; coining a synonym for a term below is a defect.
   and gate specs; the command palette maps it to a concrete runner.
 - **conductor** — the one persistent agent of an assembly; pumps its interior mechanically,
   judges only at transitions.
-- **gate** — a segment minted into an execute phase; runs as a child run (run-a-gate) with the
-  gate executor conducting its implement–review loop.
+- **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
+  gate executor pumping its implement interior and firing its review transition.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The
   order; contested by a blocked note up, never edited.
 - **return** — the child's terminal fields, stamped into the parent's waiting step at close,

@@ -1,0 +1,24 @@
+# Anchor: close, terminal. Owned by run-an-issue; filled by the conductor.
+# Everything on this form returns when this run is parented. The engine
+# appends the mechanical record itself: the gates run with verdicts and cycle
+# counts, check outputs, the amend summary, and the run's notes.
+
+imperative = """
+Close the run. Sweep what remains; add only what the record does not carry."""
+
+[[field]]
+id = "disposition"
+kind = "evidence"
+note = "Where the work landed — the PR or merge target — and what remains open."
+
+[[field]]
+id = "triage"
+kind = "evidence"
+note = """
+Every candidate noted during the run, routed into an issue per
+standards/issue.md — the issue refs — or waived: none noted."""
+
+[[field]]
+id = "residue"
+kind = "evidence"
+note = "What the principal or parent should know that no recorded field carries — or waived: none."
