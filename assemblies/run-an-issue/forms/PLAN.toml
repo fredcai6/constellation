@@ -1,0 +1,39 @@
+# Step: plan. Owned by run-an-issue; filled by the conductor.
+# The consolidate's learnings and key terms arrive as prefill. On a rework
+# pass (a critic verdict of revise), the critic's findings arrive as prefill
+# too.
+
+imperative = """
+Produce the plan: how this issue gets solved, cut into gates. A fresh-context
+critic must be able to attack it from the issue and the plan alone, and a
+fresh-context gate executor must be able to execute a gate from its spec
+alone."""
+
+[[field]]
+id = "plan"
+kind = "artifact"
+note = """
+The plan document, in the work location: the approach, the gates it cuts into
+(purpose, scope, done — the plan-to-execute transition copies these), and the
+risks that would change it. Implementation detail below gate grain is a
+defect — that is the gate's latitude."""
+
+[[field]]
+id = "design-it-twice"
+kind = "evidence"
+note = """
+For each irreversible or load-bearing commitment: the genuinely different
+alternative considered, and why the winner won. Reversible details earn no
+weight. Skip a load-bearing commitment only with a stated reason."""
+
+[[field]]
+id = "key-terms"
+kind = "evidence"
+note = "New terms this plan introduces; each cites its glossary entry or proposes one. Coining a synonym is a defect."
+
+[[field]]
+id = "findings-addressed"
+kind = "evidence"
+note = """
+Rework only: each critic finding accepted (name the edit) or contested (with
+the reason). First pass: waived: first pass."""

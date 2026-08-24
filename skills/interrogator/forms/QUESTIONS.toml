@@ -24,6 +24,8 @@ answer = ""      # fact: the answer and the move that grounded it (read, trace,
 # A decision goes to the principal one question at a time, carrying ~3 options
 # with pros and cons and a recommendation. Effort scales with criticality: an
 # obvious row in a clustered sitting may carry the recommendation alone.
+# Never surface board mechanics — row ids, cluster names, what comes next —
+# to the principal. Ask plainly, one complete question per beat.
 recommend = ""
 
   [[question.option]]

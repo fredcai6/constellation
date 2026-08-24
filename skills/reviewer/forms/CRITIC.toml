@@ -1,0 +1,32 @@
+# Step: criticize a plan-shaped artifact. Owned by the reviewer skill;
+# identical wherever one needs cold critique. The issue and the artifact
+# arrive as prefill; you get no history and should want none.
+
+imperative = """
+Attack the plan. You are cold on purpose: read the issue and the plan, hold
+nothing sacred — deliberate decisions are attackable. Ground every finding in
+the plan's own text or the code it touches; a finding you cannot ground is
+not a finding. You judge the plan, never triage your own findings — the
+planner answers each one on the rework pass."""
+
+[[field]]
+id = "findings"
+kind = "evidence"
+note = """
+One per finding: severity, what is wrong, why it matters, grounded.
+blocking = the plan should not execute as it stands. consider = worth
+weighing, not gating. On a revise verdict the findings prefill the fresh plan
+step verbatim — write them to be worked from. None found: waived: clean."""
+
+[[field]]
+id = "vocabulary"
+kind = "evidence"
+note = "Terms inconsistent with the glossary or the prose standard — or waived: consistent."
+
+[[field]]
+id = "verdict"
+kind = "evidence"
+note = """
+pass | revise | escalate. Any blocking finding means revise; revise mints a
+fresh plan step with your findings as prefill. escalate means the issue
+itself is wrong — it goes up, not around."""
