@@ -26,8 +26,8 @@ kind = "plan"
 mints = "board rows"
 note = """
 One block per seed question, minted as rows on the understand board
-(QUESTIONS.toml). A seed may carry any board column (cluster, after); only
-these two are required."""
+(UNDERSTAND.toml). A seed may carry any board column (move, cluster, after);
+only these two are required."""
 
   [[field.item]]
   id = "question"

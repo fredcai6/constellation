@@ -1,5 +1,5 @@
 # Anchor: understand → plan. Owned by run-an-issue; filled by the conductor.
-# On submit the engine validates the question board: an open row refuses, a
+# On submit the engine validates the understand board: an open row refuses, a
 # decision answered without the principal's words refuses; the escape is
 # deferred: <reason>, journaled.
 

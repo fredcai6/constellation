@@ -14,7 +14,8 @@ forms; coining a synonym for a term below is a defect.
   (grown, pruned, and reordered by amend; exhausted means the segment ends) or a **board**.
 - **board** — an expansive segment's interior as a living TOML document in the work location:
   seeded at entry, worked freely in place, validated by the engine at the transition. The
-  understand question board; the explore ideas board. Blocked is per-row, never per-run.
+  understand board; the explore ideas board. Blocked is per-row, never per-run; a row
+  resolves by prose evidence, an artifact, or a dispatched child's returns.
 - **transition** — the step that ends a segment: looks back (what did we learn — does the plan
   hold?), decides, and mints the next interior. The OODA beat.
 - **anchor** — a template step flagged so that amending it away is loud in the ledger and the

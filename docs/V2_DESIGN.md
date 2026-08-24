@@ -57,7 +57,10 @@ child runs.
   segment entry, worked freely in place — add, resolve, moot with reasons, cluster — and
   validated by the engine at the transition. Steps answer "what's next"; a board serves the
   chooser who needs sight of the many. On a board, blocked is per-row, never per-run: a
-  decision in flight floats up while other askable rows proceed. An amend names the segment it
+  decision in flight floats up while other askable rows proceed. A row resolves in any output
+  style — prose evidence, an artifact in the work location (a data view, a repro), or a
+  dispatched child's returns: a child dispatched from a row (a prototyper spike) stamps its
+  returns back to that row, the same mechanics as a gate one level earlier. An amend names the segment it
   inserts into; closed segments are history, not addresses.
 - **Transitions look back, decide, and instantiate.** Every transition form has two parts: the
   look-back (*what did this segment teach us — does the plan still hold?*) and the look-forward,
@@ -287,9 +290,11 @@ each conductor dispatches the tier below and judges at its transitions:
 - **run-an-issue** (conductor: commander):
 
 ```text
-<open>            seeds the question board from the issue
-[understand]      board: questions typed fact | decision, clustered; decisions
-                  go to the principal one at a time, ~3 options with pros/cons
+<open>            seeds the understand board from the issue
+[understand]      board: rows typed fact | decision, each naming its move —
+                  read, trace, reproduce, spike, picture, evidence loop, ask;
+                  spikes dispatch the prototyper as child runs. Decisions go
+                  to the principal one at a time, ~3 options with pros/cons
                   and a recommendation — effort scales with criticality
 <consolidate>     learnings + key terms — the prefill for fresh-context
                   planning; the engine validates the board here
