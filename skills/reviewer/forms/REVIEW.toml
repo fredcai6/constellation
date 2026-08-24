@@ -22,10 +22,19 @@ verdict is scoped to what was."""
 id = "findings"
 kind = "evidence"
 note = """
-One per finding: severity, what is wrong, why it matters, grounded in the
-diff. blocking = the spec is not filled. consider = worth weighing, not
-gating. On a revise verdict the findings prefill the fresh implement step
-verbatim — write them to be worked from. None: waived: clean."""
+One per finding: what is wrong, why it matters, grounded in the diff — and
+classed, which decides what happens to it.
+
+  gap      the spec is not filled. Only a gap gates; any gap means revise.
+  beyond   real, and outside this spec. It is a triage candidate, never
+           rework here. Work nobody scoped is how a bounded change stops
+           being bounded, so this class is the normal home for "you should
+           also add" — say it, class it, and let the plan decide.
+
+You do not decide what gets built; you decide whether the spec was filled.
+A finding you cannot ground is not a finding. On a revise verdict the gaps
+prefill the fresh implement step verbatim — write them to be worked from.
+None: waived: clean."""
 
 [[field]]
 id = "vocabulary"

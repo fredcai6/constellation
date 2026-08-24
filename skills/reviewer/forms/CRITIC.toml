@@ -14,10 +14,21 @@ planner answers each one on the rework pass."""
 id = "findings"
 kind = "evidence"
 note = """
-One per finding: severity, what is wrong, why it matters, grounded.
-blocking = the plan should not execute as it stands. consider = worth
-weighing, not gating. On a revise verdict the findings prefill the fresh plan
-step verbatim — write them to be worked from. None found: waived: clean."""
+One per finding: what is wrong, why it matters, grounded — and classed,
+which decides what happens to it.
+
+  gap      the plan should not execute as it stands. Only a gap gates.
+  beyond   real, and outside what this plan set out to do. A triage
+           candidate, never rework here.
+
+Prefer the finding that deletes something to the finding that adds
+something: on this project machinery is a cost, so "this can go" is worth
+more than "this is missing." A proposal to build something new is the
+weakest kind of finding and carries the heaviest burden — name what it
+would cost and what breaks without it.
+
+You judge the plan; you do not enlarge it. On a revise verdict the gaps
+prefill the fresh plan step verbatim. None found: waived: clean."""
 
 [[field]]
 id = "vocabulary"

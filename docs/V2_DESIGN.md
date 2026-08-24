@@ -77,6 +77,14 @@ child runs.
   findings merged; panel composition is the conductor's call at fire time, defaulting to one
   and scaling with criticality. Interiors contain only production. A generator transition has
   two voices: the panel's verdict, then the conductor's decide-and-mint on pass.
+- **A finding is advice, and scope belongs to the plan.** Independent review is the main way
+  scope growth enters a bounded change: a reviewer is rewarded for finding something, and the
+  cheapest something is "you should also add." So every finding is classed — **gap** (the spec
+  or plan is not filled; only a gap gates) or **beyond** (real, and outside this scope; a
+  triage candidate, never rework here) — and the tier that owns the plan disposes of each one:
+  accept with the edit named, contest with a reason, or file it. Reviewers judge whether the
+  work was filled; they never enlarge what it is. On this project a finding that deletes
+  outweighs a finding that adds, because machinery is a cost.
 - **Anchors.** A template step may be marked `anchor` (open, transitions, close). Amending an
   anchor away works like any amend — one journaled step with a reason — but the ledger and the
   parent's adjudication view flag it loudly. The freeze is enforced by the tier above reading
