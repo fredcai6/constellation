@@ -73,11 +73,14 @@ without stranding live runs.
 
 ### Addressing: work ids and work locations
 
-Every run has a **work id**, minted at `open`: `<kind><hash>` (`issue7c3f`, four random hex
-chars, collision-checked against the local ledger), children by suffix (`issue7c3f.g1`).
-Random beats a counter because two worktrees allocating in parallel cannot see each other's
-next number; ids are short and meaningless on purpose — the "what" is the run's title, held
-by the ledger at whatever length it needs. Every call names its work id explicitly; there is
+Every run has a **work id**, minted at `open`. When the run tracks a tracker issue, the id is
+its number (`issue17`) — the tracker is already a collision-free allocator, and the id
+associates for free; the preferred cadence is issue-led, so this is the normal case. The
+stable fallback is `<kind><hash>` (`issue7c3f`, four random hex chars, collision-checked
+against the local ledger) — random beats a counter because two worktrees allocating in
+parallel cannot see each other's next number. Children by suffix (`issue17.g1`). Ids are
+short and meaningless on purpose; the "what" is the run's title, held by the ledger at
+whatever length it needs. Every call names its work id explicitly; there is
 no default and the id is never inferred from cwd or environment — a dispatched crew not
 handed an id cannot accidentally drive its dispatcher's run.
 

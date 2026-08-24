@@ -1,0 +1,35 @@
+# Step: one understand question. Owned by the interrogator skill.
+# The question and its type arrive as prefill from the block that minted it.
+
+imperative = """
+Answer the question above, grounded. A fact is answered by evidence — the
+file, the command output, the trace — never from memory or assumption. A
+decision is answered only by the principal's recorded words: send it up and
+answer unknown until it returns."""
+
+[[field]]
+id = "answer"
+kind = "evidence"
+note = """
+The answer and what grounds it. For a fact: the evidence and the move that
+produced it (read, trace, reproduce, spike, picture, evidence loop). For a
+decision: the principal's answer, verbatim, and where it was given. Cannot
+answer: unknown: <reason>, plus a blocked note up if the run cannot proceed
+without it."""
+
+[[field]]
+id = "opens"
+kind = "plan"
+mints = "question"
+optional = true
+note = """
+Questions this answer opens, minted into the worklist — same blocks as the
+seed (question, type). Omit when it opens none. A question the answer makes
+moot is closed by amend, with the answer as the reason."""
+
+  [[field.item]]
+  id = "question"
+
+  [[field.item]]
+  id = "type"
+  note = "fact | decision"

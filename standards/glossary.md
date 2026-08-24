@@ -21,9 +21,9 @@ forms; coining a synonym for a term below is a defect.
   `plan`; any field instead takes `waived: <reason>` or `unknown: <reason>`.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
-- **work id** — a run's address, `<kind><hash>` (`issue7c3f`); children by suffix
-  (`issue7c3f.g1`). Short and meaningless on purpose — the title holds the "what." Required on
-  every call, never inferred.
+- **work id** — a run's address: the tracker issue's number when one exists (`issue17`),
+  `<kind><hash>` otherwise (`issue7c3f`); children by suffix (`issue17.g1`). The title holds
+  the "what." Required on every call, never inferred.
 - **work location** — a run's work package, `.agent-work/<work-id>/`: journal, response forms,
   plan artifacts, notes; child runs nest inside. Derived from the id, visible to everyone.
 - **journal** — the per-run append-only TOML record in its work location; run state is a fold

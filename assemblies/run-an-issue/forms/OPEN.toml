@@ -1,0 +1,38 @@
+# Anchor: open. Owned by run-an-issue; filled by the conductor.
+# When this run was dispatched by an epic, issue and authority arrive as
+# prefill and only questions is filled here.
+
+imperative = """
+Confirm what this run is solving and under what authority, then seed the
+understanding worklist. Seed questions are a starting cut, not a script — the
+worklist grows and shrinks as answers land."""
+
+[[field]]
+id = "issue"
+kind = "artifact"
+note = "The issue this run solves, per standards/issue.md — a tracker reference or a file in the work location."
+
+[[field]]
+id = "authority"
+kind = "decision"
+note = """
+Who your principal is, what you own, your latitude, where gaps go — the
+principal's recorded answer. Derived automatically when this run has a parent;
+recorded from the human when it does not."""
+
+[[field]]
+id = "questions"
+kind = "plan"
+mints = "question"
+note = "One block per seed question. Each is minted as an understand step."
+
+  [[field.item]]
+  id = "question"
+  note = "The question, concrete enough that its answer is checkable."
+
+  [[field.item]]
+  id = "type"
+  note = """
+fact | decision. A fact is answerable from the code or an understanding move —
+resolve it yourself with evidence. A decision is a choice the principal owns —
+never self-answer it."""
