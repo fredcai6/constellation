@@ -154,14 +154,25 @@ def _mint(wid, asm, step, form, fields):
 
 
 def _seed_board(template, dest, rows):
-    """Write the board with its guidance intact and the seed rows appended --
-    the guidance is the interrogator's instructions, and it stays visible for
-    as long as the board is worked."""
+    """Write the board with every word of its guidance intact, seed rows below.
+
+    The template's blank row is commented out rather than dropped: its inline
+    notes are where the column-by-column doctrine lives (what `type` means,
+    never self-answering a decision, how to carry options to a principal), and
+    a board is worked over many turns by agents who may arrive fresh. The
+    instructions belong at the artifact, not in a doc read once.
+    """
     from engine import tomlw
-    head = template.read_text().split("[[question]]")[0].rstrip()
+    text = template.read_text().rstrip()
+    head, sep, example = text.partition("[[question]]")
+    quoted = "\n".join(
+        line if line.startswith("#") else f"# {line}" if line.strip() else "#"
+        for line in (sep + example).splitlines()
+    )
     body = "".join(tomlw.table("question", {"id": f"q{i+1}", "status": "open", **r})
                    + "\n" for i, r in enumerate(rows))
-    dest.write_text(head + "\n\n" + body)
+    dest.write_text(f"{head.rstrip()}\n\n# --- the columns, and what they mean ---\n"
+                    f"{quoted}\n\n# --- the board ---\n\n{body}")
 
 
 def cmd_note(argv):
