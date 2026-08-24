@@ -71,23 +71,30 @@ of a `plan` field (minted interiors), and `amend` (worklist repairs). A run stop
 its template at `open` — the template's steps are copied into the journal, so templates evolve
 without stranding live runs.
 
-### Addressing: work ids, not paths
+### Addressing: work ids and quarters
 
-Every run has a **work id**, chosen at `open`: `<kind>-<number>-<slug>` (`issue-712-parser-eof`).
-Child runs derive from the parent (`issue-712-parser-eof.g1`). Every door call names its work
-id explicitly; there is no default and the id is never inferred from cwd or environment — a
-dispatched crew not handed an id cannot accidentally drive its dispatcher's run. The engine
-owns all path resolution: agents never see or type `.agent-work/...`; branch and worktree names
-derive from the id. A bare `spine` with no id prints the ledger — every open run's id, assembly,
-position, and state — generated on demand from the journals, never stored.
+Every run has a **work id**, minted at `open`: `<kind><number>` (`issue712`), children by
+suffix (`issue712.g1`). Ids are short and meaningless on purpose; the "what" is the run's
+title, held by the ledger at whatever length it needs. Every call names its work id
+explicitly; there is no default and the id is never inferred from cwd or environment — a
+dispatched crew not handed an id cannot accidentally drive its dispatcher's run.
+
+A run's **quarters** is `.agent-work/<work-id>/` — the whole work package bundled together:
+journal, materialized response forms, plan artifacts, notes. Child runs nest inside the
+parent's quarters (`.agent-work/issue712/g1/`). The engine derives the path from the id, so
+nobody invents paths, but nothing is hidden: agents read and write their own quarters
+directly. Branch and worktree names derive from the id too.
+
+A bare `spine` with no id prints the ledger — every open run's id, title, assembly, position,
+and state — generated on demand from the journals, never stored.
 
 ### Verbs (6, down from 18)
 
 | Verb | Does |
 |---|---|
-| `open` | instantiate a run from an assembly template; mints the work id; copies the skeleton into the journal |
-| `status` | where you are, the current step's form rendered as prose — imperative, open fields, and every legal next move spelled out as a typeable command |
-| `submit` | hand in the current step's filled fields; the engine validates, runs its command checks, journals, advances. A refusal names the missing or failing field and nothing else |
+| `open` | instantiate a run from an assembly template; mints the work id, takes the title; copies the skeleton into the journal; sets up quarters |
+| `status` | where you are: the step's prefill and imperative rendered as prose, the path of the materialized response form, and the other legal moves spelled out as typeable commands |
+| `submit` | read the filled response form from quarters; the engine validates fields, runs its command checks, journals, advances. A refusal names the missing or failing field and nothing else |
 | `amend` | edit a segment's worklist — add, close, reorder; one required `reason` string, journaled |
 | `note` | append an observation, triage candidate, or decision to the record |
 | `close` | terminal; stamps return fields into the parent's waiting step if the run is parented; archives |
@@ -106,14 +113,15 @@ Two run states the verbs must express:
 No MCP server. v1's agents struggled with its CLI for two reasons — recalling syntax without an
 affordance, and shell-quoting multi-line content — and both are fixed in the CLI itself:
 
-- **`status` is a room description.** It says where you are, renders the step's imperative and
-  open fields as prose, and ends by spelling out every legal move as a literal, typeable
-  command with this step's field ids already in place. The agent never guesses a verb and
-  never recalls syntax; nothing about the engine is resident in context between steps.
-- **Content never fights the shell.** Short answers go bare (`spine 712 submit plan-holds=yes`).
-  Long or multi-line content goes by heredoc with a quoted delimiter, or by `form` —
-  `spine 712 form` materializes the current step (and only the current step) as a TOML file
-  with blank value slots; the agent fills it with its file tools; `submit` reads it back.
+- **`status` is a room description.** It says where you are, renders the step's prefill and
+  imperative as prose, names the response form, and spells out the other legal moves as
+  literal, typeable commands. The agent never guesses a verb and never recalls syntax;
+  nothing about the engine is resident in context between steps.
+- **One way of replying: fill the file.** When a step becomes current, the engine
+  materializes its response template into quarters — the current step only, blank value slots,
+  field notes inline. The agent fills it with its file tools; `submit` reads it back. No
+  heredocs, no inline flags, no shell-quoting problem; the filled file stays in quarters as a
+  record artifact.
 - The engine core is a library; if agents still struggle, a thin MCP door over the same core is
   a later, measured addition — not a founding component.
 
@@ -151,8 +159,8 @@ never prevented with enforcement.
 
 ### The record
 
-One append-only TOML journal per run (`[[entry]]` blocks appended; a ~40-line writer — there is
-no stdlib TOML writer — and stdlib `tomllib` reads). Every write is session-stamped. Stamps are
+One append-only TOML journal per run, in its quarters (`[[entry]]` blocks appended; a ~40-line
+writer — there is no stdlib TOML writer — and stdlib `tomllib` reads). Every write is session-stamped. Stamps are
 observations: two sessions interleaving is a fact the record shows, not a state the engine
 prevents. There is no mutable spine file: current state is a fold over the journal, which is
 what makes concurrent sessions safe and cross-session resume free. TOML is the one authored
@@ -279,6 +287,18 @@ k*[ dispatch run-a-gate → <gate transition> ]
 - **run-a-gate** (conductor: gate-executor):
   `<open (prefilled spec)> → [implement → review]* → <close (verdict, loop count, artifacts)>`
 
+### Model tiers
+
+Multi-model is a first-class constraint; the layering keeps provider names out of everything
+portable:
+
+- Forms and assemblies name only **logical tiers**: `light | standard | heavy`.
+- The **command palette** maps tiers to concrete runners — `[models]` in `constellation.toml`
+  (`standard = "claude-sonnet"`, or a codex invocation, or whatever the shop runs).
+- The **assembly** sets each step's default tier; a **gate spec may override** via its optional
+  `model` item, and the resolved tier rides the prefill. The engine never launches anything —
+  it carries the field to the conductor, who dispatches.
+
 ### The authority block
 
 Every run opens with: who your principal is, what you own, what latitude you have, and where
@@ -401,37 +421,29 @@ note = "advance | remint | drop <gate-id> | replan — on anything but advance, 
 ```
 
 ```text
-$ spine issue-712-parser-eof status
+$ spine issue712 status
 
-issue-712-parser-eof · run-an-issue · execute · gate transition g1 (5 of 7)
+issue712 · run-an-issue · execute · gate transition g1 (5 of 7)
+  issue712: parser drops the last record when the file ends without a newline
 
-  Gate g1 (parser EOF fix) closed: verdict pass, 2 implement/review cycles,
-  returns below. Decide whether its spec achieved the goal, and whether the
-  plan still holds.
+  Gate g1 closed: verdict pass, 2 implement/review cycles, returns below.
+  Decide whether its spec achieved the goal, and whether the plan still holds.
 
-  returns from issue-712-parser-eof.g1
+  returns from issue712.g1
     verdict    pass (2 cycles)
     diff       src/parser.c +41 -7
-    check      pytest -q tests/parser — 41 passed  (re-run: spine issue-712-parser-eof.g1 check diff-tests)
+    check      pytest -q tests/parser — 41 passed  (re-run: spine issue712.g1 check done)
 
-  open fields
-    learned      evidence   what this gate taught us
-    plan-holds   decision   advance | remint | drop <gate-id> | replan
-
-  you can say
-    spine issue-712-parser-eof submit plan-holds=advance <<'FORM'
-    learned = """..."""
-    FORM
-    spine issue-712-parser-eof form        # fill the step as a file instead
-    spine issue-712-parser-eof note ...
-    spine issue-712-parser-eof amend ...
+  your response form: .agent-work/issue712/G1_TRANSITION.toml
+  fill it, then:     spine issue712 submit
+  also legal:        spine issue712 note ...   spine issue712 amend ...
 ```
 
-```text
-# a filled submit
-$ spine issue-712-parser-eof submit plan-holds=advance <<'FORM'
+```toml
+# .agent-work/issue712/G1_TRANSITION.toml, filled
 learned = """
 Review passed in two cycles; the parser change was smaller than planned.
 Gate g2's scope note still assumed the larger change — trimmed via amend a3."""
-FORM
+
+plan-holds = "advance"
 ```

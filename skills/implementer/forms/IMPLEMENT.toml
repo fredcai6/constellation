@@ -14,11 +14,11 @@ kind = "evidence"
 note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort. Name the branch and commit."
 
 [[field]]
-id = "done"
-kind = "check"
-note = "The gate spec's done commands, executed by the engine here; output recorded."
-
-[[field]]
 id = "deviations"
 kind = "evidence"
 note = "Where the work departed from the spec and why — or waived: none."
+
+[[field]]
+id = "done"
+kind = "check"
+note = "The gate spec's done commands. Leave blank — the engine runs them at submit and records the output."

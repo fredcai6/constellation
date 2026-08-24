@@ -11,8 +11,9 @@ appends everything to a per-run TOML **journal** — state is a fold over the jo
 else. Transitions look back (*what did we learn — does the plan hold?*) and mint what comes
 next. Runs nest by dispatch: an **epic** run dispatches **issue** runs, an issue run dispatches
 **gate** runs; orders flow down as read-only **prefill**, evidence flows up as **returns**, and
-nothing else crosses. Every run is addressed by an explicit **work id** (`issue-712-parser-eof`);
-bare `spine` lists all open runs. Each step names the **skill** that fills it — a posture, a few
+nothing else crosses. Every run is addressed by an explicit **work id** (`issue712`,
+`issue712.g1`) and keeps its whole work package in its **quarters**
+(`.agent-work/<work-id>/`); bare `spine` lists all open runs with their titles. Each step names the **skill** that fills it — a posture, a few
 hundred words. Any field may be answered `waived: <reason>` or `unknown: <reason>`; every
 check's escape is one journaled step. That's it.
 

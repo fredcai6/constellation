@@ -14,7 +14,7 @@ note = "What the plan/critique loop taught us; changes to the understanding it s
 [[field]]
 id = "plan"
 kind = "artifact"
-note = "Path to the plan artifact that passed critique."
+note = "The plan artifact that passed critique, in this run's quarters (.agent-work/<work-id>/)."
 
 [[field]]
 id = "gates"
@@ -38,3 +38,8 @@ plus this gate's transition; the block's fields are the child run's prefill."""
   note = """
 The commands whose output shows the gate filled its spec. Reference the
 command palette (constellation.toml) rather than hardcoding where it applies."""
+
+  [[field.item]]
+  id = "model"
+  optional = true
+  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."

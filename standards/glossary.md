@@ -21,11 +21,17 @@ forms; coining a synonym for a term below is a defect.
   `plan`; any field instead takes `waived: <reason>` or `unknown: <reason>`.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
-- **work id** — a run's address, `<kind>-<number>-<slug>`; children derive from the parent
-  (`issue-712-parser-eof.g1`). Required on every call, never inferred.
-- **journal** — the per-run append-only TOML record; run state is a fold over it.
-- **ledger** — the on-demand listing of open runs (bare `spine`); generated from journals,
-  never stored.
+- **work id** — a run's address, `<kind><number>` (`issue712`); children by suffix
+  (`issue712.g1`). Short and meaningless on purpose — the title holds the "what." Required on
+  every call, never inferred.
+- **quarters** — a run's work package, `.agent-work/<work-id>/`: journal, response forms, plan
+  artifacts, notes; child runs nest inside. Derived from the id, visible to everyone.
+- **journal** — the per-run append-only TOML record in its quarters; run state is a fold over
+  it.
+- **ledger** — the on-demand listing of open runs (bare `spine`): id, title, position, state;
+  generated from journals, never stored.
+- **model tier** — a logical dispatch weight (`light | standard | heavy`) named by assemblies
+  and gate specs; the command palette maps it to a concrete runner.
 - **conductor** — the one persistent agent of an assembly; pumps its interior mechanically,
   judges only at transitions.
 - **gate** — a segment minted into an execute phase; runs as a child run (run-a-gate) with the
@@ -38,4 +44,4 @@ forms; coining a synonym for a term below is a defect.
   derived at dispatch, never authored.
 - **pivot criteria** — what changes the plan, not only what ends it.
 - **command palette** — `constellation.toml`: the host repo's test/lint/build commands, which
-  check fields reference instead of hardcoding.
+  check fields reference instead of hardcoding, and the model-tier map.
