@@ -4,7 +4,12 @@
 # form ever hardcodes a runner.
 
 [commands]
+# `test` is the fast suite -- seconds, run constantly, no model calls.
 test = "python3 -m pytest -q"
+# `validate` is what a run's own gates should check, and what to run before
+# anything ships: the fast suite plus the agent evals, which drive a real
+# light model against a real run and assert on its journal.
+validate = "python3 -m pytest -q && python3 -m pytest -m agent -q"
 lint = "python3 -m pyflakes engine"
 lines = "find engine spine -type f | xargs wc -l | tail -1"
 
