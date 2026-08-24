@@ -71,19 +71,21 @@ of a `plan` field (minted interiors), and `amend` (worklist repairs). A run stop
 its template at `open` — the template's steps are copied into the journal, so templates evolve
 without stranding live runs.
 
-### Addressing: work ids and quarters
+### Addressing: work ids and work locations
 
-Every run has a **work id**, minted at `open`: `<kind><number>` (`issue712`), children by
-suffix (`issue712.g1`). Ids are short and meaningless on purpose; the "what" is the run's
-title, held by the ledger at whatever length it needs. Every call names its work id
-explicitly; there is no default and the id is never inferred from cwd or environment — a
-dispatched crew not handed an id cannot accidentally drive its dispatcher's run.
+Every run has a **work id**, minted at `open`: `<kind><hash>` (`issue7c3f`, four random hex
+chars, collision-checked against the local ledger), children by suffix (`issue7c3f.g1`).
+Random beats a counter because two worktrees allocating in parallel cannot see each other's
+next number; ids are short and meaningless on purpose — the "what" is the run's title, held
+by the ledger at whatever length it needs. Every call names its work id explicitly; there is
+no default and the id is never inferred from cwd or environment — a dispatched crew not
+handed an id cannot accidentally drive its dispatcher's run.
 
-A run's **quarters** is `.agent-work/<work-id>/` — the whole work package bundled together:
+A run's work location is `.agent-work/<work-id>/` — the whole work package bundled together:
 journal, materialized response forms, plan artifacts, notes. Child runs nest inside the
-parent's quarters (`.agent-work/issue712/g1/`). The engine derives the path from the id, so
-nobody invents paths, but nothing is hidden: agents read and write their own quarters
-directly. Branch and worktree names derive from the id too.
+parent's (`.agent-work/issue7c3f/g1/`). The engine derives the path from the id, so nobody
+invents paths, but nothing is hidden: agents read and write their own work location directly.
+Branch and worktree names derive from the id too.
 
 A bare `spine` with no id prints the ledger — every open run's id, title, assembly, position,
 and state — generated on demand from the journals, never stored.
@@ -92,9 +94,9 @@ and state — generated on demand from the journals, never stored.
 
 | Verb | Does |
 |---|---|
-| `open` | instantiate a run from an assembly template; mints the work id, takes the title; copies the skeleton into the journal; sets up quarters |
+| `open` | instantiate a run from an assembly template; mints the work id, takes the title; copies the skeleton into the journal; sets up the work location |
 | `status` | where you are: the step's prefill and imperative rendered as prose, the path of the materialized response form, and the other legal moves spelled out as typeable commands |
-| `submit` | read the filled response form from quarters; the engine validates fields, runs its command checks, journals, advances. A refusal names the missing or failing field and nothing else |
+| `submit` | read the filled response form; the engine validates fields, runs its command checks and appends their output, journals, advances. A refusal names the missing or failing field and nothing else |
 | `amend` | edit a segment's worklist — add, close, reorder; one required `reason` string, journaled |
 | `note` | append an observation, triage candidate, or decision to the record |
 | `close` | terminal; stamps return fields into the parent's waiting step if the run is parented; archives |
@@ -118,10 +120,11 @@ affordance, and shell-quoting multi-line content — and both are fixed in the C
   literal, typeable commands. The agent never guesses a verb and never recalls syntax;
   nothing about the engine is resident in context between steps.
 - **One way of replying: fill the file.** When a step becomes current, the engine
-  materializes its response template into quarters — the current step only, blank value slots,
-  field notes inline. The agent fills it with its file tools; `submit` reads it back. No
-  heredocs, no inline flags, no shell-quoting problem; the filled file stays in quarters as a
-  record artifact.
+  materializes its response template into the work location — the current step only, holding
+  only the fields the agent fills (`check` fields never appear; the engine runs them at
+  submit and appends the output). The agent fills it with its file tools; `submit` reads it
+  back. No heredocs, no inline flags, no shell-quoting problem; the filled file stays in the
+  work location as a record artifact.
 - The engine core is a library; if agents still struggle, a thin MCP door over the same core is
   a later, measured addition — not a founding component.
 
@@ -159,8 +162,8 @@ never prevented with enforcement.
 
 ### The record
 
-One append-only TOML journal per run, in its quarters (`[[entry]]` blocks appended; a ~40-line
-writer — there is no stdlib TOML writer — and stdlib `tomllib` reads). Every write is session-stamped. Stamps are
+One append-only TOML journal per run, in its work location (`[[entry]]` blocks appended; a
+~40-line writer — there is no stdlib TOML writer — and stdlib `tomllib` reads). Every write is session-stamped. Stamps are
 observations: two sessions interleaving is a fact the record shows, not a state the engine
 prevents. There is no mutable spine file: current state is a fold over the journal, which is
 what makes concurrent sessions safe and cross-session resume free. TOML is the one authored
@@ -296,8 +299,14 @@ portable:
 - The **command palette** maps tiers to concrete runners — `[models]` in `constellation.toml`
   (`standard = "claude-sonnet"`, or a codex invocation, or whatever the shop runs).
 - The **assembly** sets each step's default tier; a **gate spec may override** via its optional
-  `model` item, and the resolved tier rides the prefill. The engine never launches anything —
-  it carries the field to the conductor, who dispatches.
+  `model` item, and the resolved tier rides the prefill.
+
+The tier must be *used*, not merely recorded, and the mechanics make using it the path of
+least resistance: at a dispatch step, `status` renders the resolved runner invocation as the
+literal, typeable dispatch command — the conductor copies it, never composes it. The child's
+`open` records the tier it was dispatched under; the ledger and the child's returns both
+surface it, so a mismatch is visible at the transition that adjudicates the child. The engine
+still launches nothing — it resolves, renders, and records.
 
 ### The authority block
 
@@ -421,26 +430,26 @@ note = "advance | remint | drop <gate-id> | replan — on anything but advance, 
 ```
 
 ```text
-$ spine issue712 status
+$ spine issue7c3f status
 
-issue712 · run-an-issue · execute · gate transition g1 (5 of 7)
-  issue712: parser drops the last record when the file ends without a newline
+issue7c3f · run-an-issue · execute · gate transition g1 (5 of 7)
+  issue7c3f: parser drops the last record when the file ends without a newline
 
   Gate g1 closed: verdict pass, 2 implement/review cycles, returns below.
   Decide whether its spec achieved the goal, and whether the plan still holds.
 
-  returns from issue712.g1
+  returns from issue7c3f.g1
     verdict    pass (2 cycles)
     diff       src/parser.c +41 -7
-    check      pytest -q tests/parser — 41 passed  (re-run: spine issue712.g1 check done)
+    check      pytest -q tests/parser — 41 passed  (re-run: spine issue7c3f.g1 check done)
 
-  your response form: .agent-work/issue712/G1_TRANSITION.toml
-  fill it, then:     spine issue712 submit
-  also legal:        spine issue712 note ...   spine issue712 amend ...
+  your response form: .agent-work/issue7c3f/G1_TRANSITION.toml
+  fill it, then:     spine issue7c3f submit
+  also legal:        spine issue7c3f note ...   spine issue7c3f amend ...
 ```
 
 ```toml
-# .agent-work/issue712/G1_TRANSITION.toml, filled
+# .agent-work/issue7c3f/G1_TRANSITION.toml, filled
 learned = """
 Review passed in two cycles; the parser change was smaller than planned.
 Gate g2's scope note still assumed the larger change — trimmed via amend a3."""

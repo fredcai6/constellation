@@ -21,13 +21,13 @@ forms; coining a synonym for a term below is a defect.
   `plan`; any field instead takes `waived: <reason>` or `unknown: <reason>`.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
-- **work id** — a run's address, `<kind><number>` (`issue712`); children by suffix
-  (`issue712.g1`). Short and meaningless on purpose — the title holds the "what." Required on
+- **work id** — a run's address, `<kind><hash>` (`issue7c3f`); children by suffix
+  (`issue7c3f.g1`). Short and meaningless on purpose — the title holds the "what." Required on
   every call, never inferred.
-- **quarters** — a run's work package, `.agent-work/<work-id>/`: journal, response forms, plan
-  artifacts, notes; child runs nest inside. Derived from the id, visible to everyone.
-- **journal** — the per-run append-only TOML record in its quarters; run state is a fold over
-  it.
+- **work location** — a run's work package, `.agent-work/<work-id>/`: journal, response forms,
+  plan artifacts, notes; child runs nest inside. Derived from the id, visible to everyone.
+- **journal** — the per-run append-only TOML record in its work location; run state is a fold
+  over it.
 - **ledger** — the on-demand listing of open runs (bare `spine`): id, title, position, state;
   generated from journals, never stored.
 - **model tier** — a logical dispatch weight (`light | standard | heavy`) named by assemblies
