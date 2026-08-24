@@ -14,7 +14,11 @@ import shutil
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-DEFAULT_DEST = pathlib.Path.home() / ".claude" / "skills"
+# One self-contained tree, because every internal reference is repo-relative
+# (a form's `skills/...`, run.py's `assemblies/<name>`). Wiring these bundles
+# into a host's skill discovery is a separate, unsettled step -- see
+# docs/ENGINE_NOTES.md. Do not solve it by rewriting paths in copied files.
+DEFAULT_DEST = pathlib.Path.home() / ".claude" / "constellation"
 _IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc")
 
 

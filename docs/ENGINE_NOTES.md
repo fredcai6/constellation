@@ -45,3 +45,31 @@ script at the repo root puts the repo on `sys.path` and calls `cli.main`.
 Install is a copy, so the installed tree keeps the same shape — if that ever
 requires rewriting paths inside files, the shapes have diverged and the fix
 is the layout, never an installer.
+
+## Open: how bundles reach a host's skill discovery
+
+`install.py` copies one self-contained tree (default `~/.claude/constellation/`)
+because every internal reference is repo-relative: a form cites
+`skills/interrogator/forms/UNDERSTAND.toml`, and `run.py` resolves assemblies
+under the install root. Preserving the shape 1:1 is what keeps install a copy.
+
+But Claude Code discovers skills at `~/.claude/skills/<name>/SKILL.md`, which
+is a *flat* layout — and flattening our tree to match would break every
+skill-owned form reference. So the two shapes genuinely disagree, and the
+disagreement is real rather than an implementation detail.
+
+The three ways out, none chosen yet, all cutover decisions:
+
+1. Install the tree, then place (or symlink) each `skills/<name>/` into
+   `~/.claude/skills/` as well. Discovery sees the flat layout, the engine
+   sees the tree, nothing is rewritten. Duplication is the cost.
+2. Make a skill bundle genuinely self-contained — its forms live inside it and
+   nothing cites across bundles. This is the "bundle-shaped" ruling taken
+   literally, and it collides with the ownership rule that a form shared by two
+   assemblies belongs to the assembly.
+3. Teach `resolve_form` one install-root lookup. Cheapest in lines, but it is a
+   path rewrite wearing a disguise, and the handoff named that reflex as the
+   signal to re-read Layer 2.
+
+Whichever wins, the test is the handoff's: repo shape and installed shape must
+not diverge, because that divergence is what grew v1's installer to 3,219 lines.
