@@ -63,3 +63,20 @@ def state(workdir, work_id):
 def journal_text(workdir, work_id):
     p = pathlib.Path(workdir) / ".agent-work" / work_id.replace(".", "/") / "journal.toml"
     return p.read_text() if p.exists() else ""
+
+
+def prefill(workdir, work_id, **fields):
+    """Stamp orders onto a run the way a dispatch would, so an eval can set up
+    a gate spec without a parent run."""
+    cwd = os.getcwd()
+    try:
+        os.chdir(workdir)
+        from engine import journal
+        journal.append(work_id, "prefill", fields=fields)
+    finally:
+        os.chdir(cwd)
+
+
+def form_text(workdir, work_id, name):
+    p = (pathlib.Path(workdir) / ".agent-work" / work_id.replace(".", "/") / name)
+    return p.read_text() if p.exists() else ""
