@@ -143,3 +143,16 @@ def test_every_panel_names_a_form_the_panelist_actually_fills():
         for seg in tomllib.load(open(a, "rb"))["segment"]:
             for p in seg.get("transition", {}).get("panel", []):
                 assert (ROOT / p["form"]).exists(), f"{a.parent.name}: {p['form']}"
+
+
+def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
+    """A response template tells the agent which statuses a field accepts.
+    Each must be one something actually acts on -- a status nobody reads is
+    the same defect as a form promising a check nobody runs."""
+    header = (ROOT / "engine" / "forms.py").read_text()
+    taught = set(re.findall(r"#   (\w+):", header))
+    src = ENGINE_SRC
+    for status in taught:
+        assert f'"{status}:"' in src or f"{status}:" in src, \
+            f"the template teaches {status!r}; nothing in the engine reads it"
+    assert "working" in taught  # the one that gates a submit

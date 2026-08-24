@@ -72,7 +72,7 @@ def legal_moves(wid):
 
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
-           position=None, board=None):
+           position=None, board=None, in_hand=None):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -111,6 +111,11 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
 
     out.append(_para(form.get("imperative", "")))
     out.append("")
+
+    if in_hand:
+        out.append("  still in hand on this form")
+        out.append(_pairs(list(in_hand.items())))
+        out.append("")
 
     out.append(f"  your response form: {response_path}")
     out.append(f"  fill it, then:     spine {wid} submit")

@@ -232,3 +232,30 @@ def test_an_amended_anchor_is_flagged_where_it_will_be_read(workdir):
     lines = render.amends(runmod.state("issue17")["amends"])
     assert lines and lines[0].startswith("ANCHOR ")
     assert "issue already states it" in lines[0]
+
+
+def test_a_field_in_hand_is_not_mistaken_for_an_answer(workdir, capsys):
+    """`working: <what is left>` is the status an agent sets while a field is
+    still in hand. Submitting it would record work-in-progress as an answer,
+    and the next reader could not tell the difference."""
+    cli.main(["open", "run-a-gate", "--id", "g1"])
+    pathlib.Path(".agent-work/g1/IMPLEMENT.toml").write_text(
+        'change = "working: still tracing the EOF branch"\n'
+        'deviations = "waived: none"\n')
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g1", "submit"])
+    msg = str(e.value)
+    assert "still tracing" in msg           # says what is left, not just that it is
+    assert "waived:" in msg                 # and the honest ways to close it
+
+    cli.main(["g1"])                        # status surfaces it unasked
+    out = capsys.readouterr().out
+    assert "still in hand" in out and "still tracing the EOF branch" in out
+
+    # finishing it is one edit
+    pathlib.Path(".agent-work/g1/IMPLEMENT.toml").write_text(
+        'change = "traced it; flushed at capacity"\ndeviations = "waived: none"\n')
+    cli.main(["g1", "submit"])
+    assert "work-1" in runmod.state("g1")["done"]

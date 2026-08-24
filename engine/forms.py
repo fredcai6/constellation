@@ -66,7 +66,13 @@ def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
     dest_path = Path(dest_path)
     work_id = work_id or dest_path.parent.name
     submit = submit or f"spine {work_id} submit"
-    lines = [f"# {dest_path} -- fill the values, then: {submit}", ""]
+    lines = [f"# {dest_path} -- fill the values, then: {submit}",
+             "#",
+             "# Any field also takes a status instead of an answer:",
+             "#   working: <what is left>   still in hand; submit will say so",
+             "#   waived: <reason>          does not apply here",
+             "#   unknown: <reason>         could not determine",
+             ""]
     for field in form["fields"]:
         if field["kind"] == "check":
             continue
@@ -119,3 +125,17 @@ def parse(dest_path):
     except tomllib.TOMLDecodeError as e:
         raise SystemExit(f"{Path(dest_path).name}: not valid TOML -- {e}\n"
                          "  fix the file and submit again; nothing was recorded")
+
+
+def in_hand(dest_path):
+    """Fields the agent marked `working:` -- what is still open on this form.
+
+    A status nobody renders is a status nobody sets, so this is what makes the
+    marker worth writing: it shows up in `status` and in the rail's nudge.
+    """
+    try:
+        filled = parse(dest_path)
+    except SystemExit:
+        return {}
+    return {k: str(v).strip()[len("working:"):].strip()
+            for k, v in filled.items() if str(v).strip().startswith("working:")}

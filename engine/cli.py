@@ -245,7 +245,8 @@ def cmd_status(argv):
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     print(render.status(st, form, dest, prefill=prefill,
                         returns=returns, blocked=runmod.blocks(st),
-                        position=runmod.position(st, asm), board=board))
+                        position=runmod.position(st, asm), board=board,
+                        in_hand=forms.in_hand(dest) if dest.exists() else None))
     return 0
 
 
@@ -287,6 +288,14 @@ def cmd_submit(argv):
             if f.get("optional"):
                 continue
             raise SystemExit(render.refusal(fid, "no answer"))
+        # A field the agent marked as still in hand. Submitting it would
+        # record work-in-progress as an answer, and the next reader could not
+        # tell the difference -- so say what is still open and let the agent
+        # finish it, or close it honestly with one of the nulls.
+        if str(filled[fid]).strip().startswith("working:"):
+            raise SystemExit(render.refusal(
+                fid, str(filled[fid]).strip(),
+                escape="finish it, or answer  waived: <reason>  /  unknown: <reason>"))
         fields[fid] = filled[fid]
 
     for f in form["fields"]:
