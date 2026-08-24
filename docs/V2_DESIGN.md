@@ -418,7 +418,7 @@ triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum ≈ 14
    plan minting, prefill/returns, TOML journal + writer, the Zork-shaped CLI, advisory rail,
    Windows port, tests. Accepted when the appendix example round-trips.
 3. **run-an-issue + run-a-gate.** Forms and slimmed skills: commander, commander-delegated,
-   gate-executor, interrogator, implementer, reviewer, prototyper, triage — plus their v2
+   interrogator, implementer, reviewer, prototyper, triage — plus their v2
    evals. **Ends with a real run-an-issue on a toy issue in this repo, run from the branch** —
    the toy issue builds a genuine v2 component, so the validation run also builds v2. The pivot
    criteria below arm here, not at cutover.
