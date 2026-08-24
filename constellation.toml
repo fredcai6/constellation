@@ -1,0 +1,16 @@
+# The command palette: this repo's own commands and model tiers. One of the
+# two artifacts v2 allows to be repo-specific (the other is the glossary).
+# `check` fields reference these by name -- `palette:test tests/x.py` -- so no
+# form ever hardcodes a runner.
+
+[commands]
+test = "python3 -m pytest -q"
+lint = "python3 -m pyflakes engine"
+lines = "find engine spine -type f | xargs wc -l | tail -1"
+
+# Logical tiers, resolved at dispatch. Forms and assemblies name only the
+# tier, never a provider, so an assembly is portable across shops.
+[models]
+light = "claude-haiku-4-5-20251001"
+standard = "claude-sonnet-5"
+heavy = "claude-opus-5"
