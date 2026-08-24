@@ -1,0 +1,25 @@
+# Anchor: understand → plan. Owned by run-an-issue; filled by the conductor.
+# On submit the engine validates the question board: an open row refuses, a
+# decision answered without the principal's words refuses; the escape is
+# deferred: <reason>, journaled.
+
+imperative = """
+The board is worked. Consolidate what a fresh-context planner needs — the
+understanding, not the journey."""
+
+[[field]]
+id = "learnings"
+kind = "evidence"
+note = """
+What is now known that the issue did not state: the shape of the problem, the
+constraints that bind, where the danger is. Necessary context only."""
+
+[[field]]
+id = "key-terms"
+kind = "evidence"
+note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+
+[[field]]
+id = "settle"
+kind = "evidence"
+note = "Name the spike, prototype, or data view that would settle something now — dispatched before planning — or decline with a reason."

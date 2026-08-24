@@ -1,0 +1,32 @@
+# Board: understand questions. Owned by the interrogator skill; seeded into
+# the work location at segment entry, worked in place — add rows, resolve,
+# moot with reasons, cluster. The engine validates at the consolidate
+# transition: an open row refuses; a decision answered without the
+# principal's words refuses; the escape is deferred: <reason>, journaled.
+#
+# A row is askable when nothing in `after` is open and nothing has mooted it.
+# Blocked is per-row, never per-run: a decision in flight floats up while
+# other askable clusters proceed.
+
+[[question]]
+id = "q1"
+question = ""
+type = ""        # fact | decision. A fact you resolve yourself with evidence;
+                 # a decision the principal owns — never self-answer it.
+cluster = ""     # optional — rows taken to the principal in one sitting
+after = []       # optional — row ids this one waits on
+status = "open"  # open | answered | moot | up | deferred: <reason>
+answer = ""      # fact: the answer and the move that grounded it (read, trace,
+                 # reproduce, spike, picture, evidence loop) — never memory.
+                 # decision: the principal's words, verbatim.
+                 # moot: the answer that mooted it.  up: where it went.
+
+# A decision goes to the principal one question at a time, carrying ~3 options
+# with pros and cons and a recommendation. Effort scales with criticality: an
+# obvious row in a clustered sitting may carry the recommendation alone.
+recommend = ""
+
+  [[question.option]]
+  choice = ""
+  pros = ""
+  cons = ""

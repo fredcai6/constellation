@@ -10,8 +10,11 @@ forms; coining a synonym for a term below is a defect.
 - **segment** — the engine's one structural concept: an ordered interior of items — steps or
   nested segments — ending in one transition. *Phase*, *gate*, and *wave* are segment names,
   not engine concepts.
-- **interior / worklist** — a segment's mutable contents; grown, pruned, and reordered by
-  amend; exhausted means the segment ends.
+- **interior** — a segment's mutable contents, one of two kinds: a **worklist** of steps
+  (grown, pruned, and reordered by amend; exhausted means the segment ends) or a **board**.
+- **board** — an expansive segment's interior as a living TOML document in the work location:
+  seeded at entry, worked freely in place, validated by the engine at the transition. The
+  understand question board; the explore ideas board. Blocked is per-row, never per-run.
 - **transition** — the step that ends a segment: looks back (what did we learn — does the plan
   hold?), decides, and mints the next interior. The OODA beat.
 - **anchor** — a template step flagged so that amending it away is loud in the ledger and the

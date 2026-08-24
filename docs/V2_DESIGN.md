@@ -48,11 +48,17 @@ vocabulary the assemblies put on top: a *phase* is a top-level segment, a *gate*
 minted into an execute phase, an epic's *wave* is a segment whose interior dispatches whole
 child runs.
 
-- **The skeleton is fixed; interiors are worklists.** A run's segment sequence comes from its
-  assembly and does not move. Inside a segment, the interior is a mutable worklist: the working
-  agent amends it as answers land — add a step, close one pre-emptively with a reason, reorder.
-  The segment ends when its worklist is exhausted; loop sizes are discovered, never preset.
-  An amend names the segment it inserts into; closed segments are history, not addresses.
+- **The skeleton is fixed; interiors come in two kinds.** A run's segment sequence comes from
+  its assembly and does not move. Sequenced work (gates, produce→criticize loops) is a
+  **worklist of steps**: the working agent amends it as answers land — add a step, close one
+  pre-emptively with a reason, reorder; the segment ends when the worklist is exhausted, so
+  loop sizes are discovered, never preset. Expansive work (understand's questions, explore's
+  ideas) is a **board**: a living TOML document in the work location, seeded by the engine at
+  segment entry, worked freely in place — add, resolve, moot with reasons, cluster — and
+  validated by the engine at the transition. Steps answer "what's next"; a board serves the
+  chooser who needs sight of the many. On a board, blocked is per-row, never per-run: a
+  decision in flight floats up while other askable rows proceed. An amend names the segment it
+  inserts into; closed segments are history, not addresses.
 - **Transitions look back, decide, and instantiate.** Every transition form has two parts: the
   look-back (*what did this segment teach us — does the plan still hold?*) and the look-forward,
   a `plan` field whose submitted content is minted as the next segment's interior. The v1
@@ -139,7 +145,7 @@ affordance, and shell-quoting multi-line content — and both are fixed in the C
 | `evidence` | the agent pastes proof: output, diff, verdict |
 | `artifact` | a file exists at the named path |
 | `decision` | the principal's recorded answer |
-| `plan` | submitted content is minted as steps — the next segment's interior, a gate's spec |
+| `plan` | submitted content is minted as structure — a segment's steps, a gate's spec and dispatch, or board rows |
 
 Any field may instead carry `waived: <reason>` ("does not apply") or `unknown: <reason>`
 ("could not determine") — each one journaled step, rendered by `status` without ceremony.
@@ -281,9 +287,12 @@ each conductor dispatches the tier below and judges at its transitions:
 - **run-an-issue** (conductor: commander):
 
 ```text
-<open>            seeds the understand worklist from the issue
-[understand]*     worklist; amend to grow/prune; questions typed fact | decision
-<consolidate>     learnings + key terms — the prefill for fresh-context planning
+<open>            seeds the question board from the issue
+[understand]      board: questions typed fact | decision, clustered; decisions
+                  go to the principal one at a time, ~3 options with pros/cons
+                  and a recommendation — effort scales with criticality
+<consolidate>     learnings + key terms — the prefill for fresh-context
+                  planning; the engine validates the board here
 [plan → critic]*  produce/criticize loop; design-it-twice lives here
 <plan→execute>    the plan field mints k gate dispatches from the plan's gate specs
 k*[ dispatch run-a-gate → <gate transition> ]

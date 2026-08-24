@@ -23,8 +23,11 @@ recorded from the human when it does not."""
 [[field]]
 id = "questions"
 kind = "plan"
-mints = "question"
-note = "One block per seed question. Each is minted as an understand step."
+mints = "board rows"
+note = """
+One block per seed question, minted as rows on the understand board
+(QUESTIONS.toml). A seed may carry any board column (cluster, after); only
+these two are required."""
 
   [[field.item]]
   id = "question"
