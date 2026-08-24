@@ -1,0 +1,24 @@
+# Step: implement. Owned by the implementer skill; identical in any assembly.
+# The gate spec (purpose, scope, done) arrives as prefill and renders above
+# these fields in status. It is the order: contest it with a blocked note up,
+# never by editing it.
+
+imperative = """
+Make the change the gate spec above describes. Stay inside its scope; anything
+you find outside it is a note, not a detour. When the spec and reality
+disagree, that is a blocked note up, not an improvisation."""
+
+[[field]]
+id = "change"
+kind = "evidence"
+note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort. Name the branch and commit."
+
+[[field]]
+id = "done"
+kind = "check"
+note = "The gate spec's done commands, executed by the engine here; output recorded."
+
+[[field]]
+id = "deviations"
+kind = "evidence"
+note = "Where the work departed from the spec and why — or waived: none."

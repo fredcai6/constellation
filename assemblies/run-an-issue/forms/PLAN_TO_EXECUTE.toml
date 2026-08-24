@@ -1,0 +1,40 @@
+# Transition: plan → execute. Owned by run-an-issue; filled by the conductor.
+
+imperative = """
+The plan has passed critique. State what planning taught us, then cut the plan
+into gates — each gate is dispatched as its own run, and the fields you fill
+per gate become that run's opening orders, read-only. What you leave out here,
+the gate executor cannot know."""
+
+[[field]]
+id = "learned"
+kind = "evidence"
+note = "What the plan/critique loop taught us; changes to the understanding it started from."
+
+[[field]]
+id = "plan"
+kind = "artifact"
+note = "Path to the plan artifact that passed critique."
+
+[[field]]
+id = "gates"
+kind = "plan"
+mints = "run-a-gate"
+note = """
+One block per gate, in intended order. Each block is minted as a dispatch step
+plus this gate's transition; the block's fields are the child run's prefill."""
+
+  [[field.item]]
+  id = "purpose"
+  note = "What this gate accomplishes, and why the plan needs it."
+
+  [[field.item]]
+  id = "scope"
+  note = "Where the change lives, and what is out of bounds."
+
+  [[field.item]]
+  id = "done"
+  kind = "check"
+  note = """
+The commands whose output shows the gate filled its spec. Reference the
+command palette (constellation.toml) rather than hardcoding where it applies."""
