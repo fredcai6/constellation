@@ -98,6 +98,9 @@ def _response_path(st, step):
 
 
 def cmd_open(argv):
+    if not argv or argv[0].startswith("--"):
+        raise SystemExit("spine open <assembly> --title T [--issue N]\n  assemblies: "
+                         + ", ".join(runmod.assemblies()))
     assembly = argv[0]
     parent = _opt(argv, "--parent")
     if parent:
@@ -177,9 +180,10 @@ def cmd_status(argv):
         forms.materialize(form, dest, work_id=wid, submit=f"spine {wid} submit")
     ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
     returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
+    board = st["boards"].get(step["segment"]) if step.get("validates") == "board" else None
     print(render.status(st, form, dest, prefill=st.get("prefill") or step.get("prefill"),
                         returns=returns, blocked=runmod.blocks(st),
-                        position=runmod.position(st, asm)))
+                        position=runmod.position(st, asm), board=board))
     return 0
 
 
@@ -243,7 +247,10 @@ def cmd_submit(argv):
                            "output": (r.stdout + r.stderr)[-4000:]}
         if r.returncode != 0:
             journal.append(wid, "check", step=step["id"], **checks[f["id"]])
-            raise SystemExit(render.refusal(f["id"], f"`{cmd}` exited {r.returncode}"))
+            raise SystemExit(
+                f"{f['id']}: `{cmd}` exited {r.returncode}\n"
+                f"  a check is run by the engine, not filled in -- make it pass,\n"
+                f"  or drop this step: spine {wid} amend close {step['id']} --reason ...")
 
     _check_plan(form, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
@@ -324,8 +331,17 @@ def _seed_board(template, dest, rows):
                     f"{quoted}\n\n# --- the board ---\n\n{body}")
 
 
+NOTE_KINDS = ("blocked", "resumed", "observation", "decision", "triage")
+
+
 def cmd_note(argv):
+    if len(argv) < 2:
+        raise SystemExit(f"spine <work-id> note <{'|'.join(NOTE_KINDS)}> <text>")
     wid, kind, text = argv[0], argv[1], " ".join(argv[2:])
+    if kind not in NOTE_KINDS:
+        # `note block ...` used to print success and do nothing at all: only
+        # the exact word is acted on, so a near-miss must not look like a hit.
+        raise SystemExit(f"no note kind {kind!r} -- one of: {', '.join(NOTE_KINDS)}")
     st = runmod.state(wid)
     if st is None:
         raise SystemExit(f"no run named {wid}")

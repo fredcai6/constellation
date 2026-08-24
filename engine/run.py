@@ -16,8 +16,16 @@ def assembly_dir(name):
     return pathlib.Path(__file__).resolve().parent.parent / "assemblies" / name
 
 
+def assemblies():
+    root = pathlib.Path(__file__).resolve().parent.parent / "assemblies"
+    return sorted(p.name for p in root.iterdir() if (p / "ASSEMBLY.toml").exists())
+
+
 def load_assembly(name):
     d = assembly_dir(name)
+    if not (d / "ASSEMBLY.toml").exists():
+        raise SystemExit(f"no assembly named {name!r} -- try: "
+                         + ", ".join(assemblies()))
     spec = tomllib.load(open(d / "ASSEMBLY.toml", "rb"))
     spec["dir"] = d
     return spec

@@ -60,7 +60,7 @@ def legal_moves(wid):
 
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
-           position=None):
+           position=None, board=None):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -91,6 +91,10 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     if returns:
         out.append("  returns")
         out.append(_pairs(list(returns.items())))
+        out.append("")
+
+    if board:
+        out.append(f"  the board:          {board}")
         out.append("")
 
     out.append(_para(form.get("imperative", "")))

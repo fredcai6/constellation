@@ -141,3 +141,37 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
     assert "not found" in capsys.readouterr().out
     assert not journal.exists("issue17")          # no phantom parent minted
     assert runmod.blocks(runmod.state(child))     # the undelivered return is a block
+
+
+def test_the_off_path_never_shows_a_traceback(workdir):
+    """A fresh agent meets these by mistyping. Each must answer with the way
+    forward, not a Python line number."""
+    for argv, want in [
+        (["open"], "assemblies:"),
+        (["open", "bogus", "--title", "t"], "no assembly named"),
+        (["nosuchrun"], "no run named"),
+    ]:
+        with pytest.raises(SystemExit) as e:
+            cli.main(argv)
+        assert want in str(e.value)
+
+
+def test_a_near_miss_note_kind_refuses_instead_of_no_opping(workdir):
+    """`note block ...` printed success and did nothing -- only the exact word
+    is ever acted on, so a near miss must not look like a hit."""
+    _open()
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "note", "block", "oops"])
+    assert "blocked" in str(e.value)
+
+
+def test_status_names_the_board_it_will_validate(workdir, capsys):
+    """The board was invisible in status while the imperative claimed it was
+    already worked -- the room description lying about the room."""
+    _open()
+    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+        'issue = "gh:17"\nauthority = "T."\n[[questions]]\nquestion = "q?"\ntype = "fact"\n')
+    cli.main(["issue17", "submit"])
+    out = capsys.readouterr().out
+    assert "UNDERSTAND.toml" in out
+    assert "will not pass while a row is open" in out

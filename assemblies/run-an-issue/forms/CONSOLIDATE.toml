@@ -4,8 +4,11 @@
 # deferred: <reason>, journaled.
 
 imperative = """
-The board is worked. Consolidate what a fresh-context planner needs — the
-understanding, not the journey."""
+Work the board named above until every row is answered, mooted, or
+deferred with a reason — this step will not pass while a row is open, or
+while a decision is recorded with no words from the principal. Then
+consolidate what a fresh-context planner needs: the understanding, not the
+journey."""
 
 [[field]]
 id = "learnings"
