@@ -3,7 +3,7 @@
 # nothing to fill at open, so it has no form.
 
 assembly = "run-a-gate"
-conductor = "gate-executor"
+conductor = "implementer"
 
 [[segment]]
 id = "work"
@@ -35,4 +35,4 @@ id = "close"
 anchor = true
 terminal = true
 form = "forms/GATE_CLOSE.toml"
-filler = "conductor"
+filler = "implementer"

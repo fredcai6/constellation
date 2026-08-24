@@ -156,3 +156,26 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
         assert f'"{status}:"' in src or f"{status}:" in src, \
             f"the template teaches {status!r}; nothing in the engine reads it"
     assert "working" in taught  # the one that gates a submit
+
+
+def test_every_role_an_assembly_names_is_one_the_design_declares():
+    """An assembly naming a role the roster does not have is a promise with
+    nobody behind it. `gate-executor` outlived its own removal in four files
+    because this suite checked assembly *keys* and never their values, and the
+    edit that dropped it silently failed to match in every file but the spec.
+    """
+    roster = set(re.findall(r"^\| `([a-z-]+)` \|", (ROOT / "docs" / "V2_DESIGN.md").read_text(),
+                            re.M))
+    assert roster, "could not read the roster from the spec"
+    for a in ASSEMBLIES:
+        spec = tomllib.load(open(a, "rb"))
+        named = {spec.get("conductor", "")}
+        for seg in spec["segment"]:
+            named |= {seg.get("worker", ""), seg["transition"].get("filler", "")}
+            named |= {p.get("worker", "") for p in seg["transition"].get("panel", [])}
+        # `filler = "conductor"` is an indirection, not a role: it means
+        # whoever conducts this assembly. Resolve it before checking.
+        named = {spec.get("conductor", "") if r == "conductor" else r for r in named}
+        for role in named - {""}:
+            assert role in roster, (
+                f"{a.parent.name} names role {role!r}, which the spec's roster does not list")

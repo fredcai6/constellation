@@ -5,7 +5,7 @@
 imperative = """
 The plan has passed critique. Cut it into gates — each gate is dispatched as
 its own run, and the fields you fill per gate become that run's opening
-orders, read-only. What you leave out here, the gate executor cannot know.
+orders, read-only. What you leave out here, the implementer cannot know.
 State the gate, not its history: necessary context only."""
 
 [[field]]

@@ -43,7 +43,7 @@ forms; coining a synonym for a term below is a defect.
 - **conductor** — the one persistent agent of an assembly; pumps its interior mechanically,
   judges only at transitions.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
-  gate executor pumping its implement interior and firing its review transition.
+  implementer working its interior and firing its review transition.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The
   order; contested by a blocked note up, never edited.
 - **return** — the child's terminal fields, stamped into the parent's waiting step at close,

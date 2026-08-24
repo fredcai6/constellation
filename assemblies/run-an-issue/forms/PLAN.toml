@@ -6,7 +6,7 @@
 imperative = """
 Produce the plan: how this issue gets solved, cut into gates. A fresh-context
 critic must be able to attack it from the issue and the plan alone, and a
-fresh-context gate executor must be able to execute a gate from its spec
+fresh-context implementer must be able to execute a gate from its spec
 alone."""
 
 [[field]]
