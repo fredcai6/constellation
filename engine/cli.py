@@ -190,10 +190,17 @@ def _open_child(assembly, parent, pstep_id):
     return cmd_status([wid])
 
 
-def _finishing(asm):
+def _finishing(asm, form_override=""):
     """What finishing a dispatched assembly means: the form its terminal
     step fills -- the last thing the child does before `close` stamps its
-    return back to the step that dispatched it."""
+    return back to the step that dispatched it.
+
+    A panel entry may name its own form, and `_open_child` honours it, so a
+    brief that quoted the assembly's default would name a file the agent
+    will not be given -- the brief lying about the step it just opened.
+    """
+    if form_override:
+        return form_override
     seg = next((s for s in asm["segment"] if s.get("transition", {}).get("terminal")), None)
     return (seg.get("transition", {}).get("form", "")) if seg else ""
 
@@ -222,12 +229,12 @@ def _panel_status(wid, st, asm, step, blocked):
     source of truth."""
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
     verdict_asm = runmod.load_assembly("give-a-verdict")
-    finishing = _finishing(verdict_asm)
     returned = {r["child"].rsplit(".", 1)[-1] for r in st["returns"].get(step["id"], [])}
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     for i, panelist in enumerate(step["panel"], start=1):
         tag = f"p{i}"
         tier = panelist.get("model") or seg.get("model", "")
+        finishing = _finishing(verdict_asm, panelist.get("form", ""))
         outstanding = tag not in returned
         lines.append(f"  panelist {tag} ({'returned' if not outstanding else 'outstanding'})"
                      f" -- criteria: {panelist.get('criteria', '')}")

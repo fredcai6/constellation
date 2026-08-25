@@ -167,3 +167,31 @@ def test_panelist_role_is_its_own_worker_not_the_assemblys_conductor(workdir, ca
     out = capsys.readouterr().out
     assert "role         implementer" in out
     assert "role         reviewer" not in out
+
+
+def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(workdir, capsys):
+    """A panel entry may name its own form, and _open_child honours it. A brief
+    quoting the assembly's default would name a file the agent is never handed
+    -- the brief lying about the step it just told you to open. run-an-issue's
+    critic panel overrides to CRITIC.toml, and no fixture exercised that."""
+    cli.main(["open", "run-an-issue", "--id", "i1", "--title", "t"])
+    journal.append("i1", "step", id="plan", segment="plan",
+                   form="forms/PLAN_TO_EXECUTE.toml", filler="conductor",
+                   panel=[{"form": "skills/reviewer/forms/CRITIC.toml",
+                           "worker": "reviewer", "criteria": "c"}],
+                   anchor=True, source="open")
+    journal.append("i1", "submit", step="open", fields={})
+    journal.append("i1", "submit", step="understand", fields={})
+    journal.append("i1", "submit", step="plan-1", fields={})
+    capsys.readouterr()
+
+    cli.main(["i1"])
+    out = capsys.readouterr().out
+    assert "CRITIC.toml" in out, "the brief quoted the assembly default, not the override"
+    assert "REVIEW.toml" not in out
+
+    # and the file it names is the one actually materialized
+    cli.main(["open", "give-a-verdict", "--parent", "i1", "--step", "plan.p1"])
+    loc = journal.location("i1.plan.p1")
+    assert (loc / "CRITIC.toml").exists()
+    assert not (loc / "REVIEW.toml").exists()
