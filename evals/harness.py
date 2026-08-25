@@ -42,9 +42,12 @@ def drive(workdir, prompt, timeout=240):
     engine beyond what it can read from `spine` itself. That is the point: the
     room description is supposed to be sufficient.
     """
-    # `spine` on PATH, the way an installed constellation puts it there. An
-    # agent is told to run `spine <id>`; if the command is not findable it
-    # cannot, and the first eval run failed for exactly that reason.
+    # `spine` on PATH -- not what an install does (install.py only copies,
+    # and deliberately adds no PATH entry), but what a human's own installed
+    # shell already has by the time they open a root run. All three evals
+    # here open root runs, so this pre-seed simulates that install rather
+    # than papering over a gap; a dispatched child gets no such shell of its
+    # own, and self-location is what covers that case instead.
     env = {**os.environ, "CONSTELLATION_SESSION": "eval",
            "PATH": f"{ROOT}:{os.environ.get('PATH', '')}"}
     r = subprocess.run(

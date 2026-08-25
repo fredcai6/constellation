@@ -112,7 +112,7 @@ def cmd_open(argv):
     issue = _opt(argv, "--issue")
     wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue))
     if journal.exists(wid):
-        raise SystemExit(f"{wid} already exists\n  where it stands: spine {wid}")
+        raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""))
@@ -133,7 +133,7 @@ def _open_child(assembly, parent, pstep_id):
     parent step without colliding."""
     pst = runmod.state(parent)
     if pst is None:
-        raise SystemExit(f"no run named {parent}\n  open runs: spine")
+        raise SystemExit(render.located(f"no run named {parent}\n  open runs: spine"))
     m = _PANEL_TAG.match(pstep_id or "")
     step_id, tag = (m.group(1), m.group(2)) if m else (pstep_id, "")
     n = int(tag[1:]) if tag else 0
@@ -145,7 +145,7 @@ def _open_child(assembly, parent, pstep_id):
             escape="steps here: " + ", ".join(s["id"] for s in pst["steps"])))
     wid = _check_id(pstep.get("child") or f"{parent}.{pstep_id}")
     if journal.exists(wid):
-        raise SystemExit(f"{wid} already exists\n  where it stands: spine {wid}")
+        raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     pasm = runmod.load_assembly(pst["assembly"])
     if tag:
         panelist = pstep["panel"][n - 1]
@@ -190,38 +190,52 @@ def _open_child(assembly, parent, pstep_id):
     return cmd_status([wid])
 
 
+def _finishing(asm):
+    """What finishing a dispatched assembly means: the form its terminal
+    step fills -- the last thing the child does before `close` stamps its
+    return back to the step that dispatched it."""
+    seg = next((s for s in asm["segment"] if s.get("transition", {}).get("terminal")), None)
+    return (seg.get("transition", {}).get("form", "")) if seg else ""
+
+
 def _dispatch_status(wid, st, asm, step, blocked):
-    """A dispatch step renders a command, not a form: the engine launches
-    nothing, so the whole job is making the right invocation the only thing
-    there is to type."""
+    """A dispatch step renders a brief, not a form: the engine launches
+    nothing, so making the one right invocation is the whole job. The brief
+    is what a conductor copies into whatever harness it dispatches."""
+    dispatched = runmod.load_assembly(step["dispatches"])
     tier = _tier(step, asm)
-    runner = _runner(tier)
+    child_id = step.get("child") or f"{wid}.{step['id']}"
+    open_cmd = f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"
     lines = render.preamble(st, blocked, runmod.position(st, asm))
-    lines.append(f"  dispatch {step['dispatches']} -- tier {tier or '(unset)'}, "
-                 f"runner {runner or '(unresolved -- check constellation.toml [models])'}")
-    lines.append("")
-    lines.append("  open the child with:")
-    lines.append(f"    spine open {step['dispatches']} --parent {wid} --step {step['id']}")
+    lines.append(render.brief(child_id, dispatched.get("conductor", ""), tier,
+                              _runner(tier), open_cmd, _finishing(dispatched)))
     lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
 
 
 def _panel_status(wid, st, asm, step, blocked):
-    """A panel step renders one command per panelist -- copied, never
-    composed -- with who has returned and who is still outstanding."""
+    """A panel step renders one brief per panelist -- copied, never
+    composed -- with who has returned and who is still outstanding. A
+    panelist's role is its own `worker`, not the give-a-verdict assembly's
+    conductor: the two happen to coincide today, but the panel entry is the
+    source of truth."""
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
+    verdict_asm = runmod.load_assembly("give-a-verdict")
+    finishing = _finishing(verdict_asm)
     returned = {r["child"].rsplit(".", 1)[-1] for r in st["returns"].get(step["id"], [])}
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     for i, panelist in enumerate(step["panel"], start=1):
         tag = f"p{i}"
         tier = panelist.get("model") or seg.get("model", "")
-        runner = _runner(tier)
-        lines.append(f"  panelist {tag} ({'returned' if tag in returned else 'outstanding'})"
+        outstanding = tag not in returned
+        lines.append(f"  panelist {tag} ({'returned' if not outstanding else 'outstanding'})"
                      f" -- criteria: {panelist.get('criteria', '')}")
-        lines.append(f"    tier {tier or '(unset)'}, runner "
-                     f"{runner or '(unresolved -- check constellation.toml [models])'}")
-        lines.append(f"    spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}")
+        if outstanding:
+            child_id = f"{wid}.{step['id']}.{tag}"
+            open_cmd = f"spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}"
+            lines.append(render.brief(child_id, panelist.get("worker", ""), tier,
+                                      _runner(tier), open_cmd, finishing))
         lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
@@ -231,7 +245,7 @@ def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}\n  open runs: spine")
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
     if not st["open"] or st["awaiting_close"]:
         print(render.status(st, {}, "", position=runmod.position(st, None)))
         return 0
@@ -244,7 +258,8 @@ def cmd_status(argv):
         return 0
     dest = _response_path(st, step)
     if not dest.exists():
-        forms.materialize(form, dest, work_id=wid, submit=f"spine {wid} submit")
+        forms.materialize(form, dest, work_id=wid,
+                          submit=render.located(f"spine {wid} submit"))
     ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
     returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
     if returns and returns.get("amends"):
@@ -264,9 +279,9 @@ def cmd_submit(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None or not st["open"] or st["awaiting_close"]:
-        raise SystemExit(f"{wid} has no current step"
-                         + (f" -- close it: spine {wid} close"
-                            if st and st["awaiting_close"] else ""))
+        raise SystemExit(render.located(
+            f"{wid} has no current step"
+            + (f" -- close it: spine {wid} close" if st and st["awaiting_close"] else "")))
     asm, step, form = _current_form(st)
     if step.get("dispatches"):
         raise SystemExit(render.refusal(
@@ -279,7 +294,7 @@ def cmd_submit(argv):
             f"complete it", escape=f"who is outstanding: spine {wid}"))
     dest = _response_path(st, step)
     if not dest.exists():
-        raise SystemExit(f"no response form yet — run: spine {wid}")
+        raise SystemExit(render.located(f"no response form yet — run: spine {wid}"))
     filled = forms.parse(dest)
 
     if step.get("validates") == "board":
@@ -332,10 +347,10 @@ def cmd_submit(argv):
                            "output": (r.stdout + r.stderr)[-4000:]}
         if r.returncode != 0:
             journal.append(wid, "check", step=step["id"], **checks[f["id"]])
-            raise SystemExit(
+            raise SystemExit(render.located(
                 f"{f['id']}: `{cmd}` exited {r.returncode}\n"
                 f"  a check is run by the engine, not filled in -- make it pass,\n"
-                f"  or drop this step: spine {wid} amend close {step['id']} --reason ...")
+                f"  or drop this step: spine {wid} amend close {step['id']} --reason ..."))
 
     _check_plan(form, fields)
     _check_outcome(st, step, fields)
@@ -533,7 +548,7 @@ def cmd_note(argv):
         raise SystemExit(f"no note kind {kind!r} -- one of: {', '.join(NOTE_KINDS)}")
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}\n  open runs: spine")
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
     # `note resumed n1` names the block it clears; the rest of the words are
     # the note. Counting existing notes to pick an id collides when two
     # sessions note at once, and a shared id would clear the wrong block.
@@ -556,7 +571,7 @@ def cmd_amend(argv):
         raise SystemExit(render.refusal("reason", "amend needs --reason"))
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}\n  open runs: spine")
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
     if action == "add":
         return _amend_add(wid, st, argv[2:], reason)
     if action == "close":
@@ -712,7 +727,7 @@ def cmd_close(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(f"no run named {wid}\n  open runs: spine")
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
     if st.get("closed"):
         raise SystemExit(f"{wid} is already closed")
     pending = [s for s in st["steps"] if s["id"] not in st["done"]]

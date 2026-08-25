@@ -224,7 +224,10 @@ refusals, the MCP server, and every CLI-vs-door distinction. Bind/release descen
 
 One budget for **total machinery** — engine, CLI, rail, assembly loading, Windows support,
 install copy: **≤ 2,500 lines.** The bar is an aspiration, not a wall — its job is to keep
-pressure on every line earning its keep — and it is one number: a green engine achieved by relocating lines into another
+pressure on every line earning its keep. One kind of line always earns it:
+**anything the engine can derive, it derives.** A rule stated in a form for an agent to apply
+against data the engine already holds is mechanical work the secretary exists to remove, and a
+budget that argues for leaving it to the agent is arguing the wrong way (`docs/DERIVED_IS_CODE.md`) — and it is one number: a green engine achieved by relocating lines into another
 component counts as a miss. Forms and templates are corpus words, not machinery lines.
 Greenfield rewrite; the old machinery stays untouched until cutover.
 

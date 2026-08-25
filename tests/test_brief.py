@@ -1,0 +1,169 @@
+"""Self-location, and the brief a dispatch step renders.
+
+Two things, proven separately. First: every command the engine prints
+resolves to something a dispatched child -- no shell of its own, nothing on
+PATH -- can actually run, proven deterministically with PATH stripped
+entirely, no model involved. Second: a dispatch step and a panel step each
+render one brief gathering the child id, its role, the resolved tier and
+runner, a runnable open command, and what finishing means -- proven for a
+gate dispatch (role: the dispatched assembly's own conductor) and for a
+panelist (role: its own `worker`, which need not match the assembly's).
+"""
+
+import pathlib
+import subprocess
+import sys
+
+import pytest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+from engine import cli, journal, render  # noqa: E402
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+
+
+@pytest.fixture
+def workdir(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
+    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    return tmp_path
+
+
+def _mint_dispatch_step(wid="d1", child="d1.g1"):
+    """The shape `_mint_gates` produces -- a run-an-issue standing on one
+    execute-segment dispatch step -- built directly so the test does not
+    need to drive a whole plan just to reach it."""
+    journal.append(wid, "run", title="fix the parser", assembly="run-an-issue")
+    journal.append(wid, "step", id="g1", segment="execute", dispatches="run-a-gate",
+                   prefill={"purpose": "fix the parser", "scope": "src/parser.c",
+                            "done": "true"},
+                   child=child, anchor=False, terminal=False, source="mint")
+
+
+def _mint_panel_step(wid="g9", worker="reviewer"):
+    """A review panel step with one entry -- the shape a gate's own review
+    transition mints, built directly so a synthetic `worker` can be given
+    without also standing up a whole gate."""
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work",
+                   panel=[{"worker": worker, "criteria": "the gate spec, whole and only"}])
+
+
+# -- self-location: deterministic, no model ----------------------------------
+
+
+def test_spine_cmd_resolves_to_the_real_spine_file():
+    path = pathlib.Path(render.spine_cmd())
+    assert path.is_file() and path.name == "spine"
+
+
+def test_located_swaps_the_bare_word_for_the_resolved_path():
+    out = render.located("fill it, then: spine g1 submit")
+    assert out == f"fill it, then: {render.spine_cmd()} g1 submit"
+    # only the standalone word -- never a substring collision
+    assert render.located("give-a-verdict") == "give-a-verdict"
+
+
+def test_self_located_command_runs_with_path_stripped_entirely(tmp_path):
+    """The scenario a dispatched child is actually in: nothing on PATH at
+    all. A bare `spine` would fail with 'command not found'; the resolved
+    path must not."""
+    cmd = render.located("spine")
+    assert cmd != "spine"
+    r = subprocess.run([cmd], capture_output=True, text=True, env={},
+                       cwd=tmp_path, timeout=20)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "no open runs" in r.stdout
+
+
+# -- the brief: every ingredient, together ------------------------------------
+
+
+def test_dispatch_brief_carries_every_ingredient(workdir, capsys):
+    _mint_dispatch_step()
+    capsys.readouterr()
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    assert "d1.g1" in out                                    # the child id
+    assert "role         implementer" in out                 # see role test below
+    assert "tier         standard" in out
+    assert "runner       claude-sonnet-5" in out              # the resolved runner
+    assert "finishing:" in out and "GATE_CLOSE.toml" in out   # what finishing means
+
+    line = next(l for l in out.splitlines() if "open it:" in l)
+    open_cmd = line.split("open it:", 1)[1].strip()
+    parts = open_cmd.split()
+    assert pathlib.Path(parts[0]).is_file()                  # self-located, not bare
+    assert parts[1:] == ["open", "run-a-gate", "--parent", "d1", "--step", "g1"]
+
+
+def test_panel_brief_carries_every_ingredient(workdir, capsys):
+    _mint_panel_step(worker="reviewer")
+    capsys.readouterr()
+
+    cli.main(["g9"])
+    out = capsys.readouterr().out
+
+    assert "g9.review.p1" in out                             # the child id
+    assert "role         reviewer" in out
+    assert "tier         standard" in out
+    assert "runner       claude-sonnet-5" in out
+    assert "finishing:" in out and "REVIEW.toml" in out
+    assert "outstanding" in out
+
+    line = next(l for l in out.splitlines() if "open it:" in l)
+    open_cmd = line.split("open it:", 1)[1].strip()
+    parts = open_cmd.split()
+    assert pathlib.Path(parts[0]).is_file()
+    assert parts[1:] == ["open", "give-a-verdict", "--parent", "g9", "--step", "review.p1"]
+
+
+def test_the_dispatch_briefs_open_command_runs_with_path_stripped(workdir, capsys):
+    """Not just well-formed -- actually runnable by whoever has nothing but
+    what the brief handed them."""
+    _mint_dispatch_step()
+    capsys.readouterr()
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+    line = next(l for l in out.splitlines() if "open it:" in l)
+    parts = line.split("open it:", 1)[1].strip().split()
+
+    r = subprocess.run(parts, capture_output=True, text=True, env={},
+                       cwd=workdir, timeout=20)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert journal.exists("d1.g1")
+
+
+# -- role resolution: a dispatch vs. a panelist -------------------------------
+
+
+def test_gate_dispatch_role_is_the_dispatched_assemblys_conductor(workdir, capsys):
+    """run-a-gate's own conductor is `implementer` -- the brief must name
+    that, not the dispatching run-an-issue's own conductor (`commander`)."""
+    _mint_dispatch_step()
+    capsys.readouterr()
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+    assert "role         implementer" in out
+    assert "role         commander" not in out
+
+
+def test_panelist_role_is_its_own_worker_not_the_assemblys_conductor(workdir, capsys):
+    """give-a-verdict's own conductor is `reviewer`; a panel entry can name a
+    different worker (a focused panelist), and the brief must show that
+    entry's own role rather than the assembly's -- the reconciliation this
+    issue's plan notes was already made, proven by giving the two different
+    values and checking which one renders."""
+    _mint_panel_step(worker="implementer")
+    capsys.readouterr()
+
+    cli.main(["g9"])
+    out = capsys.readouterr().out
+    assert "role         implementer" in out
+    assert "role         reviewer" not in out

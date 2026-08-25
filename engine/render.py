@@ -8,9 +8,28 @@ formatting. Two rules hold it honest: never make the reader guess a verb
 engine mechanics that are not the reader's business.
 """
 
+import pathlib
+import re
 import textwrap
 
 WIDTH = 74
+
+
+def spine_cmd():
+    """This engine's own runnable path -- computed from `__file__`, the same
+    trick `engine/install.py` and `engine/run.py` already use to find the
+    repo root. A dispatched child has no shell of its own and nothing on
+    PATH, so the bare word `spine` is not a command it can run; its own copy
+    (install is a copy, never a rewrite) sits right beside this file."""
+    return str(pathlib.Path(__file__).resolve().parent.parent / "spine")
+
+
+def located(text):
+    """Every rendered command is written as ordinary `spine ...` text and
+    resolved here, once -- so the source stays readable and a second copy of
+    the resolution never has the chance to drift."""
+    path = spine_cmd()
+    return re.sub(r"\bspine\b", lambda _m: path, text or "")
 
 
 def _para(text, indent="  "):
@@ -62,13 +81,35 @@ def preamble(st, blocked=(), position=None):
     out.append("")
     for b in blocked:
         out.append(f"  BLOCKED — {b.get('text','')}".rstrip())
-        out.append(f"  resume with: spine {wid} note resumed {b.get('id','')}")
+        out.append(located(f"  resume with: spine {wid} note resumed {b.get('id','')}"))
         out.append("")
     return out
 
 
 def legal_moves(wid):
-    return f"  also legal:        spine {wid} note ...   spine {wid} amend ..."
+    return located(f"  also legal:        spine {wid} note ...   spine {wid} amend ...")
+
+
+def brief(child_id, role, tier, runner, open_cmd, finish_form):
+    """One dispatch's whole brief, shared by a gate dispatch and a panelist
+    so the two never render this as two drifting copies: who the child will
+    be, what it runs under, the command that mints it, and what finishing
+    means for the assembly it is about to run. This is the text a conductor
+    hands its harness -- nothing else should be needed to start.
+    """
+    lines = [
+        f"  brief -- {child_id}",
+        f"    role         {role or '(unset)'}",
+        f"    tier         {tier or '(unset)'}",
+        f"    runner       {runner or '(unresolved -- check constellation.toml [models])'}",
+        f"    open it:     {located(open_cmd)}",
+    ]
+    close_cmd = located(f"spine {child_id} close")
+    if finish_form:
+        lines.append(f"    finishing:   fill {finish_form}, then: {close_cmd}")
+    else:
+        lines.append(f"    finishing:   {close_cmd}")
+    return "\n".join(lines)
 
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
@@ -87,7 +128,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("  closed -- closing is what stamps the returns to whoever")
         out.append("  dispatched this run.")
         out.append("")
-        out.append(f"  close it with:     spine {wid} close")
+        out.append(located(f"  close it with:     spine {wid} close"))
         return "\n".join(out)
 
     if not st.get("open"):
@@ -118,7 +159,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("")
 
     out.append(f"  your response form: {response_path}")
-    out.append(f"  fill it, then:     spine {wid} submit")
+    out.append(located(f"  fill it, then:     spine {wid} submit"))
     out.append(legal_moves(wid))
     return "\n".join(out)
 
@@ -134,7 +175,7 @@ def refusal(field_id, why, escape=FILL_OR_NULL):
     entirely. One hardcoded suffix made half the refusals in this engine
     print an escape that does not work, which is worse than printing none.
     """
-    return f"{field_id}: {why}" + (f"\n  {escape}" if escape else "")
+    return located(f"{field_id}: {why}" + (f"\n  {escape}" if escape else ""))
 
 
 def ledger(rows):
