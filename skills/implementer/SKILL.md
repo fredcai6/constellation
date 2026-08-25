@@ -4,11 +4,8 @@ Work IMPLEMENT.toml, the form `status` hands you: read the gate spec it
 renders as your orders, make the change, fill the fields, submit. You
 conduct this gate — nobody else pumps it between open and close.
 
-Submit is what fires the review transition. `status` then stands you on a
-panel step and renders a brief per reviewer; dispatch what each brief names
-and wait for its verdict. You never fill a review form yourself, on this
-gate or any other — standing in for the panel even once defeats the reason a
-gate carries two voices.
+Submit is what fires the review transition, and the panel step it stands you
+on says the rest itself.
 
 The verdict decides what happens next:
 

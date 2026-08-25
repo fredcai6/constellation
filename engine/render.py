@@ -32,6 +32,13 @@ def located(text):
     return re.sub(r"\bspine\b", lambda _m: path, text or "")
 
 
+def imperative(text):
+    """The step's own instruction, wrapped. Named rather than inlined so the
+    one shape every room shares -- say what to do, then give the one move
+    that does it -- is a thing the code has a word for."""
+    return _para(text)
+
+
 def _para(text, indent="  "):
     out = []
     for block in (text or "").strip().split("\n\n"):
@@ -88,6 +95,34 @@ def preamble(st, blocked=(), position=None):
 
 def legal_moves(wid):
     return located(f"  also legal:        spine {wid} note ...   spine {wid} amend ...")
+
+
+# Every form step ends with an imperative and one way to reply. A brief step
+# had a table and silence, and a light model filled that silence with the most
+# available reading -- "a reviewer has been assigned, so I will wait" -- and
+# then waited for something that was never coming. These are the sentences the
+# engine knew and did not say. They live here rather than in an assembly
+# because a dispatch is a dispatch in every assembly; the text is a property of
+# the kind of step, not of the run it appears in.
+
+DISPATCH = """
+You dispatch this yourself. Run the open command below -- in a subagent if you
+have one, in this session if you do not -- and carry the child through to its
+own close. It returns here when it closes, and this step completes then."""
+
+# Every verb here is one the reader performs. The first draft of PANEL ended
+# "dispatch each panelist and wait for its verdict", and a light model did the
+# waiting literally -- it started a background monitor to poll for a verdict
+# nobody was coming to give, and stopped. A passive tail on an imperative
+# reads as permission to stop acting, so these end on the reader's own move.
+
+PANEL = """
+You open each outstanding panelist below and carry it through to its own
+close -- that close is what returns its verdict here. Run each in a subagent
+if you have one, in this session if you do not. Every panelist is a fresh
+cold reader and its brief is the whole handoff; the verdict on this work is
+the panel's to give, which is the whole reason for a second voice. This step
+completes once the last verdict has returned."""
 
 
 def brief(child_id, role, tier, runner, open_cmd, finish_form):

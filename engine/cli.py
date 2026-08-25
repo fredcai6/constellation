@@ -216,6 +216,8 @@ def _dispatch_status(wid, st, asm, step, blocked):
     child_id = step.get("child") or f"{wid}.{step['id']}"
     open_cmd = f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"
     lines = render.preamble(st, blocked, runmod.position(st, asm))
+    lines.append(render.imperative(render.DISPATCH))
+    lines.append("")
     lines.append(render.brief(child_id, dispatched.get("conductor", ""), tier,
                               _runner(tier), open_cmd, _finishing(dispatched)))
     lines.append("")
@@ -233,6 +235,8 @@ def _panel_status(wid, st, asm, step, blocked):
     verdict_asm = runmod.load_assembly("give-a-verdict")
     returned = {r["child"].rsplit(".", 1)[-1] for r in st["returns"].get(step["id"], [])}
     lines = render.preamble(st, blocked, runmod.position(st, asm))
+    lines.append(render.imperative(render.PANEL))
+    lines.append("")
     for i, panelist in enumerate(step["panel"], start=1):
         tag = f"p{i}"
         tier = panelist.get("model") or seg.get("model", "")
