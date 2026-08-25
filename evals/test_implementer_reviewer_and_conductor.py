@@ -77,10 +77,10 @@ def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
 
     st = harness.state(workdir, "g1")
     assert st["closed"], (
-        f"the gate never closed on its own orders.\nstdout:\n{r.stdout[-2000:]}")
+        f"the gate never closed on its own orders.{harness.evidence(workdir, 'g1', r)}")
     assert {"work-1", "review", "close"} <= st["done"].keys(), (
-        f"a step along the way was skipped: {sorted(st['done'])}\n"
-        f"stdout:\n{r.stdout[-2000:]}")
+        f"a step along the way was skipped: {sorted(st['done'])}"
+        f"{harness.evidence(workdir, 'g1', r)}")
     # root-verified: the engine's own check ran the real command and passed
     done_checks = [c for c in st["checks"] if "result.txt" in (c.get("command") or "")]
     # The check that let the gate close must have passed. An earlier failure
@@ -119,7 +119,8 @@ def test_a_reviewer_returns_a_grounded_verdict(workdir):
 
     child = harness.state(workdir, "g2.review.p1")
     assert child["closed"], (
-        f"the verdict never closed -- it did not return.\nstdout:\n{r.stdout[-1500:]}")
+        f"the verdict never closed -- it did not return."
+        f"{harness.evidence(workdir, 'g2', r)}")
     fields = child["done"].get("verdict", {}).get("fields", {})
     assert fields.get("verdict", "").strip().lower().startswith("revise"), (
         f"an ungrounded verdict on work that admits it skipped the spec: {fields}")
@@ -158,10 +159,11 @@ def test_a_conductor_dispatches_a_child_and_adjudicates_its_return(workdir):
 
     st = harness.state(workdir, wid)
     assert st["done"].get("g1", {}).get("kind") == "return", (
-        f"the dispatch step never completed -- the child did not return.\n"
-        f"stdout:\n{r.stdout[-2500:]}")
+        f"the dispatch step never completed -- the child did not return."
+        f"{harness.evidence(workdir, wid, r)}")
     assert "g1-adjudicate" in st["done"], (
-        f"the child returned but was never adjudicated.\nstdout:\n{r.stdout[-2500:]}")
+        f"the child returned but was never adjudicated."
+        f"{harness.evidence(workdir, wid, r)}")
     fields = st["done"]["g1-adjudicate"]["fields"]
     assert fields.get("plan-holds", "").strip().lower().startswith("advance"), (
         f"adjudication did not land on a real decision: {fields}")

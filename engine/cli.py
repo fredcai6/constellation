@@ -6,6 +6,7 @@ crew ends up driving its dispatcher's run. A bare `spine` prints the ledger,
 never your run.
 """
 
+import os
 import pathlib
 import re
 import secrets
@@ -28,7 +29,8 @@ spine <work-id> amend reorder <step-id> --before <step-id> --reason "..."
 spine <work-id> close               terminal: legal once every step is done
 spine open <assembly> --title T [--issue N]
 spine open <assembly> --parent <id> --step <step-id>   open a dispatched child
-spine                               every open run"""
+spine                               every open run
+spine <work-id> trace               this run and its children, as one timeline"""
 
 CHECK_TIMEOUT = 600  # a check that never returns wedges the agent's turn
 _GATE_ADJUDICATION_FORM = "forms/GATE_TRANSITION.toml"  # see run-an-issue's execute segment
@@ -248,13 +250,26 @@ def _panel_status(wid, st, asm, step, blocked):
     return "\n".join(lines)
 
 
+def _onward(st):
+    """Where this run's returns land -- read off its own opening entry, which
+    has held the answer since `open` wrote it.
+
+    A parent whose journal is gone gets nothing: `close` already says the
+    return was not delivered, and offering a command that fails on top of
+    that is worse than offering none.
+    """
+    parent, pstep = st.get("parent"), st.get("parent_step")
+    return (parent, pstep) if parent and pstep and journal.exists(parent) else None
+
+
 def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None:
         raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
     if not st["open"] or st["awaiting_close"]:
-        print(render.status(st, {}, "", position=runmod.position(st, None)))
+        print(render.status(st, {}, "", position=runmod.position(st, None),
+                            onward_to=_onward(st)))
         return 0
     asm, step, form = _current_form(st)
     if step.get("dispatches"):
@@ -276,7 +291,8 @@ def cmd_status(argv):
     board = st["boards"].get(step["segment"]) if step.get("validates") == "board" else None
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     print(render.status(st, form, dest, prefill=prefill,
-                        returns=returns, blocked=runmod.blocks(st),
+                        returns=returns, returns_from=step.get("child", ""),
+                        blocked=runmod.blocks(st),
                         position=runmod.position(st, asm), board=board,
                         in_hand=forms.in_hand(dest) if dest.exists() else None))
     return 0
@@ -791,6 +807,32 @@ def cmd_ledger():
     return 0
 
 
+def cmd_trace(argv):
+    """A run and everything it dispatched, as one timeline.
+
+    Deliberately not offered in `status`'s legal moves. A run's agents are
+    cold on purpose -- nothing about the engine is resident between steps,
+    and history is exactly what a room description withholds. This verb is
+    for whoever is debugging the engine from outside a run, which is a
+    different reader with different needs.
+    """
+    wid = argv[0]
+    if not journal.exists(wid):
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+    rows = []
+    for path in sorted(journal.location(wid).glob("**/journal.toml")):
+        run = str(path.parent.relative_to(".agent-work")).replace(os.sep, ".")
+        rows += [(e.get("at", ""), run, i, e)
+                 for i, e in enumerate(journal.read(run))]
+    # Stamps are second-resolution, so ties need a tiebreak, and the tie that
+    # matters is a child's `closed` against the `return` it causes in its
+    # parent -- the exact seam this verb exists to debug. Deepest run first
+    # puts cause before effect there; within one run, file order still rules.
+    rows.sort(key=lambda r: (r[0], -r[1].count("."), r[1], r[2]))
+    print(render.trace(wid, rows))
+    return 0
+
+
 def _opt(argv, name):
     return argv[argv.index(name) + 1] if name in argv else None
 
@@ -806,7 +848,8 @@ def main(argv=None):
         return 0
     verb = argv[1] if len(argv) > 1 else "status"
     return {"status": cmd_status, "submit": cmd_submit, "note": cmd_note,
-            "amend": cmd_amend, "close": cmd_close}.get(verb, cmd_status)(
+            "amend": cmd_amend, "close": cmd_close,
+            "trace": cmd_trace}.get(verb, cmd_status)(
         [argv[0]] + argv[2:])
 
 

@@ -112,8 +112,19 @@ def brief(child_id, role, tier, runner, open_cmd, finish_form):
     return "\n".join(lines)
 
 
+def destination(onward_to):
+    """Where this run's returns land, phrased once for the two places that
+    say it -- before closing, as what closing will do, and after, as where
+    the return went. `close` is the only move in this engine whose effect
+    lands in a run other than the one you are standing in, which makes it
+    the only move whose result has to be said out loud."""
+    parent, step = onward_to
+    return f"{parent}, at its step {step}"
+
+
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
-           position=None, board=None, in_hand=None):
+           position=None, board=None, in_hand=None, onward_to=None,
+           returns_from=""):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -124,9 +135,12 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     out = preamble(st, blocked, position)
 
     if st.get("awaiting_close"):
-        out.append("  Every step is done. The run is not finished until it is")
-        out.append("  closed -- closing is what stamps the returns to whoever")
-        out.append("  dispatched this run.")
+        # A root run has no dispatcher, so the old unconditional "returns to
+        # whoever dispatched this run" was untrue exactly half the time.
+        does = (f"closing is what stamps your returns to {destination(onward_to)}"
+                if onward_to else "closing is what writes the record")
+        out.append(_para(f"Every step is done. The run is not finished until it "
+                         f"is closed -- {does}."))
         out.append("")
         out.append(located(f"  close it with:     spine {wid} close"))
         return "\n".join(out)
@@ -134,6 +148,14 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     if not st.get("open"):
         out.append("  This run is closed. Its record is in "
                    f".agent-work/{wid.replace('.', '/')}/journal.toml")
+        if onward_to:
+            # Deliberately not "its step is now complete": a panel step takes
+            # one return per panelist, so that is false for every panelist but
+            # the last. Name the destination, hand over one command, and let
+            # the room at the other end describe itself.
+            out.append("")
+            out.append(f"  returned to {destination(onward_to)}.")
+            out.append(located(f"  continue there:    spine {onward_to[0]}"))
         return "\n".join(out)
 
     if prefill:
@@ -142,7 +164,9 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("")
 
     if returns:
-        out.append("  returns")
+        # Which child came back is the first thing a conductor with several
+        # gates in flight needs, and the engine has known it all along.
+        out.append(f"  returns from {returns_from}" if returns_from else "  returns")
         out.append(_pairs(list(returns.items())))
         out.append("")
 
@@ -176,6 +200,66 @@ def refusal(field_id, why, escape=FILL_OR_NULL):
     print an escape that does not work, which is worse than printing none.
     """
     return located(f"{field_id}: {why}" + (f"\n  {escape}" if escape else ""))
+
+
+def _event(e):
+    """One entry, said in one line. Every branch answers the same question --
+    what happened -- so a trace stays greppable and diffable rather than
+    needing to be read as prose."""
+    k = e.get("kind")
+    f = e.get("fields") or {}
+    if k == "run":
+        out = f"{e.get('assembly','')}  {e.get('title','')}"
+        return out + (f"  <- dispatched by {e['parent']} at {e.get('parent_step','')}"
+                      if e.get("parent") else "  (root)")
+    if k == "step":
+        what = (f"dispatches {e['dispatches']}" if e.get("dispatches")
+                else f"panel x{len(e['panel'])}" if e.get("panel")
+                else e.get("form", "(no form)"))
+        return f"{e.get('id','')}  {what}  [{e.get('source','')}]"
+    if k == "return":
+        v = f.get("verdict") or f.get("plan-holds") or ""
+        return (f"{e.get('step','')} <- {e.get('child','')}"
+                + (f"  {v.strip().split(chr(10))[0][:40]}" if v else ""))
+    if k == "check":
+        return f"exit {e.get('exit')}  {e.get('command','')}"
+    if k == "note":
+        return f"{e.get('kind_detail','')}  {e.get('text','') or e.get('about','')}"
+    if k == "amend":
+        return (f"{'ANCHOR ' if e.get('anchor') else ''}{e.get('action','')} "
+                f"{e.get('step','')}  {e.get('reason','')}")
+    if k == "submit":
+        # A submit carries the checks its step ran. Rendering only the step id
+        # would drop the one output a trace is most often opened to find.
+        ran = "  ".join(f"[exit {c.get('exit')}] {c.get('command','')}"
+                        for c in e.get("checks") or [])
+        return f"{e.get('step','')}  {ran}".rstrip()
+    return {"board": e.get("path", ""),
+            "prefill": ", ".join(e.get("fields", {})), "closed": ""}.get(k, "")
+
+
+def trace(wid, rows):
+    """A run and everything it dispatched, as one timeline.
+
+    The journal has always been an ordered event log; until this, nothing
+    rendered it as one, so tracing a defect meant reading raw TOML across
+    several files -- and the bugs that keep surfacing here live precisely at
+    the seam *between* runs, which no single journal shows.
+
+    Stamps are second-resolution. `cmd_trace` breaks ties deepest-run-first,
+    which puts a child's `closed` before the `return` it causes -- correct for
+    the seam this exists to debug, and the record's precision is not enough to
+    promise more than that.
+    """
+    if not rows:
+        return f"no history for {wid}"
+    head = f"{wid} -- {len({r[1] for r in rows})} runs, {len(rows)} events"
+    pad = max(len(r[1]) for r in rows) + 2
+    lines = [head, ""]
+    for at, run, _i, e in rows:
+        lines.append(f"  {at}  {run.ljust(pad)}{e.get('kind','').ljust(8)}"
+                     f"{' '.join(_event(e).split())}".rstrip())
+    return "\n".join(lines)
 
 
 def ledger(rows):

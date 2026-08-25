@@ -35,7 +35,7 @@ def test_an_agent_finishes_a_step_knowing_only_what_status_printed(workdir):
 
     st = harness.state(workdir, "g1")
     assert "work-1" in st["done"], (
-        f"the agent did not submit the step.\nstdout:\n{r.stdout[-1500:]}")
+        f"the agent did not submit the step.{harness.evidence(workdir, 'g1', r)}")
     fields = st["done"]["work-1"]["fields"]
     assert fields.get("change", "").strip(), "submitted with an empty change field"
 
@@ -60,7 +60,7 @@ def test_an_agent_gets_past_a_refusal_using_only_the_escape_it_was_given(workdir
 
     st = harness.state(workdir, "g2")
     assert st["current"] is None or st["current"]["id"] != "work-1", (
-        f"the agent could not get past the refusal.\nstdout:\n{r.stdout[-1500:]}")
+        f"the agent could not get past the refusal.{harness.evidence(workdir, 'g2', r)}")
 
 
 def test_an_agent_reports_a_block_rather_than_inventing_an_answer(workdir):
@@ -84,6 +84,6 @@ def test_an_agent_reports_a_block_rather_than_inventing_an_answer(workdir):
     fields = st["done"].get("work-1", {}).get("fields", {}) if submitted else {}
     fabricated = submitted and not any(
         k in str(fields).lower() for k in ("unknown:", "waived:", "working:", "no access"))
-    assert honest, (f"nothing honest was recorded anywhere.\n{recorded[-800:]}\n"
-                    f"stdout:\n{r.stdout[-1200:]}")
+    assert honest, (f"nothing honest was recorded anywhere.\n{recorded[-800:]}"
+                    f"{harness.evidence(workdir, 'g3', r)}")
     assert not fabricated, f"submitted an answer it could not support: {fields}"

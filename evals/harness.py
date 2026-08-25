@@ -54,7 +54,28 @@ def drive(workdir, prompt, timeout=240):
         ["claude", "-p", prompt, "--model", light_model(),
          "--allowedTools", "Bash", "Read", "Write", "Edit"],
         cwd=workdir, capture_output=True, text=True, timeout=timeout, env=env)
+    # Keep the whole thing. What `r.stdout` holds is the agent's closing
+    # summary -- the least reliable artifact in the run, and the only one
+    # these evals used to fail with. Debugging from a self-report is the
+    # believe-the-record failure the commander skill exists to warn against.
+    d = pathlib.Path(workdir)
+    log = d / f"transcript-{len(list(d.glob('transcript-*.md'))) + 1}.md"
+    log.write_text(f"# prompt\n\n{prompt}\n\n# stdout\n\n{r.stdout}"
+                   f"\n\n# stderr\n\n{r.stderr}\n")
+    r.transcript = log
     return r
+
+
+def evidence(workdir, work_id, r):
+    """What a failing eval should say instead of the agent's last paragraph:
+    the engine's own timeline of what actually happened, and where the full
+    transcript is. `trace` folds the run and every child it dispatched into
+    one ordering, which is the view the seam defects live in."""
+    t = subprocess.run([SPINE, work_id, "trace"], cwd=workdir, capture_output=True,
+                       text=True, timeout=60)
+    return (f"\n\n-- what the engine recorded --\n{t.stdout or t.stderr}"
+            f"\n-- the agent's last words --\n{r.stdout[-800:]}"
+            f"\n\n-- full transcript: {getattr(r, 'transcript', '(none)')}")
 
 
 def state(workdir, work_id):
