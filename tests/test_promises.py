@@ -158,6 +158,39 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
     assert "working" in taught  # the one that gates a submit
 
 
+SKILL_BUDGETS = {"commander": 1500, "implementer": 800}
+
+
+def test_commander_and_implementer_skills_exist_inside_budget():
+    """Layer 3 gives exactly two roles a SKILL.md -- commander and
+    implementer, the only postures with no form of their own to carry them.
+    Each budget is set in the spec and enforced with `wc -w`, forms not
+    included: a skill is corpus words, not machinery, but it still answers
+    to the number the spec gave it."""
+    for name, budget in SKILL_BUDGETS.items():
+        path = ROOT / "skills" / name / "SKILL.md"
+        assert path.exists(), f"skills/{name}/SKILL.md does not exist"
+        words = len(path.read_text().split())
+        assert words <= budget, (
+            f"skills/{name}/SKILL.md is {words} words, over its {budget}-word budget")
+
+
+def test_no_skill_exists_for_a_role_the_roster_does_not_list():
+    """interrogator and reviewer get no SKILL.md: their forms already carry
+    their whole posture, and a skill repeating its form is corpus words with
+    no work in them. That call was made with evidence and stands until a
+    later decision reopens it with its own evidence -- not by a SKILL.md
+    quietly appearing for a role never meant to have one, or for a name the
+    roster does not even recognize."""
+    roster = set(re.findall(r"^\| `([a-z-]+)` \|", (ROOT / "docs" / "V2_DESIGN.md").read_text(),
+                            re.M))
+    assert roster, "could not read the roster from the spec"
+    for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
+        name = skill_md.parent.name
+        assert name in roster, (
+            f"skills/{name}/SKILL.md exists for a role the roster does not list")
+
+
 def test_every_role_an_assembly_names_is_one_the_design_declares():
     """An assembly naming a role the roster does not have is a promise with
     nobody behind it. `gate-executor` outlived its own removal in four files
