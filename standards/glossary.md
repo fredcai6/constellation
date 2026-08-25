@@ -16,6 +16,15 @@ forms; coining a synonym for a term below is a defect.
   seeded at entry, worked freely in place, validated by the engine at the transition. The
   understand board; the explore ideas board. Blocked is per-row, never per-run; a row
   resolves by prose evidence, an artifact, or a dispatched child's returns.
+- **askable** — a board row workable right now: its own status is `open`, and no id in its
+  `after` is `open` or `up`.
+- **held** — a board row whose own status is `open` and one or more of whose `after` ids is
+  `open` or `up`; those ids are what it is held by.
+- **cluster** — an optional tag grouping board rows taken to the principal in one sitting. A
+  cluster is ready when it has at least one open row and every open row in it is askable.
+- **moot** — a board row settled by another row's answer rather than its own. The answer that
+  mooted it is recorded as prose in its own `answer`; which row did the mooting is not
+  recorded anywhere, and nothing needs it.
 - **transition** — a segment's exit gate: fires when the interior drains, and each firing
   releases (advance, minting what comes next), refills the interior (rework, findings as
   prefill), or goes up (escalate). The OODA beat; cycling is re-firing.

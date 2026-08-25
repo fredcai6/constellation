@@ -266,6 +266,18 @@ def _onward(st):
     return (parent, pstep) if parent and pstep and journal.exists(parent) else None
 
 
+def _board_state(path):
+    """Everything `render._board` needs, computed once here rather than in
+    the render layer -- `render.py` formats what it is given, it does not go
+    read a board itself."""
+    if not path:
+        return None
+    found = boards.rows(path)
+    return {"path": path, "summary": boards.summary(path),
+            "askable": boards.askable(found), "held": boards.held(found),
+            "clusters": boards.clusters(found)}
+
+
 def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -288,17 +300,25 @@ def cmd_status(argv):
                           submit=render.located(f"spine {wid} submit"))
     ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
     returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
-    if returns and returns.get("amends"):
-        # the child's amends, spelled out rather than left as a raw list --
-        # this is the field the adjudicating tier is meant to act on
-        returns["amends"] = "; ".join(render.amends(returns["amends"])) or "none"
-    board = st["boards"].get(step["segment"]) if step.get("validates") == "board" else None
+    if returns:
+        # Every structured value the summary can carry, spelled out rather
+        # than left as a raw list -- str() on a list prints Python reprs, not
+        # something a conductor can act on. A field's own form answer (e.g.
+        # CLOSE.toml's `triage`) is a string that already overrode the
+        # summary's list by the time it lands here, so only a survivor gets
+        # rendered; the isinstance check is what tells the two apart.
+        for key, fn in (("checks", render.checks), ("cycles", render.cycles),
+                        ("amends", render.amends), ("triage", render.triage)):
+            if isinstance(returns.get(key), list):
+                returns[key] = "; ".join(fn(returns[key])) or "none"
+    board = _board_state(st["boards"].get(step["segment"])) if step.get("validates") == "board" else None
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     print(render.status(st, form, dest, prefill=prefill,
                         returns=returns, returns_from=step.get("child", ""),
                         blocked=runmod.blocks(st),
                         position=runmod.position(st, asm), board=board,
-                        in_hand=forms.in_hand(dest) if dest.exists() else None))
+                        in_hand=forms.in_hand(dest) if dest.exists() else None,
+                        triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"]))
     return 0
 
 
@@ -726,7 +746,9 @@ def _summary(st):
     never typed: how many steps landed, how many were minted or amended into
     each segment beyond its first (the implement/review loop count), the
     review panel's verdict where this run had one, every check the engine
-    ran, the tier this run was dispatched under, and one line per amend."""
+    ran, the tier this run was dispatched under, one line per amend, and
+    every triage note -- the candidates this run raised, so a parent
+    adjudicating the return sees them without opening the child's journal."""
     cycles = {}
     for s in st["steps"]:
         if s.get("source") in ("mint", "amend"):
@@ -740,6 +762,8 @@ def _summary(st):
     amends = [{"action": a.get("action", ""), "step": a.get("step", ""),
                "segment": a.get("segment", ""), "reason": a.get("reason", ""),
                "anchor": a.get("anchor", False)} for a in st.get("amends", [])]
+    triage = [{"text": n.get("text", "")} for n in st["notes"]
+              if n.get("kind_detail") == "triage"]
     return {
         "steps_completed": len(st["done"]),
         "cycles": [{"segment": seg, "count": n} for seg, n in cycles.items()],
@@ -747,6 +771,7 @@ def _summary(st):
         "checks": list(st.get("checks", [])),
         "model": st.get("model", ""),
         "amends": amends,
+        "triage": triage,
     }
 
 

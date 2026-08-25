@@ -5,7 +5,8 @@ must know arrives here, at the moment it applies, and nothing about the
 engine is resident between steps -- so this file is doctrine delivery, not
 formatting. Two rules hold it honest: never make the reader guess a verb
 (every legal move is spelled out as a typeable command), and never surface
-engine mechanics that are not the reader's business.
+engine mechanics that are not the reader's business. Every block wraps to
+WIDTH; `_para` and `_pairs` are how.
 """
 
 import pathlib
@@ -57,6 +58,25 @@ def amends(entries):
         out.append(f"{mark}{a.get('action','')} {a.get('step','')} "
                    f"in {a.get('segment','')} — {a.get('reason','')}".strip())
     return out
+
+
+def checks(entries):
+    """One line per check the gate ran. The command is itself the re-run a
+    conductor's root-verify performs, so it prints bare enough to paste."""
+    return [f"exit {c.get('exit')} {c.get('command','')}" for c in entries or []]
+
+
+def cycles(entries):
+    """One line per segment re-minted beyond its first pass -- the
+    implement/review churn a conductor reads as a count, not a detail."""
+    return [f"{c.get('segment','')} x{c.get('count')}" for c in entries or []]
+
+
+def triage(entries):
+    """One line per triage note this run journaled -- the record CLOSE.toml's
+    own triage field asks for, so it is filled from what was said, not
+    memory."""
+    return [e.get("text", "") for e in entries or []]
 
 
 def _pairs(rows, indent="    "):
@@ -157,9 +177,54 @@ def destination(onward_to):
     return f"{parent}, at its step {step}"
 
 
+def _board(state):
+    """The board's own state -- the four things `understand`'s imperative
+    asks the agent to leave true, so the agent reads them rather than
+    counting rows by hand. A block appears only when it has something to
+    say: no held rows or no ready cluster means that block does not print,
+    since a heading over an empty list tells the reader less than no
+    heading at all.
+    """
+    s = state["summary"]
+    by_status = ", ".join(f"{k} {v}" for k, v in sorted(s["by_status"].items())) or "none"
+    by_type = ", ".join(f"{k} {v}" for k, v in sorted(s["by_type"].items())) or "none"
+    out = [f"  the board:          {state['path']}",
+          f"    {s['total']} rows -- status: {by_status} -- type: {by_type}", ""]
+
+    askable = state["askable"]
+    if askable:
+        out.append("  askable now")
+        out.append(_pairs([(r.get("id", ""), r.get("question", "")) for r in askable]))
+        out.append("")
+
+    held = state["held"]
+    if held:
+        out.append("  held")
+        out.append(_pairs([(r.get("id", ""), "held by " + ", ".join(ids))
+                           for r, ids in held]))
+        out.append("")
+
+    groups, ready = state["clusters"]["groups"], state["clusters"]["ready"]
+    ready_tags = [t for t in groups if ready.get(t)]
+    if ready_tags:
+        # A ready group still holds every member the board ever put in it --
+        # answered, moot, deferred rows included. Readiness itself is scoped
+        # to open rows (boards.clusters), so the sitting to print is that
+        # same scope: only the rows still to be asked, which is exactly
+        # `askable` for a ready group.
+        askable_ids = {r.get("id", "") for r in askable}
+        out.append("  ready for one sitting")
+        out.append(_pairs([(t, ", ".join(r.get("id", "") for r in groups[t]
+                                          if r.get("id", "") in askable_ids))
+                           for t in ready_tags]))
+        out.append("")
+
+    return out
+
+
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, onward_to=None,
-           returns_from=""):
+           returns_from="", triage_notes=()):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -206,7 +271,17 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("")
 
     if board:
-        out.append(f"  the board:          {board}")
+        out.extend(_board(board))
+
+    if triage_notes:
+        # The candidates this run has already noted, so CLOSE.toml's triage
+        # field is filled from the record rather than reconstructed from
+        # memory at the last step. Notes joined by a blank line before a
+        # single _para call, not one call per note: that blank line is what
+        # marks a note's own continuation as still part of it, rather than
+        # letting a wrapped line read as the start of the next note.
+        out.append("  triage noted")
+        out.append(_para("\n\n".join(triage(triage_notes)), indent="    "))
         out.append("")
 
     out.append(_para(form.get("imperative", "")))

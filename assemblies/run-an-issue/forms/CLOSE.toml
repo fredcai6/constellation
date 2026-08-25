@@ -1,7 +1,8 @@
 # Anchor: close, terminal. Owned by run-an-issue; filled by the conductor.
 # Everything on this form returns when this run is parented. The engine
 # appends the mechanical record itself: the gates run with verdicts and cycle
-# counts, check outputs, the amend summary, and the run's notes.
+# counts, check outputs, the amend summary, and the run's triage notes -- the
+# candidates raised, not its blocked, resumed, observation, or decision notes.
 
 imperative = """
 Close the run. Sweep what remains; add only what the record does not carry."""

@@ -1,10 +1,9 @@
 # Board: understand. Owned by the interrogator skill; seeded into the work
 # location at segment entry, worked in place — add rows, resolve, moot with
-# reasons, cluster. The engine validates at the consolidate transition: an
+# reasons. The engine validates at the consolidate transition: an
 # open row refuses; a decision answered without the principal's words
 # refuses; the escape is deferred: <reason>, journaled.
 #
-# A row is askable when nothing in `after` is open and nothing has mooted it.
 # Blocked is per-row, never per-run: a decision in flight floats up while
 # other askable rows proceed.
 #
