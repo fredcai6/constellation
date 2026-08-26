@@ -197,14 +197,15 @@ def checkout(tmp_path):
     fixture makes the workdir a checkout, and `_intent_layer` stages it
     before it measures.
 
-    The skill under test is copied in because that is what a dispatch hands
-    an implementer: the posture it works from, in the tree it works in.
+    No skill is copied in. What a dispatch hands an implementer is a path to
+    the posture in the installed tree, not a copy in the tree it works in, so
+    the bare workdir is the honest starting state -- and it is asserted rather
+    than left to be noticed, because a stray `skills/` here would let the
+    engine's own delivery go untested without anything failing.
     """
     shutil.copy(harness.ROOT / "constellation.toml", tmp_path)
-    posture = tmp_path / "skills" / "implementer"
-    posture.mkdir(parents=True)
-    shutil.copy(harness.ROOT / "skills" / "implementer" / "SKILL.md", posture)
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, timeout=60)
+    assert not (tmp_path / "skills").exists()
     return tmp_path
 
 
@@ -231,11 +232,13 @@ def test_an_implementer_authors_the_intent_layer_as_it_works(checkout):
     downstream. The tooling was never the failure -- nobody kept the layer
     authored, and it survives only when it is written at the moment the code
     is. So the assertion is not that the grammar is teachable in the
-    abstract: it is that a real light model, given a real gate and the
-    implementer's own posture, leaves behind a map that has something in it.
+    abstract: it is that a real light model, given a real gate and nothing
+    but what `spine` tells it, leaves behind a map that has something in it.
 
-    Nothing in the prompt mentions anchors, tags or the code map. If the
-    guidance does not carry it, this fails, which is the whole point.
+    Nothing in the prompt mentions anchors, tags or the code map -- and since
+    it no longer names the posture either, the engine's own delivery of it is
+    now part of what this measures. If either the delivery or the guidance
+    does not carry it, this fails, which is the whole point.
     """
     harness.spine(checkout, "open", "run-a-gate", "--id", "g1")
     harness.prefill(
@@ -251,9 +254,8 @@ def test_an_implementer_authors_the_intent_layer_as_it_works(checkout):
              "range(1, 6)] == [1, 2, 4, 4, 4]\"")
 
     r = harness.drive(checkout, (
-        "You are an agent working in this directory. Your work id is g1 and "
-        "your posture is skills/implementer/SKILL.md -- read it before you "
-        "start. Run `spine g1` to see your orders, do the work, then fill "
+        "You are an agent working in this directory. Your work id is g1. "
+        "Run `spine g1` to see your orders, do the work, then fill "
         "and submit the form it names. Stop once the submit succeeds."),
         timeout=420)
 

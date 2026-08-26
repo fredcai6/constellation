@@ -33,9 +33,46 @@ def load_assembly(name):
 
 def resolve_form(assembly, ref):
     """A form reference is either skill-owned (repo-relative, begins with
-    `skills/`) or assembly-owned (relative to the assembly directory)."""
+    `skills/`) or assembly-owned (relative to the assembly directory).
+
+    A skill-owned ref never reads `assembly`, so `None` is a legal assembly
+    for one -- which is what `resolve_skill` passes.
+    """
     root = pathlib.Path(__file__).resolve().parent.parent
     return root / ref if ref.startswith("skills/") else assembly["dir"] / ref
+
+
+# [resolve-skill]
+# Rationale: a role name is resolved by the same convention as a skill-owned
+#   form ref, through `resolve_form` itself, so where a bundle lives is written
+#   in exactly one place. That is why a skill's form is delivered today and the
+#   skill is not -- the convention existed, nothing applied it to the role.
+# Rejected: joining the role to a cwd-relative root (the one `_palette` reads,
+#   engine/cli.py). `install.py` copies each bundle next to `engine/`, so a
+#   child working in some other tree would be handed a path that is not there.
+# Rejected: raising when a role has no SKILL.md. `interrogator` and `reviewer`
+#   have none by a recorded decision (tests/test_promises.py), so absence is an
+#   answer, not a failure -- the caller renders no line.
+def resolve_skill(role):
+    """Where a role's posture is written, or None when the role has none.
+
+    `conductor` is not a role -- it is the assembly's indirection for whoever
+    conducts it -- so it is resolved before it gets here, never looked up as
+    `skills/conductor/`.
+    """
+    if not role:
+        return None
+    path = resolve_form(None, f"skills/{role}/SKILL.md")
+    return path if path.is_file() else None
+
+
+# [role-of]
+# Rationale: `filler = "conductor"` means whoever conducts this assembly, and
+#   the two places that announce a role both have to unwrap it the same way.
+def role_of(assembly, step):
+    """Which role fills this step, with the `conductor` indirection resolved."""
+    filler = step.get("filler", "")
+    return (assembly or {}).get("conductor", "") if filler == "conductor" else filler
 
 
 def skeleton(assembly):

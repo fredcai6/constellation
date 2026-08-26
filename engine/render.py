@@ -13,6 +13,8 @@ import pathlib
 import re
 import textwrap
 
+from engine import run as runmod
+
 WIDTH = 74
 
 
@@ -145,6 +147,25 @@ the panel's to give, which is the whole reason for a second voice. This step
 completes once the last verdict has returned."""
 
 
+# [posture-line]
+# Rationale: a role name alone is a label; the agent has to be told where the
+#   role is written and to go read it. The imperative is part of the line
+#   because a bare labelled path leaves the reader to decide whether it is
+#   worth opening, and a light model decides no.
+# Rejected: two wordings, one per place a role is announced -- one string here
+#   is what keeps the dispatch brief and the room saying the same thing.
+# See: engine/run.py resolve_skill, which decides where and whether.
+def posture(role):
+    """Where this role is written, and the one thing to do with it.
+
+    Empty for a role with no SKILL.md -- the caller renders no line at all,
+    because naming a file that is not there is the defect this exists to fix,
+    inverted.
+    """
+    path = runmod.resolve_skill(role)
+    return f"{path} -- read it before you start" if path else ""
+
+
 def brief(child_id, role, tier, runner, open_cmd, finish_form):
     """One dispatch's whole brief, shared by a gate dispatch and a panelist
     so the two never render this as two drifting copies: who the child will
@@ -155,6 +176,11 @@ def brief(child_id, role, tier, runner, open_cmd, finish_form):
     lines = [
         f"  brief -- {child_id}",
         f"    role         {role or '(unset)'}",
+    ]
+    written_at = posture(role)
+    if written_at:
+        lines.append(f"    posture      {written_at}")
+    lines += [
         f"    tier         {tier or '(unset)'}",
         f"    runner       {runner or '(unresolved -- check constellation.toml [models])'}",
         f"    open it:     {located(open_cmd)}",
@@ -224,12 +250,14 @@ def _board(state):
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, onward_to=None,
-           returns_from="", triage_notes=()):
+           returns_from="", triage_notes=(), role=""):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
     anything else; then who you are working for; then what arrived; then the
-    imperative; then the one way to reply.
+    imperative; then the one way to reply -- and `role` rides in the last of
+    those, beside the form, because where the posture is written is only
+    useful to whoever is about to fill it.
     """
     wid = st["id"]
     out = preamble(st, blocked, position)
@@ -292,6 +320,9 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append(_pairs(list(in_hand.items())))
         out.append("")
 
+    written_at = posture(role)
+    if written_at:
+        out.append(f"  your posture:       {written_at}")
     out.append(f"  your response form: {response_path}")
     out.append(located(f"  fill it, then:     spine {wid} submit"))
     out.append(legal_moves(wid))

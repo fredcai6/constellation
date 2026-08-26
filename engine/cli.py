@@ -321,7 +321,8 @@ def cmd_status(argv):
                         blocked=runmod.blocks(st),
                         position=runmod.position(st, asm), board=board,
                         in_hand=forms.in_hand(dest) if dest.exists() else None,
-                        triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"]))
+                        triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"],
+                        role=runmod.role_of(asm, step)))
     return 0
 
 

@@ -4,10 +4,16 @@ Two things, proven separately. First: every command the engine prints
 resolves to something a dispatched child -- no shell of its own, nothing on
 PATH -- can actually run, proven deterministically with PATH stripped
 entirely, no model involved. Second: a dispatch step and a panel step each
-render one brief gathering the child id, its role, the resolved tier and
-runner, a runnable open command, and what finishing means -- proven for a
-gate dispatch (role: the dispatched assembly's own conductor) and for a
-panelist (role: its own `worker`, which need not match the assembly's).
+render one brief gathering the child id, its role, where that role is
+written, the resolved tier and runner, a runnable open command, and what
+finishing means -- proven for a gate dispatch (role: the dispatched
+assembly's own conductor) and for a panelist (role: its own `worker`, which
+need not match the assembly's).
+
+Third: wherever a role is announced -- a dispatch brief, a panelist brief,
+or the room an agent stands in -- the rendered line names the file the
+posture is written in and says to read it. A role with no SKILL.md gets no
+line, because naming a file that is not there is this defect inverted.
 """
 
 import pathlib
@@ -195,3 +201,95 @@ def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(workdir
     loc = journal.location("i1.plan.p1")
     assert (loc / "CRITIC.toml").exists()
     assert not (loc / "REVIEW.toml").exists()
+
+
+# -- where the role is written ------------------------------------------------
+
+
+def _posture_line(out):
+    """The one rendered line naming a posture, or None. Both places that say
+    it share `render.posture`'s wording, so one reader finds either."""
+    return next((l for l in out.splitlines() if "SKILL.md" in l), None)
+
+
+def _assert_delivered(line, role):
+    """What a posture line has to be to be worth anything: an absolute path,
+    under the install root rather than the cwd the child happens to be in, to
+    a file that is actually there -- and an instruction to read it."""
+    assert line, "no rendered line names a posture"
+    path = pathlib.Path(next(w for w in line.split() if w.endswith("SKILL.md")))
+    assert path.is_absolute(), f"{path} is not absolute"
+    assert path == REPO / "skills" / role / "SKILL.md", f"{path} is not under the install root"
+    assert path.is_file(), f"{path} does not exist"
+    assert "read it" in line, f"the line names a file but never says to read it: {line}"
+
+
+def test_dispatch_brief_names_where_the_dispatched_role_is_written(workdir, capsys):
+    """The defect in this issue's title: the child was told `implementer` and
+    never told where `implementer` is written."""
+    _mint_dispatch_step()
+    capsys.readouterr()
+
+    cli.main(["d1"])
+    _assert_delivered(_posture_line(capsys.readouterr().out), "implementer")
+
+
+def test_panelist_brief_names_where_its_own_role_is_written(workdir, capsys):
+    """A panelist's role is its own `worker`, so the posture follows the
+    worker and not give-a-verdict's conductor."""
+    _mint_panel_step(worker="implementer")
+    capsys.readouterr()
+
+    cli.main(["g9"])
+    _assert_delivered(_posture_line(capsys.readouterr().out), "implementer")
+
+
+def test_panelist_brief_names_no_file_for_a_role_that_has_no_skill(workdir, capsys):
+    """`reviewer` has no SKILL.md by a decision made with evidence
+    (tests/test_promises.py). A brief that named one anyway would be this
+    issue's own defect inverted -- a path to nothing."""
+    assert not (REPO / "skills" / "reviewer" / "SKILL.md").exists(), (
+        "the premise moved: reviewer now has a skill, so this case is stale")
+    _mint_panel_step(worker="reviewer")
+    capsys.readouterr()
+
+    cli.main(["g9"])
+    out = capsys.readouterr().out
+    assert "role         reviewer" in out
+    assert _posture_line(out) is None, "the brief named a posture that does not exist"
+
+
+def test_the_room_names_where_the_filler_of_this_step_is_written(workdir, capsys):
+    """The second place a role is announced: the form step an agent is
+    standing on. run-a-gate's work interior is filled by `implementer`."""
+    cli.main(["open", "run-a-gate", "--id", "g1"])
+    capsys.readouterr()
+
+    cli.main(["g1"])
+    out = capsys.readouterr().out
+    _assert_delivered(_posture_line(out), "implementer")
+    assert "your response form:" in out, "the posture displaced the form it sits beside"
+
+
+def test_conductor_resolves_through_the_assembly_not_a_skills_conductor(workdir, capsys):
+    """`filler = "conductor"` is an indirection, not a role. run-an-issue's
+    open step declares it, and the assembly's conductor is `commander`."""
+    cli.main(["open", "run-an-issue", "--id", "i1", "--title", "t"])
+    capsys.readouterr()
+
+    cli.main(["i1"])
+    out = capsys.readouterr().out
+    _assert_delivered(_posture_line(out), "commander")
+    assert "skills/conductor" not in out
+
+
+def test_the_room_names_no_file_for_a_filler_that_has_no_skill(workdir, capsys):
+    """give-a-verdict's verdict step is filled by `reviewer`, which has no
+    SKILL.md: silence, not a path to nothing."""
+    cli.main(["open", "give-a-verdict", "--id", "v1"])
+    capsys.readouterr()
+
+    cli.main(["v1"])
+    out = capsys.readouterr().out
+    assert "your response form:" in out
+    assert _posture_line(out) is None, "the room named a posture that does not exist"
