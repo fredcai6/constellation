@@ -106,7 +106,7 @@ def test_a_hanging_check_refuses_instead_of_wedging_the_turn(workdir, monkeypatc
     monkeypatch.setattr(cli, "CHECK_TIMEOUT", 1)
     pathlib.Path("constellation.toml").write_text('[models]\nstandard = "x"\n')
     cli.main(["open", "run-a-gate", "--id", "g1"])
-    journal.append("g1", "prefill", fields={"done": "sleep 30"})
+    journal.append("g1", "prefill", fields={"proof": "sleep 30"})
     pathlib.Path(".agent-work/g1/IMPLEMENT.toml").write_text(
         'change = "c"\ndeviations = "waived: none"\n')
 

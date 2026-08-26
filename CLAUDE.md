@@ -58,7 +58,7 @@ derived is ever committed.
   on this repo and must not be silenced. It exits 0, 7/7. It describes a different
   repo. Two reviewers have flagged it; one nearly gated on it. See #28 — several
   docstrings in that package still describe their predecessor.
-- **A gate spec's `done` is shell-executed** (`engine/cli.py:383`). Prose in that
+- **A gate spec's `proof` is shell-executed** (`engine/cli.py:383`). Prose in that
   field becomes a command and fails inside the dispatched child, after the work is
   done. Write a runnable one-liner. Tracked as #27.
 

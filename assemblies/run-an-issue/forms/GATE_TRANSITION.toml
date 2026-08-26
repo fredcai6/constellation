@@ -43,10 +43,11 @@ an empty spec on a remint is refused."""
   note = "Where the change lives, and what is out of bounds."
 
   [[field.item]]
-  id = "done"
+  id = "proof"
   kind = "check"
   note = """
-The commands whose output shows the gate filled its spec. Reference the
+The command that passes once this gate's work is done and fails while it is
+not. A command that passes on an empty diff proves nothing. Reference the
 command palette (constellation.toml) rather than hardcoding where it applies."""
 
   [[field.item]]

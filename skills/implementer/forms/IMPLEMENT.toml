@@ -19,6 +19,6 @@ kind = "evidence"
 note = "Where the work departed from the spec and why — or waived: none."
 
 [[field]]
-id = "done"
+id = "proof"
 kind = "check"
-note = "The gate spec's done commands; the engine runs them at submit and appends the output. Never part of the response template."
+note = "The gate spec's proof command; the engine runs it at submit and appends the output. Never part of the response template."

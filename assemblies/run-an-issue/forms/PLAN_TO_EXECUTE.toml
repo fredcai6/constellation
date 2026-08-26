@@ -30,7 +30,7 @@ plus this gate's transition; the block's fields are the child run's prefill."""
   note = "Where the change lives, and what is out of bounds."
 
   [[field.item]]
-  id = "done"
+  id = "proof"
   kind = "check"
   note = """
 The commands whose output shows the gate filled its spec. Reference the

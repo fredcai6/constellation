@@ -56,6 +56,9 @@ forms; coining a synonym for a term below is a defect.
   and gate specs; the command palette maps it to a concrete runner.
 - **conductor** — the one persistent agent of an assembly; pumps its interior mechanically,
   judges only at transitions.
+- **proof** — a gate spec's command, run by the engine at submit: it passes once the
+  gate's work is done and fails while it is not. Its exit status decides the step; a
+  command that passes on an empty diff proves nothing.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
   implementer working its interior and firing its review transition.
 - **epic** — one claim too large for a single run, plus the evidence that the claim is true.

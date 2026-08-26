@@ -80,12 +80,12 @@ plan = ".agent-work/%s/plan.md"
 [[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
-done = "true"
+proof = "true"
 
 [[gates]]
 purpose = "add a regression test for the EOF case"
 scope = "tests/parser directory"
-done = "true"
+proof = "true"
 model = "light"
 ''' % wid)
 
@@ -138,7 +138,7 @@ plan-holds = "drop %s"
 
 
 def _fill_gate_transition_remint(wid, purpose="a corrected gate", scope="src/ only",
-                                 done="true"):
+                                 proof="true"):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
 learned = "the spec was wrong, needs a redo"
 plan-holds = "remint"
@@ -146,8 +146,8 @@ plan-holds = "remint"
 [[gate-spec]]
 purpose = "%s"
 scope = "%s"
-done = "%s"
-''' % (purpose, scope, done))
+proof = "%s"
+''' % (purpose, scope, proof))
 
 
 def _fill_gate_transition_replan(wid, learned="the cut was wrong from the start"):
@@ -177,7 +177,7 @@ def _mint_n_gates(n, wid="issue17"):
     cli.main([wid, "submit"])
     _dispatch_plan_critic(wid)
     blocks = "\n\n".join(
-        '[[gates]]\npurpose = "gate %d purpose"\nscope = "gate %d scope"\ndone = "true"'
+        '[[gates]]\npurpose = "gate %d purpose"\nscope = "gate %d scope"\nproof = "true"'
         % (i, i) for i in range(1, n + 1))
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
           'plan = ".agent-work/%s/plan.md"\n\n%s\n' % (wid, blocks))
@@ -690,7 +690,7 @@ plan = ".agent-work/issue17/plan.md"
 [[gates]]
 purpose = "redo the cut correctly"
 scope = "src/ only"
-done = "true"
+proof = "true"
 ''')
     cli.main(["issue17", "submit"])
     capsys.readouterr()

@@ -94,7 +94,7 @@ def _fill_plan_to_execute(wid, n_gates=1):
 [[gates]]
 purpose = "gate %d"
 scope = "src/ only"
-done = "true"
+proof = "true"
 ''' % i for i in range(1, n_gates + 1))
     _fill(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml",
          'plan = ".agent-work/%s/plan.md"\n%s' % (wid, gates))

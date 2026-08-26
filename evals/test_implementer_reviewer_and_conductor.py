@@ -74,7 +74,7 @@ def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
     harness.prefill(workdir, "g1",
                     purpose="Create a file named result.txt containing exactly the text OK.",
                     scope="the workdir root only",
-                    done="test -f result.txt && grep -qx OK result.txt")
+                    proof="test -f result.txt && grep -qx OK result.txt")
 
     r = harness.drive(workdir, (
         "You are an agent working in this directory. Your work id is g1. "
@@ -111,7 +111,7 @@ def test_a_reviewer_returns_a_grounded_verdict(workdir):
     harness.prefill(workdir, "g2",
                     purpose="Add input validation to `parse_line` so it rejects empty "
                             "strings.",
-                    scope="src/parser.py only", done="true")
+                    scope="src/parser.py only", proof="true")
     (pathlib.Path(workdir) / ".agent-work/g2/IMPLEMENT.toml").write_text(
         'change = "Renamed parse_line to parseLine for style consistency. No '
         'validation logic was added."\n'
@@ -152,7 +152,7 @@ def test_a_conductor_dispatches_a_child_and_adjudicates_its_return(workdir):
     _mint_gate_pair(workdir, wid, "g1",
                     purpose="Create a file named done.txt containing exactly the text ok.",
                     scope="the workdir root only",
-                    done="test -f done.txt && grep -qx ok done.txt")
+                    proof="test -f done.txt && grep -qx ok done.txt")
 
     brief = harness.spine(workdir, wid).stdout
 
@@ -250,7 +250,7 @@ def test_an_implementer_authors_the_intent_layer_as_it_works(checkout):
                 "over unbounded doubling, which lets a dead host hold a "
                 "caller forever.",
         scope="rate.py in the workdir root only",
-        done="python3 -c \"import rate; assert [rate.retry_delay(n) for n in "
+        proof="python3 -c \"import rate; assert [rate.retry_delay(n) for n in "
              "range(1, 6)] == [1, 2, 4, 4, 4]\"")
 
     r = harness.drive(checkout, (
