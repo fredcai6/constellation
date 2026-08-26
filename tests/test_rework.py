@@ -278,19 +278,24 @@ def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
     assert "empty diff (3)" in st["current"]["prefill"]["findings"]
 
 
-def test_up_blocks_the_run_and_mints_nothing(workdir, capsys):
+def test_up_mints_nothing_and_the_run_walks_to_its_close(workdir, capsys):
+    """One way up, not two. Refilling nothing is what an escalate verdict
+    already does, so the run reaches its terminal form and the ruling becomes
+    the record whoever dispatched it reads."""
     wid = _drive_to_impasse()
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
     _fill(runmod.journal.location(wid) / "IMPASSE.toml",
           'ruling = "up"\nwhy = "the plan may be solving the wrong problem"\n')
     cli.main([wid, "submit"])
-    out = capsys.readouterr().out
+    capsys.readouterr()
 
     st = runmod.state(wid)
-    assert len(st["steps"]) == before, "up minted a step instead of stopping"
-    assert [b for b in runmod.blocks(st) if "ruled up to the principal" in b["text"]]
-    assert "BLOCKED" in out
+    assert len(st["steps"]) == before, "up minted a step"
+    assert st["current"]["form"] == "forms/CLOSE.toml"
+    ruling = st["done"][[s["id"] for s in st["steps"]
+                         if s.get("form") == "forms/IMPASSE.toml"][0]]["fields"]
+    assert ruling["ruling"] == "up" and "wrong problem" in ruling["why"]
 
 
 # -- 6. the same outlet on run-a-gate, which has no rework form ---------------

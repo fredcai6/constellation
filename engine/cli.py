@@ -491,11 +491,10 @@ def _act_on_impasse(wid, asm, step, fields):
                            segment=seg["id"], form=t["form"], filler="conductor",
                            anchor=t.get("anchor", False), terminal=t.get("terminal", False),
                            validates=t.get("validates", ""), source="mint")
-    else:
-        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail="blocked",
-                       text=f"impasse at {step['id']}: ruled up to the principal. "
-                            f"{fields.get('why', '').strip()}",
-                       about="", step=step["id"])
+    # `up` mints nothing, which is the whole of it. Not refilling is what an
+    # escalate verdict already does (run.merged_verdict), so the run walks to
+    # its terminal step and its record goes to whoever dispatched it -- the
+    # parent for a child, the human for a root run. One way up, not two.
 
 
 def _check_outcome(st, step, fields):

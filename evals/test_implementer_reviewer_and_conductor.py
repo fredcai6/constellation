@@ -35,7 +35,7 @@ def workdir(tmp_path):
     return tmp_path
 
 
-def _mint_gate_pair(workdir, wid, gid, purpose, scope, done, model=""):
+def _mint_gate_pair(workdir, wid, gid, purpose, scope, proof, model=""):
     """A run-an-issue standing on exactly one execute-segment dispatch step
     and its adjudication companion -- the shape `_mint_gates` (engine/cli.py)
     produces from a real plan-to-execute round, built directly so this eval
@@ -48,7 +48,7 @@ def _mint_gate_pair(workdir, wid, gid, purpose, scope, done, model=""):
         from engine import journal
         journal.append(wid, "run", title=purpose, assembly="run-an-issue",
                        conductor="commander")
-        prefill = {"purpose": purpose, "scope": scope, "done": done}
+        prefill = {"purpose": purpose, "scope": scope, "proof": proof}
         if model:
             prefill["model"] = model
         child = f"{wid}.{gid}"
@@ -90,12 +90,12 @@ def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
         f"a step along the way was skipped: {sorted(st['done'])}"
         f"{harness.evidence(workdir, 'g1', r)}")
     # root-verified: the engine's own check ran the real command and passed
-    done_checks = [c for c in st["checks"] if "result.txt" in (c.get("command") or "")]
+    proof_checks = [c for c in st["checks"] if "result.txt" in (c.get("command") or "")]
     # The check that let the gate close must have passed. An earlier failure
     # is the engine refusing and the agent recovering -- the loop working,
     # not a defect. Demanding none ever failed would fail a correct run.
-    assert done_checks and done_checks[-1]["exit"] == 0, (
-        f"the gate closed without its done check passing: {done_checks}")
+    assert proof_checks and proof_checks[-1]["exit"] == 0, (
+        f"the gate closed without its proof passing: {proof_checks}")
     assert (pathlib.Path(workdir) / "result.txt").read_text().strip() == "OK"
 
 
@@ -116,7 +116,7 @@ def test_a_reviewer_returns_a_grounded_verdict(workdir):
         'change = "Renamed parse_line to parseLine for style consistency. No '
         'validation logic was added."\n'
         'deviations = "waived: none"\n')
-    harness.spine(workdir, "g2", "submit")  # done check "true" fires the review anchor
+    harness.spine(workdir, "g2", "submit")  # proof "true" fires the review anchor
     harness.spine(workdir, "open", "give-a-verdict", "--parent", "g2", "--step", "review.p1")
 
     r = harness.drive(workdir, (

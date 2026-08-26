@@ -17,8 +17,9 @@ advance | rework | up. `advance` closes the gate on the diff as it stands, over
 a live revise — the review's findings remain the record that says you did, and
 your parent adjudicates them. `rework` is another implement round, and is the
 answer only when you can name what it changes that the last three did not. `up`
-stops this gate and puts it to the run that dispatched you, which is what to do
-when the spec is the thing that is wrong."""
+refills nothing and lets this gate close, so your ruling returns to the run that
+dispatched you -- the move an escalate verdict already makes, and the right one
+when the spec is what is wrong."""
 
 [[field]]
 id = "why"

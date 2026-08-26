@@ -56,7 +56,8 @@ The verdict decides what happens next:
 
 After a third revise the engine stops offering a fourth round and asks you to
 rule instead: close the gate on the diff as it stands, run another round, or
-put it up to the run that dispatched you.
+send it up, which closes the gate and returns your ruling to the run that
+dispatched you — the same move `escalate` makes.
 
 Where this does not apply: the plan behind the gate is not yours to remake.
 If the gate itself looks like the wrong move, escalate says so — this skill
