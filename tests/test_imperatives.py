@@ -155,7 +155,20 @@ def test_a_brief_imperative_ends_on_a_move_the_reader_makes(workdir):
 
 def test_the_implementer_skill_no_longer_repeats_the_room(workdir):
     """Doctrine belongs at the point of use. Once the panel step says it,
-    the skill saying it too is a second copy with the usual fate."""
-    skill = (REPO / "skills/implementer/SKILL.md").read_text()
+    the skill saying it too is a second copy with the usual fate.
+
+    The second assertion used to be a word ratchet -- "< 222, the skill
+    should have shrunk, not grown" -- which measured the wrong thing twice
+    over: it passes a skill that repeats the room in fewer words, and it
+    fails a skill that grows for a reason issue 14 never had in view. What
+    repeating the room looks like is the panel step's own vocabulary turning
+    up here; how large the skill may get is a budget, and it has exactly one
+    definition (tests/test_promises.py).
+    """
+    skill = (REPO / "skills/implementer/SKILL.md").read_text().lower()
     assert "dispatch what each brief names" not in skill
-    assert len(skill.split()) < 222, "the skill should have shrunk, not grown"
+    for phrase in ("subagent", "cold reader", "panelist"):
+        assert phrase in render.PANEL.lower(), f"{phrase!r} is not the room's own word"
+        assert phrase not in skill, (
+            f"the skill says {phrase!r}; the panel step it stands you on "
+            "already says it, and two copies is one too many")

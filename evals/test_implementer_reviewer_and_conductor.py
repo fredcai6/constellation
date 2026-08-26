@@ -5,14 +5,22 @@ a gate from its orders alone, a reviewer grounding a verdict in a spec it was
 just handed, and a conductor dispatching a child and adjudicating what comes
 back -- and assert on the journal, never on transcript prose.
 
+Issue 7 added a fourth, on the same implementer: whether the intent layer
+gets authored while the code is being written. That one asserts on the
+generator's own output rather than the journal, because the journal cannot
+tell you what a comment says.
+
 The lightest model is deliberate, same as the rest of this file's neighbor:
 if a step needs a strong model to be followed, the instruction is at fault,
 not the model.
 """
 
+import json
 import os
 import pathlib
 import shutil
+import subprocess
+import sys
 
 import pytest
 
@@ -171,3 +179,97 @@ def test_a_conductor_dispatches_a_child_and_adjudicates_its_return(workdir):
     child_st = harness.state(workdir, "d1.g1")
     assert child_st["closed"], "the dispatched gate itself never closed"
     assert (pathlib.Path(workdir) / "done.txt").read_text().strip() == "ok"
+
+
+# -- 4. an implementer authoring the intent layer as it works ----------------
+
+
+@pytest.fixture
+def checkout(tmp_path):
+    """A workdir the code map can actually measure.
+
+    The mappable corpus is `git ls-files` minus `.agent-work/`
+    (tools/code_map/discovery.py), so where the work lands decides whether
+    there is anything to read at all: a bare tmp_path is not a checkout and
+    the generator refuses, a path under `.agent-work/` is excluded, and an
+    untracked file is never listed. Each of those returns zero statements,
+    which reads exactly like an implementer that authored nothing -- so this
+    fixture makes the workdir a checkout, and `_intent_layer` stages it
+    before it measures.
+
+    The skill under test is copied in because that is what a dispatch hands
+    an implementer: the posture it works from, in the tree it works in.
+    """
+    shutil.copy(harness.ROOT / "constellation.toml", tmp_path)
+    posture = tmp_path / "skills" / "implementer"
+    posture.mkdir(parents=True)
+    shutil.copy(harness.ROOT / "skills" / "implementer" / "SKILL.md", posture)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, timeout=60)
+    return tmp_path
+
+
+def _intent_layer(root):
+    """Run the real generator over `root` and return what it read: the
+    `ids.jsonl` text an anchor fills, and the tag statements. Both, because
+    they are separate predicates -- correct tags extract and render while
+    `ids.jsonl` stays empty, so either one alone passes on half a
+    performance."""
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True, timeout=60)
+    subprocess.run([sys.executable, "-m", "tools.code_map", "build",
+                    "--root", str(root)], cwd=harness.ROOT,
+                   capture_output=True, text=True, timeout=300)
+    ids = root / "map" / "ids.jsonl"
+    store = root / ".code-map" / "statements.jsonl"
+    lines = store.read_text().splitlines() if store.exists() else []
+    tags = [json.loads(x) for x in lines if json.loads(x)["p"] == "tag"]
+    return (ids.read_text() if ids.exists() else ""), tags
+
+
+def test_an_implementer_authors_the_intent_layer_as_it_works(checkout):
+    """v1 shipped this same reader and read nothing: 3 anchors and 11 tags
+    against 4,473 holes in the factory repo, 0 anchors across 440 files
+    downstream. The tooling was never the failure -- nobody kept the layer
+    authored, and it survives only when it is written at the moment the code
+    is. So the assertion is not that the grammar is teachable in the
+    abstract: it is that a real light model, given a real gate and the
+    implementer's own posture, leaves behind a map that has something in it.
+
+    Nothing in the prompt mentions anchors, tags or the code map. If the
+    guidance does not carry it, this fails, which is the whole point.
+    """
+    harness.spine(checkout, "open", "run-a-gate", "--id", "g1")
+    harness.prefill(
+        checkout, "g1",
+        purpose="Add rate.py with a function retry_delay(attempt) giving the "
+                "seconds to wait before retry attempt N: 1 second for attempt "
+                "1, 2 for attempt 2, 4 for attempt 3, and 4 for every attempt "
+                "after that. Three doublings and then a ceiling was chosen "
+                "over unbounded doubling, which lets a dead host hold a "
+                "caller forever.",
+        scope="rate.py in the workdir root only",
+        done="python3 -c \"import rate; assert [rate.retry_delay(n) for n in "
+             "range(1, 6)] == [1, 2, 4, 4, 4]\"")
+
+    r = harness.drive(checkout, (
+        "You are an agent working in this directory. Your work id is g1 and "
+        "your posture is skills/implementer/SKILL.md -- read it before you "
+        "start. Run `spine g1` to see your orders, do the work, then fill "
+        "and submit the form it names. Stop once the submit succeeds."),
+        timeout=420)
+
+    st = harness.state(checkout, "g1")
+    assert "work-1" in st["done"], (
+        f"the implement step was never submitted, so there is no work to "
+        f"measure.{harness.evidence(checkout, 'g1', r)}")
+
+    ids, tags = _intent_layer(checkout)
+    # The corpus here is the one file the gate asked for, so an anchor or a
+    # tag found at all was authored by the implementer during this run.
+    assert ids.strip(), (
+        f"the implementer left no anchor -- map/ids.jsonl is empty, which is "
+        f"exactly what it reads on a repo where nobody authors one."
+        f"{harness.evidence(checkout, 'g1', r)}")
+    assert tags, (
+        f"the implementer left no tag -- the anchor names the code but "
+        f"nothing says why it is the way it is."
+        f"{harness.evidence(checkout, 'g1', r)}")
