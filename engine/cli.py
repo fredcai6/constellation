@@ -338,7 +338,7 @@ def cmd_submit(argv):
     if runmod.panel_outstanding(st, step):
         raise SystemExit(render.refusal(
             step["id"], "a panel step is not submitted -- the panelists' verdicts "
-            f"complete it", escape=f"who is outstanding: spine {wid}"))
+            "complete it", escape=f"who is outstanding: spine {wid}"))
     dest = _response_path(st, step)
     if not dest.exists():
         raise SystemExit(render.located(f"no response form yet — run: spine {wid}"))

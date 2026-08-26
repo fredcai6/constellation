@@ -31,8 +31,13 @@ forms; coining a synonym for a term below is a defect.
 - **verdict panel** — 0..n reviewers a transition dispatches, each cold and prefilled with
   focused criteria; verdicts return to the transition. Any revise refills, findings merged.
   Review never lives in an interior.
-- **anchor** — a template step flagged so that amending it away is loud in the ledger and the
-  parent's adjudication view. Still one journaled step to amend; never a refusal.
+- **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
+  not bar one name for two, and these two never appear in the same reading. *In a run:* a
+  template step flagged so that amending it away is loud in the ledger and the parent's
+  adjudication view — still one journaled step to amend, never a refusal. *In the map:* an
+  authored identity for a definition — a comment line holding only a bracketed kebab slug,
+  `# [stable-id]`, directly above what it names. Minted on demand; the one fact about a
+  definition the map stores instead of deriving.
 - **form** — one step's imperative, fields, and field notes; the unit that carries doctrine.
 - **field kind** — how a field is satisfied: `check`, `evidence`, `artifact`, `decision`,
   `plan`; any field instead takes `waived: <reason>` or `unknown: <reason>`.
@@ -61,4 +66,17 @@ forms; coining a synonym for a term below is a defect.
   derived at dispatch, never authored.
 - **pivot criteria** — what changes the plan, not only what ends it.
 - **command palette** — `constellation.toml`: the host repo's test/lint/build commands, which
-  check fields reference instead of hardcoding, and the model-tier map.
+  check fields reference instead of hardcoding, and the model-tier table.
+- **map** — the derived page tree under `map/`: one page per entity, a module index per module,
+  one top index. Built by `tools/code_map` — the generator, and that is its only name — through
+  `palette:map`; gitignored, regenerated at closeout, never committed. The artifact, not the act
+  of making it.
+- **entity** — a mapped definition: one function or class, named by its enclosing scope's symbol
+  plus its own name. The unit the map gives a page to.
+- **hole** — a mapped entity or module with no docstring, so the map has nothing to say about
+  what it is for. Counted per module and repo-wide in the map's report.
+- **corpus** — one word, two senses, on the same grounds as `anchor`. *The v2 corpus:* the
+  authored artifacts an agent must read before it can work — skills, forms, standards,
+  assemblies — measured in words against the 15,000 target (`docs/V2_DESIGN.md`, Measurable
+  goals). Derived output is not in it. *The mappable corpus:* every tracked `.py` file the map
+  is built from, which is the sense `tools/code_map` uses throughout its own docstrings.

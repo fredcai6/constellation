@@ -10,8 +10,20 @@ test = "python3 -m pytest -q"
 # anything ships: the fast suite plus the agent evals, which drive a real
 # light model against a real run and assert on its journal.
 validate = "python3 -m pytest -q && python3 -m pytest -m agent -q"
+# `lint` is pyflakes over the engine. It is the one command here that needs
+# something the standard library does not ship, so requirements-dev.txt names it:
+# a palette entry offering a command nobody can run is worse than no entry.
 lint = "python3 -m pyflakes engine"
-lines = "find engine spine -type f | xargs wc -l | tail -1"
+# `lines` is the machinery cap's instrument (V2_DESIGN.md's Size section). It asks
+# git rather than the filesystem, so it counts the engine and `spine` as committed
+# and cannot drift with `engine/__pycache__/*.pyc`, which moved the number by 896
+# lines depending on whether the suite had been run.
+lines = "git ls-files engine spine | xargs wc -l | tail -1"
+# `map` is the closeout call: the derived code map, built into .code-map/ and map/,
+# both gitignored. Never committed -- a stale committed map is the failure #7 names.
+# `--render-only` narrows the page tree to one package; the walk behind it stays
+# whole, so the referenced-by-tests column survives. Repeat it to add packages.
+map = "python3 -m tools.code_map build --root . --artifacts .code-map --out map --render-only engine"
 
 # Logical tiers, resolved at dispatch. Forms and assemblies name only the
 # tier, never a provider, so an assembly is portable across shops.

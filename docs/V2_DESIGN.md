@@ -222,13 +222,19 @@ refusals, the MCP server, and every CLI-vs-door distinction. Bind/release descen
 
 ### Size
 
-One budget for **total machinery** — engine, CLI, rail, assembly loading, Windows support,
-install copy: **≤ 2,500 lines.** The bar is an aspiration, not a wall — its job is to keep
+One budget, and it is **the engine's** — `engine/` and the `spine` CLI, which is where the
+rail, assembly loading, Windows support and the install copy all live: **≤ 2,500 lines**,
+measured by `palette:lines`. The bar is an aspiration, not a wall — its job is to keep
 pressure on every line earning its keep. One kind of line always earns it:
 **anything the engine can derive, it derives.** A rule stated in a form for an agent to apply
 against data the engine already holds is mechanical work the secretary exists to remove, and a
 budget that argues for leaving it to the agent is arguing the wrong way (`docs/DERIVED_IS_CODE.md`) — and it is one number: a green engine achieved by relocating lines into another
-component counts as a miss. Forms and templates are corpus words, not machinery lines.
+component counts as a miss. That sentence is a rule against relocation, not a rule that every
+tool in the repo spends the engine's lines. A tool with no seam into a run — nothing in
+`engine/` imports it, nothing on a run's path calls it, invoked by hand from the palette — is
+outside the cap, because moving nothing out of the engine cannot buy the engine anything.
+`tools/code_map`, run by `palette:map` at closeout, is the standing case.
+Forms and templates are corpus words, not machinery lines.
 Greenfield rewrite; the old machinery stays untouched until cutover.
 
 ## Layer 2 — forms carry the doctrine
@@ -402,16 +408,21 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 
 | Measure | v1 | v2 target |
 |---|---|---|
-| Corpus words | ~57,000 | ≤ 15,000 |
-| Machinery lines (engine + CLI + rail + loader + Windows + install) | ~10,000 | ≤ 2,500 |
+| Corpus words (authored artifacts an agent must read before it can work) | ~57,000 | ≤ 15,000 |
+| Engine lines (`engine/` + `spine`: rail, loader, Windows, install copy — decoupled tools are outside it) | ~10,000 | ≤ 2,500 |
 | Engine verbs | 18 | 6 |
 | Conductor pre-reading | 20–30k tokens of doctrine | the issue + the authority block |
 | Shared doctrine prose | ~11,000 words (`_shared/`) | one page + standards |
 
+The corpus target counts artifacts someone authored and an agent must read before it can
+work. Derived output is not corpus: the code map is regenerated from the source at closeout,
+never committed, and read on the spot — and a cap that grew with the source it describes
+would not be a cap.
+
 Draft per-skill word budgets, forms included — revised at wave boundaries, enforced at cutover
 with `wc`: explorer 2,500 · admiral 1,500 · commander 1,500 · commander-delegated 500 ·
 interrogator 800 · reviewer 1,000 · implementer 800 · prototyper 600 ·
-triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum ≈ 14,100 against the
+triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum 13,800 against the
 15,000 cap.
 
 ## Waves

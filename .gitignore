@@ -1,3 +1,11 @@
+# Derived and scratch. Nothing here is authored, so nothing here is committed:
+# a generated artifact in the index goes stale the moment the source moves, and
+# the next reader cannot tell a stale one from a true one. Regenerate instead.
 __pycache__/
 *.pyc
+# Run work packages: journals and response forms, written by the engine.
 .agent-work/
+# The code map, built by `palette:map` at closeout and read on the spot.
+# `.code-map/` is the statement store, `map/` the page tree.
+.code-map/
+map/
