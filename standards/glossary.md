@@ -58,6 +58,14 @@ forms; coining a synonym for a term below is a defect.
   judges only at transitions.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
   implementer working its interior and firing its review transition.
+- **epic** — one claim too large for a single run, plus the evidence that the claim is true.
+  Runs as run-an-epic under the admiral, dispatching issue runs. Never a list of issues.
+- **wave** — a segment of an epic whose interior dispatches whole issue runs. The admiral cuts
+  a wave from the epic's findings and adjudicates at its transition.
+- **finding** — something real that was observed and recorded, and is not yet work. A reviewer's
+  finding classed `beyond`, and an epic's unfiled finding, are the same thing at two scopes.
+- **re-measure** — run an observation's own command against HEAD before planning against it.
+  An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The
   order; contested by a blocked note up, never edited.
 - **return** — the child's terminal fields, stamped into the parent's waiting step at close,

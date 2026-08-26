@@ -1,4 +1,4 @@
-# Issue
+# Issues and epics
 
 An issue is three things: **the problem**, **observations with baselines**, and **what fixed
 means**. Implementation steps in an issue are a defect — the plan belongs to the run that picks
@@ -31,8 +31,41 @@ already works. Type and rev apply to the "today instead" claim.
 A checkable end state, not a vibe. Two agents reading it should not be able to disagree on
 whether the issue is done.
 
+## Re-measure before you plan
+
+Every observation is a claim about a `rev`, and every issue is older than the code it
+describes. A run's first move is to re-measure its own issue: run the command the observation
+carries, against HEAD. Three outcomes, all of them legitimate ends for a run:
+
+- **Still true** — plan the work, and the fresh number replaces the stale one.
+- **No longer true** — close the issue with the re-measurement as its record.
+- **True and inert** — the defect stands and nothing goes wrong because of it. Name the run
+  that goes wrong without the fix; when nothing does, close it as inert.
+
+The third is the one that costs. A defect that is real, cheap, and harmless is the easiest work
+in a backlog to justify and the least worth doing: a change is paid for when it lands, and the
+benefit was priced when it was filed.
+
 ## Breadcrumbs
 
 A possible fix is evidence that *a* fix is feasible; it is never the fix, and following one
 untested has converted a check that cannot pass into a check that cannot fail. Open questions
 record what is unresolved and what would settle it — thinking out loud, not work items.
+
+## Epic
+
+An epic is what a `run-an-epic` run opens from, as an issue is what a `run-an-issue` run opens
+from: one claim too large for a single run to hold, plus the evidence that the claim is true.
+
+- **The claim** — one sentence naming a defect in the system rather than in a file. A defect
+  statable against one file is an issue.
+- **The evidence** — the measurements that establish the claim, each with its command and rev.
+  Per-defect observations belong to the children.
+- **What fixed means** — a checkable end state for the claim. An epic whose only completion
+  condition is that its children are closed is a label.
+- **Findings** — measured, recorded, and not yet work. A finding becomes work by being cut into
+  a wave; it never becomes work by aging.
+
+The admiral cuts a wave from the findings, dispatches those issue runs, and adjudicates at the
+wave transition before cutting the next. A finding enters a wave when it re-measures true and
+someone can name the run that goes wrong without it. An epic may `stop` with findings unfiled.
