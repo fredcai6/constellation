@@ -34,6 +34,11 @@ step-form = "forms/PLAN.toml"
 # A revise mints this in place of the step-form: rework is its own move, not
 # a second first draft. A replan still mints the step-form.
 rework-form = "forms/REWORK.toml"
+# After this many rework rounds on one artifact, a further revise mints the
+# impasse form instead: the loop itself becomes the thing the conductor rules
+# on. Counted since the last step-form mint, so a replan starts over.
+impasse-after = 3
+impasse-form = "forms/IMPASSE.toml"
 worker = "conductor"
 
 [segment.transition]

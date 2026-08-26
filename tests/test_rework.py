@@ -98,6 +98,39 @@ def test_replan_mints_the_step_form(workdir, capsys):
     assert fresh["form"] == "forms/PLAN.toml"  # a replan re-plans from scratch
 
 
+def test_a_replan_restarts_the_rework_count(workdir, capsys):
+    """The count is of rounds on one artifact, so a replan -- which is a new
+    artifact -- starts it over. The principal ruled this against the
+    alternative of counting every send-back."""
+    wid = _drive_to_revise()
+    _round(wid, "gap 1")
+    asm = runmod.load_assembly("run-an-issue")
+    assert runmod.rework_rounds(runmod.state(wid), asm, "plan") == 2
+
+    # carry that plan through to a gate, then replan from the gate transition
+    _fill_rework(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid, verdict="pass")
+    capsys.readouterr()
+    _fill(runmod.journal.location(wid) / "PLAN_TO_EXECUTE.toml", '''
+plan = "the plan doc"
+
+[[gates]]
+purpose = "p"
+scope = "s"
+proof = "true"
+''')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    _dispatch_and_close_child(wid, "g1")
+    capsys.readouterr()
+    _fill_gate_transition_replan(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    assert runmod.rework_rounds(runmod.state(wid), asm, "plan") == 0
+
+
 # -- 3. a revise on a segment without rework-form mints the step-form ---------
 
 
@@ -144,3 +177,117 @@ key-terms = "waived: none"
     assert prefill["plan"] == f".agent-work/{wid}/plan.md"  # the artifact still rides
     assert prefill["key-terms"] == "waived: none"
     assert prefill["criteria"].startswith("intent-fit")
+
+
+# -- 5. the outlet: a fourth revise mints a ruling, not a fourth round --------
+
+
+def _fill_rework(wid):
+    _fill(runmod.journal.location(wid) / "REWORK.toml", '''
+plan = "the plan doc"
+findings-addressed = "waived: first pass"
+deleted = "waived: nothing"
+key-terms = "none"
+''')
+
+
+def _round(wid, findings):
+    """One rework round: fill the fresh REWORK.toml, submit, and have the
+    fresh panel say revise again."""
+    _fill_rework(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings)
+
+
+def _drive_to_impasse(wid="issue17"):
+    """Three rework rounds, then the fourth revise -- which is the one the
+    segment's `impasse-after` turns into a ruling."""
+    _drive_to_revise(wid)
+    for n in (1, 2, 3):
+        _round(wid, f"gap: the proof still passes on an empty diff ({n})")
+    return wid
+
+
+def test_a_fourth_revise_mints_the_impasse_form_not_another_round(workdir, capsys):
+    wid = _drive_to_impasse()
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "forms/IMPASSE.toml", (
+        f"the fourth revise minted {st['current']['form']!r} -- the segment "
+        "declares impasse-after = 3, so this round is the ruling")
+    assert "empty diff (3)" in st["current"]["prefill"]["findings"]
+    # no fourth panel: another cold reader is the loop, not the way out
+    assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
+                   for s in st["steps"]), "the impasse minted a panel"
+
+
+def test_the_count_reaches_the_outlet_on_the_round_after_the_third(workdir, capsys):
+    """The boundary, both sides. The first revise mints round one, so the
+    count is already 1 before any loop runs."""
+    wid = _drive_to_revise()
+    asm = runmod.load_assembly("run-an-issue")
+    counts = [runmod.rework_rounds(runmod.state(wid), asm, "plan")]
+    for n in (1, 2):
+        _round(wid, f"gap {n}")
+        counts.append(runmod.rework_rounds(runmod.state(wid), asm, "plan"))
+    capsys.readouterr()
+    assert counts == [1, 2, 3]
+    # three rounds is still a round -- the revise that follows is the ruling
+    assert runmod.state(wid)["current"]["form"] == "forms/REWORK.toml"
+    _round(wid, "gap 3")
+    capsys.readouterr()
+    assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
+
+
+def test_an_unhandled_ruling_refuses_rather_than_releasing_the_step(workdir, capsys):
+    wid = _drive_to_impasse()
+    capsys.readouterr()
+    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+          'ruling = "keep going"\nwhy = "it is nearly there"\n')
+    with pytest.raises(SystemExit) as e:
+        cli.main([wid, "submit"])
+    assert "not a ruling this run can act on" in str(e.value)
+    assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
+
+
+def test_advance_takes_the_plan_to_its_transition_over_a_live_revise(workdir, capsys):
+    wid = _drive_to_impasse()
+    capsys.readouterr()
+    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+          'ruling = "advance"\nwhy = "three rounds all landed on the proof"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
+    assert st["current"].get("source") == "mint"
+    assert not st["current"].get("panel"), "advance minted a fresh panel to argue with"
+
+
+def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
+    wid = _drive_to_impasse()
+    capsys.readouterr()
+    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+          'ruling = "rework"\nwhy = "round four changes the proof, not the prose"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "forms/REWORK.toml"
+    assert "empty diff (3)" in st["current"]["prefill"]["findings"]
+
+
+def test_up_blocks_the_run_and_mints_nothing(workdir, capsys):
+    wid = _drive_to_impasse()
+    before = len(runmod.state(wid)["steps"])
+    capsys.readouterr()
+    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+          'ruling = "up"\nwhy = "the plan may be solving the wrong problem"\n')
+    cli.main([wid, "submit"])
+    out = capsys.readouterr().out
+
+    st = runmod.state(wid)
+    assert len(st["steps"]) == before, "up minted a step instead of stopping"
+    assert [b for b in runmod.blocks(st) if "ruled up to the principal" in b["text"]]
+    assert "BLOCKED" in out

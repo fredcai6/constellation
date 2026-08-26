@@ -404,10 +404,12 @@ def cmd_submit(argv):
                 f"  or drop this step: spine {wid} amend close {step['id']} --reason ..."))
 
     _check_plan(form, fields)
+    _check_impasse(asm, step, fields)
     _check_outcome(st, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
     _mint(wid, asm, step, form, fields)
+    _act_on_impasse(wid, asm, step, fields)
     _act_on_outcome(wid, asm, step, fields)
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
@@ -440,6 +442,56 @@ def _pending_gates(st, exclude=""):
     gates = [s["id"] for s in st["steps"] if s.get("dispatches") == "run-a-gate"]
     return [g for g in gates if g != exclude
             and (g not in st["done"] or f"{g}-adjudicate" not in st["done"])]
+
+
+def _impasse_segment(asm, step):
+    """The segment whose impasse form this step is, or None for any other
+    step. Read off the assembly rather than matched against a name the engine
+    holds: an assembly that declares no outlet has none."""
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    return seg if seg.get("impasse-form") and step.get("form") == seg["impasse-form"] else None
+
+
+_IMPASSE_RULINGS = ("advance", "rework", "up")
+
+
+def _check_impasse(asm, step, fields):
+    """The impasse ruling, validated before the submit lands. An unhandled
+    value here would release the step and mint nothing, which is the silent
+    advance this outlet exists to end."""
+    if not _impasse_segment(asm, step):
+        return
+    ruling = fields.get("ruling", "").strip().lower()
+    if ruling not in _IMPASSE_RULINGS:
+        raise SystemExit(render.refusal(
+            "ruling", f"{ruling or 'empty'!r} is not a ruling this run can act on",
+            escape="one of: " + ", ".join(_IMPASSE_RULINGS)))
+
+
+def _act_on_impasse(wid, asm, step, fields):
+    """Perform the ruling. `advance` mints the transition alone, so the plan
+    goes forward over a live revise and the panel's findings stay the record
+    that says so. `rework` is the ordinary round the outlet displaced. `up`
+    mints nothing and blocks the run, which is the move that already exists
+    for reaching a principal."""
+    seg = _impasse_segment(asm, step)
+    if not seg:
+        return
+    ruling = fields.get("ruling", "").strip().lower()
+    if ruling == "rework":
+        _mint_segment_round(wid, asm, seg["id"], prefill=step.get("prefill") or {},
+                            form=seg.get("rework-form", ""))
+    elif ruling == "advance":
+        t = seg.get("transition", {})
+        journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
+                       segment=seg["id"], form=t.get("form", ""), filler="conductor",
+                       anchor=t.get("anchor", False), terminal=t.get("terminal", False),
+                       validates=t.get("validates", ""), source="mint")
+    else:
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail="blocked",
+                       text=f"impasse at {step['id']}: ruled up to the principal. "
+                            f"{fields.get('why', '').strip()}",
+                       about="", step=step["id"])
 
 
 def _check_outcome(st, step, fields):
@@ -747,6 +799,19 @@ def _act_on_verdicts(pwid, step_id):
     # rework-form where one is declared; the choice lives here with the
     # verdict. A replan, and a segment without the key, mint the step-form.
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
+    # Rationale: three reviews landing on one artifact means the artifact is
+    #   not the one under repair, so the fourth revise mints a ruling instead
+    #   of a fourth round -- and mints it alone, since a fourth cold reader is
+    #   the loop rather than the way out. The number and the form are the
+    #   assembly's; the engine names neither.
+    # See: assemblies/run-an-issue/forms/IMPASSE.toml
+    after, outlet = seg.get("impasse-after", 0), seg.get("impasse-form", "")
+    if outlet and after and runmod.rework_rounds(pst, asm, step["segment"]) >= after:
+        journal.append(pwid, "step", id=f"{step['segment']}-a{secrets.token_hex(2)}",
+                       segment=step["segment"], form=outlet, filler="conductor",
+                       prefill={"findings": findings}, anchor=False, terminal=False,
+                       validates="", source="mint")
+        return
     _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings},
                         form=seg.get("rework-form", ""))
 

@@ -75,6 +75,32 @@ def role_of(assembly, step):
     return (assembly or {}).get("conductor", "") if filler == "conductor" else filler
 
 
+# [rework-rounds]
+# Rationale: the count is of rounds on one artifact, not rounds in the run --
+#   `skills/commander/SKILL.md` conditions its stopping rule on repetition
+#   against the same thing. A step-form mint is a replan, which is a new
+#   artifact, so it restarts the count; a rework-form mint is another pass at
+#   the same one.
+# Rejected: counting `source == "mint"` regardless of form. Simpler, and it
+#   cannot be walked around by replanning -- but it counts effort rather than
+#   repetition, which is not what the rule is about.
+def rework_rounds(st, assembly, seg_id):
+    """How many times this segment has been sent back to the same artifact."""
+    seg = next((s for s in assembly["segment"] if s["id"] == seg_id), {})
+    rework, step = seg.get("rework-form", ""), seg.get("step-form", "")
+    if not rework:
+        return 0
+    n = 0
+    for s in st["steps"]:
+        if s.get("segment") != seg_id:
+            continue
+        if s.get("form") == step:
+            n = 0
+        elif s.get("form") == rework:
+            n += 1
+    return n
+
+
 def skeleton(assembly):
     """The steps `open` mints: per segment, the first interior step (when the
     segment declares one) and then its transition.
