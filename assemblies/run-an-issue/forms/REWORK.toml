@@ -1,20 +1,20 @@
 # Step: rework round of plan. Owned by run-an-issue; filled by the conductor.
 # A revise verdict mints this form in place of PLAN.toml; the panel's merged
 # findings arrive as prefill. No design-it-twice field: round one weighed the
-# alternatives, and re-arguing them is the measured accretion (issue7: 547 ->
-# 1,180 words deciding nothing new).
+# alternatives, and re-arguing them is accretion.
 
 imperative = """
-Work the findings into a plan SHORTER than the round before unless the
-principal widened scope. Delete the restated. Move accepted detail into the
-gate's latitude. Replace a twice-patched done in kind."""
+Work the findings into the plan. Delete the restated. Move accepted detail into
+the gate's latitude. Replace a twice-patched proof in kind. Growing is allowed
+and scope does widen -- but past about 5% over round one you are more likely
+losing a scope argument than winning a rigour one. Say which, in `deleted`."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
 The plan document, in the work location: the approach, the gates it cuts into
-(purpose, scope, done — the plan-to-execute transition copies these), and the
+(purpose, scope, proof — the plan-to-execute transition copies these), and the
 risks that would change it. Implementation detail below gate grain is a
 defect — that is the gate's latitude."""
 
@@ -36,8 +36,10 @@ id = "deleted"
 kind = "evidence"
 record-only = true
 note = """
-What came out of the plan this round, and why each cut was safe. For the
-record and the conductor, never the next critic — it stays out of a
+What came out of the plan this round, and why each cut was safe. Open with this
+round's word count against round one's: the plan artifact is overwritten in
+place and the journal keeps only its path, so that number survives nowhere else.
+For the record and the conductor, never the next critic — it stays out of a
 panelist's prefill."""
 
 [[field]]

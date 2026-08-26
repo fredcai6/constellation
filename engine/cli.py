@@ -705,7 +705,7 @@ def _amend_add(wid, st, argv, reason):
     sid = f"{seg}-a{secrets.token_hex(2)}"
     # a dispatched run's own prefill (its orders) rides its amended steps too --
     # that is how a `check` field on the interior's own form (IMPLEMENT.toml's
-    # `done`) finds the gate spec's command without a --prefill flag to type.
+    # `proof`) finds the gate spec's command without a --prefill flag to type.
     journal.append(wid, "step", id=sid, segment=seg, form=form_ref, filler="conductor",
                    prefill=st.get("prefill"), anchor=False, terminal=False,
                    validates="", source="amend")

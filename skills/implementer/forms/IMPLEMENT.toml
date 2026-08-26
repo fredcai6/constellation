@@ -1,5 +1,5 @@
 # Step: implement. Owned by the implementer skill; identical in any assembly.
-# The gate spec (purpose, scope, done) arrives as prefill and renders above
+# The gate spec (purpose, scope, proof) arrives as prefill and renders above
 # these fields in status. It is the order: contest it with a blocked note up,
 # never by editing it.
 

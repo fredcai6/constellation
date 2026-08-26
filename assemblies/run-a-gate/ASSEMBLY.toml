@@ -1,5 +1,5 @@
 # Assembly: run one gate. Opened by dispatch from a plan's gate spec; the
-# spec (purpose, scope, done, model) is the opening prefill — there is
+# spec (purpose, scope, proof, model) is the opening prefill — there is
 # nothing to fill at open, so it has no form.
 
 assembly = "run-a-gate"

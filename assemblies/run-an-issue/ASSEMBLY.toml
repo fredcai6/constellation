@@ -50,7 +50,7 @@ filler = "conductor"
   form = "skills/reviewer/forms/CRITIC.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "intent-fit: does the plan serve the issue; testability: can each gate's done be exercised; simplicity: what can be deleted"
+  criteria = "intent-fit: does the plan serve the issue; testability: can each gate's proof be exercised; simplicity: what can be deleted"
 
 # The plan-to-execute transition mints this interior: a dispatch step and a
 # GATE_TRANSITION step per gate.
