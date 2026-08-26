@@ -17,12 +17,17 @@ ARTIFACTS_DIRNAME = ".code-map"
 MAP_DIRNAME = "map"
 
 
-def build(root, *, artifacts=None, out=None) -> int:
+def build(root, *, artifacts=None, out=None, packages=()) -> int:
     """Run extract then render end to end against `root`.
 
     `artifacts`/`out` default to `<root>/.code-map` and `<root>/map` when
     omitted -- the same defaults `cli.py`'s argument parser resolves for the
     `build` subcommand. Returns the first nonzero stage status, or 0.
+
+    `packages` narrows the RENDER to those dotted package prefixes and is
+    passed to `render.run` alone: `extract` always walks the whole corpus, so
+    a narrowed page still reports the callers it has outside the narrowing.
+    See `render.in_render_scope`.
     """
     from . import extract, render
 
@@ -33,4 +38,4 @@ def build(root, *, artifacts=None, out=None) -> int:
     status = extract.run(root, artifacts)
     if status:
         return status
-    return render.run(root, artifacts, out)
+    return render.run(root, artifacts, out, packages)

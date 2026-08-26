@@ -72,24 +72,57 @@ class MapUnderCheck:
     thing under test; rebuilding them here from the same source is what makes a
     disagreement meaningful."""
 
-    def __init__(self, root, artifacts, out):
+    def __init__(self, root, artifacts, out, packages=()):
         self.root = pathlib.Path(root)
         self.artifacts = pathlib.Path(artifacts)
         self.out = pathlib.Path(out)
+        #: The dotted package prefixes the render was NARROWED to, empty for a
+        #: whole-corpus render. The CALLER's argument, restated to `check` --
+        #: never read back out of the render report. A check that asked the
+        #: renderer which pages it decided to write could only ever agree with
+        #: it, and every check below joins the store to the tree.
+        self.packages = tuple(packages)
         self._pages = None
         self._scan = None
         self._source = None
+        self._modules = None
+        self._entities = None
         self._text = {}
 
     # -- the stores ------------------------------------------------------
 
+    def in_scope(self, mod):
+        """True when a module was asked for by this render.
+
+        Written out here rather than imported from `render.in_render_scope`,
+        for the same reason `is_test_module` and `module_of` below are: half
+        of a comparison that borrows the other half's code is not a
+        comparison. Empty `packages` narrows nothing."""
+        return (not self.packages
+                or any(mod == p or mod.startswith(p + ".") for p in self.packages))
+
     @property
     def entities(self):
-        return self.scan.entities
+        """Every entity the tree is required to hold a page for -- the store's,
+        less the modules this render was not asked to write."""
+        if self._entities is None:
+            self._entities = {k: v for k, v in self.scan.entities.items()
+                              if self.in_scope(k.split(":", 1)[0])}
+        return self._entities
 
     @property
     def modules(self):
-        return self.scan.modules
+        """Every module the tree is required to hold an index for.
+
+        `source` reads this, so the SOURCE scan narrows with it and
+        `entity_symbol_join`'s coverage arm asks for a page only where a page
+        was asked for. What does NOT narrow is `scan.inbound`: a page's caller
+        counts are still checked against the whole store, because the walk
+        behind the render is still whole."""
+        if self._modules is None:
+            self._modules = {m: v for m, v in self.scan.modules.items()
+                             if self.in_scope(m)}
+        return self._modules
 
     def statements(self):
         with open(self.artifacts / STATEMENTS_NAME, encoding="utf-8") as f:
@@ -729,7 +762,7 @@ def inbound_attribution(m):
     return failures
 
 
-def _build_into(root, workdir, hash_seed):
+def _build_into(root, workdir, hash_seed, packages=()):
     """Build `root` into `workdir` in a FRESH PROCESS. Returns the page tree, or
     a failure string.
 
@@ -742,7 +775,8 @@ def _build_into(root, workdir, hash_seed):
     out = pathlib.Path(workdir) / "map"
     proc = subprocess.run(
         [sys.executable, "-m", "tools.code_map", "build", "--root", str(root),
-         "--artifacts", str(pathlib.Path(workdir) / "artifacts"), "--out", str(out)],
+         "--artifacts", str(pathlib.Path(workdir) / "artifacts"), "--out", str(out)]
+        + ["--render-only=" + p for p in packages],
         cwd=str(PACKAGE_HOST), capture_output=True, text=True,
         env={**os.environ, "PYTHONHASHSEED": hash_seed},
     )
@@ -787,13 +821,19 @@ def deterministic_rebuild(m):
     This does not touch the tree at `--out`: it builds twice into scratch and
     compares those two against each other, so it is a statement about the
     pipeline rather than about whether the committed tree happens to be
-    fresh."""
+    fresh.
+
+    Both rebuilds carry the render narrowing this check was given. They must:
+    ignoring it would build the WHOLE corpus twice and report a determinism
+    result about a pipeline nobody ran, while the narrowed tree at `--out` --
+    the one every other check is reading -- went unexercised. The scratch path
+    is the deliberate part of ignoring `--out`; the scope is not."""
     workdir = tempfile.mkdtemp(prefix="code-map-determinism-")
     try:
-        first, err = _build_into(m.root, pathlib.Path(workdir) / "a", "0")
+        first, err = _build_into(m.root, pathlib.Path(workdir) / "a", "0", m.packages)
         if err:
             return [err]
-        second, err = _build_into(m.root, pathlib.Path(workdir) / "b", "1")
+        second, err = _build_into(m.root, pathlib.Path(workdir) / "b", "1", m.packages)
         if err:
             return [err]
         return tree_diff(first, second)
@@ -814,12 +854,18 @@ CHECKS = (
 
 # ------------------------------------------------------------------- stage
 
-def run(root, artifacts, out):
+def run(root, artifacts, out, packages=()):
     """Run every check over the built map. Returns 0 when all pass, 1 otherwise.
 
     A check stage that cannot look must not report success -- a missing page
-    tree or a missing store is a failure, not a skip."""
-    m = MapUnderCheck(root, artifacts, out)
+    tree or a missing store is a failure, not a skip.
+
+    `packages` is the render narrowing the tree at `out` was built with, and it
+    has to be the same value: these checks join the store to the tree, and a
+    store narrowed differently than the tree was rendered disagrees with it on
+    every module in between. Getting it wrong is loud, not silent -- the join
+    fails by hundreds."""
+    m = MapUnderCheck(root, artifacts, out, packages)
     missing = [str(p) for p in (m.out, m.artifacts / STATEMENTS_NAME)
                if not p.exists()]
     if missing:

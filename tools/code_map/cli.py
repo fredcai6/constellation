@@ -36,6 +36,11 @@ STAGES = (
 _WANTS_ARTIFACTS = {"extract", "render", "build", "check"}
 _WANTS_OUT = {"render", "build", "check"}
 
+# The stages that see a page tree, and so must be told the same thing about
+# which modules it was meant to hold. `extract` is deliberately absent: the
+# narrowing is of the RENDER, and the walk behind it stays whole.
+_WANTS_SCOPE = _WANTS_OUT
+
 
 class _Parser(argparse.ArgumentParser):
     """Resolves the artifact and map directories against `--root` at parse time,
@@ -48,6 +53,12 @@ class _Parser(argparse.ArgumentParser):
             parsed.artifacts = str(Path(parsed.root) / ARTIFACTS_DIRNAME)
         if getattr(parsed, "out", None) is None:
             parsed.out = str(Path(parsed.root) / MAP_DIRNAME)
+        # One shape for the render narrowing at every reader: a tuple, empty
+        # when the option was not passed. `append` otherwise hands the stage
+        # either None or a list, and two spellings of "no narrowing" is one
+        # more than any caller below should have to test for.
+        if hasattr(parsed, "render_only"):
+            parsed.render_only = tuple(parsed.render_only or ())
         return parsed
 
 
@@ -66,6 +77,14 @@ def build_parser():
         if name in _WANTS_OUT:
             stage.add_argument("--out", default=None,
                                help=f"page tree (default: <root>/{MAP_DIRNAME})")
+        if name in _WANTS_SCOPE:
+            stage.add_argument("--render-only", action="append", default=None,
+                               metavar="PACKAGE",
+                               help="render only modules under this dotted package; "
+                                    "repeatable (default: every module in the corpus). "
+                                    "`check` takes it too, and must be given the same "
+                                    "value the tree was built with -- it is what the "
+                                    "checks compare the tree against")
     return parser
 
 
@@ -83,17 +102,20 @@ def _extract(args):
 
 def _render(args):
     from . import render
-    return render.run(Path(args.root), Path(args.artifacts), Path(args.out))
+    return render.run(Path(args.root), Path(args.artifacts), Path(args.out),
+                      args.render_only)
 
 
 def _build(args):
     from .build import build
-    return build(args.root, artifacts=args.artifacts, out=args.out)
+    return build(args.root, artifacts=args.artifacts, out=args.out,
+                 packages=args.render_only)
 
 
 def _check(args):
     from . import checks
-    return checks.run(Path(args.root), Path(args.artifacts), Path(args.out))
+    return checks.run(Path(args.root), Path(args.artifacts), Path(args.out),
+                      args.render_only)
 
 
 HANDLERS = {

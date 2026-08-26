@@ -57,6 +57,20 @@ IDS_FILENAME = "ids.jsonl"
 
 HOLE = "HOLE: no docstring"
 
+
+def in_render_scope(mod, packages):
+    """True when a module belongs in a render narrowed to `packages`.
+
+    `packages` is dotted package prefixes the CALLER passed; empty narrows
+    nothing and every module renders. A module is in scope when it IS one of
+    them or sits under one -- matched on dotted SEGMENTS, so `engine` takes
+    `engine.run` and never `engine_helpers`.
+
+    No package name is written down here, and none may be: a hardcoded
+    `engine` would be one repository's directory tree compiled into a tool
+    that is meant to run against any of them. The narrowing is an argument."""
+    return not packages or any(mod == p or mod.startswith(p + ".") for p in packages)
+
 # ---------------------------------------------------------------- store state
 # Populated by load_stores(); module-level so the page builders below read them
 # the way the prototype did, rather than threading one context object through
@@ -137,8 +151,12 @@ def assign_page_filenames(keys):
     return out
 
 
-def load_stores(artifacts):
+def load_stores(artifacts, packages=()):
     """Read the statement store and build every index the page builders read.
+
+    `packages` narrows the RENDER, never the walk -- see the comment below the
+    read loop for what that distinction buys and why it is worth the two
+    deletions it costs.
 
     ONE store. Every fact a page shows -- kind, signature, span, docstring body,
     values, decorators -- now rides the statement that names the thing, so the
@@ -234,6 +252,20 @@ def load_stores(artifacts):
                                      intern(st.get("why") or "")))
             if p in ("calls", "reads"):
                 inbound[o][intern(modof(s))] += 1
+
+    # Narrow the RENDER, never the walk. Everything above read the WHOLE store,
+    # so an entity's inbound counts and a module's importer list still see
+    # modules that get no page of their own -- "referenced by (tests): 12 sites"
+    # is half of what makes a page answer a deletion question, and it goes to
+    # zero the moment the walk itself narrows. What narrows is which modules get
+    # pages. Every index built below is built from what SURVIVES this, so the
+    # report's `entities` and `holes` describe the tree that was rendered rather
+    # than the store behind it -- a count over the store would bury the rendered
+    # subset's real holes under every hole in the corpus.
+    for mod in [m for m in modules if not in_render_scope(m, packages)]:
+        del modules[mod]
+    for key in [k for k in entities if modof(k) not in modules]:
+        del entities[key]
 
     # children: the parent is the symbol minus its last qualified part
     for key, e in entities.items():
@@ -696,10 +728,12 @@ def top_index(title):
 
 # ---------------------------------------------------------------- stage
 
-def run(root, artifacts, out):
+def run(root, artifacts, out, packages=()):
     """Render the page tree for `root` from `artifacts` into `out`. Returns an
-    exit code."""
-    load_stores(artifacts)
+    exit code.
+
+    `packages` is the caller's render narrowing -- see `in_render_scope`."""
+    load_stores(artifacts, packages)
     out = pathlib.Path(out)
     if out.exists():
         shutil.rmtree(out)
