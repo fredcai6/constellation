@@ -1,7 +1,6 @@
 # Step: plan. Owned by run-an-issue; filled by the conductor.
-# The consolidate's learnings and key terms arrive as prefill. On a refill
-# (the plan-to-execute transition's panel said revise), the merged findings
-# arrive as prefill too.
+# The consolidate's learnings and key terms arrive as prefill. A revise
+# mints REWORK.toml for the next round, so this form is always a first cut.
 
 imperative = """
 Produce the plan: how this issue gets solved, cut into gates. A fresh-context
@@ -30,16 +29,3 @@ weight. Skip a load-bearing commitment only with a stated reason."""
 id = "key-terms"
 kind = "evidence"
 note = "New terms this plan introduces; each cites its glossary entry or proposes one. Coining a synonym is a defect."
-
-[[field]]
-id = "findings-addressed"
-kind = "evidence"
-record-only = true
-note = """
-Rework only, and only the round just past: each finding accepted, naming the
-edit, or contested, with the reason. A ledger, not a narrative.
-
-This is for the record and the conductor, never for the next critic — it
-stays out of a panelist's prefill, because a reviewer told what was wrong
-last time is aimed at those spots and steered off everything else. First
-pass: waived: first pass."""

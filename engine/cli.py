@@ -164,8 +164,11 @@ def _open_child(assembly, parent, pstep_id):
         # previous round, and a reviewer told what was wrong last time is
         # aimed at those spots and steered off everything else. A finding
         # that was not really fixed gets found again, which is the check
-        # working rather than a gap in it.
-        pform = forms.load(runmod.resolve_form(pasm, pstep["form"])) if pstep.get("form") else {}
+        # working rather than a gap in it. Which fields are record-only is
+        # the producing step's form -- the artifact's own shape, not the
+        # panel step's transition form.
+        pform = (forms.load(runmod.resolve_form(pasm, prior[-1]["form"]))
+                 if prior and prior[-1].get("form") else {})
         private = {f["id"] for f in pform.get("fields", []) if f.get("record-only")}
         prefill = {**(pst.get("prefill") or {}),
                    **{k: v for k, v in artifact.get("fields", {}).items()
@@ -692,12 +695,13 @@ def _amend_reorder(wid, st, step_id, reason, before):
     return cmd_status([wid])
 
 
-def _mint_segment_round(wid, asm, seg_id, prefill=None):
-    """Mint one fresh round of a segment: its step-form as a fresh interior
-    step, plus its transition's panel -- both read from the assembly, never
-    copied from whatever minted last. The shared move a revise and a replan
-    both need: the segment reopened for another pass, carrying the same
-    challenge that judges it.
+def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
+    """Mint one fresh round of a segment: its step-form (or the form the
+    caller names -- a revise passes the segment's rework form) as a fresh
+    interior step, plus its transition's panel -- both read from the
+    assembly, never copied from whatever minted last. The shared move a
+    revise and a replan both need: the segment reopened for another pass,
+    carrying the same challenge that judges it.
 
     Two independent random tags, not one shared: a transition's id defaults
     to its segment's id (run-an-issue's "plan" names both), and
@@ -707,7 +711,7 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None):
     seg = next(s for s in asm["segment"] if s["id"] == seg_id)
     t = seg.get("transition", {})
     journal.append(wid, "step", id=f"{seg_id}-a{secrets.token_hex(2)}", segment=seg_id,
-                   form=seg["step-form"], filler=seg.get("worker", "conductor"),
+                   form=form or seg["step-form"], filler=seg.get("worker", "conductor"),
                    prefill=prefill or {}, anchor=False, terminal=False, validates="",
                    source="mint")
     fresh_panel = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
@@ -738,7 +742,12 @@ def _act_on_verdicts(pwid, step_id):
         f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
         for r in returns)
     asm = runmod.load_assembly(pst["assembly"])
-    _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings})
+    # Rationale: rework is its own move, so a revise mints the segment's
+    # rework-form where one is declared; the choice lives here with the
+    # verdict. A replan, and a segment without the key, mint the step-form.
+    seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
+    _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings},
+                        form=seg.get("rework-form", ""))
 
 
 def _summary(st):

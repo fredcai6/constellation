@@ -40,6 +40,11 @@ note = "Terms inconsistent with the glossary or the prose standard — or waived
 id = "verdict"
 kind = "evidence"
 note = """
-pass | revise | escalate. Any blocking finding means revise; revise mints a
-fresh plan step with your findings as prefill. escalate means the issue
-itself is wrong — it goes up, not around."""
+pass | revise | escalate. The gap test: would this plan produce wrong work?
+A better sentence is not a gap, and detail below the gate's grain is the
+gate's latitude — though a plan longer than the work it plans is itself a
+finding. If nothing you found would change what gets built, the verdict is
+pass and the findings go in the record; withholding a pass to seem rigorous
+is its own failure. Any gap means revise; revise mints a fresh plan step
+with your findings as prefill. escalate means the issue itself is wrong —
+it goes up, not around."""

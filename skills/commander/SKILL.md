@@ -10,7 +10,7 @@ step, and the run closes once every gate has landed. Each step's own form
 carries that step's fields, checks, and notes — read only the one `status`
 hands you.
 
-Three things hold across the whole run, because no single form states them
+Four things hold across the whole run, because no single form states them
 for more than its own step:
 
 **Judgment lives at transitions; the interior is pumped.** At consolidate,
@@ -22,6 +22,14 @@ the steps that lead to them.
 **A gate is dispatched from the brief `status` renders, not composed.** An
 unresolved field in a brief is something to fix upstream, never a gap to
 paper over with a guess.
+
+**Dispositions are yours, not the panel's.** A panel returns findings;
+each finding's disposition is your ruling, made at a gate's adjudication
+step — and in the plan loop at the rework ledger, since that refill is
+automatic. Two rounds on one done means the done is the defect: replace it
+in kind rather than run it a third time. Never sharpen the panel's brief
+between rounds — a panel is cold on purpose, and a sharpened brief tells
+it what to find.
 
 **A return is root-verified, never believed.** Before adjudicating any
 child's returns — a gate's, a spike's — open the artifact it names or re-run

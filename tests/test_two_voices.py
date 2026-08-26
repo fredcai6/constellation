@@ -75,8 +75,18 @@ def _fill_plan_form(wid):
 plan = ".agent-work/%s/plan.md"
 design-it-twice = "waived: reversible"
 key-terms = "waived: none"
-findings-addressed = "waived: first pass"
 ''' % wid)
+
+
+def _fill_rework_form(wid, findings_addressed="accepted: made gate 1 testable",
+                      deleted="the restated background; the gates already carry it"):
+    """A revise round's interior step is REWORK.toml, not PLAN.toml."""
+    _fill(f".agent-work/{wid}/REWORK.toml", '''
+plan = ".agent-work/%s/plan.md"
+findings-addressed = "%s"
+deleted = "%s"
+key-terms = "waived: none"
+''' % (wid, findings_addressed, deleted))
 
 
 def _fill_plan_to_execute(wid, n_gates=1):
@@ -179,7 +189,7 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
 
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["form"] == "forms/PLAN.toml"
+    assert fresh_plan["form"] == "forms/REWORK.toml"            # rework, not a second first draft
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
     assert "[p1]" in fresh_plan["prefill"]["findings"]          # attributed
 
@@ -189,8 +199,8 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
     assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"  # the two-voices shape survives
     assert st["current"]["id"] == fresh_plan["id"]              # plan resumes, not the mint form
 
-    # work the fresh round: revised plan, fresh panel, this time a pass
-    _fill_plan_form(wid)
+    # work the fresh round: reworked plan, fresh panel, this time a pass
+    _fill_rework_form(wid)
     cli.main([wid, "submit"])
     capsys.readouterr()
     st = runmod.state(wid)

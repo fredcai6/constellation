@@ -1,0 +1,46 @@
+# Step: rework round of plan. Owned by run-an-issue; filled by the conductor.
+# A revise verdict mints this form in place of PLAN.toml; the panel's merged
+# findings arrive as prefill. No design-it-twice field: round one weighed the
+# alternatives, and re-arguing them is the measured accretion (issue7: 547 ->
+# 1,180 words deciding nothing new).
+
+imperative = """
+Work the findings into a plan SHORTER than the round before unless the
+principal widened scope. Delete the restated. Move accepted detail into the
+gate's latitude. Replace a twice-patched done in kind."""
+
+[[field]]
+id = "plan"
+kind = "artifact"
+note = """
+The plan document, in the work location: the approach, the gates it cuts into
+(purpose, scope, done — the plan-to-execute transition copies these), and the
+risks that would change it. Implementation detail below gate grain is a
+defect — that is the gate's latitude."""
+
+[[field]]
+id = "findings-addressed"
+kind = "evidence"
+record-only = true
+note = """
+Rework only, and only the round just past: each finding accepted, naming the
+edit, or contested, with the reason. A ledger, not a narrative.
+
+This is for the record and the conductor, never for the next critic — it
+stays out of a panelist's prefill, because a reviewer told what was wrong
+last time is aimed at those spots and steered off everything else. First
+pass: waived: first pass."""
+
+[[field]]
+id = "deleted"
+kind = "evidence"
+record-only = true
+note = """
+What came out of the plan this round, and why each cut was safe. For the
+record and the conductor, never the next critic — it stays out of a
+panelist's prefill."""
+
+[[field]]
+id = "key-terms"
+kind = "evidence"
+note = "New terms this plan introduces; each cites its glossary entry or proposes one. Coining a synonym is a defect."

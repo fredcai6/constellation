@@ -31,6 +31,9 @@ validates = "board"   # engine refuses an open row or a self-answered decision
 id = "plan"
 interior = "steps"
 step-form = "forms/PLAN.toml"
+# A revise mints this in place of the step-form: rework is its own move, not
+# a second first draft. A replan still mints the step-form.
+rework-form = "forms/REWORK.toml"
 worker = "conductor"
 
 [segment.transition]

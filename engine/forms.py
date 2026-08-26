@@ -23,6 +23,8 @@ def _field(raw: dict) -> dict:
     }
     if "mints" in raw:
         out["mints"] = raw["mints"]
+    if raw.get("record-only"):  # the producer's ledger -- the prefill guard reads this
+        out["record-only"] = True
     if "item" in raw:
         out["item"] = [_field(it) for it in raw["item"]]
     return out

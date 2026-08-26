@@ -70,7 +70,6 @@ def _fill_plan(wid):
 plan = ".agent-work/%s/plan.md"
 design-it-twice = "waived: reversible"
 key-terms = "waived: none"
-findings-addressed = "waived: first pass"
 ''' % wid)
 
 
@@ -705,9 +704,9 @@ done = "true"
 
 
 def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsys):
-    """`_act_on_verdicts` now mints through `_mint_segment_round`, the same
-    primitive replan uses -- this pins that a plan-to-execute revise round
-    still behaves exactly as before the extraction."""
+    """`_act_on_verdicts` mints through `_mint_segment_round`, the same
+    primitive replan uses -- this pins the revise round's shape: the rework
+    form as the fresh interior, findings attributed, the panel refired."""
     wid = "issue18"
     cli.main(["open", "run-an-issue", "--issue", "18", "--title", "t"])
     _fill_open(wid)
@@ -725,7 +724,7 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     st = runmod.state(wid)
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["form"] == "forms/PLAN.toml"
+    assert fresh_plan["form"] == "forms/REWORK.toml"  # a revise reworks
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
     assert "[p1]" in fresh_plan["prefill"]["findings"]
 
