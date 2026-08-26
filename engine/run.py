@@ -85,18 +85,23 @@ def role_of(assembly, step):
 #   cannot be walked around by replanning -- but it counts effort rather than
 #   repetition, which is not what the rule is about.
 def rework_rounds(st, assembly, seg_id):
-    """How many times this segment has been sent back to the same artifact."""
+    """How many times this segment has been sent back to the same artifact.
+
+    A segment that declares a rework-form distinguishes the two send-backs it
+    has: a rework is another pass at the same artifact, a replan is a new one,
+    so the step-form restarts the count. A segment with no rework-form --
+    run-a-gate's work -- has only one, and every mint of its step-form counts.
+    Either way the opening step is `source=open` and is not a send-back.
+    """
     seg = next((s for s in assembly["segment"] if s["id"] == seg_id), {})
     rework, step = seg.get("rework-form", ""), seg.get("step-form", "")
-    if not rework:
-        return 0
     n = 0
     for s in st["steps"]:
-        if s.get("segment") != seg_id:
+        if s.get("segment") != seg_id or s.get("source") != "mint":
             continue
-        if s.get("form") == step:
+        if rework and s.get("form") == step:
             n = 0
-        elif s.get("form") == rework:
+        elif s.get("form") == (rework or step):
             n += 1
     return n
 

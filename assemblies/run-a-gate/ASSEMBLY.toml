@@ -9,6 +9,10 @@ conductor = "implementer"
 id = "work"
 interior = "steps"
 step-form = "skills/implementer/forms/IMPLEMENT.toml"
+# This segment has no rework-form, so every refill is another pass at the same
+# diff. After three, a further revise mints the impasse form instead.
+impasse-after = 3
+impasse-form = "forms/IMPASSE.toml"
 worker = "implementer"
 model = "standard"
 

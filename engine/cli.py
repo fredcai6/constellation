@@ -482,11 +482,15 @@ def _act_on_impasse(wid, asm, step, fields):
         _mint_segment_round(wid, asm, seg["id"], prefill=step.get("prefill") or {},
                             form=seg.get("rework-form", ""))
     elif ruling == "advance":
+        # A transition with a form is a step someone fills, so advancing mints
+        # it. run-a-gate's review transition has none -- releasing is the whole
+        # of it -- so there is nothing to mint and the run walks on to close.
         t = seg.get("transition", {})
-        journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
-                       segment=seg["id"], form=t.get("form", ""), filler="conductor",
-                       anchor=t.get("anchor", False), terminal=t.get("terminal", False),
-                       validates=t.get("validates", ""), source="mint")
+        if t.get("form"):
+            journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
+                           segment=seg["id"], form=t["form"], filler="conductor",
+                           anchor=t.get("anchor", False), terminal=t.get("terminal", False),
+                           validates=t.get("validates", ""), source="mint")
     else:
         journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail="blocked",
                        text=f"impasse at {step['id']}: ruled up to the principal. "

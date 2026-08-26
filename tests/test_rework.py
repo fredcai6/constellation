@@ -291,3 +291,68 @@ def test_up_blocks_the_run_and_mints_nothing(workdir, capsys):
     assert len(st["steps"]) == before, "up minted a step instead of stopping"
     assert [b for b in runmod.blocks(st) if "ruled up to the principal" in b["text"]]
     assert "BLOCKED" in out
+
+
+# -- 6. the same outlet on run-a-gate, which has no rework form ---------------
+
+
+def _drive_gate_to_impasse(child="issue17.g1"):
+    """Four review revises on one diff: the first three refill the interior,
+    and the fourth is the one the outlet takes. run-a-gate's work segment
+    declares no rework-form, so every refill mints the step-form again -- the
+    count is of those, and the opening step is not one."""
+    _mint_n_gates(1)
+    cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
+    for n in (1, 2, 3, 4):
+        _fill_implement(child, runmod.state(child)["current"]["id"])
+        cli.main([child, "submit"])
+        _dispatch_review(child, verdict="revise",
+                         findings=f"gap: the spec asks for something untestable ({n})")
+    return child
+
+
+def test_a_gates_fourth_revise_mints_the_impasse_form(workdir, capsys):
+    child = _drive_gate_to_impasse()
+    capsys.readouterr()
+
+    st = runmod.state(child)
+    assert st["current"]["form"] == "forms/IMPASSE.toml"
+    assert "untestable (4)" in st["current"]["prefill"]["findings"]
+    asm = runmod.load_assembly("run-a-gate")
+    assert runmod.rework_rounds(st, asm, "work") == 3
+
+
+def test_a_gates_advance_walks_to_close_since_its_transition_has_no_form(workdir, capsys):
+    """run-a-gate's review transition declares no conductor form -- releasing
+    is the whole of it -- so advancing mints nothing and the run walks on."""
+    child = _drive_gate_to_impasse()
+    capsys.readouterr()
+    before = len(runmod.state(child)["steps"])
+    _fill(runmod.journal.location(child) / "IMPASSE.toml",
+          'ruling = "advance"\nwhy = "three reviews all landed on the spec"\n')
+    cli.main([child, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(child)
+    assert len(st["steps"]) == before, "advance minted a step for a formless transition"
+    assert st["current"]["form"] == "forms/GATE_CLOSE.toml"
+
+
+def test_a_gates_rework_mints_the_step_form_again(workdir, capsys):
+    child = _drive_gate_to_impasse()
+    capsys.readouterr()
+    _fill(runmod.journal.location(child) / "IMPASSE.toml",
+          'ruling = "rework"\nwhy = "round four rewrites the check, not the diff"\n')
+    cli.main([child, "submit"])
+    capsys.readouterr()
+
+    assert runmod.state(child)["current"]["form"] == "skills/implementer/forms/IMPLEMENT.toml"
+
+
+def test_the_opening_step_is_not_a_send_back(workdir, capsys):
+    """A gate that has never been reviewed is at zero, not one."""
+    _mint_n_gates(1)
+    cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
+    capsys.readouterr()
+    asm = runmod.load_assembly("run-a-gate")
+    assert runmod.rework_rounds(runmod.state("issue17.g1"), asm, "work") == 0
