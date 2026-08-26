@@ -164,15 +164,21 @@ SKILL_BUDGETS = {"commander": 1500, "implementer": 800}
 def test_commander_and_implementer_skills_exist_inside_budget():
     """Layer 3 gives exactly two roles a SKILL.md -- commander and
     implementer, the only postures with no form of their own to carry them.
-    Each budget is set in the spec and enforced with `wc -w`, forms not
-    included: a skill is corpus words, not machinery, but it still answers
-    to the number the spec gave it."""
+    Each budget is set in the spec and enforced with `wc -w`, FORMS INCLUDED
+    (V2_DESIGN.md, "Draft per-skill word budgets, forms included"): what a
+    role costs is everything its agent reads to hold that posture, and its
+    own forms are read every time it is filled. This test used to count the
+    SKILL.md alone and say so in this docstring, which left one budget with
+    two live definitions and a skill free to spend the difference by moving
+    words into a form."""
     for name, budget in SKILL_BUDGETS.items():
-        path = ROOT / "skills" / name / "SKILL.md"
-        assert path.exists(), f"skills/{name}/SKILL.md does not exist"
-        words = len(path.read_text().split())
-        assert words <= budget, (
-            f"skills/{name}/SKILL.md is {words} words, over its {budget}-word budget")
+        skill = ROOT / "skills" / name / "SKILL.md"
+        assert skill.exists(), f"skills/{name}/SKILL.md does not exist"
+        parts = [skill] + sorted((ROOT / "skills" / name / "forms").glob("*.toml"))
+        counts = {p.name: len(p.read_text().split()) for p in parts}
+        assert sum(counts.values()) <= budget, (
+            f"skills/{name} is {sum(counts.values())} words, over its "
+            f"{budget}-word budget: {counts}")
 
 
 def test_no_skill_exists_for_a_role_the_roster_does_not_list():
