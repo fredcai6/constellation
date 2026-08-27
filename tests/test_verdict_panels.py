@@ -239,6 +239,30 @@ def test_escalate_releases_like_pass_and_the_verdict_rides_the_summary(workdir, 
     assert ret["summary"]["verdict"] == "escalate"  # stamped up for the parent to adjudicate
 
 
+def test_a_verdict_outside_the_vocabulary_refuses_at_the_panelists_submit(workdir, capsys):
+    """The verdict is checked where it is written, not where it is merged.
+    That is what makes `merged_verdict`'s fall-through to `pass` sound: a
+    value nothing can act on never becomes a return for it to read."""
+    _open_gate()
+    panelist = _open_panelist("g1", "review")
+    _fill_review(panelist, "looks good to me")
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main([panelist, "submit"])
+    msg = str(e.value)
+    assert "verdict" in msg and "pass | revise | escalate" in msg
+
+    st = runmod.state(panelist)
+    assert not st["done"]                            # the panelist did not advance
+    assert "review" not in runmod.state("g1")["done"]  # and nothing returned to the gate
+
+    # one edit is the whole way out of it
+    _fill_review(panelist, "revise", findings="gap: the bound is still off")
+    cli.main([panelist, "submit"])
+    assert runmod.state(panelist)["done"]
+
+
 # -- a gate cannot reach close without its review transition firing ---------
 
 

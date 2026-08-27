@@ -502,6 +502,50 @@ def test_drop_closes_only_the_named_gate_and_never_the_deciding_step(workdir, ca
     assert st["done"]["g1-adjudicate"]["kind"] == "submit"
 
 
+def test_a_prose_outcome_refuses_instead_of_advancing_the_run(workdir, capsys):
+    """`plan-holds` is acted on by exact word, so anything else performed
+    nothing and released the step anyway. It is refused against the four
+    alternatives its own note declares -- and a bare `drop`, which is a known
+    move with a missing argument, gets past that and is refused where the
+    argument is checked, by the check that names the pending gates."""
+    _mint_n_gates(3)
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    before = len(journal.read("issue17"))
+    _fill(journal.location("issue17") / "GATE_TRANSITION.toml", '''
+learned = "the fix landed"
+plan-holds = "the plan holds, carry on"
+''')
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    msg = str(e.value)
+    assert "plan-holds" in msg
+    assert "advance | remint | drop <gate-id> | replan" in msg
+
+    # a legal word with prose after it is not the value either: nothing
+    # downstream compares prefixes, so it would advance having done nothing
+    _fill(journal.location("issue17") / "GATE_TRANSITION.toml", '''
+learned = "the fix landed"
+plan-holds = "replan, the cut was wrong"
+''')
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    assert "replan" in str(e.value)
+
+    # the placeholder matches on its literal prefix alone, so a bare `drop`
+    # is a known move missing its argument -- refused one check later
+    _fill_gate_transition_drop("issue17", "")
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    assert "drop needs a gate id" in str(e.value)
+    assert "g2" in str(e.value) and "g3" in str(e.value)
+
+    assert len(journal.read("issue17")) == before   # no attempt journaled anything
+    assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
+
+
 def test_drop_on_a_gate_not_pending_refuses_and_names_pending(workdir, capsys):
     _mint_n_gates(3)
     capsys.readouterr()

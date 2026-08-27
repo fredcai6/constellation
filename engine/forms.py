@@ -7,6 +7,7 @@ only way an agent answers a step -- it edits the file with ordinary tools;
 template: the engine runs those commands itself at submit.
 """
 
+import re
 import textwrap
 import tomllib
 from pathlib import Path
@@ -50,12 +51,45 @@ def _comment(note: str, optional: bool) -> str:
     return "\n".join(f"# {line}" for line in lines)
 
 
+# One alternative is a run of ordinary words ending in a non-space: `|`
+# separates them, and the sentence punctuation after the last one ends the
+# enum. Ending each on a non-space is what lets the run reach its last
+# alternative -- a token that swallowed its own trailing space would leave
+# `\s*\|` with nothing to match and stop the enum a term early.
+_TOKEN = r"[^|\n.;,:\u2014]*[^\s|\n.;,:\u2014]"
+_ALTERNATIVES = re.compile(rf"{_TOKEN}(?:\s*\|\s*{_TOKEN})+")
+
+
+# [field-vocabulary]
+# Rationale: the values a field accepts are already written once -- in the note
+#   the agent reads. Deriving them from that note is what makes the enum an
+#   agent is told and the enum the engine enforces one string, so a reworded
+#   note cannot leave the engine enforcing the old list.
+# Rejected: a `values = [...]` key beside the note. A second copy of the same
+#   list is a second place for it to go stale, and the note stays the thing the
+#   agent actually reads -- so the copy the engine trusted could be the wrong
+#   one.
+def vocabulary(note: str) -> list[str]:
+    """The alternatives a note declares -- `["pass", "revise", "escalate"]` --
+    or `[]` for a note that declares none.
+
+    The enum has to open the note to count. A note reworded so its ` | ` falls
+    past the first 80 characters yields `[]` and validates nothing: the same
+    silence that stood before this derivation existed, and the only failure
+    mode of it that is not loud.
+    """
+    if " | " not in note[:80]:
+        return []
+    found = _ALTERNATIVES.search(note)
+    return [alt.strip() for alt in found.group(0).split("|")] if found else []
+
+
 def _is_short(field: dict) -> bool:
     """Short `id = ""` slot vs multi-line prose slot -- judgment call: short
     when the note itself reads as an enum, or the field is a brief
     decision/artifact (typically one word or one path); else multi-line,
     since prose is the common case."""
-    if " | " in field["note"][:80]:
+    if vocabulary(field["note"]):
         return True
     return field["kind"] in ("decision", "artifact") and len(field["note"]) < 120
 

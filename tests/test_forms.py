@@ -10,6 +10,8 @@ OPEN = "assemblies/run-an-issue/forms/OPEN.toml"
 CONSOLIDATE = "assemblies/run-an-issue/forms/CONSOLIDATE.toml"
 IMPLEMENT = "skills/implementer/forms/IMPLEMENT.toml"
 GATE_TRANSITION = "assemblies/run-an-issue/forms/GATE_TRANSITION.toml"
+REVIEW = "skills/reviewer/forms/REVIEW.toml"
+GATE_IMPASSE = "assemblies/run-a-gate/forms/IMPASSE.toml"
 
 
 def _ids(form):
@@ -67,6 +69,34 @@ def test_load_defaults_kind_and_note_and_optional():
         assert field["kind"] == "evidence"
         assert isinstance(field["note"], str) and field["note"]
         assert field["optional"] is False
+
+
+# -- vocabulary(): the values a note declares ---------------------------------
+
+
+def _note(path, field_id):
+    return next(f for f in forms.load(path)["fields"] if f["id"] == field_id)["note"]
+
+
+def test_a_field_note_declares_the_values_the_engine_will_accept():
+    """A transition's alternatives are written once, in the note the agent
+    reads. `vocabulary` is how the engine reads the same string, so the enum
+    an agent is told and the enum the engine enforces cannot drift."""
+    assert forms.vocabulary(_note(REVIEW, "verdict")) == ["pass", "revise", "escalate"]
+    assert forms.vocabulary(_note(GATE_IMPASSE, "ruling")) == ["advance", "rework", "up"]
+    # a placeholder alternative survives whole: the argument is another
+    # check's question, and the note is what the refusal quotes back
+    assert forms.vocabulary(_note(GATE_TRANSITION, "plan-holds")) == [
+        "advance", "remint", "drop <gate-id>", "replan"]
+
+    # prose declares nothing, and neither does an enum that has been reworded
+    # out of the note's opening -- the one failure mode of this that is silent
+    assert forms.vocabulary(_note(GATE_TRANSITION, "learned")) == []
+    assert forms.vocabulary("Say which way this goes. " * 3 + "advance | rework | up.") == []
+
+    # and it is the same fact the response template already chose its slot on
+    assert forms.vocabulary("light | standard | heavy. Omit for the default.") == [
+        "light", "standard", "heavy"]
 
 
 # -- materialize() ------------------------------------------------------------

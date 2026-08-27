@@ -439,7 +439,7 @@ def cmd_submit(argv):
                 f"  or drop this step: spine {wid} amend close {step['id']} --reason ..."))
 
     _check_plan(form, fields)
-    _check_impasse(asm, step, fields)
+    _check_vocabulary(form, fields)
     _check_outcome(st, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
@@ -462,9 +462,11 @@ def cmd_submit(argv):
 
 
 def _check_plan(form, fields):
-    """A plan field must be a list of blocks. Checked before anything is
-    journaled: a submit is durable the moment it lands, so minting that dies
-    afterwards would leave a run that looks advanced and has no work in it."""
+    """A plan field must be a list of blocks, and what it says it mints must be
+    something `_mint` performs. Both checked before anything is journaled: a
+    submit is durable the moment it lands, so minting that dies -- or that
+    silently finds no branch -- afterwards would leave a run that looks
+    advanced and has no work in it."""
     for f in form["fields"]:
         if f.get("kind") != "plan" or f["id"] not in fields:
             continue
@@ -473,6 +475,45 @@ def _check_plan(form, fields):
             raise SystemExit(render.refusal(
                 f["id"], "must be one or more [[" + f["id"] + "]] blocks, not a "
                 "single value -- nothing was recorded"))
+        if f.get("mints") and f["mints"] not in _MINTS:
+            raise SystemExit(render.refusal(
+                f["id"], f"mints = {f['mints']!r} is nothing this engine mints -- "
+                "the form is wrong, not your answer; nothing was recorded",
+                escape="one of: " + ", ".join(_MINTS)))
+
+
+# [check-vocabulary]
+# Rationale: a field whose note declares alternatives is checked against those
+#   same alternatives, read off the note by `forms.vocabulary` -- so the enum
+#   the agent is told and the enum the engine enforces are one string and
+#   cannot drift, and the refusal can name the list the agent already read.
+# Rejected: a table of field ids and their legal values kept here. It is the
+#   same list written twice, and the copy that matters is the one in the form:
+#   the engine would go on enforcing the old list against a reworded note.
+def _check_vocabulary(form, fields):
+    """A value the engine cannot act on refuses instead of releasing the step.
+
+    Checked before anything is journaled, because past that point the submit
+    is durable and an unhandled value walks the run forward having performed
+    nothing -- the silent advance this check exists to end. Matching is exact:
+    the acts downstream compare whole strings, so `advance, I think` is a value
+    nothing performs. A placeholder alternative (`drop <gate-id>`) matches on
+    its literal prefix alone, which leaves a bare `drop` a known move with a
+    missing argument -- refused, by name, where the argument is checked.
+    """
+    for f in form["fields"]:
+        vocab = forms.vocabulary(f["note"])
+        if not vocab or f["id"] not in fields:
+            continue
+        value = str(fields[f["id"]]).strip()
+        for alt in vocab:
+            head = alt.split("<")[0].strip().lower()
+            if value.lower() == head or ("<" in alt and value.lower().startswith(head + " ")):
+                break
+        else:
+            raise SystemExit(render.refusal(
+                f["id"], f"{value or 'empty'!r} is not a value this step can act on",
+                escape="one of: " + " | ".join(vocab)))
 
 
 def _own_gate(step_id):
@@ -496,22 +537,6 @@ def _impasse_segment(asm, step):
     holds: an assembly that declares no outlet has none."""
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     return seg if seg.get("impasse-form") and step.get("form") == seg["impasse-form"] else None
-
-
-_IMPASSE_RULINGS = ("advance", "rework", "up")
-
-
-def _check_impasse(asm, step, fields):
-    """The impasse ruling, validated before the submit lands. An unhandled
-    value here would release the step and mint nothing, which is the silent
-    advance this outlet exists to end."""
-    if not _impasse_segment(asm, step):
-        return
-    ruling = fields.get("ruling", "").strip().lower()
-    if ruling not in _IMPASSE_RULINGS:
-        raise SystemExit(render.refusal(
-            "ruling", f"{ruling or 'empty'!r} is not a ruling this run can act on",
-            escape="one of: " + ", ".join(_IMPASSE_RULINGS)))
 
 
 def _act_on_impasse(wid, asm, step, fields):
@@ -604,6 +629,13 @@ def _close_gate(wid, st, gate_id, reason):
         if s and sid not in st["done"]:
             journal.append(wid, "amend", action="close", segment=s["segment"],
                            step=sid, reason=reason, anchor=s.get("anchor", False))
+
+
+# [mints]
+# Rationale: beside the branches, not beside the check that reads it -- a third
+#   thing worth minting is a branch added here, and the tuple is what makes
+#   `_check_plan` refuse it until it is.
+_MINTS = ("board rows", "run-a-gate")
 
 
 def _mint(wid, asm, step, form, fields):
@@ -1000,10 +1032,13 @@ def main(argv=None):
         print(USAGE)
         return 0
     verb = argv[1] if len(argv) > 1 else "status"
-    return {"status": cmd_status, "submit": cmd_submit, "note": cmd_note,
-            "amend": cmd_amend, "close": cmd_close,
-            "trace": cmd_trace}.get(verb, cmd_status)(
-        [argv[0]] + argv[2:])
+    verbs = {"status": cmd_status, "submit": cmd_submit, "note": cmd_note,
+             "amend": cmd_amend, "close": cmd_close, "trace": cmd_trace}
+    if verb not in verbs:
+        # `spine <id> sumbit` used to render the room and exit 0: only the exact
+        # word is acted on, so a near-miss must not look like a hit.
+        raise SystemExit(f"no verb {verb!r} -- one of: {', '.join(verbs)}\n\n{USAGE}")
+    return verbs[verb]([argv[0]] + argv[2:])
 
 
 if __name__ == "__main__":

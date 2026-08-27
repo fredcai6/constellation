@@ -11,11 +11,12 @@ This is a test rather than a tool because it costs no machinery and runs on
 every suite run. It is the standing cost of choosing to put doctrine in forms.
 """
 
+import inspect
 import pathlib
 import re
 import tomllib
 
-from engine import forms
+from engine import cli, forms, run as runmod
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ENGINE_SRC = "\n".join(p.read_text() for p in sorted((ROOT / "engine").glob("*.py")))
@@ -153,6 +154,49 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
         assert f'"{status}:"' in src or f"{status}:" in src, \
             f"the template teaches {status!r}; nothing in the engine reads it"
     assert "working" in taught  # the one that gates a submit
+
+
+# The enum each transition accepts, as its form teaches it, and the act that
+# performs it. Pinned here because the derivation reads prose: a note reworded
+# so its ` | ` leaves the opening line yields no vocabulary and enforces
+# nothing, and that is the one way this can fail quietly.
+VOCABULARIES = [
+    ("assemblies/run-an-issue/forms/IMPASSE.toml", "ruling",
+     ["advance", "rework", "up"], cli._act_on_impasse),
+    ("assemblies/run-a-gate/forms/IMPASSE.toml", "ruling",
+     ["advance", "rework", "up"], cli._act_on_impasse),
+    ("assemblies/run-an-issue/forms/GATE_TRANSITION.toml", "plan-holds",
+     ["advance", "remint", "drop <gate-id>", "replan"], cli._act_on_outcome),
+    ("skills/reviewer/forms/CRITIC.toml", "verdict",
+     ["pass", "revise", "escalate"], runmod.merged_verdict),
+    ("skills/reviewer/forms/REVIEW.toml", "verdict",
+     ["pass", "revise", "escalate"], runmod.merged_verdict),
+]
+
+
+def test_every_vocabulary_the_engine_enforces_is_the_one_the_form_teaches():
+    """The engine refuses a value outside the alternatives a field's note
+    declares, so those alternatives are load-bearing twice over: every field
+    that had one must still yield one, and every value in it must be one the
+    act downstream actually performs. An alternative nothing performs is the
+    menu-of-outcomes defect again -- offered to the agent, acted on by
+    nothing."""
+    swept = {}
+    for f in FORMS:
+        for field in forms.load(f)["fields"]:
+            vocab = forms.vocabulary(field["note"])
+            if vocab:
+                swept[(str(f.relative_to(ROOT)), field["id"])] = vocab
+
+    expected = {(path, fid): vocab for path, fid, vocab, _ in VOCABULARIES}
+    assert swept == expected, "a note was reworded out of the enum the engine enforces"
+
+    for path, fid, vocab, act in VOCABULARIES:
+        src = inspect.getsource(act)
+        for alt in vocab:
+            head = alt.split("<")[0].strip()
+            assert re.search(rf"\b{re.escape(head)}\b", src), \
+                f"{path}: {fid} offers {alt!r}; {act.__name__} does nothing with it"
 
 
 SKILL_BUDGETS = {"commander": 1500, "implementer": 800}

@@ -297,13 +297,19 @@ def test_the_count_reaches_the_outlet_on_the_round_after_the_third(workdir, caps
 
 
 def test_an_unhandled_ruling_refuses_rather_than_releasing_the_step(workdir, capsys):
+    """The ruling has no check of its own any more: it is refused by the
+    generic one, against the three alternatives its own note declares."""
     wid = _drive_to_impasse()
     capsys.readouterr()
+    before = len(runmod.journal.read(wid))
     _fill(runmod.journal.location(wid) / "IMPASSE.toml",
           'ruling = "keep going"\nwhy = "it is nearly there"\n')
     with pytest.raises(SystemExit) as e:
         cli.main([wid, "submit"])
-    assert "not a ruling this run can act on" in str(e.value)
+    msg = str(e.value)
+    assert "ruling" in msg and "not a value this step can act on" in msg
+    assert "advance | rework | up" in msg          # the form's own list, verbatim
+    assert len(runmod.journal.read(wid)) == before  # not even the submit landed
     assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
 
 

@@ -9,7 +9,7 @@ import pathlib
 
 import pytest
 
-from engine import cli, journal, run as runmod
+from engine import cli, forms, journal, run as runmod
 
 
 @pytest.fixture
@@ -57,6 +57,102 @@ def test_a_malformed_plan_field_refuses_before_anything_is_recorded(workdir, cap
     assert st["current"]["id"] == "open"                 # did not advance
     assert "open" not in st["done"]                      # and nothing was journaled
     assert not st["boards"]
+
+
+def _critic_step(wid="c1"):
+    """A run standing on one CRITIC.toml -- the cheapest way to reach a field
+    whose note declares a vocabulary, with no panel plumbing in the way."""
+    journal.append(wid, "run", title="t", assembly="give-a-verdict")
+    journal.append(wid, "step", id="verdict", segment="verdict",
+                   form="skills/reviewer/forms/CRITIC.toml", filler="reviewer",
+                   anchor=True, terminal=True, validates="", source="open")
+    cli.main([wid])                      # materializes the response template
+    return wid
+
+
+def _fill_critic(wid, verdict):
+    pathlib.Path(f".agent-work/{wid}/CRITIC.toml").write_text(
+        'findings = "none: waived: clean"\nvocabulary = "waived: consistent"\n'
+        f'verdict = "{verdict}"\n')
+
+
+def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(workdir, capsys):
+    """A field whose note declares alternatives used to take anything: the
+    submit landed, the step was released, and the act downstream matched no
+    branch and performed nothing. The refusal names the field and quotes the
+    alternatives the note already taught."""
+    _critic_step()
+    _fill_critic("c1", "looks good to me")
+    capsys.readouterr()
+
+    before = len(journal.read("c1"))
+    with pytest.raises(SystemExit) as e:
+        cli.main(["c1", "submit"])
+    msg = str(e.value)
+    assert "verdict" in msg
+    assert "pass | revise | escalate" in msg          # the note's own list
+    assert len(journal.read("c1")) == before          # not even the submit landed
+    assert not runmod.state("c1")["done"]
+
+    # a legal word with an argument it does not take is refused the same way:
+    # the acts compare whole strings, so `pass, clean` performs nothing
+    _fill_critic("c1", "pass, clean")
+    with pytest.raises(SystemExit):
+        cli.main(["c1", "submit"])
+
+    # what the acts do read -- the value, in any case -- goes through
+    _fill_critic("c1", "Pass")
+    cli.main(["c1", "submit"])
+    assert runmod.state("c1")["done"]["verdict"]["fields"]["verdict"] == "Pass"
+
+
+def test_a_near_miss_verb_refuses_instead_of_rendering_the_room(workdir, capsys):
+    """`spine <id> sumbit` fell through to `status`: it rendered the room and
+    exited 0, so a typo read as a successful hand-in."""
+    _open()
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "sumbit"])
+    msg = str(e.value)
+    assert "sumbit" in msg and "submit" in msg        # names the miss and the verbs
+    assert not capsys.readouterr().out                # and rendered no room
+    assert "open" not in runmod.state("issue17")["done"]
+
+    cli.main(["issue17"])                             # the bare id is still status
+    assert "issue17" in capsys.readouterr().out
+
+
+def test_an_unhandled_mints_value_refuses_instead_of_minting_nothing(workdir, capsys,
+                                                                     monkeypatch):
+    """`_mint` branches on two literal `mints` values. A form declaring a
+    third minted nothing and released the step anyway -- a run that looks
+    advanced with no work in it, which is what the plan check exists to
+    prevent. Refused before the submit is journaled, like its sibling."""
+    real = forms.load
+
+    def third_thing(path):
+        form = real(path)
+        for f in form["fields"]:
+            if f.get("mints"):
+                f["mints"] = "prophecies"
+        return form
+
+    monkeypatch.setattr(forms, "load", third_thing)
+    _open()
+    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+        'issue = "gh:17"\nauthority = "Tommy."\n\n[[questions]]\n'
+        'question = "which inputs drop the last record?"\ntype = "fact"\n')
+    capsys.readouterr()
+
+    before = len(journal.read("issue17"))
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    msg = str(e.value)
+    assert "prophecies" in msg and "board rows" in msg
+    assert len(journal.read("issue17")) == before
+    st = runmod.state("issue17")
+    assert st["current"]["id"] == "open" and not st["boards"]
 
 
 def test_amended_step_ids_do_not_collide(workdir):
