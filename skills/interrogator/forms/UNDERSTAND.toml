@@ -8,33 +8,54 @@
 # other askable rows proceed.
 #
 # A row resolves in any style: prose evidence, an artifact in the work
-# location, or a dispatched child's returns. Moves per
-# standards/understanding-moves.md — reach for a spike or a data view early;
-# reading is not the only move.
+# location, or an excursion's returns. Moves per
+# standards/understanding-moves.md — reach for an excursion early; reading
+# is not the only move.
+
+imperative = """
+Reach common understanding of this ask with your principal, relentlessly,
+one question at a time. A row cleared is not the goal; the goal is that you
+and your principal would describe the problem in the same words. Before you
+consolidate, walk the tree: every capability has a use case under it, every
+constraint and assumption was tested or confirmed, every answer was asked
+what it opened."""
 
 [[question]]
 id = "q1"
 question = ""
-type = ""        # fact | decision. A fact you resolve yourself with evidence;
-                 # a decision the principal owns — never self-answer it.
-move = ""        # how this gets settled: read | trace | reproduce | spike |
-                 # picture | evidence-loop — or ask, for a decision.
+type = ""        # fact | decision | understanding.
+                 # fact: you resolve it yourself, with evidence.
+                 # decision: a choice the principal owns — never self-answer it.
+                 # understanding: the reading you are proceeding on, resolved
+                 # only by the principal confirming or correcting it. The
+                 # dangerous row is the one you think you already know.
+frame = ""       # optional — capability | use-case | event | constraint |
+                 # assumption: what the row is about. A use case is how this
+                 # changes the way the project is worked, concretely.
+move = ""        # how this gets settled: read | trace | reproduce |
+                 # evidence-loop — or an excursion: prior-art | prototype |
+                 # picture — or ask, for a decision; mirror, for an
+                 # understanding.
+from = ""        # optional — the row whose answer raised this one. The tree
+                 # you walk for gaps.
 cluster = ""     # optional — rows taken to the principal in one sitting
 after = []       # optional — row ids this one waits on
 status = "open"  # open | answered | moot | up | deferred: <reason>
 answer = ""      # fact: the answer and what grounded it — never memory.
-                 # decision: the principal's words, verbatim.
+                 # decision, understanding: the principal's words, verbatim.
                  # moot: the answer that mooted it.  up: where it went.
-artifact = ""    # optional — the data view, repro, or prototype output in the
-                 # work location that grounds the answer. A spike dispatches
-                 # the prototyper as a child run; its returns stamp back to
-                 # this row.
+artifact = ""    # optional — the view, repro, or excursion return in the
+                 # work location that grounds the answer. An excursion is a
+                 # child run opened from this row; its returns stamp back
+                 # here.
 
 # A decision goes to the principal one question at a time, carrying ~3 options
-# with pros and cons and a recommendation. Effort scales with criticality: an
-# obvious row in a clustered sitting may carry the recommendation alone.
-# Never surface board mechanics — row ids, cluster names, what comes next —
-# to the principal. Ask plainly, one complete question per beat.
+# with pros and cons and a recommendation. An understanding goes up as a
+# mirror — the reading in one sentence, no options — and the principal
+# confirms or corrects it. Effort scales with criticality: an obvious row in
+# a clustered sitting may carry the recommendation alone. Never surface board
+# mechanics — row ids, cluster names, what comes next — to the principal.
+# Ask plainly, one complete question per beat.
 recommend = ""
 
   [[question.option]]

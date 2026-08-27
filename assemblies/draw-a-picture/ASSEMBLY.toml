@@ -1,0 +1,14 @@
+# Assembly: one picture excursion. Opened from a board row; the brief is the
+# opening prefill. One terminal step -- the return is the whole run.
+
+assembly = "draw-a-picture"
+conductor = "excursion"
+
+[[segment]]
+id = "return"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "skills/excursion/forms/PICTURE.toml"
+filler = "excursion"

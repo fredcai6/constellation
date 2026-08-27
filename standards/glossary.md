@@ -94,3 +94,21 @@ forms; coining a synonym for a term below is a defect.
   assemblies — measured in words against the 15,000 target (`docs/V2_DESIGN.md`, Measurable
   goals). Derived output is not in it. *The mappable corpus:* every tracked `.py` file the map
   is built from, which is the sense `tools/code_map` uses throughout its own docstrings.
+- **understanding** — a board row type beside `fact` and `decision`: the reading you are
+  proceeding on, resolved only by the principal confirming or correcting it. Sent up as a
+  mirror — one sentence, no options. Common understanding is the state where you and the
+  principal would describe the problem in the same words.
+- **frame** — what a board row is about: `capability`, `use-case`, `event`, `constraint`,
+  `assumption`. Orthogonal to its type, which is what it resolves to.
+- **excursion** — a move dispatched as a child run to answer one named question, opened from a
+  board row, which is its brief; its return lands under the row. Returns a scoped verdict and
+  the command that regenerates it. Four kinds, each its own form: prior art, prototype,
+  picture, rival.
+- **rival** — a design produced against an incumbent under one named constraint, to test
+  whether the incumbent holds. Design-it-twice, without the count.
+- **ideas board** — the explore segment's board: a tree of ideas and threads grown and shaped
+  across cycles, never drained. An open row is the point; the human's converge releases.
+- **cycle** — one firing of the explore transition: consolidate the board, then the human says
+  `cycle`, `converge`, or `shelve`.
+- **flavor** — a cycle's mode, the human's pick: `shotgun` diverges, `compare` weighs a few
+  seriously, `refine` hardens one.

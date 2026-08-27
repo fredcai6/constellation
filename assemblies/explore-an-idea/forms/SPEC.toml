@@ -1,0 +1,29 @@
+# Step: spec. Owned by explore-an-idea; filled by the conductor. The board
+# is the source. A revise mints REWORK.toml for the next round, so this form
+# is always a first cut.
+
+imperative = """
+Crystallize the spec from the ideas board: the problem, the point, the
+approach that won and why, and what it becomes downstream — issues or an
+epic. Fix the shape and stop: every high-level ambiguity resolved, nothing
+below the issue grain. Present it to the human one section at a time."""
+
+[[field]]
+id = "spec"
+kind = "artifact"
+note = "The spec, in the work location. It reads whole to a cold critic and to whoever cuts it — the board is not attached."
+
+[[field]]
+id = "rivals"
+kind = "evidence"
+note = """
+For each load-bearing commitment: the rivals designed against it under
+distinct constraints — each a row on the ideas board, one constraint in its
+brief, dispatched as design-a-rival — and whether the incumbent held or a
+rival or hybrid replaced it. Reversible details earn no
+rival. Skip a load-bearing commitment only with a stated reason."""
+
+[[field]]
+id = "key-terms"
+kind = "evidence"
+note = "Terms this spec introduces; each cites its glossary entry or proposes one. Coining a synonym is a defect."

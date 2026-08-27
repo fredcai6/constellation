@@ -1,0 +1,38 @@
+# Verdict: prototype. Owned by the excursion skill; the one step of
+# build-a-prototype. The brief arrives as prefill; your return stamps back
+# to the row or step that dispatched you.
+
+imperative = """
+Build the cheapest thing that makes the question above answerable, and
+throw it away. No tests, no persistence, no polish — effort hardening it is
+stolen from the answer. Surface full state after every action; hidden state
+hides the answer. Pick the branch the question implies: logic, does this
+state model or data shape feel right; ui, which arrangement reads best —
+build 3–5 structurally different variants; measurement, is X actually
+faster or smaller — define the metric first, one mechanism, the number."""
+
+[[field]]
+id = "branch"
+kind = "decision"
+note = "logic | ui | measurement — and the one line that put it there."
+
+[[field]]
+id = "verdict"
+kind = "evidence"
+note = """
+The answer to the named question: what was tested, what was NOT, what it
+taught. On a null, the next variant worth trying — "this variant failed;
+try X" is progress, "this can't work" is not a verdict."""
+
+[[field]]
+id = "artifact"
+kind = "evidence"
+note = """
+Where the prototype lives while the dispatcher reads it, and its
+disposition: disposed, or the one pure logic module that may survive, named.
+A prototype that lingers becomes something people trust."""
+
+[[field]]
+id = "regenerate"
+kind = "evidence"
+note = "The one command that runs it, pinned to the revision it ran against."

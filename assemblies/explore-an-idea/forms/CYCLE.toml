@@ -1,0 +1,32 @@
+# Transition: explore, fired once per cycle. Owned by explore-an-idea;
+# filled by the conductor. `cycle` mints this step again with the flavor as
+# its prefill and the board untouched; `converge` releases to spec; `shelve`
+# releases past spec to close.
+
+imperative = """
+Consolidate the cycle: fold every excursion's returns onto the board, cull
+with reasons, sharpen the point. Then present the live ideas and open
+threads to the human and record what they said. You never initiate
+convergence — a ripeness flag is a message containing nothing else."""
+
+[[field]]
+id = "consolidation"
+kind = "evidence"
+note = """
+What moved this cycle: ideas that advanced, culls and their reasons, threads
+opened, excursions returned. The board carries the detail; this carries the
+shape."""
+
+[[field]]
+id = "decision"
+kind = "decision"
+note = """
+cycle | converge | shelve — the human's words. converge: the board is ready
+to crystallize into a spec. shelve: it is filed as it stands, reasoning
+intact, and this run closes without a spec."""
+
+[[field]]
+id = "flavor"
+kind = "decision"
+optional = true
+note = "shotgun | compare | refine — the next cycle's, the human's pick; you may recommend. Only on cycle."

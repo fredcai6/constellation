@@ -1,0 +1,25 @@
+# Board: ideas. Owned by the explorer skill; seeded into the work location
+# at segment entry, worked in place across cycles. The engine reads it at
+# the cycle transition for its counts and its tree; open rows are the point
+# here, never a refusal. The human's converge is what releases.
+#
+# A tree, not a list: `from` hangs an idea off the idea or thread that
+# raised it, and siblings under one parent are a cluster. A culled row keeps
+# its reason because a cull is a scoped verdict, and it can come back.
+
+point = ""       # why this exists, sharpened every cycle: the itch, for
+                 # whom, what done feels like, what would make it pointless.
+
+[[idea]]
+id = "i1"
+idea = ""        # one line. A thread is an idea shaped as a question.
+from = ""        # optional — the row that raised this one.
+status = "live"  # live | settled | culled: <reason>
+verdict = ""     # settled: what was decided, and what it rests on.
+scope = ""       # settled or culled: what was tested / what was NOT.
+                 # A null kills this test under these conditions, never
+                 # the idea class.
+excursion = ""   # optional — the child run opened from this row; its
+                 # returns stamp back here. Brief it here before dispatch:
+                 # the one named question, what answered looks like, the
+                 # budget and stop conditions.

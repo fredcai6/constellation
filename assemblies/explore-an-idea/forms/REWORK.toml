@@ -1,0 +1,32 @@
+# Step: rework round of spec. Owned by explore-an-idea; filled by the
+# conductor. The panel's findings arrive as prefill. Every disposition is
+# the human's: the critic is cold and may relitigate settled ground, and the
+# human filters that, not you.
+
+imperative = """
+Take each finding to the human and record their disposition in their words:
+edit, and make the edit; reject, with the reason; or re-explore, and the
+thread it opens on the board. A re-explore is a cycle, not a patch — say so
+in `next`, and the run goes back to the board."""
+
+[[field]]
+id = "spec"
+kind = "artifact"
+note = "The spec, revised in place in the work location."
+
+[[field]]
+id = "dispositions"
+kind = "evidence"
+record-only = true
+note = """
+One per finding: edit | reject | re-explore, and the human's reason,
+verbatim. For the record and the conductor, never the next critic — it
+stays out of a panelist's prefill."""
+
+[[field]]
+id = "next"
+kind = "decision"
+note = """
+resubmit | re-explore. resubmit sends the revised spec to the panel.
+re-explore refills the explore board with the re-explore threads as new
+rows; the spec waits for the next converge."""
