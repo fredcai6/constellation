@@ -151,3 +151,16 @@ def test_resubmit_releases_to_the_panel(explore):
     _fill(explore, "REWORK.toml", 'spec = "SPEC.md"\ndispositions = "F1 edit"\nnext = "resubmit"\n')
     _spine(explore, "submit")
     assert _current(explore).get("panel"), "resubmit did not land on the panel"
+
+
+def test_amend_add_transition_takes_the_panel_the_assembly_declares_today(explore):
+    """A run copies its skeleton at open; when the template later grows a
+    panelist, `amend add --transition` is how the live run catches up."""
+    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "converge"\n')
+    _spine(explore, "submit")
+    _spine(explore, "amend", "close", "spec", "--reason", "re-minting with today's panel")
+    _spine(explore, "amend", "add", "--segment", "spec", "--transition", "--reason", "today's panel")
+    st = runmod.state(explore)
+    fresh = [s for s in st["steps"] if s["segment"] == "spec" and s.get("panel")]
+    assert len(fresh) == 1 and len(fresh[0]["panel"]) == 3
+    assert fresh[0]["anchor"] and st["amends"][-1]["anchor"], "the anchored transition was re-minted quietly"

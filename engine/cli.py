@@ -846,13 +846,33 @@ def _amend_add(wid, st, argv, reason):
     if not seg:
         raise SystemExit(render.refusal("segment", "amend add needs --segment"))
     form_ref = _opt(argv, "--form")
-    if not form_ref:
-        raise SystemExit(render.refusal("form", "amend add needs --form"))
+    if not form_ref and "--transition" not in argv:
+        raise SystemExit(render.refusal("form", "amend add needs --form, or --transition"))
     asm = runmod.load_assembly(st["assembly"])
     if not any(s["id"] == seg for s in asm["segment"]):
         raise SystemExit(render.refusal(
             "segment", f"no segment named {seg!r}",
             escape="segments: " + ", ".join(s["id"] for s in asm["segment"])))
+    if "--transition" in argv:
+        # The segment's transition as the assembly declares it today -- form
+        # and panel both. A run stops depending on its template at open, so
+        # this is how a live run catches up with a template that grew a
+        # panelist: one journaled amend, loud if the step it replaces was
+        # anchored.
+        t = next(x for x in asm["segment"] if x["id"] == seg).get("transition", {})
+        sid = f"{seg}-a{secrets.token_hex(2)}"
+        step = {"id": sid, "segment": seg, "filler": t.get("filler", "conductor"),
+                "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
+                "validates": t.get("validates", ""), "source": "amend"}
+        if t.get("form"):
+            step["form"] = t["form"]
+        if t.get("panel"):
+            step["panel"] = t["panel"]
+        journal.append(wid, "step", **step)
+        journal.append(wid, "amend", action="add", segment=seg, step=sid, reason=reason,
+                       anchor=step["anchor"])
+        print(f"amended: added {sid} to {seg}\n")
+        return cmd_status([wid])
     # Random, not counted: two sessions amending at once both compute the same
     # next number, and duplicate ids are worse than ugly -- `done` is keyed by
     # step id, so one submit would silently complete every step sharing it.
