@@ -98,20 +98,35 @@ def _slot(field_id: str, short: bool) -> str:
     return f'{field_id} = ""' if short else f'{field_id} = """\n"""'
 
 
+# [escapes-refused]
+# Rationale: the two escapes are offered per field, not once per form, because
+#   `cli._check_vocabulary` refuses both on any field whose note declares
+#   alternatives -- a `waived:` verdict would fall through `merged_verdict` to
+#   `pass`, so the refusal is correct and it is the template that was wrong to
+#   promise a way out its own submit rejects.
+# Rejected: dropping the two lines from the header for every form. A form is a
+#   mix -- one field with a vocabulary beside four of prose -- and the four
+#   still take the escapes; a per-form answer is wrong for one side or the
+#   other whichever way it goes.
+# See: engine/cli.py `_check_vocabulary`
+ESCAPES_REFUSED = "# One of those values -- this field refuses waived: and unknown:."
+
+
 def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
     dest_path = Path(dest_path)
     work_id = work_id or dest_path.parent.name
     submit = submit or f"spine {work_id} submit"
+    shown = [f for f in form["fields"] if f["kind"] != "check"]
     lines = [f"# {dest_path} -- fill the values, then: {submit}",
              "#",
              "# Any field also takes a status instead of an answer:",
-             "#   working: <what is left>   still in hand; submit will say so",
-             "#   waived: <reason>          does not apply here",
-             "#   unknown: <reason>         could not determine",
-             ""]
-    for field in form["fields"]:
-        if field["kind"] == "check":
-            continue
+             "#   working: <what is left>   still in hand; submit will say so"]
+    # The escapes are named at all only while some field still accepts them.
+    if any(not vocabulary(f["note"]) for f in shown):
+        lines += ["#   waived: <reason>          does not apply here",
+                  "#   unknown: <reason>         could not determine"]
+    lines.append("")
+    for field in shown:
         lines.append(_comment(field["note"], field["optional"]))
         if field["kind"] == "plan":
             lines.append("# Repeat this block per item; delete the example if none apply.")
@@ -120,6 +135,8 @@ def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
                 lines.append(_comment(item["note"], item["optional"]))
                 lines.append(_slot(item["id"], True))
         else:
+            if vocabulary(field["note"]):
+                lines.append(ESCAPES_REFUSED)
             lines.append(_slot(field["id"], _is_short(field)))
         lines.append("")
     dest_path.write_text("\n".join(lines).rstrip() + "\n")

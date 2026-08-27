@@ -11,9 +11,11 @@ This is a test rather than a tool because it costs no machinery and runs on
 every suite run. It is the standing cost of choosing to put doctrine in forms.
 """
 
+import ast
 import inspect
 import pathlib
 import re
+import tempfile
 import tomllib
 
 from engine import cli, forms, run as runmod
@@ -154,6 +156,147 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
         assert f'"{status}:"' in src or f"{status}:" in src, \
             f"the template teaches {status!r}; nothing in the engine reads it"
     assert "working" in taught  # the one that gates a submit
+
+
+# Where the engine writes a step's prefill by name, and which form the step it
+# mints stands on -- named by the assembly key that holds it, since the form
+# itself is the assembly's choice and not the engine's. The keys come off the
+# source, so a key added to one of these sites joins the sweep below without
+# anyone remembering to; the sites are pinned so that a new one fails loudly
+# instead of going unswept. `_mint_segment_round` falls back to the segment's
+# step-form when its caller names no rework form, so both roles receive it.
+MINT_TARGETS = {
+    ("_open_child", None): ("panel",),                 # a panelist's dispatch
+    ("_act_on_outcome", None): ("step-form",),         # a replan's fresh round
+    ("_act_on_verdicts", "outlet"): ("impasse-form",),
+    ("_act_on_verdicts", 'seg.get("rework-form", "")'): ("rework-form", "step-form"),
+}
+
+# A form that receives a minted key its own prose never names, and the file
+# that teaches its reader instead -- checked, not waived: the key must appear
+# there. `None` is not an exception but a gap this sweep records rather than
+# hides.
+PREFILL_NAMED_ELSEWHERE = {
+    # The implementer's posture, read on every gate, is where the revise round
+    # and the findings it carries are described; the form is filled on a first
+    # pass too, and does not speak of rounds at all.
+    ("skills/implementer/forms/IMPLEMENT.toml", "findings"):
+        "skills/implementer/SKILL.md",
+    # A replan mints PLAN.toml carrying the adjudication's `learned` under the
+    # key `findings`. The form's prose names the consolidate's keys and calls
+    # itself a first cut, so this arrival is unnamed. Outside the scope of the
+    # gate that added this sweep (issue30.g1-a07af) and raised there as a note,
+    # recorded here rather than narrowed away.
+    ("assemblies/run-an-issue/forms/PLAN.toml", "findings"): None,
+}
+
+
+def _prefill_mints():
+    """Every prefill dict the engine builds with literal keys: {(the function
+    that mints it, the source of the `form` it names): keys}."""
+    found = {}
+    for path in sorted((ROOT / "engine").glob("*.py")):
+        src = path.read_text()
+        for fn in ast.walk(ast.parse(src)):
+            if not isinstance(fn, ast.FunctionDef):
+                continue
+            for node in ast.walk(fn):
+                if isinstance(node, ast.Call):
+                    kw = {k.arg: k.value for k in node.keywords}
+                    value, form = kw.get("prefill"), kw.get("form")
+                elif isinstance(node, ast.Assign) and any(
+                        isinstance(t, ast.Name) and t.id == "prefill"
+                        for t in node.targets):
+                    value, form = node.value, None
+                else:
+                    continue
+                if not isinstance(value, ast.Dict):
+                    continue  # a forwarded or comprehended prefill mints no name
+                keys = {k.value for k in value.keys if isinstance(k, ast.Constant)}
+                if keys:
+                    site = (fn.name, form if form is None
+                            else ast.get_source_segment(src, form))
+                    found.setdefault(site, set()).update(keys)
+    return found
+
+
+def _forms_in_role(role):
+    """Every form any assembly puts in one role -- `step-form`, `rework-form`,
+    `impasse-form`, or `panel`."""
+    paths = set()
+    for a in ASSEMBLIES:
+        for seg in tomllib.load(open(a, "rb"))["segment"]:
+            refs = ([p["form"] for p in seg.get("transition", {}).get("panel", [])]
+                    if role == "panel" else [seg.get(role)])
+            for ref in filter(None, refs):
+                paths.add(ROOT / ref if ref.startswith("skills/") else a.parent / ref)
+    return sorted(paths)
+
+
+def test_every_prefill_key_the_engine_mints_is_named_by_the_form_that_receives_it():
+    """Prefill is the orders a step opens with -- `render.status` prints it
+    above the fields. A key the engine mints and the receiving form never
+    mentions is the menu-of-outcomes defect run backwards: the reader is handed
+    a value and taught nothing about it. `arrival` shipped that way into
+    run-a-gate's IMPASSE, accurate and unexplained.
+
+    Only keys the engine writes by name are swept. A gate spec's keys are the
+    plan's, copied whole, and a panelist's artifact fields are the producing
+    form's -- neither is a name this engine chose, so neither is a name it can
+    be held to."""
+    mints = _prefill_mints()
+    assert set(mints) == set(MINT_TARGETS), (
+        "a prefill mint this sweep does not know about: "
+        f"{sorted(set(mints) ^ set(MINT_TARGETS))}")
+    for site, keys in mints.items():
+        for role in MINT_TARGETS[site]:
+            for path in _forms_in_role(role):
+                text, rel = path.read_text(), str(path.relative_to(ROOT))
+                for key in sorted(keys):
+                    if re.search(rf"\b{re.escape(key)}\b", text):
+                        continue
+                    assert (rel, key) in PREFILL_NAMED_ELSEWHERE, (
+                        f"{rel} is minted with prefill {key!r} by {site[0]} and "
+                        "names it nowhere")
+                    elsewhere = PREFILL_NAMED_ELSEWHERE[(rel, key)]
+                    assert elsewhere is None or key in (ROOT / elsewhere).read_text(), (
+                        f"{rel}: {key!r} is said to be named by {elsewhere}, and is not")
+
+
+def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
+    """`waived:` and `unknown:` are refused on any field whose note declares a
+    vocabulary -- `merged_verdict` would read a waived verdict as a `pass` --
+    so a template offering them there hands the agent a way out its own submit
+    rejects. The offer is per field, not per form: one enum field beside four
+    of prose leaves the four still taking the escapes, and only a form with
+    nothing but enum fields drops the offer entirely."""
+    assert all(e in forms.ESCAPES_REFUSED for e in ("waived:", "unknown:")), \
+        "the line a vocabulary field gets no longer names what it refuses"
+    for f in FORMS + [None]:
+        # The last pass is a form of nothing but enum fields -- no assembly has
+        # one today, and the header has to be right the day one does.
+        form = (forms.load(f) if f else
+                {"imperative": "", "fields": [{"id": "verdict", "kind": "decision",
+                                               "note": "pass | revise | escalate.",
+                                               "optional": False}]})
+        dest = pathlib.Path(tempfile.mkdtemp()) / "RESPONSE.toml"
+        forms.materialize(form, dest, work_id="issue1")
+        header, *blocks = dest.read_text().split("\n\n")
+        shown = [x for x in form["fields"] if x["kind"] != "check"]
+        assert len(blocks) == len(shown), f"{dest}: a field per block"
+        for field, block in zip(shown, blocks):
+            offered = field["kind"] != "plan" and any(
+                e in header for e in ("waived:", "unknown:"))
+            if forms.vocabulary(field["note"]):
+                assert forms.ESCAPES_REFUSED in block, (
+                    f"{f}: {field['id']} declares a vocabulary and is not told "
+                    "the escapes are refused on it")
+                assert offered == any(not forms.vocabulary(x["note"]) for x in shown), (
+                    f"{f}: the header offers an escape no field on it accepts")
+            else:
+                assert forms.ESCAPES_REFUSED not in block
+                assert offered or field["kind"] == "plan", (
+                    f"{f}: {field['id']} accepts the escapes and is offered neither")
 
 
 # The enum each transition accepts, as its form teaches it, and the act that

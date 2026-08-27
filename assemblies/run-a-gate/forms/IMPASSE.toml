@@ -6,8 +6,10 @@
 imperative = """
 The review has sent this diff back three times. Rule on the loop, not on the
 findings: three reviews landing on the same thing means the gate spec, not the
-diff, is what keeps failing. Say which way this gate goes, and what the three
-rounds had in common."""
+diff, is what keeps failing. `arrival` in your orders reads `rework-rounds`
+here always -- this gate's review is panel-only, so an escalate verdict rides
+the summary up rather than arriving here. Say which way this gate goes, and
+what the three rounds had in common."""
 
 [[field]]
 id = "ruling"
