@@ -303,3 +303,70 @@ def test_submit_refuses_while_a_verdict_is_outstanding(workdir, capsys):
     with pytest.raises(SystemExit) as e:
         cli.main(["i2", "submit"])
     assert "outstanding" not in str(e.value)            # past the panel now
+
+
+# -- 5. an escalate mints the segment's outlet, and the room says so ---------
+
+
+def test_an_escalated_plan_mints_the_outlet_instead_of_finishing(workdir, capsys):
+    """A panel objecting at the root leaves a two-voices step with nowhere to
+    go: `state()` marks it done without its form -- correct, an escalated
+    plan should not fill the mint form -- and before this the transition
+    acted only on `revise`, so nothing was minted and the run walked to its
+    terminal close with no gates and no ruling. The outlet is where it goes
+    now; the same three rulings a looped revise gets."""
+    wid = _drive_to_plan_to_execute()
+    capsys.readouterr()
+
+    _dispatch_panel(wid, "plan", verdict="escalate",
+                    findings="gap: the parser is not where the record is dropped")
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    assert "plan" in st["done"]                       # released, like any non-pass
+    assert not any(s.get("dispatches") for s in st["steps"]), "an escalate minted gates"
+
+    outlet = st["current"]
+    assert outlet["form"] == "forms/IMPASSE.toml", (
+        f"the escalate left the run on {outlet.get('form')!r} -- an escalated "
+        "plan walked to its close instead of reaching a ruling")
+    assert outlet["prefill"]["arrival"] == "escalate"  # which way in, not just the findings
+    assert "not where the record is dropped" in outlet["prefill"]["findings"]
+    assert "[p1]" in outlet["prefill"]["findings"]     # attributed, like a revise's
+    # no fourth cold reader: the outlet carries no panel of its own
+    assert not any(s.get("panel") and s["id"] not in st["done"] for s in st["steps"])
+
+    # and the ruling is live from this arrival too -- advance overrules the
+    # panel and takes the plan to its transition
+    _fill(journal.location(wid) / "IMPASSE.toml",
+          'ruling = "advance"\nwhy = "the panel read the plan against the wrong issue"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    assert runmod.state(wid)["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
+
+
+def test_the_room_names_a_returned_panels_non_pass_verdict(workdir, capsys):
+    """The findings arrived as orders and the word the panel merged on did
+    not, so the reader of an outlet room had to infer whether three critics
+    had looped or objected at the root. A pass is the room arriving normally
+    and is not named."""
+    wid = _drive_to_plan_to_execute()
+    _dispatch_panel(wid, "plan", verdict="escalate", findings="gap: wrong artifact entirely")
+    capsys.readouterr()
+
+    cli.main([wid])
+    out = " ".join(capsys.readouterr().out.split())
+    assert "The panel that last ruled here returned escalate." in out
+
+    # a pass says nothing: the run simply reached the conductor's own form
+    journal.append("i3", "run", title="t", assembly="run-an-issue")
+    journal.append("i3", "step", id="plan", segment="plan", form="forms/PLAN_TO_EXECUTE.toml",
+                   filler="conductor", anchor=True,
+                   panel=[{"form": CRITIC, "worker": "reviewer", "criteria": "c1"}])
+    journal.append("i3", "prefill", fields={})
+    _dispatch_critic("i3", "plan", verdict="pass")
+    capsys.readouterr()
+
+    cli.main(["i3"])
+    out = " ".join(capsys.readouterr().out.split())
+    assert "The panel that last ruled here" not in out

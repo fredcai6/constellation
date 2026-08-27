@@ -270,7 +270,7 @@ def drift(measures):
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, onward_to=None,
-           returns_from="", triage_notes=(), role=""):
+           returns_from="", triage_notes=(), role="", verdict=""):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -319,6 +319,13 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         # gates in flight needs, and the engine has known it all along.
         out.append(f"  returns from {returns_from}" if returns_from else "  returns")
         out.append(_pairs(list(returns.items())))
+        out.append("")
+
+    if verdict:
+        # Said as a sentence, not a labelled value: the verdict is why this
+        # room is the room, and a reader who only sees the findings has to
+        # guess whether they are a round's notes or a panel's objection.
+        out.append(_para(f"The panel that last ruled here returned {verdict}."))
         out.append("")
 
     if board:

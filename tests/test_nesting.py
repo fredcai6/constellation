@@ -782,3 +782,37 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"
     assert fresh_panel["panel"] == st["steps"][3]["panel"]  # same panel config
     assert st["current"]["id"] == fresh_plan["id"]
+
+
+def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys):
+    """The summary's verdict was read off panel-only steps, so a run whose
+    critics had ruled on the plan closed carrying the empty string where the
+    panel's word belongs -- and an escalated run, which is exactly the one a
+    principal reads the summary of, said nothing at all."""
+    wid = "issue19"
+    cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _fill_plan(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid, verdict="escalate", findings="gap: wrong artifact entirely")
+    capsys.readouterr()
+
+    # the outlet the escalate minted: rule `up`, which is the move that ends
+    # the run and makes the ruling the record
+    assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
+    _fill(journal.location(wid) / "IMPASSE.toml",
+          'ruling = "up"\nwhy = "the critics read the plan against the wrong issue"\n')
+    cli.main([wid, "submit"])
+    _fill_close(wid)
+    cli.main([wid, "submit"])
+    cli.main([wid, "close"])
+    capsys.readouterr()
+
+    closed = next(e for e in journal.read(wid) if e["kind"] == "closed")
+    assert closed["summary"]["verdict"] == "escalate", (
+        "the close summary of an escalated run carries "
+        f"{closed['summary']['verdict']!r} where three critics ruled")

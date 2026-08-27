@@ -316,6 +316,27 @@ def _board_state(path):
             "clusters": boards.clusters(found)}
 
 
+# [returned-verdict]
+# Rationale: a panel that ruled anything but pass is the reason the room the
+#   reader is standing in exists -- the outlet an escalate minted, the fresh
+#   round a revise minted, the close an escalated gate walked to. The verdict
+#   itself was engine-side only: findings arrived as prefill and the word the
+#   panel merged on never did, so the reader had to infer it.
+# Rejected: naming every returned panel, pass included. A pass is the room
+#   arriving normally; saying so is noise on every step after it.
+def _returned_verdict(st):
+    """The most recently returned panel's merged verdict, when it is not
+    `pass`. Read from the last panel step that has a full house of returns,
+    so a re-fired panel still waiting on its own critics reports the round
+    that actually ruled, not silence."""
+    for s in reversed(st["steps"]):
+        rs = st["returns"].get(s["id"]) or []
+        if s.get("panel") and rs and not runmod.panel_outstanding(st, s):
+            verdict = runmod.merged_verdict(rs)
+            return "" if verdict == "pass" else verdict
+    return ""
+
+
 def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -353,6 +374,7 @@ def cmd_status(argv):
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     print(render.status(st, form, dest, prefill=prefill,
                         returns=returns, returns_from=step.get("child", ""),
+                        verdict=_returned_verdict(st),
                         blocked=runmod.blocks(st),
                         position=runmod.position(st, asm), board=board,
                         in_hand=forms.in_hand(dest) if dest.exists() else None,
@@ -856,6 +878,19 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
     journal.append(wid, "step", **fresh_panel)
 
 
+# [act-on-verdicts]
+# Rationale: a two-voices step is the one place an escalate has nothing left
+#   to release into. `run.py` marks it done on any verdict but pass -- right,
+#   since an escalated plan should not fill its transition form -- so acting
+#   only on `revise` here left the objection unanswered and walked the run to
+#   its terminal step. Escalate mints the segment's outlet instead: its three
+#   rulings are exactly the three moves a conductor has against a panel that
+#   objected at the root -- advance over it, rework the artifact, or go up.
+# Rejected: gating that on "the segment declares an outlet". Both assemblies
+#   declare one, so it would fire for a panel-only review's escalate too --
+#   and that one already releases correctly, the verdict riding the summary
+#   up to whoever adjudicates next.
+# See: assemblies/run-an-issue/forms/IMPASSE.toml
 def _act_on_verdicts(pwid, step_id):
     """Once every panelist named by `step_id` has returned, the transition
     acts on the merged verdict. Pass releases: for a panel-only step there is
@@ -864,13 +899,19 @@ def _act_on_verdicts(pwid, step_id):
     open instead, so this is a no-op and the form is what releases it.
     Revise refills the interior with a fresh round of the segment (see
     `_mint_segment_round`) -- findings concatenated, never summarised, and
-    attributed to the panelist that raised them."""
+    attributed to the panelist that raised them. Escalate on a two-voices
+    step mints that segment's outlet, so a conductor rules on the objection
+    rather than the run finishing around it."""
     pst = runmod.state(pwid)
     step = next((s for s in pst["steps"] if s["id"] == step_id), None)
     if not step or not step.get("panel") or runmod.panel_outstanding(pst, step):
         return
     returns = pst["returns"][step_id]
-    if runmod.merged_verdict(returns) != "revise":
+    verdict = runmod.merged_verdict(returns)
+    # The two-voices shape -- a panel and a form on one step -- is what makes
+    # an escalate here different from a panel-only one.
+    escalated = bool(step.get("form")) and verdict == "escalate"
+    if verdict != "revise" and not escalated:
         return
     findings = "\n\n".join(
         f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
@@ -885,16 +926,19 @@ def _act_on_verdicts(pwid, step_id):
     #   of a fourth round -- and mints it alone, since a fourth cold reader is
     #   the loop rather than the way out. The number and the form are the
     #   assembly's; the engine names neither.
-    # See: assemblies/run-an-issue/forms/IMPASSE.toml
     after, outlet = seg.get("impasse-after", 0), seg.get("impasse-form", "")
-    if outlet and after and runmod.rework_rounds(pst, asm, step["segment"]) >= after:
+    looped = bool(after) and runmod.rework_rounds(pst, asm, step["segment"]) >= after
+    # One mint, two ways in -- the outlet's prefill says which, because ruling
+    # on a loop is not ruling on a root objection.
+    if outlet and (escalated or looped):
         journal.append(pwid, "step", id=f"{step['segment']}-a{secrets.token_hex(2)}",
                        segment=step["segment"], form=outlet, filler="conductor",
-                       prefill={"findings": findings}, anchor=False, terminal=False,
-                       validates="", source="mint")
-        return
-    _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings},
-                        form=seg.get("rework-form", ""))
+                       prefill={"findings": findings,
+                                "arrival": "escalate" if escalated else "rework-rounds"},
+                       anchor=False, terminal=False, validates="", source="mint")
+    elif not escalated:
+        _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings},
+                            form=seg.get("rework-form", ""))
 
 
 def _summary(st):
@@ -909,9 +953,13 @@ def _summary(st):
     for s in st["steps"]:
         if s.get("source") in ("mint", "amend"):
             cycles[s["segment"]] = cycles.get(s["segment"], 0) + 1
+    # A panel is a panel whether or not its step also carries a form: the
+    # two-voices transition's critics rule on the plan exactly as a
+    # panel-only review rules on a diff, and skipping them wrote the empty
+    # string into the close summary of every run three critics had judged.
     verdict = ""
     for s in st["steps"]:
-        if s.get("panel") and not s.get("form"):
+        if s.get("panel"):
             rs = st["returns"].get(s["id"]) or []
             if rs:
                 verdict = runmod.merged_verdict(rs)
