@@ -84,6 +84,22 @@ def vocabulary(note: str) -> list[str]:
     return [alt.strip() for alt in found.group(0).split("|")] if found else []
 
 
+def leading_word(value) -> str:
+    """The word a submitted value selects -- `"converge -- Tommy: yes, go"`
+    selects `converge`.
+
+    One rule, because there were two. The declared-outcomes path matched the
+    first word while the gate path matched the whole string, so the same
+    answer was legal at one transition and refused at another, and a form
+    asking for a value *and* a sentence (`logic | ui | measurement -- and the
+    one line that put it there`) could not be answered as written. The word
+    carries the decision; the rest carries the reason, and a reason should
+    never have to be omitted to be understood.
+    """
+    words = str(value).split()
+    return words[0].strip(".,;:-").lower() if words else ""
+
+
 def enforced_vocabulary(field: dict) -> list[str]:
     """The values the engine will accept for a field -- `[]` where it accepts
     anything.

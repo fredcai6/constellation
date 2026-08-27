@@ -22,7 +22,7 @@ constellation/
   README.md           this page
   docs/V2_DESIGN.md   founding spec — thesis, rulings, budgets, waves
   engine/             the secretary: 6 verbs, rail, install copy — ≤2,500 lines total
-  assemblies/         run templates: run-an-issue, run-a-gate, run-an-epic, explore-an-idea
+  assemblies/         run templates: run-an-issue, run-a-gate, explore-an-idea, and one per excursion
   skills/<name>/      one posture each: SKILL.md + the forms only that skill fills
   standards/          issue.md · skill.md · prose.md · understanding-moves.md · glossary.md
   tests/  evals/

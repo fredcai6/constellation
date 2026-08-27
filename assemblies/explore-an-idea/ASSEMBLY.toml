@@ -1,0 +1,95 @@
+# Assembly: explore one idea into a spec, with a live human. The skeleton is
+# fixed; the ideas board is worked across cycles, and each cycle is one
+# firing of the explore transition. No delegated posture: the conductor
+# always has a human in reach.
+
+assembly = "explore-an-idea"
+conductor = "explorer"
+
+[[segment]]
+id = "open"
+
+[segment.transition]
+anchor = true
+form = "forms/OPEN.toml"
+filler = "conductor"
+
+[[segment]]
+id = "explore"
+interior = "board"
+board = "skills/explorer/forms/IDEAS.toml"
+worker = "explorer"
+
+[segment.transition]
+anchor = true
+form = "forms/CYCLE.toml"
+filler = "conductor"
+decides = "decision"
+
+  [[segment.transition.outcome]]
+  value = "cycle"
+  does = "refill"        # this transition minted again; the board untouched
+
+  [[segment.transition.outcome]]
+  value = "converge"
+  does = "release"
+
+  [[segment.transition.outcome]]
+  value = "shelve"
+  does = "skip spec"     # past spec to close; the skip is loud, spec is anchored
+
+[[segment]]
+id = "spec"
+interior = "steps"
+step-form = "forms/SPEC.toml"
+# A revise mints this in place of the step-form. No impasse outlet: every
+# disposition here is the human's, so a fourth round is already their call.
+rework-form = "forms/REWORK.toml"
+worker = "conductor"
+decides = "next"       # REWORK.toml's; SPEC.toml has no such field
+
+  [[segment.outcome]]
+  value = "resubmit"
+  does = "release"
+
+  [[segment.outcome]]
+  value = "re-explore"
+  does = "skip spec; refill spec; refill explore"   # back to the board; a fresh first cut waits behind the next converge
+
+[segment.transition]
+anchor = true
+# No conductor form: pass releases to close, revise refills with the
+# findings, escalate goes up. A spec is judged on different criteria from a
+# plan -- the form is the same cold critic, the criteria are this
+# assembly's.
+
+  # One criterion per panelist, as run-an-issue's plan transition: three cold
+  # readers disagreeing is a panel; one reader holding three criteria is a
+  # reviewer with a checklist.
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "completeness: is every high-level ambiguity resolved -- could two readers cut different issues from this spec"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "restraint: does it fix the shape and leave implementation to the issues it cuts -- name every line that decides below the issue grain"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "simplicity: what can be deleted"
+
+[[segment]]
+id = "close"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "forms/CLOSE.toml"
+filler = "conductor"

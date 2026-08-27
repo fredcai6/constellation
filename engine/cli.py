@@ -48,14 +48,15 @@ def _check_id(wid):
     return wid
 
 
-def mint_id(issue=None):
+def mint_id(issue=None, kind="issue"):
     """A tracker number when there is one -- it is already collision-free and
     it associates the run to the issue for free. Otherwise random: two
-    worktrees allocating in parallel cannot see each other's next number."""
+    worktrees allocating in parallel cannot see each other's next number.
+    The kind is the assembly's last word -- issue, gate, idea."""
     if issue:
         return f"issue{issue}"
     while True:
-        wid = f"issue{secrets.token_hex(2)}"
+        wid = f"{kind}{secrets.token_hex(2)}"
         if not journal.exists(wid):
             return wid
 
@@ -144,10 +145,10 @@ def cmd_open(argv):
     assembly = argv[0]
     parent = _opt(argv, "--parent")
     if parent:
-        return _open_child(assembly, parent, _opt(argv, "--step"))
+        return _open_child(assembly, parent, _opt(argv, "--step"), _opt(argv, "--row"))
     title = _opt(argv, "--title") or ""
     issue = _opt(argv, "--issue")
-    wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue))
+    wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue, kind=assembly.rsplit("-", 1)[-1]))
     if journal.exists(wid):
         raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
@@ -162,15 +163,19 @@ def cmd_open(argv):
 _PANEL_TAG = re.compile(r"^(.+)\.(p\d+)$")  # "<step-id>.pN" addresses one panelist
 
 
-def _open_child(assembly, parent, pstep_id):
+def _open_child(assembly, parent, pstep_id, row_id=""):
     """A child is dispatched, never composed: its id, its orders, and the
     tier it runs under all come from the parent's step. A panelist is the
     same mechanism one entry finer -- `<step-id>.pN` names which panel
     entry, and the tag rides the work id so several children can share one
-    parent step without colliding."""
+    parent step without colliding. An excursion is the same mechanism from
+    a board row: the row is its brief, and its return lands under the row
+    rather than completing any step."""
     pst = runmod.state(parent)
     if pst is None:
         raise SystemExit(render.located(f"no run named {parent}\n  open runs: spine"))
+    if row_id:
+        return _open_excursion(assembly, parent, pst, row_id)
     m = _PANEL_TAG.match(pstep_id or "")
     step_id, tag = (m.group(1), m.group(2)) if m else (pstep_id, "")
     n = int(tag[1:]) if tag else 0
@@ -227,6 +232,38 @@ def _open_child(assembly, parent, pstep_id):
             step = {**step, "form": panelist["form"]}
         journal.append(wid, "step", **step)
     print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
+    return cmd_status([wid])
+
+
+# [excursion]
+# Rationale: the row is the brief. Its string columns -- the idea or
+#   question, the excursion's named question and budget -- are the child's
+#   prefill, so nothing is typed twice and the board stays the record of
+#   what was asked. The return is journaled with the row, never as the
+#   step's: an excursion answers a row, and a row completes nothing.
+# Rejected: the engine writing the return into the board. Two writers on one
+#   file is the hazard a board avoids; the return renders, the agent folds.
+def _open_excursion(assembly, parent, pst, row_id):
+    seg_id, row = next(((sid, r) for sid, p in pst["boards"].items()
+                        for r in boards.rows(p) if r.get("id") == row_id), ("", None))
+    if row is None:
+        raise SystemExit(render.refusal(row_id, "no board row by that id",
+                                        escape=f"the board: spine {parent}"))
+    wid = _check_id(f"{parent}.{row_id}")
+    while journal.exists(wid):  # a second variant off the same row
+        wid = _check_id(f"{parent}.{row_id}-a{secrets.token_hex(2)}")
+    pasm = runmod.load_assembly(pst["assembly"])
+    seg = next((s for s in pasm["segment"] if s["id"] == seg_id), {})
+    prefill = {k: v for k, v in row.items()
+               if k not in ("id", "status") and isinstance(v, str) and v.strip()}
+    asm = runmod.load_assembly(assembly)
+    journal.append(wid, "run", title=boards.label(row)[:72], assembly=assembly,
+                   conductor=asm.get("conductor", ""), parent=parent,
+                   parent_step=seg_id, row=row_id, model=seg.get("model", ""))
+    journal.append(wid, "prefill", fields=prefill)
+    for step in runmod.skeleton(asm):
+        journal.append(wid, "step", **step)
+    print(f"opened {wid} -- an excursion from {parent}, row {row_id}\n")
     return cmd_status([wid])
 
 
@@ -311,8 +348,12 @@ def _board_state(path):
     if not path:
         return None
     found = boards.rows(path)
-    return {"path": path, "summary": boards.summary(path),
-            "askable": boards.askable(found), "held": boards.held(found),
+    return {"path": path, "prose": boards.prose(path), "summary": boards.summary(path),
+            "tree": [(d, r.get("id", ""), str(r.get("status", "")), boards.label(r))
+                     for d, r in boards.tree(found)],
+            "askable": [(r.get("id", ""), boards.label(r)) for r in boards.askable(found)],
+            "held": [(r.get("id", ""), "held by " + ", ".join(ids))
+                     for r, ids in boards.held(found)],
             "clusters": boards.clusters(found)}
 
 
@@ -370,7 +411,10 @@ def cmd_status(argv):
                         ("amends", render.amends), ("triage", render.triage)):
             if isinstance(returns.get(key), list):
                 returns[key] = "; ".join(fn(returns[key])) or "none"
-    board = _board_state(st["boards"].get(step["segment"])) if step.get("validates") == "board" else None
+    # Rendered whenever the segment has a board; `validates` decides only
+    # whether submit refuses on it. The ideas board is read at every cycle
+    # and refused at none.
+    board = _board_state(st["boards"].get(step["segment"]))
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     print(render.status(st, form, dest, prefill=prefill,
                         returns=returns, returns_from=step.get("child", ""),
@@ -379,7 +423,7 @@ def cmd_status(argv):
                         position=runmod.position(st, asm), board=board,
                         in_hand=forms.in_hand(dest) if dest.exists() else None,
                         triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"],
-                        role=runmod.role_of(asm, step)))
+                        role=runmod.hat(asm, step, st), row_returns=st["row_returns"]))
     return 0
 
 
@@ -465,8 +509,9 @@ def cmd_submit(argv):
                 f"  or drop this step: spine {wid} amend close {step['id']} --reason ..."))
 
     _check_plan(form, fields)
-    _check_vocabulary(form, fields)
+    _check_vocabulary(asm, step, form, fields)
     _check_outcome(st, step, fields)
+    outcome = _outcome(asm, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
     _measure_artifacts(wid, step, form, fields)
@@ -483,6 +528,8 @@ def cmd_submit(argv):
     _mint(wid, asm, step, form, fields)
     _act_on_impasse(wid, asm, step, fields)
     _act_on_outcome(wid, asm, step, fields)
+    if outcome:
+        _perform(wid, asm, *outcome, fields)
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
 
@@ -518,7 +565,22 @@ def _check_plan(form, fields):
 # Rejected: a table of field ids and their legal values kept here. It is the
 #   same list written twice, and the copy that matters is the one in the form:
 #   the engine would go on enforcing the old list against a reworded note.
-def _check_vocabulary(form, fields):
+def _decided_here(asm, step):
+    """The field this step's assembly already declares outcomes for, if any.
+
+    `_outcome` refuses an undeclared value on that field, and refuses it
+    better: the assembly pairs each value with what it *does*, so the values
+    and the acts are declared together and the engine names neither. This
+    check stands down there rather than running first and refusing on
+    stricter terms -- one field, one enforcer.
+    """
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    t = seg.get("transition", {})
+    spec = t if step.get("form") == t.get("form") else seg
+    return spec.get("decides")
+
+
+def _check_vocabulary(asm, step, form, fields):
     """A value the engine cannot act on refuses instead of releasing the step.
 
     Checked before anything is journaled, because past that point the submit
@@ -529,18 +591,16 @@ def _check_vocabulary(form, fields):
     its literal prefix alone, which leaves a bare `drop` a known move with a
     missing argument -- refused, by name, where the argument is checked.
     """
+    decided = _decided_here(asm, step)
     for f in form["fields"]:
         vocab = forms.enforced_vocabulary(f)
-        if not vocab or f["id"] not in fields:
+        if not vocab or f["id"] not in fields or f["id"] == decided:
             continue
         value = str(fields[f["id"]]).strip()
-        for alt in vocab:
-            head = alt.split("<")[0].strip().lower()
-            if value.lower() == head or ("<" in alt and value.lower().startswith(head + " ")):
-                break
-        else:
+        word = forms.leading_word(value)
+        if word not in [alt.split("<")[0].strip().lower() for alt in vocab]:
             raise SystemExit(render.refusal(
-                f["id"], f"{value or 'empty'!r} is not a value this step can act on",
+                f["id"], f"{word or 'empty'!r} is not a value this step can act on",
                 escape="one of: " + " | ".join(vocab)))
 
 
@@ -576,24 +636,77 @@ def _act_on_impasse(wid, asm, step, fields):
     seg = _impasse_segment(asm, step)
     if not seg:
         return
-    ruling = fields.get("ruling", "").strip().lower()
+    ruling = forms.leading_word(fields.get("ruling", ""))
     if ruling == "rework":
         _mint_segment_round(wid, asm, seg["id"], prefill=step.get("prefill") or {},
                             form=seg.get("rework-form", ""))
     elif ruling == "advance":
-        # A transition with a form is a step someone fills, so advancing mints
-        # it. run-a-gate's review transition has none -- releasing is the whole
-        # of it -- so there is nothing to mint and the run walks on to close.
-        t = seg.get("transition", {})
-        if t.get("form"):
-            journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
-                           segment=seg["id"], form=t["form"], filler="conductor",
-                           anchor=t.get("anchor", False), terminal=t.get("terminal", False),
-                           validates=t.get("validates", ""), source="mint")
+        _mint_transition(wid, seg)
     # `up` mints nothing, which is the whole of it. Not refilling is what an
     # escalate verdict already does (run.merged_verdict), so the run walks to
     # its terminal step and its record goes to whoever dispatched it -- the
     # parent for a child, the human for a root run. One way up, not two.
+
+
+def _mint_transition(wid, seg, prefill=None):
+    """One fresh transition step for a segment: a board segment's refill,
+    and the impasse's advance. A transition with a form is a step someone
+    fills, so this mints it; one without -- run-a-gate's review -- has
+    nothing to mint, and the run walks on."""
+    t = seg.get("transition", {})
+    if t.get("form"):
+        journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
+                       segment=seg["id"], form=t["form"], filler=t.get("filler", "conductor"),
+                       prefill=prefill or {}, anchor=t.get("anchor", False),
+                       terminal=t.get("terminal", False), validates=t.get("validates", ""),
+                       source="mint")
+
+
+# [declared-outcomes]
+# Rationale: a transition releases, refills, or goes elsewhere, and which
+#   word does which is the assembly's to say: `decides` names the field,
+#   `[[outcome]]` rows pair a `value` with what it `does` -- release; refill
+#   [<segment>]; skip <segment>; several joined by ";". The engine matches
+#   the field's first word, refuses one nothing declares naming those it
+#   can act on, and performs the verbs. No assembly's words appear here.
+# See: #32 -- gate adjudication still carries its own interpreter.
+def _outcome(asm, step, fields):
+    """(segment, does) for the outcome this submit selects; None when the
+    step declares none or the field is nulled. Checked before the submit
+    lands, so a value the engine cannot act on never advances the run."""
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    t = seg.get("transition", {})
+    spec = t if step.get("form") == t.get("form") else seg
+    field = spec.get("decides")
+    if not field or field not in fields:
+        return None
+    value = forms.leading_word(fields[field])
+    if value.startswith(("waived", "unknown")):
+        return None
+    legal = {o["value"]: o.get("does", "release") for o in spec.get("outcome", [])}
+    if value not in legal:
+        raise SystemExit(render.refusal(
+            field, f"{value or 'empty'!r} is not an outcome this step declares",
+            escape="one of: " + ", ".join(legal)))
+    return seg, legal[value]
+
+
+def _perform(wid, asm, seg, does, fields):
+    """The outcome's verbs, in order, against freshly folded state -- the
+    deciding submit is already journaled, so `skip` never closes it."""
+    for verb in filter(None, (v.strip() for v in does.split(";"))):
+        word, _, target = verb.partition(" ")
+        tseg = next((s for s in asm["segment"] if s["id"] == (target or seg["id"])), seg)
+        if word == "skip":
+            st = runmod.state(wid)
+            for s in st["steps"]:
+                if s["segment"] == tseg["id"] and s["id"] not in st["done"]:
+                    journal.append(wid, "amend", action="close", segment=tseg["id"],
+                                   step=s["id"], reason=does, anchor=s.get("anchor", False))
+        elif word == "refill" and tseg.get("interior") == "board":
+            _mint_transition(wid, tseg, prefill=fields)
+        elif word == "refill":
+            _mint_segment_round(wid, asm, tseg["id"], prefill=fields)
 
 
 def _check_outcome(st, step, fields):
@@ -604,7 +717,7 @@ def _check_outcome(st, step, fields):
         return
     outcome = fields.get("plan-holds", "").strip()
     pending = _pending_gates(st, exclude=_own_gate(step["id"]))
-    if outcome.lower().startswith("drop"):
+    if forms.leading_word(outcome) == "drop":
         parts = outcome.split(None, 1)
         target = parts[1].strip() if len(parts) > 1 else ""
         if not target:
@@ -615,7 +728,7 @@ def _check_outcome(st, step, fields):
             raise SystemExit(render.refusal(
                 "plan-holds", f"{target!r} is not a pending gate",
                 escape="pending: " + (", ".join(pending) or "none")))
-    elif outcome.lower() == "remint":
+    elif forms.leading_word(outcome) == "remint":
         if not fields.get("gate-spec"):
             raise SystemExit(render.refusal(
                 "gate-spec", "remint needs a new gate spec -- a remint with no "
@@ -631,14 +744,14 @@ def _act_on_outcome(wid, asm, step, fields):
     if step.get("form") != _GATE_ADJUDICATION_FORM:
         return
     outcome = fields.get("plan-holds", "").strip()
-    if outcome.lower().startswith("drop"):
+    if forms.leading_word(outcome) == "drop":
         target = outcome.split(None, 1)[1].strip()
         st = runmod.state(wid)
         _close_gate(wid, st, target, outcome)
-    elif outcome.lower() == "remint":
+    elif forms.leading_word(outcome) == "remint":
         seg = next(s for s in asm["segment"] if s.get("dispatches") == "run-a-gate")
         _mint_gates(wid, seg, fields["gate-spec"])
-    elif outcome.lower() == "replan":
+    elif forms.leading_word(outcome) == "replan":
         # Every gate still pending gets closed by name -- explicit entries,
         # never a silent sweep -- and the plan segment gets one fresh round
         # to try again, carrying what this gate taught us.
@@ -736,13 +849,20 @@ def _seed_board(template, dest, rows):
     """
     from engine import tomlw
     text = template.read_text().rstrip()
-    head, sep, example = text.partition("[[question]]")
+    table = re.search(r"^\[\[(\w+)\]\]", text, re.M)
+    head, sep, example = text.partition(table.group(0))
     quoted = "\n".join(
         line if line.startswith("#") else f"# {line}" if line.strip() else "#"
         for line in (sep + example).splitlines()
     )
-    body = "".join(tomlw.table("question", {"id": f"q{i+1}", "status": "open", **r})
-                   + "\n" for i, r in enumerate(rows))
+    # The template's blank row is the convention: what the rows are called,
+    # how an id is spelled, which status a fresh row starts in.
+    blank = tomllib.loads(sep + example)[table.group(1)][0]
+    prefix = re.match(r"[a-z]*", str(blank.get("id", ""))).group(0) or "r"
+    body = ""
+    for i, r in enumerate(rows):
+        row = {"id": f"{prefix}{i+1}", "status": blank.get("status", "open"), **r}
+        body += tomlw.table(table.group(1), row) + "\n"
     dest.write_text(f"{head.rstrip()}\n\n# --- the columns, and what they mean ---\n"
                     f"{quoted}\n\n# --- the board ---\n\n{body}")
 
@@ -798,13 +918,33 @@ def _amend_add(wid, st, argv, reason):
     if not seg:
         raise SystemExit(render.refusal("segment", "amend add needs --segment"))
     form_ref = _opt(argv, "--form")
-    if not form_ref:
-        raise SystemExit(render.refusal("form", "amend add needs --form"))
+    if not form_ref and "--transition" not in argv:
+        raise SystemExit(render.refusal("form", "amend add needs --form, or --transition"))
     asm = runmod.load_assembly(st["assembly"])
     if not any(s["id"] == seg for s in asm["segment"]):
         raise SystemExit(render.refusal(
             "segment", f"no segment named {seg!r}",
             escape="segments: " + ", ".join(s["id"] for s in asm["segment"])))
+    if "--transition" in argv:
+        # The segment's transition as the assembly declares it today -- form
+        # and panel both. A run stops depending on its template at open, so
+        # this is how a live run catches up with a template that grew a
+        # panelist: one journaled amend, loud if the step it replaces was
+        # anchored.
+        t = next(x for x in asm["segment"] if x["id"] == seg).get("transition", {})
+        sid = f"{seg}-a{secrets.token_hex(2)}"
+        step = {"id": sid, "segment": seg, "filler": t.get("filler", "conductor"),
+                "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
+                "validates": t.get("validates", ""), "source": "amend"}
+        if t.get("form"):
+            step["form"] = t["form"]
+        if t.get("panel"):
+            step["panel"] = t["panel"]
+        journal.append(wid, "step", **step)
+        journal.append(wid, "amend", action="add", segment=seg, step=sid, reason=reason,
+                       anchor=step["anchor"])
+        print(f"amended: added {sid} to {seg}\n")
+        return cmd_status([wid])
     # Random, not counted: two sessions amending at once both compute the same
     # next number, and duplicate ids are worse than ugly -- `done` is keyed by
     # step id, so one submit would silently complete every step sharing it.
@@ -1016,7 +1156,7 @@ def cmd_close(argv):
     if st.get("parent") and st.get("parent_step"):
         if journal.exists(st["parent"]):
             journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
-                           fields=fields, summary=summary)
+                           row=st.get("row", ""), fields=fields, summary=summary)
             _act_on_verdicts(st["parent"], st["parent_step"])
         else:
             # Writing anyway would create the parent's journal from nothing --

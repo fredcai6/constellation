@@ -1,0 +1,30 @@
+# Anchor: open. Owned by explore-an-idea; filled by the conductor.
+
+imperative = """
+Record the idea in the human's words and seed the ideas board with the first
+cycle's starting questions. Seeds are a starting cut, not a script — the
+board grows from here."""
+
+[[field]]
+id = "idea"
+kind = "evidence"
+note = "The raw idea, in the human's words — the itch, not a solution."
+
+[[field]]
+id = "authority"
+kind = "decision"
+note = "Who your principal is — always a human here — and what they own: every decision that narrows the board, and the converge."
+
+[[field]]
+id = "seeds"
+kind = "plan"
+mints = "board rows"
+note = """
+One block per seed, minted as rows on the ideas board (IDEAS.toml). The
+first cycle seeds are the five starting questions as threads: the itch; for
+whom; what done feels like; what already exists; what would make this
+pointless."""
+
+  [[field.item]]
+  id = "idea"
+  note = "The idea or thread, one line."

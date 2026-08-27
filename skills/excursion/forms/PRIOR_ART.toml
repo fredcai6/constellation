@@ -1,0 +1,30 @@
+# Verdict: prior art. Owned by the excursion skill; the one step of
+# find-prior-art. The brief arrives as prefill; your return stamps back to
+# the row that dispatched you.
+
+imperative = """
+Find what the world already thinks about the question above: the
+literature, the ecosystem, this codebase's own history. Primary sources; a
+citation per claim; contradictions surfaced, never smoothed into consensus."""
+
+[[field]]
+id = "findings"
+kind = "evidence"
+note = "Each claim with its source. Where sources disagree, both sides and what the disagreement turns on."
+
+[[field]]
+id = "searched"
+kind = "evidence"
+note = """
+Search terms, sources consulted, recency cutoff. This is the scope of a
+null: "nothing exists" means nothing here, by these terms, up to this date."""
+
+[[field]]
+id = "verdict"
+kind = "evidence"
+note = "The answer to the named question, scoped to `searched` — and on a null, the next variant worth trying."
+
+[[field]]
+id = "regenerate"
+kind = "evidence"
+note = "How to reproduce this: the queries and where they were run, pinned to the date."

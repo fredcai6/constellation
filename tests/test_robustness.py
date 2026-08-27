@@ -23,6 +23,16 @@ def _open(wid="issue17"):
     cli.main(["open", "run-an-issue", "--id", wid, "--title", "t"])
 
 
+def _asm():
+    """An assembly declaring no outcomes, so `_check_vocabulary` is the only
+    enforcer -- the case this test is about."""
+    return {"segment": [{"id": "s", "transition": {}}]}
+
+
+def _step():
+    return {"segment": "s", "form": "SYNTHETIC.toml"}
+
+
 def tmp_form(workdir, body):
     """A form on disk, for a shape the corpus does not have and should not
     gain just to be tested against."""
@@ -102,16 +112,13 @@ def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(workdir, capsy
     assert len(journal.read("c1")) == before          # not even the submit landed
     assert not runmod.state("c1")["done"]
 
-    # a legal word with an argument it does not take is refused the same way:
-    # the acts compare whole strings, so `pass, clean` performs nothing
-    _fill_critic("c1", "pass, clean")
-    with pytest.raises(SystemExit):
-        cli.main(["c1", "submit"])
-
-    # what the acts do read -- the value, in any case -- goes through
-    _fill_critic("c1", "Pass")
+    # what the acts do read is the leading word, in any case -- so a declared
+    # word carrying its reason is the value, not a near-miss, and the sentence
+    # rides along into the record rather than having to be left out to be read
+    _fill_critic("c1", "Pass, nothing here would change what gets built")
     cli.main(["c1", "submit"])
-    assert runmod.state("c1")["done"]["verdict"]["fields"]["verdict"] == "Pass"
+    landed = runmod.state("c1")["done"]["verdict"]["fields"]["verdict"]
+    assert landed == "Pass, nothing here would change what gets built"
 
 
 def test_a_near_miss_verb_refuses_instead_of_rendering_the_room(workdir, capsys):
@@ -432,9 +439,9 @@ note = "advance | rework | up. What happens to the artifact."
     assert forms.enforced_vocabulary(decision) == ["advance", "rework", "up"]
 
     # the prose field takes an answer that is none of its three "alternatives"
-    cli._check_vocabulary(form, {"risks": "the parser drops the last record",
+    cli._check_vocabulary(_asm(), _step(), form, {"risks": "the parser drops the last record",
                                  "ruling": "rework"})
 
     with pytest.raises(SystemExit) as e:
-        cli._check_vocabulary(form, {"ruling": "keep going"})
+        cli._check_vocabulary(_asm(), _step(), form, {"ruling": "keep going"})
     assert "not a value this step can act on" in str(e.value)

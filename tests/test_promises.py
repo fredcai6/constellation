@@ -167,9 +167,15 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
 # step-form when its caller names no rework form, so both roles receive it.
 MINT_TARGETS = {
     ("_open_child", None): ("panel",),                 # a panelist's dispatch
-    ("_act_on_outcome", None): ("step-form",),         # a replan's fresh round
+    # a replan's fresh round -- `_act_on_outcome` mints into the segment it
+    # names literally (`_mint_segment_round(wid, asm, "plan", ...)`), so only a
+    # segment called `plan` can receive it
+    ("_act_on_outcome", None): (("step-form", "plan"),),
     ("_act_on_verdicts", "outlet"): ("impasse-form",),
-    ("_act_on_verdicts", 'seg.get("rework-form", "")'): ("rework-form", "step-form"),
+    # `_mint_segment_round` takes the rework-form where the segment declares
+    # one and the step-form otherwise -- a fallback, not both. Sweeping the
+    # union holds a step-form to keys no revise can ever hand it.
+    ("_act_on_verdicts", 'seg.get("rework-form", "")'): ("rework-form|step-form",),
 }
 
 # A form that receives a minted key its own prose never names, and the file
@@ -214,14 +220,26 @@ def _prefill_mints():
     return found
 
 
-def _forms_in_role(role):
+def _forms_in_role(role, segment=None):
     """Every form any assembly puts in one role -- `step-form`, `rework-form`,
-    `impasse-form`, or `panel`."""
+    `impasse-form`, or `panel`.
+
+    `segment` narrows to segments of that name, for a mint that names the
+    segment it targets rather than deriving it. Narrowing, never waiving: a
+    form reached by no path to the mint cannot be handed its keys, and holding
+    it to them reports a defect that cannot occur.
+    """
     paths = set()
     for a in ASSEMBLIES:
         for seg in tomllib.load(open(a, "rb"))["segment"]:
-            refs = ([p["form"] for p in seg.get("transition", {}).get("panel", [])]
-                    if role == "panel" else [seg.get(role)])
+            if segment and seg["id"] != segment:
+                continue
+            if role == "panel":
+                refs = [p["form"] for p in seg.get("transition", {}).get("panel", [])]
+            elif "|" in role:
+                refs = [next((seg[k] for k in role.split("|") if seg.get(k)), None)]
+            else:
+                refs = [seg.get(role)]
             for ref in filter(None, refs):
                 paths.add(ROOT / ref if ref.startswith("skills/") else a.parent / ref)
     return sorted(paths)
@@ -244,7 +262,8 @@ def test_every_prefill_key_the_engine_mints_is_named_by_the_form_that_receives_i
         f"{sorted(set(mints) ^ set(MINT_TARGETS))}")
     for site, keys in mints.items():
         for role in MINT_TARGETS[site]:
-            for path in _forms_in_role(role):
+            role, seg_name = role if isinstance(role, tuple) else (role, None)
+            for path in _forms_in_role(role, seg_name):
                 text, rel = path.read_text(), str(path.relative_to(ROOT))
                 for key in sorted(keys):
                     if re.search(rf"\b{re.escape(key)}\b", text):
@@ -308,6 +327,16 @@ VOCABULARIES = [
      ["pass", "revise", "escalate"], runmod.merged_verdict),
     ("skills/reviewer/forms/REVIEW.toml", "verdict",
      ["pass", "revise", "escalate"], runmod.merged_verdict),
+    # These two the engine enforces and no engine code reads: the value is
+    # carried in prefill and the reader is the agent on the other side. Saying
+    # so is the point -- a string here instead of a function is a claim that
+    # nothing branches on it, and the sweep below holds it to that.
+    ("assemblies/explore-an-idea/forms/CYCLE.toml", "flavor",
+     ["shotgun", "compare", "refine"],
+     "carried to the next explore round; no engine branch reads it"),
+    ("skills/excursion/forms/PROTOTYPE.toml", "branch",
+     ["logic", "ui", "measurement"],
+     "recorded for the dispatcher; no engine branch reads it"),
 ]
 
 
@@ -318,22 +347,70 @@ def test_every_vocabulary_the_engine_enforces_is_the_one_the_form_teaches():
     act downstream actually performs. An alternative nothing performs is the
     menu-of-outcomes defect again -- offered to the agent, acted on by
     nothing."""
+    decided = {fid for name in runmod.assemblies()
+               for seg in runmod.load_assembly(name)["segment"]
+               for spec in (seg, seg.get("transition", {}))
+               if (fid := spec.get("decides"))}
     swept = {}
     for f in FORMS:
         for field in forms.load(f)["fields"]:
             vocab = forms.enforced_vocabulary(field)
-            if vocab:
+            # a field the assembly declares outcomes for is `_outcome`'s, not
+            # `_check_vocabulary`'s -- covered by the test below instead
+            if vocab and field["id"] not in decided:
                 swept[(str(f.relative_to(ROOT)), field["id"])] = vocab
 
     expected = {(path, fid): vocab for path, fid, vocab, _ in VOCABULARIES}
     assert swept == expected, "a note was reworded out of the enum the engine enforces"
 
+    engine_src = "".join((ROOT / "engine" / f).read_text()
+                         for f in ("cli.py", "run.py", "forms.py", "render.py"))
     for path, fid, vocab, act in VOCABULARIES:
+        if isinstance(act, str):
+            # the claim is that nothing branches on it; hold the claim
+            for alt in vocab:
+                assert not re.search(rf'["\']{re.escape(alt)}["\']', engine_src), \
+                    f"{path}: {fid} is recorded as read by no engine branch, but " \
+                    f"{alt!r} appears in the engine -- update the entry or the claim"
+            continue
         src = inspect.getsource(act)
         for alt in vocab:
             head = alt.split("<")[0].strip()
             assert re.search(rf"\b{re.escape(head)}\b", src), \
                 f"{path}: {fid} offers {alt!r}; {act.__name__} does nothing with it"
+
+
+def test_a_declared_outcome_and_its_field_note_are_the_same_list():
+    """The other half of the same promise, for the fields `_outcome` owns.
+
+    An assembly names the values it acts on in `[[outcome]]` rows; the form's
+    note names the values it tells the agent. Nothing made those one string,
+    so they can drift -- the agent offered a word the assembly cannot perform,
+    or a row nobody is told about. Both are the menu-of-outcomes defect, from
+    opposite ends.
+    """
+    checked = 0
+    for name in runmod.assemblies():
+        asm = runmod.load_assembly(name)
+        for seg in asm["segment"]:
+            for spec in (seg, seg.get("transition", {})):
+                fid = spec.get("decides")
+                if not fid:
+                    continue
+                declared = [o["value"] for o in spec.get("outcome", [])]
+                taught = next(
+                    (forms.vocabulary(fl["note"])
+                     for key in ("form", "step-form", "rework-form", "impasse-form")
+                     for src in (spec.get(key), seg.get(key)) if src
+                     for fl in forms.load(runmod.resolve_form(asm, src))["fields"]
+                     if fl["id"] == fid), None)
+                assert taught is not None, \
+                    f"{name}/{seg['id']}: decides {fid!r}, and no form it reaches has that field"
+                assert declared == taught, (
+                    f"{name}/{seg['id']}: the assembly acts on {declared} and the "
+                    f"form teaches {taught}")
+                checked += 1
+    assert checked, "no assembly declares an outcome -- this test swept nothing"
 
 
 SKILL_BUDGETS = {"commander": 1500, "implementer": 800}

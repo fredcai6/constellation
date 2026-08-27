@@ -9,7 +9,7 @@ condition it prevents.
 import pathlib
 import tomllib
 
-from engine import journal
+from engine import forms, journal
 
 
 def assembly_dir(name):
@@ -73,6 +73,27 @@ def role_of(assembly, step):
     """Which role fills this step, with the `conductor` indirection resolved."""
     filler = step.get("filler", "")
     return (assembly or {}).get("conductor", "") if filler == "conductor" else filler
+
+
+# [hat]
+# Rationale: nothing dispatches a board's worker. Its transition is filled by
+#   the conductor, who works the board in the worker's posture -- the
+#   commander wears the interrogator's hat -- because a live principal is
+#   reachable only from the top of the run. A run with a parent has no human
+#   in reach, so it wears the delegated variant where one is written; where
+#   none is, the plain posture, which is the parked state (#15).
+# Rejected: a worker child driving its parent's board. A child not handed an
+#   id cannot drive its dispatcher's run, by design, and the board is the
+#   parent's own segment.
+def hat(assembly, step, st):
+    """The posture a step is worked under: the filler's, or on a board
+    segment the worker's -- delegated when the run has a parent."""
+    seg = next((s for s in assembly["segment"] if s["id"] == step.get("segment")), {})
+    worker = seg.get("worker", "") if seg.get("interior") == "board" else ""
+    if not worker:
+        return role_of(assembly, step)
+    delegated = f"{worker}-delegated"
+    return delegated if st.get("parent") and resolve_skill(delegated) else worker
 
 
 # [rework-rounds]
@@ -194,10 +215,10 @@ def _ordered(raw_steps, seg_order):
 def merged_verdict(returns):
     """Escalate outranks revise outranks pass: a wrong spec outranks a wrong
     diff, and any blocking finding outranks a clean one."""
-    vs = [(r.get("fields") or {}).get("verdict", "").strip().lower() for r in returns]
-    if any(v.startswith("escalate") for v in vs):
+    vs = [forms.leading_word((r.get("fields") or {}).get("verdict", "")) for r in returns]
+    if "escalate" in vs:
         return "escalate"
-    if any(v.startswith("revise") for v in vs):
+    if "revise" in vs:
         return "revise"
     return "pass"
 
@@ -208,21 +229,25 @@ def state(work_id):
     if not entries:
         return None
     st = {"id": work_id, "steps": [], "done": {}, "boards": {}, "notes": [],
-          "returns": {}, "returns_by_child": {}, "amends": [], "checks": [],
-          "measures": [],
-          "closed": False}
+          "returns": {}, "returns_by_child": {}, "row_returns": {}, "amends": [],
+          "checks": [], "measures": [], "closed": False}
     raw_steps = []
     for e in entries:
         kind = e.get("kind")
         if kind == "run":
             st.update(title=e.get("title", ""), assembly=e.get("assembly", ""),
                       opened=e.get("at", ""), parent=e.get("parent", ""),
-                      parent_step=e.get("parent_step", ""), model=e.get("model", ""))
+                      parent_step=e.get("parent_step", ""), model=e.get("model", ""),
+                      row=e.get("row", ""))
         elif kind == "step":
             raw_steps.append(dict(e))
         elif kind == "submit":
             st["done"][e["step"]] = e
             st["checks"].extend(e.get("checks") or [])
+        elif kind == "return" and e.get("row"):
+            # An excursion's return: it answers a board row, so it lands
+            # under the row and completes no step.
+            st["row_returns"].setdefault(e["row"], []).append(e)
         elif kind == "return":
             # `returns` accumulates in arrival order rather than overwriting --
             # a panel step gets one return per dispatched panelist, all on the

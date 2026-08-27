@@ -1,0 +1,33 @@
+# Verdict: picture. Owned by the excursion skill; the one step of
+# draw-a-picture. The brief arrives as prefill; your return stamps back to
+# the row that dispatched you.
+
+imperative = """
+Make the question above visible: a table, a plot, a dump shaped so the
+anomaly has nowhere to hide. Get the data however it takes — a query, an
+instrument on the running system, a light model that generates it. The view
+is the deliverable. Say what it shows and what it cannot show, because a
+chart flatters."""
+
+[[field]]
+id = "artifact"
+kind = "artifact"
+note = "The view, in the work location — the file a reader opens, not a description of it."
+
+[[field]]
+id = "shows"
+kind = "evidence"
+note = """
+What the view establishes, grounded in it — and what it cannot: the data it
+lacks, the axis it hides, the range it did not cover. That second half is
+the scope of every claim the first half makes."""
+
+[[field]]
+id = "verdict"
+kind = "evidence"
+note = "The answer to the named question, scoped to `shows` — and on a null, the next view worth drawing."
+
+[[field]]
+id = "regenerate"
+kind = "evidence"
+note = "The command that rebuilds the view from its data, pinned to the revision it ran against."
