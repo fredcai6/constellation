@@ -63,11 +63,27 @@ anchor = true
 # plan -- the form is the same cold critic, the criteria are this
 # assembly's.
 
+  # One criterion per panelist, as run-an-issue's plan transition: three cold
+  # readers disagreeing is a panel; one reader holding three criteria is a
+  # reviewer with a checklist.
+
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/CRITIC.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "completeness: is every high-level ambiguity resolved; restraint: does it fix the shape and leave implementation to the issues it cuts; simplicity: what can be deleted"
+  criteria = "completeness: is every high-level ambiguity resolved -- could two readers cut different issues from this spec"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "restraint: does it fix the shape and leave implementation to the issues it cuts -- name every line that decides below the issue grain"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "simplicity: what can be deleted"
 
 [[segment]]
 id = "close"

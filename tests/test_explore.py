@@ -122,11 +122,13 @@ def _to_rework(explore):
     _fill(explore, "SPEC.toml", 'spec = "SPEC.md"\nrivals = "waived: none"\nkey-terms = "waived: none"\n')
     _spine(explore, "submit")
     panel = _current(explore)["id"]
-    out, _ = _spine("open", "give-a-verdict", "--parent", explore, "--step", f"{panel}.p1")
-    critic = out.split()[1]
-    _fill(critic, "CRITIC.toml", 'findings = "gap: no point"\nvocabulary = "waived: ok"\nverdict = "revise"\n')
-    _spine(critic, "submit")
-    _spine(critic, "close")
+    # Three cold readers, one per criterion; one revise among them refills.
+    for n, verdict in enumerate(("revise", "pass", "pass"), start=1):
+        out, _ = _spine("open", "give-a-verdict", "--parent", explore, "--step", f"{panel}.p{n}")
+        critic = out.split()[1]
+        _fill(critic, "CRITIC.toml", f'findings = "gap: no point"\nvocabulary = "waived: ok"\nverdict = "{verdict}"\n')
+        _spine(critic, "submit")
+        _spine(critic, "close")
     assert _current(explore)["form"] == "forms/REWORK.toml"
 
 
