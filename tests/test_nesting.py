@@ -201,15 +201,24 @@ def _fill_critic(wid, verdict, findings="none: waived: clean"):
 
 
 def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean"):
-    """Open plan-to-execute's one panelist, fill and close it -- the
-    two-voices transition's panel half, which must pass before its form
-    (PLAN_TO_EXECUTE.toml) is even reachable."""
-    step_id = runmod.state(wid)["current"]["id"]
-    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p1"])
-    panelist = f"{wid}.{step_id}.p1"
-    _fill_critic(panelist, verdict, findings)
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    """Open every one of plan-to-execute's panelists, fill and close each --
+    the two-voices transition's panel half, which must pass before its form
+    (PLAN_TO_EXECUTE.toml) is even reachable.
+
+    Driven off the assembly's own panel length rather than a pinned count:
+    the step completes on the last verdict, so a test that closes one of
+    three leaves the transition outstanding. `verdict` and `findings` apply
+    to every panelist; a caller wanting them to differ opens its own.
+    """
+    st = runmod.state(wid)
+    step_id = st["current"]["id"]
+    panel = next(s for s in st["steps"] if s["id"] == step_id)["panel"]
+    for n in range(1, len(panel) + 1):
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
+        panelist = f"{wid}.{step_id}.p{n}"
+        _fill_critic(panelist, verdict, findings)
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     return step_id
 
 

@@ -138,6 +138,7 @@ def skeleton(assembly):
             "anchor": t.get("anchor", False),
             "terminal": t.get("terminal", False),
             "validates": t.get("validates", ""),
+            "carries": t.get("carries", False),
             "source": "open",
         }
         if t.get("form"):

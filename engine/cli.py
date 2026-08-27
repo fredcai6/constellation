@@ -408,6 +408,16 @@ def cmd_submit(argv):
     _check_outcome(st, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
+
+    # A transition marked `carries` folds its fields into the run's own
+    # prefill, so everything dispatched afterwards gets them. Consolidate is
+    # the case this exists for: a panelist's prefill is built from prior steps
+    # in its own segment, so without this the run's understanding never crosses
+    # a segment boundary and the coldest reader in the run -- the one the
+    # understanding was written for -- is the only one who never sees it.
+    if step.get("carries"):
+        journal.append(wid, "prefill",
+                       fields={**(st.get("prefill") or {}), **fields})
     _mint(wid, asm, step, form, fields)
     _act_on_impasse(wid, asm, step, fields)
     _act_on_outcome(wid, asm, step, fields)

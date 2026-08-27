@@ -121,6 +121,15 @@ def _dispatch_critic(pwid, step_id, verdict="pass", findings="none: waived: clea
     return panelist
 
 
+def _dispatch_panel(pwid, step_id, verdict="pass", findings="none: waived: clean"):
+    """Clear a panel step: every panelist the assembly declares, not just the
+    first. The step completes on the last verdict, so closing one of three
+    leaves the transition outstanding."""
+    panel = next(s for s in runmod.state(pwid)["steps"] if s["id"] == step_id)["panel"]
+    for n in range(1, len(panel) + 1):
+        _dispatch_critic(pwid, step_id, verdict, findings, n=n)
+
+
 def _drive_to_plan_to_execute(wid="issue99"):
     """Open a real run-an-issue and drive it to the plan-to-execute
     transition, right after the plan interior is submitted -- the moment
@@ -159,7 +168,7 @@ def test_plan_to_execute_dispatches_its_critic_before_any_gate_is_minted(workdir
         cli.main([wid, "submit"])
     assert "outstanding" in str(e.value)
 
-    _dispatch_critic(wid, "plan", verdict="pass")
+    _dispatch_panel(wid, "plan", verdict="pass")
     capsys.readouterr()
 
     # now, and only now, is the mint form reachable
@@ -174,6 +183,29 @@ def test_plan_to_execute_dispatches_its_critic_before_any_gate_is_minted(workdir
     assert "plan" in st["done"]                     # the transition itself completed on submit
 
 
+def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdir, capsys):
+    """Consolidate `carries`, so its fields join the run's prefill and every
+    later dispatch gets them.
+
+    A panelist's prefill is built from prior steps in its *own* segment, so
+    without this the critic -- the coldest reader in the run, and the one
+    consolidate is written for -- is the only participant who never sees the
+    understanding. The critic form promises it arrives; this is what makes
+    that true rather than a claim.
+    """
+    wid = _drive_to_plan_to_execute()
+    capsys.readouterr()
+
+    assert runmod.state(wid)["prefill"]["learnings"] == "settled."
+
+    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])
+    capsys.readouterr()
+    prefill = runmod.state(f"{wid}.plan.p1")["prefill"]
+    assert prefill["learnings"] == "settled."      # the understanding crossed
+    assert prefill["plan"] == f".agent-work/{wid}/plan.md"   # the artifact still rides
+    assert prefill["criteria"].startswith("intent-fit")
+
+
 # -- 2. revise sends the plan back with findings attributed, panel re-fires -
 
 
@@ -181,7 +213,7 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
     wid = _drive_to_plan_to_execute()
     capsys.readouterr()
 
-    _dispatch_critic(wid, "plan", verdict="revise", findings="gap: gate 1 is untestable")
+    _dispatch_panel(wid, "plan", verdict="revise", findings="gap: gate 1 is untestable")
     capsys.readouterr()
 
     st = runmod.state(wid)
@@ -206,7 +238,7 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
     st = runmod.state(wid)
     assert st["current"]["id"] == fresh_panel["id"]
 
-    _dispatch_critic(wid, fresh_panel["id"], verdict="pass")
+    _dispatch_panel(wid, fresh_panel["id"], verdict="pass")
     capsys.readouterr()
     st = runmod.state(wid)
     assert st["current"]["id"] == fresh_panel["id"]   # resolved, waiting on its own form now
