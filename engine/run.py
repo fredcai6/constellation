@@ -229,21 +229,25 @@ def state(work_id):
     if not entries:
         return None
     st = {"id": work_id, "steps": [], "done": {}, "boards": {}, "notes": [],
-          "returns": {}, "returns_by_child": {}, "amends": [], "checks": [],
-          "measures": [],
-          "closed": False}
+          "returns": {}, "returns_by_child": {}, "row_returns": {}, "amends": [],
+          "checks": [], "measures": [], "closed": False}
     raw_steps = []
     for e in entries:
         kind = e.get("kind")
         if kind == "run":
             st.update(title=e.get("title", ""), assembly=e.get("assembly", ""),
                       opened=e.get("at", ""), parent=e.get("parent", ""),
-                      parent_step=e.get("parent_step", ""), model=e.get("model", ""))
+                      parent_step=e.get("parent_step", ""), model=e.get("model", ""),
+                      row=e.get("row", ""))
         elif kind == "step":
             raw_steps.append(dict(e))
         elif kind == "submit":
             st["done"][e["step"]] = e
             st["checks"].extend(e.get("checks") or [])
+        elif kind == "return" and e.get("row"):
+            # An excursion's return: it answers a board row, so it lands
+            # under the row and completes no step.
+            st["row_returns"].setdefault(e["row"], []).append(e)
         elif kind == "return":
             # `returns` accumulates in arrival order rather than overwriting --
             # a panel step gets one return per dispatched panelist, all on the

@@ -280,7 +280,7 @@ def drift(measures):
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, onward_to=None,
-           returns_from="", triage_notes=(), role=""):
+           returns_from="", triage_notes=(), role="", row_returns=None):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -333,6 +333,14 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
 
     if board:
         out.extend(_board(board))
+
+    for row_id, rets in (row_returns or {}).items():
+        # An excursion's return, under the row it answers, until the agent
+        # folds it into the board -- the engine never writes a board.
+        for r in rets:
+            out.append(f"  excursion returned to row {row_id} -- from {r.get('child', '')}")
+            out.append(_pairs(list((r.get("fields") or {}).items())))
+            out.append("")
 
     if triage_notes:
         # The candidates this run has already noted, so CLOSE.toml's triage

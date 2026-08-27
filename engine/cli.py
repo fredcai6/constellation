@@ -48,14 +48,15 @@ def _check_id(wid):
     return wid
 
 
-def mint_id(issue=None):
+def mint_id(issue=None, kind="issue"):
     """A tracker number when there is one -- it is already collision-free and
     it associates the run to the issue for free. Otherwise random: two
-    worktrees allocating in parallel cannot see each other's next number."""
+    worktrees allocating in parallel cannot see each other's next number.
+    The kind is the assembly's last word -- issue, gate, idea."""
     if issue:
         return f"issue{issue}"
     while True:
-        wid = f"issue{secrets.token_hex(2)}"
+        wid = f"{kind}{secrets.token_hex(2)}"
         if not journal.exists(wid):
             return wid
 
@@ -144,10 +145,10 @@ def cmd_open(argv):
     assembly = argv[0]
     parent = _opt(argv, "--parent")
     if parent:
-        return _open_child(assembly, parent, _opt(argv, "--step"))
+        return _open_child(assembly, parent, _opt(argv, "--step"), _opt(argv, "--row"))
     title = _opt(argv, "--title") or ""
     issue = _opt(argv, "--issue")
-    wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue))
+    wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue, kind=assembly.rsplit("-", 1)[-1]))
     if journal.exists(wid):
         raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
@@ -162,15 +163,19 @@ def cmd_open(argv):
 _PANEL_TAG = re.compile(r"^(.+)\.(p\d+)$")  # "<step-id>.pN" addresses one panelist
 
 
-def _open_child(assembly, parent, pstep_id):
+def _open_child(assembly, parent, pstep_id, row_id=""):
     """A child is dispatched, never composed: its id, its orders, and the
     tier it runs under all come from the parent's step. A panelist is the
     same mechanism one entry finer -- `<step-id>.pN` names which panel
     entry, and the tag rides the work id so several children can share one
-    parent step without colliding."""
+    parent step without colliding. An excursion is the same mechanism from
+    a board row: the row is its brief, and its return lands under the row
+    rather than completing any step."""
     pst = runmod.state(parent)
     if pst is None:
         raise SystemExit(render.located(f"no run named {parent}\n  open runs: spine"))
+    if row_id:
+        return _open_excursion(assembly, parent, pst, row_id)
     m = _PANEL_TAG.match(pstep_id or "")
     step_id, tag = (m.group(1), m.group(2)) if m else (pstep_id, "")
     n = int(tag[1:]) if tag else 0
@@ -227,6 +232,38 @@ def _open_child(assembly, parent, pstep_id):
             step = {**step, "form": panelist["form"]}
         journal.append(wid, "step", **step)
     print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
+    return cmd_status([wid])
+
+
+# [excursion]
+# Rationale: the row is the brief. Its string columns -- the idea or
+#   question, the excursion's named question and budget -- are the child's
+#   prefill, so nothing is typed twice and the board stays the record of
+#   what was asked. The return is journaled with the row, never as the
+#   step's: an excursion answers a row, and a row completes nothing.
+# Rejected: the engine writing the return into the board. Two writers on one
+#   file is the hazard a board avoids; the return renders, the agent folds.
+def _open_excursion(assembly, parent, pst, row_id):
+    seg_id, row = next(((sid, r) for sid, p in pst["boards"].items()
+                        for r in boards.rows(p) if r.get("id") == row_id), ("", None))
+    if row is None:
+        raise SystemExit(render.refusal(row_id, "no board row by that id",
+                                        escape=f"the board: spine {parent}"))
+    wid = _check_id(f"{parent}.{row_id}")
+    while journal.exists(wid):  # a second variant off the same row
+        wid = _check_id(f"{parent}.{row_id}-a{secrets.token_hex(2)}")
+    pasm = runmod.load_assembly(pst["assembly"])
+    seg = next((s for s in pasm["segment"] if s["id"] == seg_id), {})
+    prefill = {k: v for k, v in row.items()
+               if k not in ("id", "status") and isinstance(v, str) and v.strip()}
+    asm = runmod.load_assembly(assembly)
+    journal.append(wid, "run", title=boards.label(row)[:72], assembly=assembly,
+                   conductor=asm.get("conductor", ""), parent=parent,
+                   parent_step=seg_id, row=row_id, model=seg.get("model", ""))
+    journal.append(wid, "prefill", fields=prefill)
+    for step in runmod.skeleton(asm):
+        journal.append(wid, "step", **step)
+    print(f"opened {wid} -- an excursion from {parent}, row {row_id}\n")
     return cmd_status([wid])
 
 
@@ -364,7 +401,7 @@ def cmd_status(argv):
                         position=runmod.position(st, asm), board=board,
                         in_hand=forms.in_hand(dest) if dest.exists() else None,
                         triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"],
-                        role=runmod.hat(asm, step, st)))
+                        role=runmod.hat(asm, step, st), row_returns=st["row_returns"]))
     return 0
 
 
@@ -448,6 +485,7 @@ def cmd_submit(argv):
     _check_plan(form, fields)
     _check_impasse(asm, step, fields)
     _check_outcome(st, step, fields)
+    outcome = _outcome(asm, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
     _measure_artifacts(wid, step, form, fields)
@@ -464,6 +502,8 @@ def cmd_submit(argv):
     _mint(wid, asm, step, form, fields)
     _act_on_impasse(wid, asm, step, fields)
     _act_on_outcome(wid, asm, step, fields)
+    if outcome:
+        _perform(wid, asm, *outcome, fields)
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
 
@@ -535,19 +575,73 @@ def _act_on_impasse(wid, asm, step, fields):
         _mint_segment_round(wid, asm, seg["id"], prefill=step.get("prefill") or {},
                             form=seg.get("rework-form", ""))
     elif ruling == "advance":
-        # A transition with a form is a step someone fills, so advancing mints
-        # it. run-a-gate's review transition has none -- releasing is the whole
-        # of it -- so there is nothing to mint and the run walks on to close.
-        t = seg.get("transition", {})
-        if t.get("form"):
-            journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
-                           segment=seg["id"], form=t["form"], filler="conductor",
-                           anchor=t.get("anchor", False), terminal=t.get("terminal", False),
-                           validates=t.get("validates", ""), source="mint")
+        _mint_transition(wid, seg)
     # `up` mints nothing, which is the whole of it. Not refilling is what an
     # escalate verdict already does (run.merged_verdict), so the run walks to
     # its terminal step and its record goes to whoever dispatched it -- the
     # parent for a child, the human for a root run. One way up, not two.
+
+
+def _mint_transition(wid, seg, prefill=None):
+    """One fresh transition step for a segment: a board segment's refill,
+    and the impasse's advance. A transition with a form is a step someone
+    fills, so this mints it; one without -- run-a-gate's review -- has
+    nothing to mint, and the run walks on."""
+    t = seg.get("transition", {})
+    if t.get("form"):
+        journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
+                       segment=seg["id"], form=t["form"], filler=t.get("filler", "conductor"),
+                       prefill=prefill or {}, anchor=t.get("anchor", False),
+                       terminal=t.get("terminal", False), validates=t.get("validates", ""),
+                       source="mint")
+
+
+# [declared-outcomes]
+# Rationale: a transition releases, refills, or goes elsewhere, and which
+#   word does which is the assembly's to say: `decides` names the field,
+#   `[[outcome]]` rows pair a `value` with what it `does` -- release; refill
+#   [<segment>]; skip <segment>; several joined by ";". The engine matches
+#   the field's first word, refuses one nothing declares naming those it
+#   can act on, and performs the verbs. No assembly's words appear here.
+# See: #32 -- gate adjudication still carries its own interpreter.
+def _outcome(asm, step, fields):
+    """(segment, does) for the outcome this submit selects; None when the
+    step declares none or the field is nulled. Checked before the submit
+    lands, so a value the engine cannot act on never advances the run."""
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    t = seg.get("transition", {})
+    spec = t if step.get("form") == t.get("form") else seg
+    field = spec.get("decides")
+    if not field or field not in fields:
+        return None
+    words = str(fields[field]).split()
+    value = words[0].strip(".,;:").lower() if words else ""
+    if value.startswith(("waived", "unknown")):
+        return None
+    legal = {o["value"]: o.get("does", "release") for o in spec.get("outcome", [])}
+    if value not in legal:
+        raise SystemExit(render.refusal(
+            field, f"{value or 'empty'!r} is not an outcome this step declares",
+            escape="one of: " + ", ".join(legal)))
+    return seg, legal[value]
+
+
+def _perform(wid, asm, seg, does, fields):
+    """The outcome's verbs, in order, against freshly folded state -- the
+    deciding submit is already journaled, so `skip` never closes it."""
+    for verb in filter(None, (v.strip() for v in does.split(";"))):
+        word, _, target = verb.partition(" ")
+        tseg = next((s for s in asm["segment"] if s["id"] == (target or seg["id"])), seg)
+        if word == "skip":
+            st = runmod.state(wid)
+            for s in st["steps"]:
+                if s["segment"] == tseg["id"] and s["id"] not in st["done"]:
+                    journal.append(wid, "amend", action="close", segment=tseg["id"],
+                                   step=s["id"], reason=does, anchor=s.get("anchor", False))
+        elif word == "refill" and tseg.get("interior") == "board":
+            _mint_transition(wid, tseg, prefill=fields)
+        elif word == "refill":
+            _mint_segment_round(wid, asm, tseg["id"], prefill=fields)
 
 
 def _check_outcome(st, step, fields):
@@ -944,7 +1038,7 @@ def cmd_close(argv):
     if st.get("parent") and st.get("parent_step"):
         if journal.exists(st["parent"]):
             journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
-                           fields=fields, summary=summary)
+                           row=st.get("row", ""), fields=fields, summary=summary)
             _act_on_verdicts(st["parent"], st["parent_step"])
         else:
             # Writing anyway would create the parent's journal from nothing --

@@ -24,9 +24,19 @@ worker = "explorer"
 anchor = true
 form = "forms/CYCLE.toml"
 filler = "conductor"
-# The three outcomes of `decision`: `cycle` refills -- this transition is
-# minted again with the flavor as prefill and the board untouched;
-# `converge` releases to spec; `shelve` releases past spec to close.
+decides = "decision"
+
+  [[segment.transition.outcome]]
+  value = "cycle"
+  does = "refill"        # this transition minted again; the board untouched
+
+  [[segment.transition.outcome]]
+  value = "converge"
+  does = "release"
+
+  [[segment.transition.outcome]]
+  value = "shelve"
+  does = "skip spec"     # past spec to close; the skip is loud, spec is anchored
 
 [[segment]]
 id = "spec"
@@ -36,6 +46,15 @@ step-form = "forms/SPEC.toml"
 # disposition here is the human's, so a fourth round is already their call.
 rework-form = "forms/REWORK.toml"
 worker = "conductor"
+decides = "next"       # REWORK.toml's; SPEC.toml has no such field
+
+  [[segment.outcome]]
+  value = "resubmit"
+  does = "release"
+
+  [[segment.outcome]]
+  value = "re-explore"
+  does = "skip spec; refill spec; refill explore"   # back to the board; a fresh first cut waits behind the next converge
 
 [segment.transition]
 anchor = true
