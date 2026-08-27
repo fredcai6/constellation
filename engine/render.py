@@ -204,30 +204,40 @@ def destination(onward_to):
 
 
 def _board(state):
-    """The board's own state -- the four things `understand`'s imperative
-    asks the agent to leave true, so the agent reads them rather than
-    counting rows by hand. A block appears only when it has something to
-    say: no held rows or no ready cluster means that block does not print,
-    since a heading over an empty list tells the reader less than no
-    heading at all.
+    """The board's own state -- its voice, its counts, the tree its rows
+    hang in, and what the rows' own statuses already imply -- so the agent
+    reads them rather than counting rows by hand. A block appears only when
+    it has something to say: no held rows or no ready cluster means that
+    block does not print, since a heading over an empty list tells the
+    reader less than no heading at all.
     """
+    out = []
+    for text in state["prose"].values():
+        out.append(_para(text))
+        out.append("")
     s = state["summary"]
     by_status = ", ".join(f"{k} {v}" for k, v in sorted(s["by_status"].items())) or "none"
-    by_type = ", ".join(f"{k} {v}" for k, v in sorted(s["by_type"].items())) or "none"
-    out = [f"  the board:          {state['path']}",
-          f"    {s['total']} rows -- status: {by_status} -- type: {by_type}", ""]
+    by_type = ", ".join(f"{k} {v}" for k, v in sorted(s["by_type"].items()) if k)
+    out += [f"  the board:          {state['path']}",
+            f"    {s['total']} rows -- status: {by_status}"
+            + (f" -- type: {by_type}" if by_type else ""), ""]
+
+    if state["tree"]:
+        out.append("  the tree")
+        out.append("\n".join(f"    {'  ' * d}{rid:<5} {status.split(':')[0]:<10} {label[:64]}"
+                             for d, rid, status, label in state["tree"]))
+        out.append("")
 
     askable = state["askable"]
     if askable:
         out.append("  askable now")
-        out.append(_pairs([(r.get("id", ""), r.get("question", "")) for r in askable]))
+        out.append(_pairs(askable))
         out.append("")
 
     held = state["held"]
     if held:
         out.append("  held")
-        out.append(_pairs([(r.get("id", ""), "held by " + ", ".join(ids))
-                           for r, ids in held]))
+        out.append(_pairs(held))
         out.append("")
 
     groups, ready = state["clusters"]["groups"], state["clusters"]["ready"]
@@ -238,7 +248,7 @@ def _board(state):
         # to open rows (boards.clusters), so the sitting to print is that
         # same scope: only the rows still to be asked, which is exactly
         # `askable` for a ready group.
-        askable_ids = {r.get("id", "") for r in askable}
+        askable_ids = {rid for rid, _ in askable}
         out.append("  ready for one sitting")
         out.append(_pairs([(t, ", ".join(r.get("id", "") for r in groups[t]
                                           if r.get("id", "") in askable_ids))

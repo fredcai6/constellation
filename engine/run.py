@@ -75,6 +75,27 @@ def role_of(assembly, step):
     return (assembly or {}).get("conductor", "") if filler == "conductor" else filler
 
 
+# [hat]
+# Rationale: nothing dispatches a board's worker. Its transition is filled by
+#   the conductor, who works the board in the worker's posture -- the
+#   commander wears the interrogator's hat -- because a live principal is
+#   reachable only from the top of the run. A run with a parent has no human
+#   in reach, so it wears the delegated variant where one is written; where
+#   none is, the plain posture, which is the parked state (#15).
+# Rejected: a worker child driving its parent's board. A child not handed an
+#   id cannot drive its dispatcher's run, by design, and the board is the
+#   parent's own segment.
+def hat(assembly, step, st):
+    """The posture a step is worked under: the filler's, or on a board
+    segment the worker's -- delegated when the run has a parent."""
+    seg = next((s for s in assembly["segment"] if s["id"] == step.get("segment")), {})
+    worker = seg.get("worker", "") if seg.get("interior") == "board" else ""
+    if not worker:
+        return role_of(assembly, step)
+    delegated = f"{worker}-delegated"
+    return delegated if st.get("parent") and resolve_skill(delegated) else worker
+
+
 # [rework-rounds]
 # Rationale: the count is of rounds on one artifact, not rounds in the run --
 #   `skills/commander/SKILL.md` conditions its stopping rule on repetition

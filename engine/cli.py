@@ -311,8 +311,12 @@ def _board_state(path):
     if not path:
         return None
     found = boards.rows(path)
-    return {"path": path, "summary": boards.summary(path),
-            "askable": boards.askable(found), "held": boards.held(found),
+    return {"path": path, "prose": boards.prose(path), "summary": boards.summary(path),
+            "tree": [(d, r.get("id", ""), str(r.get("status", "")), boards.label(r))
+                     for d, r in boards.tree(found)],
+            "askable": [(r.get("id", ""), boards.label(r)) for r in boards.askable(found)],
+            "held": [(r.get("id", ""), "held by " + ", ".join(ids))
+                     for r, ids in boards.held(found)],
             "clusters": boards.clusters(found)}
 
 
@@ -349,7 +353,10 @@ def cmd_status(argv):
                         ("amends", render.amends), ("triage", render.triage)):
             if isinstance(returns.get(key), list):
                 returns[key] = "; ".join(fn(returns[key])) or "none"
-    board = _board_state(st["boards"].get(step["segment"])) if step.get("validates") == "board" else None
+    # Rendered whenever the segment has a board; `validates` decides only
+    # whether submit refuses on it. The ideas board is read at every cycle
+    # and refused at none.
+    board = _board_state(st["boards"].get(step["segment"]))
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     print(render.status(st, form, dest, prefill=prefill,
                         returns=returns, returns_from=step.get("child", ""),
@@ -357,7 +364,7 @@ def cmd_status(argv):
                         position=runmod.position(st, asm), board=board,
                         in_hand=forms.in_hand(dest) if dest.exists() else None,
                         triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"],
-                        role=runmod.role_of(asm, step)))
+                        role=runmod.hat(asm, step, st)))
     return 0
 
 
@@ -676,13 +683,20 @@ def _seed_board(template, dest, rows):
     """
     from engine import tomlw
     text = template.read_text().rstrip()
-    head, sep, example = text.partition("[[question]]")
+    table = re.search(r"^\[\[(\w+)\]\]", text, re.M)
+    head, sep, example = text.partition(table.group(0))
     quoted = "\n".join(
         line if line.startswith("#") else f"# {line}" if line.strip() else "#"
         for line in (sep + example).splitlines()
     )
-    body = "".join(tomlw.table("question", {"id": f"q{i+1}", "status": "open", **r})
-                   + "\n" for i, r in enumerate(rows))
+    # The template's blank row is the convention: what the rows are called,
+    # how an id is spelled, which status a fresh row starts in.
+    blank = tomllib.loads(sep + example)[table.group(1)][0]
+    prefix = re.match(r"[a-z]*", str(blank.get("id", ""))).group(0) or "r"
+    body = ""
+    for i, r in enumerate(rows):
+        row = {"id": f"{prefix}{i+1}", "status": blank.get("status", "open"), **r}
+        body += tomlw.table(table.group(1), row) + "\n"
     dest.write_text(f"{head.rstrip()}\n\n# --- the columns, and what they mean ---\n"
                     f"{quoted}\n\n# --- the board ---\n\n{body}")
 
