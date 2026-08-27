@@ -209,6 +209,7 @@ def state(work_id):
         return None
     st = {"id": work_id, "steps": [], "done": {}, "boards": {}, "notes": [],
           "returns": {}, "returns_by_child": {}, "amends": [], "checks": [],
+          "measures": [],
           "closed": False}
     raw_steps = []
     for e in entries:
@@ -250,6 +251,8 @@ def state(work_id):
             st["boards"][e["segment"]] = e.get("path", "")
         elif kind == "note":
             st["notes"].append(e)
+        elif kind == "measure":
+            st["measures"].append(e)
         elif kind == "prefill":
             st["prefill"] = e.get("fields") or {}
         elif kind == "amend":

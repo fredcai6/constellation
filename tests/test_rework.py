@@ -9,15 +9,12 @@ prefill. Drives the real assemblies end to end, like test_nesting.py.
 """
 
 import pathlib
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+from engine import cli, run as runmod
 
-from engine import cli, run as runmod  # noqa: E402
-
-from test_nesting import (  # noqa: E402
+from test_nesting import (
     _dispatch_and_close_child,
     _dispatch_plan_critic,
     _dispatch_review,
@@ -177,6 +174,65 @@ key-terms = "waived: none"
     assert prefill["plan"] == f".agent-work/{wid}/plan.md"  # the artifact still rides
     assert prefill["key-terms"] == "waived: none"
     assert prefill["criteria"].startswith("intent-fit")
+
+
+def test_the_room_reports_how_the_plan_moved_across_its_rounds(workdir, capsys):
+    """A rework round is told what the artifact did, and nothing more.
+
+    The engine measures prose only -- fenced blocks, tables and indented code
+    do not count -- because a plan that grew by gaining proofs has not
+    accreted, and a count that cannot tell those apart makes an agent delete
+    meaning to hit a number. It reports; it never refuses.
+    """
+    wid = "issue44"
+    cli.main(["open", "run-an-issue", "--issue", "44", "--title", "a plan that grows"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+
+    art = pathlib.Path(f".agent-work/{wid}/plan.md")
+    art.write_text("one two three four five six seven eight nine ten\n")
+    _fill_plan(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    # round one measured, and says nothing -- there is nothing yet to compare
+    assert [m["words"] for m in runmod.state(wid)["measures"]] == [10]
+    cli.main([wid])
+    assert "prose words" not in capsys.readouterr().out
+
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
+    capsys.readouterr()
+
+    # a longer plan, whose growth is all table and fenced block
+    art.write_text("one two three four five six seven eight nine ten\n"
+                   "| a | b | c | d | e | f |\n"
+                   "```\nnot prose at all, not counted, not once\n```\n"
+                   "    indented code is not prose either\n"
+                   "eleven twelve\n")
+    _fill(runmod.journal.location(wid) / "REWORK.toml", '''
+plan = ".agent-work/%s/plan.md"
+findings-addressed = "accepted: thickened gate 1"
+deleted = "nothing; the growth is all table and fence"
+key-terms = "waived: none"
+''' % wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    assert [m["words"] for m in runmod.state(wid)["measures"]] == [10, 12]
+
+    # the room reports it at the NEXT round, where the conductor is writing:
+    # the artifact on disk is the one just submitted, and now it has a history
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: still thin")
+    capsys.readouterr()
+    cli.main([wid])
+    out = capsys.readouterr().out
+    assert "12 prose words" in out          # the table, fence and indent are absent
+    assert "+20% on the first round" in out
+    assert "growth is not a defect" in out
+    assert "too long" not in out            # a notice, never a verdict
 
 
 # -- 5. the outlet: a fourth revise mints a ruling, not a fourth round --------

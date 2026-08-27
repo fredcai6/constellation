@@ -65,6 +65,41 @@ def _palette():
     return tomllib.load(open(p, "rb")) if p.exists() else {}
 
 
+def _prose_words(path):
+    """Words of prose in an artifact: fenced blocks, tables and indented code
+    do not count.
+
+    A plan that grows because its gates now carry their proofs inline has not
+    accreted; a plan that grows because a settled alternative got re-argued
+    has. Counting everything cannot tell those apart, and the count an agent
+    is shown decides what it thinks it should cut."""
+    try:
+        text = pathlib.Path(path).read_text()
+    except OSError:
+        return 0
+    out, fenced = [], False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced or line.startswith(("    ", "\t")) or line.lstrip().startswith("|"):
+            continue
+        out.append(line)
+    return len(" ".join(out).split())
+
+
+def _measure_artifacts(wid, step, form, fields):
+    """Record each artifact field's prose length, so a later round can say how
+    the artifact moved. Recorded, never enforced -- the engine has no opinion
+    about the number and refuses nothing on it."""
+    for f in form.get("fields", []):
+        if f.get("kind") != "artifact" or not isinstance(fields.get(f["id"]), str):
+            continue
+        words = _prose_words(fields[f["id"]])
+        if words:
+            journal.append(wid, "measure", segment=step["segment"], step=step["id"],
+                           field=f["id"], path=fields[f["id"]], words=words)
+
 def _resolve_command(text):
     """`palette:test args` -> the host repo's test command plus args."""
     if not text.startswith("palette:"):
@@ -408,6 +443,7 @@ def cmd_submit(argv):
     _check_outcome(st, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
+    _measure_artifacts(wid, step, form, fields)
 
     # A transition marked `carries` folds its fields into the run's own
     # prefill, so everything dispatched afterwards gets them. Consolidate is

@@ -10,14 +10,11 @@ Python repr is not something a root-verify can type.
 
 import pathlib
 import re
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, render, run as runmod  # noqa: E402
-from test_nesting import (  # noqa: E402
+from engine import cli, journal, render, run as runmod
+from test_nesting import (
     _dispatch_and_close_child, _dispatch_review, _fill_gate_close,
     _fill_gate_transition, _fill_implement, _mint_two_gates,
 )

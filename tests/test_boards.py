@@ -2,13 +2,10 @@
 summary."""
 
 import pathlib
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import boards, cli  # noqa: E402
+from engine import boards, cli
 
 
 def _write(path, text):

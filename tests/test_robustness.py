@@ -6,13 +6,10 @@ the record; each of these broke that duty silently.
 """
 
 import pathlib
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, run as runmod  # noqa: E402
+from engine import cli, journal, run as runmod
 
 
 @pytest.fixture

@@ -8,14 +8,11 @@ have: it shows the seam, and it does not lie about ordering.
 """
 
 import pathlib
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal  # noqa: E402
-from test_nesting import _dispatch_and_close_child, _mint_two_gates  # noqa: E402
+from engine import cli
+from test_nesting import _dispatch_and_close_child, _mint_two_gates
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 

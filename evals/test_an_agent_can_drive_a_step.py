@@ -12,7 +12,6 @@ import pytest
 
 from evals import harness
 
-pytestmark = pytest.mark.agent
 
 
 @pytest.fixture

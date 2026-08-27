@@ -7,14 +7,10 @@ parent's dispatch step; `close` and `amend` round out the six verbs.
 """
 
 import pathlib
-import sys
 
 import pytest
-import tomllib
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, run as runmod  # noqa: E402
+from engine import cli, journal, run as runmod
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 

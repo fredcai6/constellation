@@ -18,13 +18,10 @@ line, because naming a file that is not there is this defect inverted.
 
 import pathlib
 import subprocess
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, render  # noqa: E402
+from engine import cli, journal, render
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 

@@ -14,15 +14,12 @@ one site that happened to break.
 
 import pathlib
 import re
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, render, run as runmod  # noqa: E402
-from test_nesting import (  # noqa: E402
-    _dispatch_and_close_child, _fill, _fill_close, _fill_consolidate,
+from engine import cli, render, run as runmod
+from test_nesting import (
+    _dispatch_and_close_child, _fill_consolidate,
     _fill_gate_transition, _fill_implement, _fill_open, _fill_plan,
     _fill_plan_to_execute, _dispatch_plan_critic, _work_the_board,
 )

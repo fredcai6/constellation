@@ -2,12 +2,8 @@
 panelists have each returned; a step with no panel still completes on one.
 """
 
-import pathlib
-import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import journal, run as runmod  # noqa: E402
+from engine import journal, run as runmod
 
 
 def _fixture(tmp_path, monkeypatch):

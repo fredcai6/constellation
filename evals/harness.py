@@ -14,14 +14,12 @@ task, never in understanding what was asked.
 import os
 import pathlib
 import subprocess
-import sys
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPINE = str(ROOT / "spine")
-sys.path.insert(0, str(ROOT))
 
-from engine import run as runmod  # noqa: E402
+from engine import run as runmod
 
 
 def light_model():

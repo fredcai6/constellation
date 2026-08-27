@@ -5,9 +5,10 @@
 
 imperative = """
 Work the findings into the plan. Delete the restated. Move accepted detail into
-the gate's latitude. Replace a twice-patched proof in kind. Growing is allowed
-and scope does widen -- but past about 5% over round one you are more likely
-losing a scope argument than winning a rigour one. Say which, in `deleted`."""
+the gate's latitude. Replace a twice-patched proof in kind. The room prints how
+the artifact has moved across its rounds; read it as a question, never a budget.
+A round that grew because its gates gained proofs is not the round that grew
+because a settled argument came back. Say which this was, in `deleted`."""
 
 [[field]]
 id = "plan"
@@ -36,9 +37,11 @@ id = "deleted"
 kind = "evidence"
 record-only = true
 note = """
-What came out of the plan this round, and why each cut was safe. Open with this
-round's word count against round one's: the plan artifact is overwritten in
-place and the journal keeps only its path, so that number survives nowhere else.
+What came out of the plan this round, and why each cut was safe, and — against
+the movement the room printed — which of this round's growth was the work
+getting more checkable and which was argument returning. Answer the number;
+do not restate it. Cutting meaning to make it smaller is the failure this
+field exists to catch, not the behaviour it asks for.
 For the record and the conductor, never the next critic — it stays out of a
 panelist's prefill."""
 
