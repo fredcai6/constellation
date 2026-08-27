@@ -1,0 +1,14 @@
+# Assembly: one prior-art excursion. Opened from a board row; the brief is
+# the opening prefill. One terminal step -- the return is the whole run.
+
+assembly = "find-prior-art"
+conductor = "excursion"
+
+[[segment]]
+id = "return"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "skills/excursion/forms/PRIOR_ART.toml"
+filler = "excursion"

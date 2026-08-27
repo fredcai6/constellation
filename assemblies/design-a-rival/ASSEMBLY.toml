@@ -1,0 +1,15 @@
+# Assembly: one rival design. Opened N times from a spec or plan step, each
+# child under a different constraint; the incumbent and the constraint are
+# the opening prefill. One terminal step -- the return is the whole run.
+
+assembly = "design-a-rival"
+conductor = "excursion"
+
+[[segment]]
+id = "return"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "skills/excursion/forms/RIVAL.toml"
+filler = "excursion"

@@ -268,12 +268,13 @@ forms, and the standards — not a merged identity.
 |---|---|
 | `explorer` | expansive: muddy problem, generate and walk paths, work inward |
 | `interrogator` | convergent: specific idea or issue, find the holes, reach clarity for refinement |
+| `interrogator-delegated` | same board, the admiral as principal: settle by the launch order, batch the rest up as one cluster, propose terms never write them |
 | `admiral` | epic tier: conducts run-an-epic; cuts waves, dispatches issue runs, adjudicates at wave transitions |
 | `commander` | one issue, live human principal; conducts run-an-issue |
 | `commander-delegated` | one issue, frozen launch order; genuine gaps go up, never improvised |
 | `implementer` | bounded diff from a prefilled gate spec |
 | `reviewer` | cold verdict panelist, dispatched by transitions; judges only the criteria it is handed |
-| `prototyper` | one named question, throwaway code, disposed |
+| `excursion` | one named question as a child run — prior art, prototype, picture, or rival — returning a scoped verdict and what regenerates it |
 | `triage` | route candidates into issues per the standard; runs at close |
 | `how-to-talk` | prose standard, unchanged |
 

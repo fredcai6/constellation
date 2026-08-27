@@ -1,0 +1,27 @@
+# Verdict: rival. Owned by the excursion skill; the one step of
+# design-a-rival. The incumbent design and your one constraint arrive as
+# prefill. You are one of several, each under a different constraint, and
+# none of you sees the others; the comparison across rivals is the
+# dispatcher's, at the step that dispatched you.
+
+imperative = """
+Design the rival: the same problem the incumbent above solves, solved under
+your constraint as if it were the only rule. Commit to it — a rival that
+hedges toward the incumbent teaches nothing. Then say where it beats the
+incumbent and where it loses, in deep-module terms: depth, locality, seam
+placement, testability."""
+
+[[field]]
+id = "design"
+kind = "evidence"
+note = "The rival, whole enough to compare against the incumbent: its interface, what it hides, what it exposes."
+
+[[field]]
+id = "beats"
+kind = "evidence"
+note = "Where the rival wins and where it loses against the incumbent, one line per axis. Grounded in both designs, not in preference."
+
+[[field]]
+id = "verdict"
+kind = "evidence"
+note = "hold | replace | hybrid — your recommendation, and the one sentence that carries it. The ruling is the dispatcher's."

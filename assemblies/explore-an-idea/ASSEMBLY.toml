@@ -1,0 +1,60 @@
+# Assembly: explore one idea into a spec, with a live human. The skeleton is
+# fixed; the ideas board is worked across cycles, and each cycle is one
+# firing of the explore transition. No delegated posture: the conductor
+# always has a human in reach.
+
+assembly = "explore-an-idea"
+conductor = "explorer"
+
+[[segment]]
+id = "open"
+
+[segment.transition]
+anchor = true
+form = "forms/OPEN.toml"
+filler = "conductor"
+
+[[segment]]
+id = "explore"
+interior = "board"
+board = "skills/explorer/forms/IDEAS.toml"
+worker = "explorer"
+
+[segment.transition]
+anchor = true
+form = "forms/CYCLE.toml"
+filler = "conductor"
+# The three outcomes of `decision`: `cycle` refills -- this transition is
+# minted again with the flavor as prefill and the board untouched;
+# `converge` releases to spec; `shelve` releases past spec to close.
+
+[[segment]]
+id = "spec"
+interior = "steps"
+step-form = "forms/SPEC.toml"
+# A revise mints this in place of the step-form. No impasse outlet: every
+# disposition here is the human's, so a fourth round is already their call.
+rework-form = "forms/REWORK.toml"
+worker = "conductor"
+
+[segment.transition]
+anchor = true
+# No conductor form: pass releases to close, revise refills with the
+# findings, escalate goes up. A spec is judged on different criteria from a
+# plan -- the form is the same cold critic, the criteria are this
+# assembly's.
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "completeness: is every high-level ambiguity resolved; restraint: does it fix the shape and leave implementation to the issues it cuts; simplicity: what can be deleted"
+
+[[segment]]
+id = "close"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "forms/CLOSE.toml"
+filler = "conductor"
