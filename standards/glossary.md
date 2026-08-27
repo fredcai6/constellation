@@ -56,6 +56,9 @@ forms; coining a synonym for a term below is a defect.
   and gate specs; the command palette maps it to a concrete runner.
 - **conductor** — the one persistent agent of an assembly; pumps its interior mechanically,
   judges only at transitions.
+- **proof** — a gate spec's command, run by the engine at submit: it passes once the
+  gate's work is done and fails while it is not. Its exit status decides the step; a
+  command that passes on an empty diff proves nothing.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
   implementer working its interior and firing its review transition.
 - **epic** — one claim too large for a single run, plus the evidence that the claim is true.
@@ -73,8 +76,11 @@ forms; coining a synonym for a term below is a defect.
 - **authority block** — who your principal is, what you own, your latitude, where gaps go;
   derived at dispatch, never authored.
 - **pivot criteria** — what changes the plan, not only what ends it.
-- **command palette** — `constellation.toml`: the host repo's test/lint/build commands, which
-  check fields reference instead of hardcoding, and the model-tier table.
+- **command palette** — `constellation.toml`: the host repo's commands, which a gate spec's
+  check field reaches by name rather than spelling out, and the model-tier table.
+- **gate spec** — the purpose, scope, proof and optional model a conductor writes per gate at
+  plan-to-execute; minted as that gate's dispatch and carried into the child run as read-only
+  prefill. The orders a gate is run from, and the only place a runner is named.
 - **map** — the derived page tree under `map/`: one page per entity, a module index per module,
   one top index. Built by `tools/code_map` — the generator, and that is its only name — through
   `palette:map`; gitignored, regenerated at closeout, never committed. The artifact, not the act

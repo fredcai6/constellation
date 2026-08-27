@@ -13,12 +13,9 @@ every suite run. It is the standing cost of choosing to put doctrine in forms.
 
 import pathlib
 import re
-import sys
 import tomllib
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, forms  # noqa: E402
+from engine import forms
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ENGINE_SRC = "\n".join(p.read_text() for p in sorted((ROOT / "engine").glob("*.py")))

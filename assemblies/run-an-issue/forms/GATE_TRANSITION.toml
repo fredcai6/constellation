@@ -43,11 +43,15 @@ an empty spec on a remint is refused."""
   note = "Where the change lives, and what is out of bounds."
 
   [[field.item]]
-  id = "done"
+  id = "proof"
   kind = "check"
   note = """
-The commands whose output shows the gate filled its spec. Reference the
-command palette (constellation.toml) rather than hardcoding where it applies."""
+The command that passes once this gate's work is done and fails while it is
+not. A command that passes on an empty diff proves nothing, and so does one
+that covers less than `scope` promised -- one check per commitment. Write the
+exact string you ran: this field is shell-executed in the dispatched child, so
+prose becomes a command and fails there. Reference the command palette
+(constellation.toml) rather than hardcoding where it applies."""
 
   [[field.item]]
   id = "model"

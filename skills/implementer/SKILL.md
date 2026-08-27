@@ -54,6 +54,11 @@ The verdict decides what happens next:
 - `escalate` means the spec itself is wrong. It goes to the parent run, and
   there is nothing left for you to do on this gate.
 
+After a third revise the engine stops offering a fourth round and asks you to
+rule instead: close the gate on the diff as it stands, run another round, or
+send it up, which closes the gate and returns your ruling to the run that
+dispatched you — the same move `escalate` makes.
+
 Where this does not apply: the plan behind the gate is not yours to remake.
 If the gate itself looks like the wrong move, escalate says so — this skill
 covers building what the spec says, not deciding whether it should be built.

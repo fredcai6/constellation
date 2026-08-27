@@ -7,14 +7,10 @@ parent's dispatch step; `close` and `amend` round out the six verbs.
 """
 
 import pathlib
-import sys
 
 import pytest
-import tomllib
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, run as runmod  # noqa: E402
+from engine import cli, journal, run as runmod
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -80,12 +76,12 @@ plan = ".agent-work/%s/plan.md"
 [[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
-done = "true"
+proof = "true"
 
 [[gates]]
 purpose = "add a regression test for the EOF case"
 scope = "tests/parser directory"
-done = "true"
+proof = "true"
 model = "light"
 ''' % wid)
 
@@ -138,7 +134,7 @@ plan-holds = "drop %s"
 
 
 def _fill_gate_transition_remint(wid, purpose="a corrected gate", scope="src/ only",
-                                 done="true"):
+                                 proof="true"):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
 learned = "the spec was wrong, needs a redo"
 plan-holds = "remint"
@@ -146,8 +142,8 @@ plan-holds = "remint"
 [[gate-spec]]
 purpose = "%s"
 scope = "%s"
-done = "%s"
-''' % (purpose, scope, done))
+proof = "%s"
+''' % (purpose, scope, proof))
 
 
 def _fill_gate_transition_replan(wid, learned="the cut was wrong from the start"):
@@ -177,7 +173,7 @@ def _mint_n_gates(n, wid="issue17"):
     cli.main([wid, "submit"])
     _dispatch_plan_critic(wid)
     blocks = "\n\n".join(
-        '[[gates]]\npurpose = "gate %d purpose"\nscope = "gate %d scope"\ndone = "true"'
+        '[[gates]]\npurpose = "gate %d purpose"\nscope = "gate %d scope"\nproof = "true"'
         % (i, i) for i in range(1, n + 1))
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
           'plan = ".agent-work/%s/plan.md"\n\n%s\n' % (wid, blocks))
@@ -201,15 +197,24 @@ def _fill_critic(wid, verdict, findings="none: waived: clean"):
 
 
 def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean"):
-    """Open plan-to-execute's one panelist, fill and close it -- the
-    two-voices transition's panel half, which must pass before its form
-    (PLAN_TO_EXECUTE.toml) is even reachable."""
-    step_id = runmod.state(wid)["current"]["id"]
-    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p1"])
-    panelist = f"{wid}.{step_id}.p1"
-    _fill_critic(panelist, verdict, findings)
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    """Open every one of plan-to-execute's panelists, fill and close each --
+    the two-voices transition's panel half, which must pass before its form
+    (PLAN_TO_EXECUTE.toml) is even reachable.
+
+    Driven off the assembly's own panel length rather than a pinned count:
+    the step completes on the last verdict, so a test that closes one of
+    three leaves the transition outstanding. `verdict` and `findings` apply
+    to every panelist; a caller wanting them to differ opens its own.
+    """
+    st = runmod.state(wid)
+    step_id = st["current"]["id"]
+    panel = next(s for s in st["steps"] if s["id"] == step_id)["panel"]
+    for n in range(1, len(panel) + 1):
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
+        panelist = f"{wid}.{step_id}.p{n}"
+        _fill_critic(panelist, verdict, findings)
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     return step_id
 
 
@@ -690,7 +695,7 @@ plan = ".agent-work/issue17/plan.md"
 [[gates]]
 purpose = "redo the cut correctly"
 scope = "src/ only"
-done = "true"
+proof = "true"
 ''')
     cli.main(["issue17", "submit"])
     capsys.readouterr()

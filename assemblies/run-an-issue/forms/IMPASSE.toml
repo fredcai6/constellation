@@ -1,0 +1,30 @@
+# Step: impasse. Owned by run-an-issue; filled by the conductor. Minted in
+# place of another rework round once a segment has been sent back
+# `impasse-after` times. It carries no panel: a fourth cold reader is the loop,
+# not the way out of it.
+
+imperative = """
+This plan has been reviewed and sent back three times. Rule on the loop, not on
+the findings: three reviews finding the same kind of thing means the artifact is
+not the one under repair. Say which way this run goes, and why the round you
+are ending was not converging."""
+
+[[field]]
+id = "ruling"
+kind = "decision"
+note = """
+advance | rework | up. `advance` takes the plan to its transition as it stands,
+over a live revise — the findings remain the record that says you did.
+`rework` runs another round, and is the answer only when you can name what the
+next round changes that the last three did not. `up` refills nothing and lets
+the run walk to its close, so this ruling and its reason become the record your
+principal reads. It is the move an escalate verdict already makes, and it ends
+the run rather than pausing it."""
+
+[[field]]
+id = "why"
+kind = "evidence"
+note = """
+What the three rounds had in common, and what that says about the artifact. The
+run's own record is the evidence: name the field or the claim the findings kept
+landing on."""

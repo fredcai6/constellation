@@ -1,20 +1,21 @@
 # Step: rework round of plan. Owned by run-an-issue; filled by the conductor.
 # A revise verdict mints this form in place of PLAN.toml; the panel's merged
 # findings arrive as prefill. No design-it-twice field: round one weighed the
-# alternatives, and re-arguing them is the measured accretion (issue7: 547 ->
-# 1,180 words deciding nothing new).
+# alternatives, and re-arguing them is accretion.
 
 imperative = """
-Work the findings into a plan SHORTER than the round before unless the
-principal widened scope. Delete the restated. Move accepted detail into the
-gate's latitude. Replace a twice-patched done in kind."""
+Work the findings into the plan. Delete the restated. Move accepted detail into
+the gate's latitude. Replace a twice-patched proof in kind. The room prints how
+the artifact has moved across its rounds; read it as a question, never a budget.
+A round that grew because its gates gained proofs is not the round that grew
+because a settled argument came back. Say which this was, in `deleted`."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
 The plan document, in the work location: the approach, the gates it cuts into
-(purpose, scope, done — the plan-to-execute transition copies these), and the
+(purpose, scope, proof — the plan-to-execute transition copies these), and the
 risks that would change it. Implementation detail below gate grain is a
 defect — that is the gate's latitude."""
 
@@ -36,8 +37,12 @@ id = "deleted"
 kind = "evidence"
 record-only = true
 note = """
-What came out of the plan this round, and why each cut was safe. For the
-record and the conductor, never the next critic — it stays out of a
+What came out of the plan this round, and why each cut was safe, and — against
+the movement the room printed — which of this round's growth was the work
+getting more checkable and which was argument returning. Answer the number;
+do not restate it. Cutting meaning to make it smaller is the failure this
+field exists to catch, not the behaviour it asks for.
+For the record and the conductor, never the next critic — it stays out of a
 panelist's prefill."""
 
 [[field]]

@@ -13,7 +13,7 @@ id = "plan"
 kind = "artifact"
 note = """
 The plan document, in the work location: the approach, the gates it cuts into
-(purpose, scope, done — the plan-to-execute transition copies these), and the
+(purpose, scope, proof — the plan-to-execute transition copies these), and the
 risks that would change it. Implementation detail below gate grain is a
 defect — that is the gate's latitude."""
 

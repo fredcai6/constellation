@@ -30,11 +30,17 @@ plus this gate's transition; the block's fields are the child run's prefill."""
   note = "Where the change lives, and what is out of bounds."
 
   [[field.item]]
-  id = "done"
+  id = "proof"
   kind = "check"
   note = """
 The commands whose output shows the gate filled its spec. Reference the
-command palette (constellation.toml) rather than hardcoding where it applies."""
+command palette (constellation.toml) rather than hardcoding where it applies.
+
+One check per commitment in `scope`. A commitment nothing here verifies is
+what this field exists to prevent, and it is invisible until a reader goes
+looking. Write the exact string you ran, never a description of it: this field
+is shell-executed in the dispatched child, so prose becomes a command and
+fails there, after the work is done."""
 
   [[field.item]]
   id = "model"

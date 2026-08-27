@@ -1,9 +1,0 @@
-# What the command palette needs and the standard library does not ship.
-# Install with: python3 -m pip install -r requirements-dev.txt
-#
-# The engine itself has no dependencies -- it is stdlib-only by design, and so is
-# tools/code_map. These are the tools `constellation.toml`'s [commands] shell out
-# to, listed here because a palette entry naming a command nobody installed is a
-# command that cannot run.
-pytest        # palette:test, palette:validate
-pyflakes      # palette:lint

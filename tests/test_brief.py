@@ -18,13 +18,10 @@ line, because naming a file that is not there is this defect inverted.
 
 import pathlib
 import subprocess
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, render  # noqa: E402
+from engine import cli, journal, render
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -44,7 +41,7 @@ def _mint_dispatch_step(wid="d1", child="d1.g1"):
     journal.append(wid, "run", title="fix the parser", assembly="run-an-issue")
     journal.append(wid, "step", id="g1", segment="execute", dispatches="run-a-gate",
                    prefill={"purpose": "fix the parser", "scope": "src/parser.c",
-                            "done": "true"},
+                            "proof": "true"},
                    child=child, anchor=False, terminal=False, source="mint")
 
 

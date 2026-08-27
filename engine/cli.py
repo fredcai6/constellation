@@ -65,6 +65,41 @@ def _palette():
     return tomllib.load(open(p, "rb")) if p.exists() else {}
 
 
+def _prose_words(path):
+    """Words of prose in an artifact: fenced blocks, tables and indented code
+    do not count.
+
+    A plan that grows because its gates now carry their proofs inline has not
+    accreted; a plan that grows because a settled alternative got re-argued
+    has. Counting everything cannot tell those apart, and the count an agent
+    is shown decides what it thinks it should cut."""
+    try:
+        text = pathlib.Path(path).read_text()
+    except OSError:
+        return 0
+    out, fenced = [], False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced or line.startswith(("    ", "\t")) or line.lstrip().startswith("|"):
+            continue
+        out.append(line)
+    return len(" ".join(out).split())
+
+
+def _measure_artifacts(wid, step, form, fields):
+    """Record each artifact field's prose length, so a later round can say how
+    the artifact moved. Recorded, never enforced -- the engine has no opinion
+    about the number and refuses nothing on it."""
+    for f in form.get("fields", []):
+        if f.get("kind") != "artifact" or not isinstance(fields.get(f["id"]), str):
+            continue
+        words = _prose_words(fields[f["id"]])
+        if words:
+            journal.append(wid, "measure", segment=step["segment"], step=step["id"],
+                           field=f["id"], path=fields[f["id"]], words=words)
+
 def _resolve_command(text):
     """`palette:test args` -> the host repo's test command plus args."""
     if not text.startswith("palette:"):
@@ -404,10 +439,23 @@ def cmd_submit(argv):
                 f"  or drop this step: spine {wid} amend close {step['id']} --reason ..."))
 
     _check_plan(form, fields)
+    _check_impasse(asm, step, fields)
     _check_outcome(st, step, fields)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
+    _measure_artifacts(wid, step, form, fields)
+
+    # A transition marked `carries` folds its fields into the run's own
+    # prefill, so everything dispatched afterwards gets them. Consolidate is
+    # the case this exists for: a panelist's prefill is built from prior steps
+    # in its own segment, so without this the run's understanding never crosses
+    # a segment boundary and the coldest reader in the run -- the one the
+    # understanding was written for -- is the only one who never sees it.
+    if step.get("carries"):
+        journal.append(wid, "prefill",
+                       fields={**(st.get("prefill") or {}), **fields})
     _mint(wid, asm, step, form, fields)
+    _act_on_impasse(wid, asm, step, fields)
     _act_on_outcome(wid, asm, step, fields)
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
@@ -440,6 +488,59 @@ def _pending_gates(st, exclude=""):
     gates = [s["id"] for s in st["steps"] if s.get("dispatches") == "run-a-gate"]
     return [g for g in gates if g != exclude
             and (g not in st["done"] or f"{g}-adjudicate" not in st["done"])]
+
+
+def _impasse_segment(asm, step):
+    """The segment whose impasse form this step is, or None for any other
+    step. Read off the assembly rather than matched against a name the engine
+    holds: an assembly that declares no outlet has none."""
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    return seg if seg.get("impasse-form") and step.get("form") == seg["impasse-form"] else None
+
+
+_IMPASSE_RULINGS = ("advance", "rework", "up")
+
+
+def _check_impasse(asm, step, fields):
+    """The impasse ruling, validated before the submit lands. An unhandled
+    value here would release the step and mint nothing, which is the silent
+    advance this outlet exists to end."""
+    if not _impasse_segment(asm, step):
+        return
+    ruling = fields.get("ruling", "").strip().lower()
+    if ruling not in _IMPASSE_RULINGS:
+        raise SystemExit(render.refusal(
+            "ruling", f"{ruling or 'empty'!r} is not a ruling this run can act on",
+            escape="one of: " + ", ".join(_IMPASSE_RULINGS)))
+
+
+def _act_on_impasse(wid, asm, step, fields):
+    """Perform the ruling. `advance` mints the transition alone, so the plan
+    goes forward over a live revise and the panel's findings stay the record
+    that says so. `rework` is the ordinary round the outlet displaced. `up`
+    mints nothing and blocks the run, which is the move that already exists
+    for reaching a principal."""
+    seg = _impasse_segment(asm, step)
+    if not seg:
+        return
+    ruling = fields.get("ruling", "").strip().lower()
+    if ruling == "rework":
+        _mint_segment_round(wid, asm, seg["id"], prefill=step.get("prefill") or {},
+                            form=seg.get("rework-form", ""))
+    elif ruling == "advance":
+        # A transition with a form is a step someone fills, so advancing mints
+        # it. run-a-gate's review transition has none -- releasing is the whole
+        # of it -- so there is nothing to mint and the run walks on to close.
+        t = seg.get("transition", {})
+        if t.get("form"):
+            journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
+                           segment=seg["id"], form=t["form"], filler="conductor",
+                           anchor=t.get("anchor", False), terminal=t.get("terminal", False),
+                           validates=t.get("validates", ""), source="mint")
+    # `up` mints nothing, which is the whole of it. Not refilling is what an
+    # escalate verdict already does (run.merged_verdict), so the run walks to
+    # its terminal step and its record goes to whoever dispatched it -- the
+    # parent for a child, the human for a root run. One way up, not two.
 
 
 def _check_outcome(st, step, fields):
@@ -650,7 +751,7 @@ def _amend_add(wid, st, argv, reason):
     sid = f"{seg}-a{secrets.token_hex(2)}"
     # a dispatched run's own prefill (its orders) rides its amended steps too --
     # that is how a `check` field on the interior's own form (IMPLEMENT.toml's
-    # `done`) finds the gate spec's command without a --prefill flag to type.
+    # `proof`) finds the gate spec's command without a --prefill flag to type.
     journal.append(wid, "step", id=sid, segment=seg, form=form_ref, filler="conductor",
                    prefill=st.get("prefill"), anchor=False, terminal=False,
                    validates="", source="amend")
@@ -747,6 +848,19 @@ def _act_on_verdicts(pwid, step_id):
     # rework-form where one is declared; the choice lives here with the
     # verdict. A replan, and a segment without the key, mint the step-form.
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
+    # Rationale: three reviews landing on one artifact means the artifact is
+    #   not the one under repair, so the fourth revise mints a ruling instead
+    #   of a fourth round -- and mints it alone, since a fourth cold reader is
+    #   the loop rather than the way out. The number and the form are the
+    #   assembly's; the engine names neither.
+    # See: assemblies/run-an-issue/forms/IMPASSE.toml
+    after, outlet = seg.get("impasse-after", 0), seg.get("impasse-form", "")
+    if outlet and after and runmod.rework_rounds(pst, asm, step["segment"]) >= after:
+        journal.append(pwid, "step", id=f"{step['segment']}-a{secrets.token_hex(2)}",
+                       segment=step["segment"], form=outlet, filler="conductor",
+                       prefill={"findings": findings}, anchor=False, terminal=False,
+                       validates="", source="mint")
+        return
     _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings},
                         form=seg.get("rework-form", ""))
 

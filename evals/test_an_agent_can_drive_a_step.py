@@ -12,7 +12,6 @@ import pytest
 
 from evals import harness
 
-pytestmark = pytest.mark.agent
 
 
 @pytest.fixture
@@ -45,9 +44,9 @@ def test_an_agent_gets_past_a_refusal_using_only_the_escape_it_was_given(workdir
     agent that has read nothing else -- the corollary the whole thesis rests
     on, exercised rather than reasoned about."""
     harness.spine(workdir, "open", "run-a-gate", "--id", "g2")
-    # a done check that cannot pass, so submit really does refuse and the
+    # a proof that cannot pass, so submit really does refuse and the
     # refusal names the one way past it
-    harness.prefill(workdir, "g2", done="false")
+    harness.prefill(workdir, "g2", proof="false")
     (pathlib.Path(workdir) / ".agent-work/g2/IMPLEMENT.toml").write_text(
         'change = "did the work"\ndeviations = "waived: none"\n')
 

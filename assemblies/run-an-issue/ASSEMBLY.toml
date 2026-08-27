@@ -26,6 +26,10 @@ anchor = true
 form = "forms/CONSOLIDATE.toml"
 filler = "conductor"
 validates = "board"   # engine refuses an open row or a self-answered decision
+# The understanding joins the run's prefill, so every later dispatch carries it.
+# A panelist's prefill comes from prior steps in its own segment, so without
+# this the critic -- the reader consolidate is written for -- never sees it.
+carries = true
 
 [[segment]]
 id = "plan"
@@ -34,6 +38,11 @@ step-form = "forms/PLAN.toml"
 # A revise mints this in place of the step-form: rework is its own move, not
 # a second first draft. A replan still mints the step-form.
 rework-form = "forms/REWORK.toml"
+# After this many rework rounds on one artifact, a further revise mints the
+# impasse form instead: the loop itself becomes the thing the conductor rules
+# on. Counted since the last step-form mint, so a replan starts over.
+impasse-after = 3
+impasse-form = "forms/IMPASSE.toml"
 worker = "conductor"
 
 [segment.transition]
@@ -41,11 +50,27 @@ anchor = true
 form = "forms/PLAN_TO_EXECUTE.toml"
 filler = "conductor"
 
+  # One criterion per panelist. Three cold readers disagreeing is a panel; one
+  # reader holding three criteria is a reviewer with a checklist, and it reads
+  # the plan once with divided attention instead of three times with whole.
+
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/CRITIC.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "intent-fit: does the plan serve the issue; testability: can each gate's done be exercised; simplicity: what can be deleted"
+  criteria = "intent-fit: does the plan serve the understanding it was built on"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "testability: can each gate's proof be exercised, and does it cover what that gate's scope commits to"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/CRITIC.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "simplicity: what can be deleted"
 
 # The plan-to-execute transition mints this interior: a dispatch step and a
 # GATE_TRANSITION step per gate.

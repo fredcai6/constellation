@@ -248,6 +248,26 @@ def _board(state):
     return out
 
 
+def drift(measures):
+    """How an artifact has moved across the rounds of its own segment.
+
+    A notice, not a verdict. It says what happened and asks for attention; it
+    never says an artifact is too long, because the engine cannot tell
+    legitimate growth from accretion and an agent shown a threshold treats it
+    as one. The reader decides -- that is the whole of it."""
+    if len(measures) < 2:
+        return []
+    first, last, now = measures[0], measures[-2], measures[-1]
+    def pct(then):
+        return round((now["words"] - then["words"]) / then["words"] * 100)
+    parts = [f"{now['words']} prose words", f"{pct(first):+d}% on the first round"]
+    if last is not first:
+        parts.append(f"{pct(last):+d}% on the last")
+    return ["  " + pathlib.Path(now["path"]).name + " -- " + ", ".join(parts),
+            "    growth is not a defect; unexamined growth is. Say which this was.",
+            ""]
+
+
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, onward_to=None,
            returns_from="", triage_notes=(), role=""):
@@ -290,6 +310,9 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("  your orders")
         out.append(_pairs(list(prefill.items())))
         out.append("")
+
+    out.extend(drift([m for m in st.get("measures", [])
+                      if m.get("segment") == (st["current"] or {}).get("segment")]))
 
     if returns:
         # Which child came back is the first thing a conductor with several

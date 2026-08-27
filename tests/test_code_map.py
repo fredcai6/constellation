@@ -8,14 +8,10 @@ nothing about what to do next, which `test_robustness.py` already forbids of
 every other off-path in this repo.
 """
 
-import pathlib
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from tools.code_map import cli  # noqa: E402
+from tools.code_map import cli
 
 
 def test_outside_a_checkout_the_generator_refuses_instead_of_crashing(tmp_path):

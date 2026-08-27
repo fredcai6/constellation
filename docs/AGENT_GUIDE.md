@@ -63,10 +63,10 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 
 ## Run things through the palette
 
-`constellation.toml`'s `[commands]` is the only place a runner is named. Reach a test, a lint,
-or the map through the palette; each entry carries its own note on what it costs and why it is
-written the way it is. Invoke pytest as `python3 -m pytest` — bare `pytest` resolves a config
-from outside the repo and runs the agent evals, which drive a real model and spend real money.
+`constellation.toml`'s `[commands]` is the only place a runner is named. Reach the suite or the
+map through the palette; each entry carries its own note on what it costs and why it is
+written the way it is. `pytest.ini` keeps the agent evals out of the default run, so reaching
+them is a choice: `palette:validate`, or `pytest evals`. They drive a real model.
 
 ## Before you write
 

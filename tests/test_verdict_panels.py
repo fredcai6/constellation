@@ -11,13 +11,10 @@ the summary); and a gate cannot reach close without review having fired.
 """
 
 import pathlib
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, run as runmod  # noqa: E402
+from engine import cli, journal, run as runmod
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 

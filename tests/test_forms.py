@@ -44,8 +44,8 @@ def test_load_consolidate():
 
 def test_load_implement():
     form = forms.load(IMPLEMENT)
-    assert _ids(form) == ["change", "deviations", "done"]
-    assert _kinds(form)["done"] == "check"
+    assert _ids(form) == ["change", "deviations", "proof"]
+    assert _kinds(form)["proof"] == "check"
     assert _kinds(form)["change"] == "evidence"
 
 
@@ -57,7 +57,7 @@ def test_load_gate_transition():
     assert kinds["gate-spec"] == "plan"
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True
-    assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "done", "model"]
+    assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof", "model"]
 
 
 def test_load_defaults_kind_and_note_and_optional():
@@ -77,7 +77,7 @@ def test_materialize_implement_omits_check_field(tmp_path):
     dest = tmp_path / "IMPLEMENT.toml"
     forms.materialize(form, dest)
     text = dest.read_text()
-    assert "done" not in text
+    assert "proof" not in text
     assert "change" in text
     assert "deviations" in text
 

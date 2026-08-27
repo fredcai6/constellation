@@ -1,7 +1,7 @@
 # The command palette: this repo's own commands and model tiers. One of the
 # two artifacts v2 allows to be repo-specific (the other is the glossary).
-# `check` fields reference these by name -- `palette:test tests/x.py` -- so no
-# form ever hardcodes a runner.
+# A gate spec's `check` field reaches a runner through these names --
+# `palette:test tests/x.py` -- so a spec names the job, not the command.
 
 [commands]
 # `test` is the fast suite -- seconds, run constantly, no model calls.
@@ -9,11 +9,7 @@ test = "python3 -m pytest -q"
 # `validate` is what a run's own gates should check, and what to run before
 # anything ships: the fast suite plus the agent evals, which drive a real
 # light model against a real run and assert on its journal.
-validate = "python3 -m pytest -q && python3 -m pytest -m agent -q"
-# `lint` is pyflakes over the engine. It is the one command here that needs
-# something the standard library does not ship, so requirements-dev.txt names it:
-# a palette entry offering a command nobody can run is worse than no entry.
-lint = "python3 -m pyflakes engine"
+validate = "python3 -m pytest -q && python3 -m pytest evals -q"
 # `lines` is the machinery cap's instrument (V2_DESIGN.md's Size section). It asks
 # git rather than the filesystem, so it counts the engine and `spine` as committed
 # and cannot drift with `engine/__pycache__/*.pyc`, which moved the number by 896

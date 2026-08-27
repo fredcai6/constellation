@@ -13,14 +13,11 @@ the return unblocked.
 
 import pathlib
 import subprocess
-import sys
 
 import pytest
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
-
-from engine import cli, journal, render  # noqa: E402
-from test_nesting import (  # noqa: E402
+from engine import cli, journal, render
+from test_nesting import (
     _dispatch_and_close_child, _fill, _fill_gate_close, _fill_implement,
     _mint_two_gates,
 )

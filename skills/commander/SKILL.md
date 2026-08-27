@@ -26,8 +26,11 @@ paper over with a guess.
 **Dispositions are yours, not the panel's.** A panel returns findings;
 each finding's disposition is your ruling, made at a gate's adjudication
 step — and in the plan loop at the rework ledger, since that refill is
-automatic. Two rounds on one done means the done is the defect: replace it
-in kind rather than run it a third time. Never sharpen the panel's brief
+automatic. Two rounds on one proof means the proof is the defect: replace it
+in kind rather than run it a third time. After the third round the engine
+stops offering a fourth and asks you to rule instead — advance over the
+verdict, run another round, or send it up, which ends the run and makes your
+ruling the record your principal reads. Never sharpen the panel's brief
 between rounds — a panel is cold on purpose, and a sharpened brief tells
 it what to find.
 
