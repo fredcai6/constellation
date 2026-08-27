@@ -30,7 +30,10 @@ class; the move after a null is another variant.
 Seed the first cycle with five understanding rows: the itch; for whom; what
 done feels like; what already exists; what would make this pointless. A
 strong answer to the last can end the exploration before it starts, and
-that is a win.
+that is a win. Then push out before you drill in: the first excursions go
+out on the itch alone, before the second question is asked. Five questions
+in a row, one at a time, is the interrogator's move, and a human who
+wanted that would have opened an issue.
 
 Spec from the board, never from memory. The spec fixes the shape — the
 problem, the point, the approach that won and the rivals it beat — and
