@@ -417,18 +417,22 @@ def cmd_submit(argv):
         fid, kind = f["id"], f.get("kind", "evidence")
         if kind == "check":
             continue  # the engine runs these; they are never on the template
+        # The escape both refusals below offer is the field's own: a note that
+        # declares a vocabulary refuses the nulls, so it is offered its values.
+        vocab = forms.vocabulary(f.get("note", ""))
         if fid not in filled:
             if f.get("optional"):
                 continue
-            raise SystemExit(render.refusal(fid, "no answer"))
+            raise SystemExit(render.refusal(fid, "no answer",
+                                            escape=render.escape_for(vocab)))
         # A field the agent marked as still in hand. Submitting it would
         # record work-in-progress as an answer, and the next reader could not
         # tell the difference -- so say what is still open and let the agent
-        # finish it, or close it honestly with one of the nulls.
+        # finish it, or close it honestly with one of the values it does take.
         if str(filled[fid]).strip().startswith("working:"):
             raise SystemExit(render.refusal(
                 fid, str(filled[fid]).strip(),
-                escape="finish it, or answer  waived: <reason>  /  unknown: <reason>"))
+                escape=render.escape_for(vocab, verb="finish")))
         fields[fid] = filled[fid]
 
     for f in form["fields"]:

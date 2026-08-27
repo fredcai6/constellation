@@ -301,6 +301,43 @@ def test_every_refusal_states_an_escape_that_works(workdir):
     assert "pending:" in str(e.value)   # names the ids that were in scope all along
 
 
+def test_a_refusal_on_a_vocabulary_field_offers_its_values_not_an_escape_it_refuses(
+        workdir, capsys):
+    """The escape above is the other half of the same promise. `waived:` and
+    `unknown:` are refused on any field whose note declares a vocabulary -- a
+    waived verdict falls through `merged_verdict` to a `pass` -- but the
+    refusal surface went on offering them, so an agent that took the advice on
+    an empty or in-hand field was refused on its very next submit.
+
+    Driven, not read: the escape the engine prints is parsed back out of the
+    refusal and submitted as the answer. A test that asserted on the constant
+    would prove nothing about the path that uses it."""
+    _critic_step()
+    capsys.readouterr()
+
+    offered = []
+    # The two refusals a `verdict` can draw before its value is ever checked:
+    # a field left unanswered, and a field still in hand.
+    for verdict in ("", "working: still reading the diff"):
+        _fill_critic("c1", verdict)
+        with pytest.raises(SystemExit) as e:
+            cli.main(["c1", "submit"])
+        msg = str(e.value)
+        assert "verdict" in msg
+        assert "waived:" not in msg and "unknown:" not in msg, (
+            "the refusal offers an escape its own next submit refuses:\n" + msg)
+        line = next(ln for ln in msg.splitlines() if "one of:" in ln)
+        offered.append([v.strip() for v in line.split("one of:")[1].split("|")])
+
+    assert offered[0] == offered[1] == ["pass", "revise", "escalate"]
+
+    # Take the escape at its word. Were it naming a value the submit refuses,
+    # this raises -- which is exactly the defect, one step later.
+    _fill_critic("c1", offered[0][0])
+    cli.main(["c1", "submit"])
+    assert runmod.state("c1")["done"]["verdict"]["fields"]["verdict"] == "pass"
+
+
 def test_a_crash_is_never_a_refusal(workdir):
     """Two paths raised bare Python errors: nothing journaled, no way forward.
     Worse than an illegitimate refusal."""

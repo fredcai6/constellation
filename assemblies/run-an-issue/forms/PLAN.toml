@@ -1,6 +1,10 @@
 # Step: plan. Owned by run-an-issue; filled by the conductor.
 # The consolidate's learnings and key terms arrive as prefill. A revise
-# mints REWORK.toml for the next round, so this form is always a first cut.
+# mints REWORK.toml for the next round, so this form is always a first cut --
+# including the second time it is minted: a `replan` outcome closes the
+# pending gates and recuts the plan here, and what the gate that forced it
+# learned arrives as `findings`. Those are the ground the new cut answers to,
+# not an objection to rebut.
 
 imperative = """
 Produce the plan: how this issue gets solved, cut into gates. A fresh-context

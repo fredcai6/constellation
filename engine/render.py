@@ -359,16 +359,45 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     return "\n".join(out)
 
 
-FILL_OR_NULL = "fill it, or answer  waived: <reason>  /  unknown: <reason>"
+NULLS = "waived: <reason>  /  unknown: <reason>"
+
+
+# [escape-for-field]
+# Rationale: a field whose note declares a vocabulary refuses `waived:` and
+#   `unknown:` -- `_check_vocabulary` rejects both, because a waived verdict
+#   would fall through `merged_verdict` to a `pass`. So an empty or in-hand
+#   answer on such a field cannot be offered the nulls: that is advice the very
+#   next submit rejects. Where the note declares alternatives the escape names
+#   them, in the phrasing `_check_vocabulary`'s own refusal already uses.
+# Rejected: teaching `refusal()` to look the field up itself. It is handed a
+#   field *id* -- sometimes a board file name, sometimes a bare word like
+#   "reason" -- and most of its callers have no form field at all. The caller
+#   holding the note is the only one that can answer.
+# See: engine/cli.py `_check_vocabulary`, engine/forms.py `vocabulary`,
+#   engine/forms.py `ESCAPES_REFUSED` -- the same correction on the template.
+def escape_for(vocab, verb="fill"):
+    """The escape a refusal offers on a field left unanswered: the two nulls,
+    or -- where the field's note declares a vocabulary -- the values it takes.
+
+    `verb` is what is left to do with the field: `fill` an empty one, `finish`
+    one still carrying `working:`.
+    """
+    return (f"{verb} it with one of:  " + " | ".join(vocab) if vocab
+            else f"{verb} it, or answer  {NULLS}")
+
+
+FILL_OR_NULL = escape_for(())
 
 
 def refusal(field_id, why, escape=FILL_OR_NULL):
     """A refusal names what failed and how to get past it -- no lecture.
 
     The escape is a parameter because it is not always the same one. A board
-    row takes `deferred:`, not `waived:`; a lookup takes a different command
-    entirely. One hardcoded suffix made half the refusals in this engine
-    print an escape that does not work, which is worse than printing none.
+    row takes `deferred:`, not `waived:`; a field whose note declares a
+    vocabulary takes one of its values and refuses the nulls; a lookup takes a
+    different command entirely. One hardcoded suffix made half the refusals in
+    this engine print an escape that does not work, which is worse than
+    printing none.
     """
     return located(f"{field_id}: {why}" + (f"\n  {escape}" if escape else ""))
 

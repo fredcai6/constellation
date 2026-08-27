@@ -174,20 +174,14 @@ MINT_TARGETS = {
 
 # A form that receives a minted key its own prose never names, and the file
 # that teaches its reader instead -- checked, not waived: the key must appear
-# there. `None` is not an exception but a gap this sweep records rather than
-# hides.
+# there. Every entry names a real document; a key nothing teaches is a defect
+# in the form, not a row to add here.
 PREFILL_NAMED_ELSEWHERE = {
     # The implementer's posture, read on every gate, is where the revise round
     # and the findings it carries are described; the form is filled on a first
     # pass too, and does not speak of rounds at all.
     ("skills/implementer/forms/IMPLEMENT.toml", "findings"):
         "skills/implementer/SKILL.md",
-    # A replan mints PLAN.toml carrying the adjudication's `learned` under the
-    # key `findings`. The form's prose names the consolidate's keys and calls
-    # itself a first cut, so this arrival is unnamed. Outside the scope of the
-    # gate that added this sweep (issue30.g1-a07af) and raised there as a note,
-    # recorded here rather than narrowed away.
-    ("assemblies/run-an-issue/forms/PLAN.toml", "findings"): None,
 }
 
 
@@ -259,7 +253,7 @@ def test_every_prefill_key_the_engine_mints_is_named_by_the_form_that_receives_i
                         f"{rel} is minted with prefill {key!r} by {site[0]} and "
                         "names it nowhere")
                     elsewhere = PREFILL_NAMED_ELSEWHERE[(rel, key)]
-                    assert elsewhere is None or key in (ROOT / elsewhere).read_text(), (
+                    assert key in (ROOT / elsewhere).read_text(), (
                         f"{rel}: {key!r} is said to be named by {elsewhere}, and is not")
 
 
