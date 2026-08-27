@@ -363,12 +363,12 @@ NULLS = "waived: <reason>  /  unknown: <reason>"
 
 
 # [escape-for-field]
-# Rationale: a field whose note declares a vocabulary refuses `waived:` and
-#   `unknown:` -- `_check_vocabulary` rejects both, because a waived verdict
-#   would fall through `merged_verdict` to a `pass`. So an empty or in-hand
-#   answer on such a field cannot be offered the nulls: that is advice the very
-#   next submit rejects. Where the note declares alternatives the escape names
-#   them, in the phrasing `_check_vocabulary`'s own refusal already uses.
+# Rationale: a `decision` field whose note declares its values refuses
+#   `waived:` and `unknown:` -- `_check_vocabulary` rejects both, because a
+#   waived verdict would fall through `merged_verdict` to a `pass`. So an empty
+#   or in-hand answer on such a field cannot be offered the nulls: that is
+#   advice the very next submit rejects. Where the values are enforced the
+#   escape names them, in the phrasing `_check_vocabulary`'s refusal uses.
 # Rejected: teaching `refusal()` to look the field up itself. It is handed a
 #   field *id* -- sometimes a board file name, sometimes a bare word like
 #   "reason" -- and most of its callers have no form field at all. The caller
@@ -377,7 +377,7 @@ NULLS = "waived: <reason>  /  unknown: <reason>"
 #   engine/forms.py `ESCAPES_REFUSED` -- the same correction on the template.
 def escape_for(vocab, verb="fill"):
     """The escape a refusal offers on a field left unanswered: the two nulls,
-    or -- where the field's note declares a vocabulary -- the values it takes.
+    or -- where the engine enforces a vocabulary on the field -- its values.
 
     `verb` is what is left to do with the field: `fill` an empty one, `finish`
     one still carrying `working:`.
@@ -393,8 +393,8 @@ def refusal(field_id, why, escape=FILL_OR_NULL):
     """A refusal names what failed and how to get past it -- no lecture.
 
     The escape is a parameter because it is not always the same one. A board
-    row takes `deferred:`, not `waived:`; a field whose note declares a
-    vocabulary takes one of its values and refuses the nulls; a lookup takes a
+    row takes `deferred:`, not `waived:`; a `decision` field takes one of the
+    values its note declares and refuses the nulls; a lookup takes a
     different command entirely. One hardcoded suffix made half the refusals in
     this engine print an escape that does not work, which is worse than
     printing none.

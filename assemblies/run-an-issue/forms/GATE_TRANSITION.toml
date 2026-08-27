@@ -16,7 +16,7 @@ note = "What this gate taught us."
 
 [[field]]
 id = "plan-holds"
-kind = "evidence"
+kind = "decision"
 note = """
 advance | remint | drop <gate-id> | replan — on anything but advance, the
 amend is the evidence. Adjudicate the child's amend summary: accept or

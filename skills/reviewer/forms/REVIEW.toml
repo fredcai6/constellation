@@ -43,7 +43,7 @@ note = "Names the change introduces that fight the glossary or the prose standar
 
 [[field]]
 id = "verdict"
-kind = "evidence"
+kind = "decision"
 note = """
 pass | revise | escalate. Any blocking finding means revise; revise mints a
 fresh implement step with your findings as prefill. escalate means the spec

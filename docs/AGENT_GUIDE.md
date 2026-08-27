@@ -73,6 +73,10 @@ them is a choice: `palette:validate`, or `pytest evals`. They drive a real model
 - `standards/prose.md` — Rule 2 is the one that bites: one name for one thing, backed by
   `standards/glossary.md`. **Grep the glossary for the term you are introducing, not only the
   one you are replacing.** That check is what fails, and each failure ships a homonym.
+- Writing a form field the engine acts on? Make it `kind = "decision"` and list the values in
+  its note (`advance | rework | up. …`). The engine reads that line and refuses anything else,
+  so the sentence the agent is given and the rule it is held to are one string. On any other
+  kind the same punctuation is ordinary prose.
 - `standards/issue.md` — an observation is a claim about a rev, so run its command against HEAD
   before planning against it. A defect that is real, cheap, and harmless is the easiest work to
   justify and the least worth doing.

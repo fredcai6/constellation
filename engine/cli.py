@@ -417,9 +417,9 @@ def cmd_submit(argv):
         fid, kind = f["id"], f.get("kind", "evidence")
         if kind == "check":
             continue  # the engine runs these; they are never on the template
-        # The escape both refusals below offer is the field's own: a note that
-        # declares a vocabulary refuses the nulls, so it is offered its values.
-        vocab = forms.vocabulary(f.get("note", ""))
+        # The escape both refusals below offer is the field's own: a decision
+        # field refuses the nulls, so it is offered the values its note lists.
+        vocab = forms.enforced_vocabulary(f)
         if fid not in filled:
             if f.get("optional"):
                 continue
@@ -509,10 +509,12 @@ def _check_plan(form, fields):
 
 
 # [check-vocabulary]
-# Rationale: a field whose note declares alternatives is checked against those
-#   same alternatives, read off the note by `forms.vocabulary` -- so the enum
-#   the agent is told and the enum the engine enforces are one string and
-#   cannot drift, and the refusal can name the list the agent already read.
+# Rationale: a `decision` field -- one whose value the engine acts on -- is
+#   checked against the alternatives its own note declares, read off by
+#   `forms.enforced_vocabulary` -- so the enum the agent is told and the enum
+#   the engine enforces are one string and cannot drift, and the refusal can
+#   name the list the agent already read. The kind is what makes the note
+#   load-bearing: punctuation alone would enum an ordinary prose note.
 # Rejected: a table of field ids and their legal values kept here. It is the
 #   same list written twice, and the copy that matters is the one in the form:
 #   the engine would go on enforcing the old list against a reworded note.
@@ -528,7 +530,7 @@ def _check_vocabulary(form, fields):
     missing argument -- refused, by name, where the argument is checked.
     """
     for f in form["fields"]:
-        vocab = forms.vocabulary(f["note"])
+        vocab = forms.enforced_vocabulary(f)
         if not vocab or f["id"] not in fields:
             continue
         value = str(fields[f["id"]]).strip()

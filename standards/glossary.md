@@ -40,7 +40,13 @@ forms; coining a synonym for a term below is a defect.
   definition the map stores instead of deriving.
 - **form** — one step's imperative, fields, and field notes; the unit that carries doctrine.
 - **field kind** — how a field is satisfied: `check`, `evidence`, `artifact`, `decision`,
-  `plan`; any field instead takes `waived: <reason>` or `unknown: <reason>`.
+  `plan`. A field takes `waived: <reason>` or `unknown: <reason>` in place of an answer —
+  except a `decision` whose note declares a vocabulary, where the values are the whole of
+  what it accepts.
+- **vocabulary** — the values a `decision` field accepts, read from the alternatives its own
+  note lists (`pass | revise | escalate`). One string, so what the agent is told and what the
+  engine enforces cannot drift. A value outside it refuses; the kind, not the punctuation, is
+  what makes the note binding.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
 - **work id** — a run's address: the tracker issue's number when one exists (`issue17`),

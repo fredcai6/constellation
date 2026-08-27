@@ -23,6 +23,14 @@ def _open(wid="issue17"):
     cli.main(["open", "run-an-issue", "--id", wid, "--title", "t"])
 
 
+def tmp_form(workdir, body):
+    """A form on disk, for a shape the corpus does not have and should not
+    gain just to be tested against."""
+    path = workdir / "SYNTHETIC.toml"
+    path.write_text(body)
+    return str(path)
+
+
 def test_a_torn_journal_reads_as_the_work_before_the_tear(workdir, capsys):
     """An append interrupted mid-block -- Ctrl-C, OOM, full disk -- must not
     brick every verb on the run. State is a fold over this file, so a raising
@@ -61,7 +69,7 @@ def test_a_malformed_plan_field_refuses_before_anything_is_recorded(workdir, cap
 
 def _critic_step(wid="c1"):
     """A run standing on one CRITIC.toml -- the cheapest way to reach a field
-    whose note declares a vocabulary, with no panel plumbing in the way."""
+    a decision field's note declares, with no panel plumbing in the way."""
     journal.append(wid, "run", title="t", assembly="give-a-verdict")
     journal.append(wid, "step", id="verdict", segment="verdict",
                    form="skills/reviewer/forms/CRITIC.toml", filler="reviewer",
@@ -77,7 +85,7 @@ def _fill_critic(wid, verdict):
 
 
 def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(workdir, capsys):
-    """A field whose note declares alternatives used to take anything: the
+    """A decision field used to take anything its note did not list: the
     submit landed, the step was released, and the act downstream matched no
     branch and performed nothing. The refusal names the field and quotes the
     alternatives the note already taught."""
@@ -304,7 +312,7 @@ def test_every_refusal_states_an_escape_that_works(workdir):
 def test_a_refusal_on_a_vocabulary_field_offers_its_values_not_an_escape_it_refuses(
         workdir, capsys):
     """The escape above is the other half of the same promise. `waived:` and
-    `unknown:` are refused on any field whose note declares a vocabulary -- a
+    `unknown:` are refused on a decision field whose note declares values -- a
     waived verdict falls through `merged_verdict` to a `pass` -- but the
     refusal surface went on offering them, so an agent that took the advice on
     an empty or in-hand field was refused on its very next submit.
@@ -389,3 +397,44 @@ def test_a_field_in_hand_is_not_mistaken_for_an_answer(workdir, capsys):
         'change = "traced it; flushed at capacity"\ndeviations = "waived: none"\n')
     cli.main(["g1", "submit"])
     assert "work-1" in runmod.state("g1")["done"]
+
+
+def test_a_pipe_in_ordinary_prose_does_not_become_an_enum_the_engine_enforces(workdir):
+    """Enforcement follows `kind = "decision"`, never the punctuation alone.
+
+    The first cut of this derived the enum from the note and nothing else, so
+    any field whose note happened to carry ` | ` in its opening sentence
+    silently became an enum -- `Name the risk | the mitigation | who owns it`
+    would have refused every answer but those three. The values still come from
+    the note, because that is the sentence the agent reads and a second copy
+    would drift from it; what the note cannot do is decide *whether* the engine
+    acts on the field. A form author picks that on purpose.
+    """
+    src = tmp_form(workdir, """
+imperative = "Fill it."
+
+[[field]]
+id = "risks"
+kind = "evidence"
+note = "Name the risk | the mitigation | who owns it, in one line each."
+
+[[field]]
+id = "ruling"
+kind = "decision"
+note = "advance | rework | up. What happens to the artifact."
+""")
+    form = forms.load(src)
+    prose, decision = form["fields"]
+
+    assert forms.vocabulary(prose["note"]) == ["Name the risk", "the mitigation",
+                                               "who owns it"]
+    assert forms.enforced_vocabulary(prose) == []
+    assert forms.enforced_vocabulary(decision) == ["advance", "rework", "up"]
+
+    # the prose field takes an answer that is none of its three "alternatives"
+    cli._check_vocabulary(form, {"risks": "the parser drops the last record",
+                                 "ruling": "rework"})
+
+    with pytest.raises(SystemExit) as e:
+        cli._check_vocabulary(form, {"ruling": "keep going"})
+    assert "not a value this step can act on" in str(e.value)

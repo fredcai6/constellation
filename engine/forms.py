@@ -84,12 +84,33 @@ def vocabulary(note: str) -> list[str]:
     return [alt.strip() for alt in found.group(0).split("|")] if found else []
 
 
+def enforced_vocabulary(field: dict) -> list[str]:
+    """The values the engine will accept for a field -- `[]` where it accepts
+    anything.
+
+    Two conditions, and the second is the one that took a second pass to get
+    right. A note's alternatives say *what* the values are; `kind = "decision"`
+    says the engine acts on them, and only then is the note load-bearing.
+    Deriving enforcement from the punctuation alone made an ordinary prose
+    note -- `Name the risk | the mitigation | who owns it` -- into an enum
+    nothing declared and no one could see, and a field kind is a thing a form
+    author chooses on purpose.
+    """
+    return vocabulary(field["note"]) if field["kind"] == "decision" else []
+
+
 def _is_short(field: dict) -> bool:
     """Short `id = ""` slot vs multi-line prose slot -- judgment call: short
-    when the note itself reads as an enum, or the field is a brief
+    when the field takes one of a listed set of values, or is a brief
     decision/artifact (typically one word or one path); else multi-line,
-    since prose is the common case."""
-    if vocabulary(field["note"]):
+    since prose is the common case.
+
+    Keyed off `enforced_vocabulary` rather than the note alone, so a ` | ` in
+    ordinary prose means nothing here either -- one rule for what the
+    punctuation does, not one for the slot and another for the check. No form
+    in the corpus renders differently for it; the five fields with a listed set
+    are all decisions already."""
+    if enforced_vocabulary(field):
         return True
     return field["kind"] in ("decision", "artifact") and len(field["note"]) < 120
 
@@ -100,8 +121,8 @@ def _slot(field_id: str, short: bool) -> str:
 
 # [escapes-refused]
 # Rationale: the two escapes are offered per field, not once per form, because
-#   `cli._check_vocabulary` refuses both on any field whose note declares
-#   alternatives -- a `waived:` verdict would fall through `merged_verdict` to
+#   `cli._check_vocabulary` refuses both on a `decision` field whose note
+#   declares its values -- a `waived:` verdict would fall through `merged_verdict` to
 #   `pass`, so the refusal is correct and it is the template that was wrong to
 #   promise a way out its own submit rejects.
 # Rejected: dropping the two lines from the header for every form. A form is a
@@ -122,7 +143,7 @@ def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
              "# Any field also takes a status instead of an answer:",
              "#   working: <what is left>   still in hand; submit will say so"]
     # The escapes are named at all only while some field still accepts them.
-    if any(not vocabulary(f["note"]) for f in shown):
+    if any(not enforced_vocabulary(f) for f in shown):
         lines += ["#   waived: <reason>          does not apply here",
                   "#   unknown: <reason>         could not determine"]
     lines.append("")
@@ -135,7 +156,7 @@ def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
                 lines.append(_comment(item["note"], item["optional"]))
                 lines.append(_slot(item["id"], True))
         else:
-            if vocabulary(field["note"]):
+            if enforced_vocabulary(field):
                 lines.append(ESCAPES_REFUSED)
             lines.append(_slot(field["id"], _is_short(field)))
         lines.append("")

@@ -43,7 +43,7 @@ note = "Terms inconsistent with the glossary or the prose standard — or waived
 
 [[field]]
 id = "verdict"
-kind = "evidence"
+kind = "decision"
 note = """
 pass | revise | escalate. The gap test: would this plan produce wrong work?
 A better sentence is not a gap, and detail below the gate's grain is the

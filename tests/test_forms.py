@@ -55,7 +55,11 @@ def test_load_gate_transition():
     form = forms.load(GATE_TRANSITION)
     assert _ids(form) == ["learned", "plan-holds", "gate-spec"]
     kinds = _kinds(form)
-    assert kinds["learned"] == kinds["plan-holds"] == "evidence"
+    # `plan-holds` is a decision because the engine acts on its value, and that
+    # kind is what makes its note's alternatives enforced -- see
+    # forms.enforced_vocabulary. `learned` is prose the engine only records.
+    assert kinds["learned"] == "evidence"
+    assert kinds["plan-holds"] == "decision"
     assert kinds["gate-spec"] == "plan"
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True

@@ -258,7 +258,7 @@ def test_every_prefill_key_the_engine_mints_is_named_by_the_form_that_receives_i
 
 
 def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
-    """`waived:` and `unknown:` are refused on any field whose note declares a
+    """`waived:` and `unknown:` are refused on a decision field whose note declares a
     vocabulary -- `merged_verdict` would read a waived verdict as a `pass` --
     so a template offering them there hands the agent a way out its own submit
     rejects. The offer is per field, not per form: one enum field beside four
@@ -281,11 +281,11 @@ def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
         for field, block in zip(shown, blocks):
             offered = field["kind"] != "plan" and any(
                 e in header for e in ("waived:", "unknown:"))
-            if forms.vocabulary(field["note"]):
+            if forms.enforced_vocabulary(field):
                 assert forms.ESCAPES_REFUSED in block, (
                     f"{f}: {field['id']} declares a vocabulary and is not told "
                     "the escapes are refused on it")
-                assert offered == any(not forms.vocabulary(x["note"]) for x in shown), (
+                assert offered == any(not forms.enforced_vocabulary(x) for x in shown), (
                     f"{f}: the header offers an escape no field on it accepts")
             else:
                 assert forms.ESCAPES_REFUSED not in block
@@ -321,7 +321,7 @@ def test_every_vocabulary_the_engine_enforces_is_the_one_the_form_teaches():
     swept = {}
     for f in FORMS:
         for field in forms.load(f)["fields"]:
-            vocab = forms.vocabulary(field["note"])
+            vocab = forms.enforced_vocabulary(field)
             if vocab:
                 swept[(str(f.relative_to(ROOT)), field["id"])] = vocab
 
