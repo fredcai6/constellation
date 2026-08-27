@@ -1,4 +1,4 @@
-# CLAUDE.md
+# Agents
 
 The guide for this repository is **[docs/AGENT_GUIDE.md](docs/AGENT_GUIDE.md)**.
 

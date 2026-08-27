@@ -1,0 +1,78 @@
+# Agent Guide
+
+Orientation for any agent working in this repository: what this project is for, where everything
+lives, and what binds you before you write. Root pointer files (`CLAUDE.md`, `AGENTS.md`)
+redirect here so there is one guide, not many. `README.md` is the human's page and may lag
+this one; where they disagree, this file is right about the repo and `docs/V2_DESIGN.md` is
+right about the design.
+
+## What this is
+
+Constellation is a choreography for agent work: structured runs of understand → plan → build →
+criticize → refine, driven by a small engine that acts as a secretary, never a guard. Work
+happens in **runs**, opened from an **assembly** — a fixed skeleton of **segments**, each a
+worklist of steps ending in a **transition**. Every step is a **form**: an imperative and
+fields, which carry all the doctrine there is. Runs nest by dispatch; orders flow down as
+read-only **prefill**, evidence flows up as **returns**, and nothing else crosses. State is a
+fold over a per-run TOML journal, nothing else.
+
+**The decision procedure for every keep/kill call: structure that shapes an agent's thinking
+stays; structure that audits an agent's behavior goes.** When a change would add a check on
+what an agent did, look first for the field or imperative that would have shaped what it did
+instead. `docs/V2_DESIGN.md` states the thesis in full, along with the corollary that settles
+calls the thesis alone cannot.
+
+Two budgets bound every addition, and no test enforces either — `docs/V2_DESIGN.md`'s Size
+section owns both numbers and what counts against them. Engine size is measured by
+`palette:lines`; corpus is the authored artifacts an agent must read before it can work,
+this file among them.
+
+## How work happens
+
+Work runs through the engine itself. `spine` with no arguments lists open runs; `spine
+<work-id>` says where you are and what to fill; `spine open run-an-issue --title T --issue N`
+starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitignored — as are
+`.code-map/` and `map/`. Nothing derived is ever committed; `docs/DERIVED_IS_CODE.md` says why.
+
+## Repository organization
+
+| Path | Holds |
+|---|---|
+| `engine/` + `spine` | the secretary: rail, forms, journal, install copy. Bound by the machinery cap. |
+| `assemblies/` | run templates, one directory each |
+| `skills/<name>/` | one posture each: a `SKILL.md` and the forms only that skill fills |
+| `standards/` | what binds writing and issues — see below |
+| `tools/` | decoupled tooling. Outside both caps by ruling: no verb, no step, no form field, no import from `engine/`. |
+| `tests/` | the fast suite: no model calls |
+| `evals/` | end-to-end runs against a real light model |
+| `constellation.toml` | the palette, and the logical model tiers resolved at dispatch |
+
+## Documentation map
+
+| Document | Source of truth for |
+|---|---|
+| `docs/AGENT_GUIDE.md` | this guide — purpose, layout, documentation map |
+| `docs/V2_DESIGN.md` | the design of record: thesis, rulings, budgets, waves. Read its prose as history and its rulings as live. |
+| `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
+| `docs/DERIVED_IS_CODE.md` | why nothing generated is committed |
+| `standards/prose.md` | how this repo writes |
+| `standards/glossary.md` | one name for one thing |
+| `standards/issue.md` | what an issue and an epic are |
+| `standards/skill.md` | what a skill is and what it must carry |
+| `standards/understanding-moves.md` | converting an open question into evidence |
+
+## Run things through the palette
+
+`constellation.toml`'s `[commands]` is the only place a runner is named. Reach a test, a lint,
+or the map through the palette; each entry carries its own note on what it costs and why it is
+written the way it is. Invoke pytest as `python3 -m pytest` — bare `pytest` resolves a config
+from outside the repo and runs the agent evals, which drive a real model and spend real money.
+
+## Before you write
+
+- `standards/prose.md` — Rule 2 is the one that bites: one name for one thing, backed by
+  `standards/glossary.md`. **Grep the glossary for the term you are introducing, not only the
+  one you are replacing.** That check is what fails, and each failure ships a homonym.
+- `standards/issue.md` — an observation is a claim about a rev, so run its command against HEAD
+  before planning against it. A defect that is real, cheap, and harmless is the easiest work to
+  justify and the least worth doing.
