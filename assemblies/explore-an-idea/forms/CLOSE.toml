@@ -1,7 +1,7 @@
 # Anchor: close, terminal. Owned by explore-an-idea; filled by the conductor.
 # Everything on this form returns when this run is parented. The engine
-# appends the mechanical record itself: the cycles fired, the excursions
-# run, the panel's verdicts, and this run's amend summary.
+# appends the mechanical record itself: the cycles fired, the panel's
+# verdict, and this run's amend summary.
 
 imperative = """
 Close the exploration. Record where the design went and the human's words

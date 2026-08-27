@@ -101,8 +101,9 @@ forms; coining a synonym for a term below is a defect.
 - **frame** — what a board row is about: `capability`, `use-case`, `event`, `constraint`,
   `assumption`. Orthogonal to its type, which is what it resolves to.
 - **excursion** — a move dispatched as a child run to answer one named question, opened from a
-  board row or a plan step; returns a scoped verdict and the command that regenerates it. Four
-  kinds, each its own form: prior art, prototype, picture, rival.
+  board row, which is its brief; its return lands under the row. Returns a scoped verdict and
+  the command that regenerates it. Four kinds, each its own form: prior art, prototype,
+  picture, rival.
 - **rival** — a design produced against an incumbent under one named constraint, to test
   whether the incumbent holds. Design-it-twice, without the count.
 - **ideas board** — the explore segment's board: a tree of ideas and threads grown and shaped

@@ -1,6 +1,6 @@
-# Assembly: one rival design. Opened N times from a spec or plan step, each
-# child under a different constraint; the incumbent and the constraint are
-# the opening prefill. One terminal step -- the return is the whole run.
+# Assembly: one rival design. Opened from a board row -- one row per
+# constraint, N rows per incumbent; the row is the opening prefill. One
+# terminal step -- the return is the whole run.
 
 assembly = "design-a-rival"
 conductor = "excursion"

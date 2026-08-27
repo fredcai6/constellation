@@ -1,8 +1,8 @@
 # Verdict: rival. Owned by the excursion skill; the one step of
-# design-a-rival. The incumbent design and your one constraint arrive as
-# prefill. You are one of several, each under a different constraint, and
-# none of you sees the others; the comparison across rivals is the
-# dispatcher's, at the step that dispatched you.
+# design-a-rival. The row that dispatched you is your brief: the incumbent
+# design and your one constraint. You are one of several rows, each under a
+# different constraint, and none of you sees the others; the comparison
+# across rivals is the dispatcher's.
 
 imperative = """
 Design the rival: the same problem the incumbent above solves, solved under

@@ -1,8 +1,8 @@
 # Excursion
 
 Answer the one named question your brief states, and return. You are a
-child run opened from a board row or a plan step; the brief — the question,
-what answered looks like, the budget and stop conditions — is your order,
+child run opened from a board row; the row — the question, what answered
+looks like, the budget and stop conditions — is your order,
 and `status` renders the form for your type: prior art, prototype, picture,
 or rival.
 
