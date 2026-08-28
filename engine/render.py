@@ -42,10 +42,16 @@ def imperative(text):
     return _para(text)
 
 
+# [no-break-on-hyphens]
+# Rationale: every name this engine renders in prose is hyphenated -- an
+#   assembly (`find-prior-art`), a move (`evidence-loop`), a slug. The
+#   default wrap splits inside them, and a reader who has to reassemble
+#   `draw-\na-picture` before typing it is being made to guess, which is the
+#   one thing this file exists not to do.
 def _para(text, indent="  "):
     out = []
     for block in (text or "").strip().split("\n\n"):
-        out.append(textwrap.fill(" ".join(block.split()), WIDTH,
+        out.append(textwrap.fill(" ".join(block.split()), WIDTH, break_on_hyphens=False,
                                  initial_indent=indent, subsequent_indent=indent))
     return "\n\n".join(out)
 
@@ -88,7 +94,8 @@ def _pairs(rows, indent="    "):
     pad = max(len(k) for k, _ in rows) + 2
     out = []
     for k, v in rows:
-        body = textwrap.fill(" ".join(str(v).split()), WIDTH - len(indent) - pad) or ""
+        body = textwrap.fill(" ".join(str(v).split()), WIDTH - len(indent) - pad,
+                             break_on_hyphens=False) or ""
         first, *rest = body.split("\n") or [""]
         out.append(f"{indent}{k.ljust(pad)}{first}")
         out.extend(" " * (len(indent) + pad) + line for line in rest)
@@ -147,6 +154,34 @@ the panel's to give, which is the whole reason for a second voice. This step
 completes once the last verdict has returned."""
 
 
+# [excursion-kinds]
+# Rationale: the board's `excursion` column offers three kinds under short
+#   words -- prior-art, prototype, picture -- and the command that opens one
+#   needs the assembly's whole name. The pairing is spelled out here so the
+#   rendered command is typeable exactly as it stands: the column's short
+#   word is not an assembly name, so an agent holding only that word has
+#   nothing to type, and five light-model drives missed at exactly that gap.
+# Rejected: reading the assemblies directory for every run whose conductor
+#   is `excursion`. That also finds design-a-rival, which is briefed against
+#   a commitment rather than offered by a board row's column, so the derived
+#   list would be four where the column offers three.
+EXCURSION_KINDS = (
+    ("find-prior-art", "ask the world -- the literature, the ecosystem, and "
+                       "this codebase's own history, a citation per claim"),
+    ("build-a-prototype", "spike it -- throwaway code that answers the "
+                          "question and is disposed of after"),
+    ("draw-a-picture", "show it -- the table, plot or dump that leaves the "
+                       "anomaly nowhere to hide"),
+)
+
+EXCURSION = """
+An excursion answers one row from off the board: a child run you open
+yourself and carry to its own close, briefed by the row it came from, whose
+return lands back under that row and completes no step. Reach for one when
+the answer is not in this tree -- it is the only move on this board that can
+leave it."""
+
+
 # [posture-line]
 # Rationale: a role name alone is a label; the agent has to be told where the
 #   role is written and to go read it. The imperative is part of the line
@@ -203,13 +238,46 @@ def destination(onward_to):
     return f"{parent}, at its step {step}"
 
 
-def _board(state):
+# [off-the-board]
+# Rationale: an excursion was a word on the board and not a move an agent
+#   could make. A dispatch step prints `open it:` with the whole command;
+#   a board row printed nothing, so the one command that opens an excursion
+#   -- `spine open <assembly> --parent <wid> --row <row-id>` -- appeared
+#   nowhere a working agent could read it, and five light-model drives
+#   invented three different substitutes for it and fabricated the answers.
+#   Rendered per askable row, because the row id is an argument of the
+#   command and a reader holding a form with a blank `excursion` column has
+#   no other way to learn what goes in that slot.
+# Rejected: one line with a `<row-id>` placeholder. Every command this
+#   engine renders is typeable as printed, and a placeholder in argument
+#   position is the guess this block exists to remove.
+# See: engine/cli.py `_open_excursion`, which is what these commands reach.
+def _off_the_board(wid, row_ids):
+    """The excursion, and the command that opens one from each askable row.
+
+    Only askable rows: a row held by a dependency is not one an interrogator
+    can act on yet, and a settled row has nothing left to send out.
+    """
+    out = ["  off the board", _para(EXCURSION, indent="    "), ""]
+    out.append(_pairs(list(EXCURSION_KINDS)))
+    out.append(_para("The commands below name find-prior-art. Put "
+                     "build-a-prototype or draw-a-picture where it stands to "
+                     "open that kind from the same row instead.", indent="    "))
+    for rid in row_ids:
+        out.append(located(f"    open {rid}:  spine open {EXCURSION_KINDS[0][0]} "
+                           f"--parent {wid} --row {rid}"))
+    out.append("")
+    return out
+
+
+def _board(state, wid):
     """The board's own state -- its voice, its counts, the tree its rows
-    hang in, and what the rows' own statuses already imply -- so the agent
-    reads them rather than counting rows by hand. A block appears only when
-    it has something to say: no held rows or no ready cluster means that
-    block does not print, since a heading over an empty list tells the
-    reader less than no heading at all.
+    hang in, what the rows' own statuses already imply, and the one command
+    that takes a row off the board -- so the agent reads them rather than
+    counting rows by hand. A block appears only when it has something to
+    say: no held rows or no ready cluster means that block does not print,
+    since a heading over an empty list tells the reader less than no heading
+    at all.
     """
     out = []
     for text in state["prose"].values():
@@ -233,6 +301,7 @@ def _board(state):
         out.append("  askable now")
         out.append(_pairs(askable))
         out.append("")
+        out.extend(_off_the_board(wid, [rid for rid, _ in askable]))
 
     held = state["held"]
     if held:
@@ -340,7 +409,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("")
 
     if board:
-        out.extend(_board(board))
+        out.extend(_board(board, wid))
 
     for row_id, rets in (row_returns or {}).items():
         # An excursion's return, under the row it answers, until the agent

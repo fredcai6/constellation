@@ -474,6 +474,50 @@ move = "read"
     assert "ready for one sitting" not in out
 
 
+# [test-open-command-on-a-row]
+# Rationale: the commitment is discoverability, so the assertion is the whole
+#   command as an agent would copy it -- id, `--parent`, `--row`, and an
+#   assembly that exists. Asserting on the heading alone would pass on a
+#   block that printed the word "excursion" and no way to open one, which is
+#   the state this gate was opened to end.
+def test_board_render_prints_the_open_command(tmp_path, monkeypatch, capsys):
+    """An askable row carries the command that takes it off the board.
+
+    q3 is held by q1, so it is not a row the interrogator can act on yet and
+    it gets no command -- the same scoping `askable now` already uses."""
+    _open_with_board(tmp_path, monkeypatch, """
+[[questions]]
+question = "What owns retry logic?"
+type = "fact"
+move = "read"
+
+[[questions]]
+question = "Do we need backwards compat?"
+type = "decision"
+move = "ask"
+
+[[questions]]
+question = "Is the cache warm on cold start?"
+type = "fact"
+move = "read"
+after = ["q1"]
+""")
+    capsys.readouterr()
+    cli.main(["issue42"])
+    out = capsys.readouterr().out
+
+    assert "off the board" in out
+    for rid in ("q1", "q2"):
+        assert f"open find-prior-art --parent issue42 --row {rid}" in out, \
+            f"no open command on askable row {rid}"
+    assert "--row q3" not in out, "a held row was offered an excursion"
+    for kind in ("find-prior-art", "build-a-prototype", "draw-a-picture"):
+        assert kind in out, f"the block does not name {kind}"
+        assert (pathlib.Path(__file__).resolve().parent.parent
+                / "assemblies" / kind / "ASSEMBLY.toml").exists()
+    assert cli.render.spine_cmd() in out, "the command is not the runnable path"
+
+
 def test_status_still_names_the_board_path(tmp_path, monkeypatch, capsys):
     _open_with_board(tmp_path, monkeypatch, """
 [[questions]]
