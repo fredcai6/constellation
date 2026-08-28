@@ -105,7 +105,14 @@ def _measure_artifacts(wid, step, form, fields):
                            field=f["id"], path=fields[f["id"]], words=words)
 
 def _resolve_command(text):
-    """`palette:test args` -> the host repo's test command plus args."""
+    """`palette:test args` -> the host repo's test command plus args. A proof
+    chaining several named jobs with `&&` (`palette:test && palette:lines`)
+    resolves each side on its own, so the second name is looked up rather
+    than handed to the shell as a literal command it does not have."""
+    return " && ".join(_resolve_one(part.strip()) for part in text.split("&&"))
+
+
+def _resolve_one(text):
     if not text.startswith("palette:"):
         return text
     name, _, rest = text[len("palette:"):].partition(" ")
@@ -233,6 +240,12 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
         # own `form` key is declared and unread.
         if tag and panelist.get("form"):
             step = {**step, "form": panelist["form"]}
+        # A panelist's role is its own `worker` -- a critic is told it is a
+        # critic by the room it stands in, not just by its brief. Without
+        # this the dispatched child's step keeps give-a-verdict's literal
+        # `reviewer` filler no matter which worker the panel entry names.
+        if tag and panelist.get("worker"):
+            step = {**step, "filler": panelist["worker"]}
         journal.append(wid, "step", **step)
     print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
     return cmd_status([wid])
@@ -307,8 +320,9 @@ def _panel_status(wid, st, asm, step, blocked):
     """A panel step renders one brief per panelist -- copied, never
     composed -- with who has returned and who is still outstanding. A
     panelist's role is its own `worker`, not the give-a-verdict assembly's
-    conductor: the two happen to coincide today, but the panel entry is the
-    source of truth."""
+    conductor: `_open_child` stamps that worker onto the dispatched child's
+    step as its `filler`, so the panel entry is the source of truth, not
+    just the brief that names it."""
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
     verdict_asm = runmod.load_assembly("give-a-verdict")
     returned = {r["child"].rsplit(".", 1)[-1] for r in st["returns"].get(step["id"], [])}
