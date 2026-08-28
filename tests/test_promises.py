@@ -167,10 +167,10 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
 # step-form when its caller names no rework form, so both roles receive it.
 MINT_TARGETS = {
     ("_open_child", None): ("panel",),                 # a panelist's dispatch
-    # a replan's fresh round -- `_act_on_outcome` mints into the segment it
-    # names literally (`_mint_segment_round(wid, asm, "plan", ...)`), so only a
-    # segment called `plan` can receive it
-    ("_act_on_outcome", None): (("step-form", "plan"),),
+    # a replan's fresh round now goes through `_perform`'s generic `refill`
+    # verb (`_mint_segment_round(wid, asm, tseg["id"], prefill=fields)`) --
+    # `fields` is forwarded whole, not a literal dict this sweep can see, so
+    # there is no site left here for gate adjudication's replan to name.
     ("_act_on_verdicts", "outlet"): ("impasse-form",),
     # `_mint_segment_round` takes the rework-form where the segment declares
     # one and the step-form otherwise -- a fallback, not both. Sweeping the
@@ -317,12 +317,10 @@ def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
 # so its ` | ` leaves the opening line yields no vocabulary and enforces
 # nothing, and that is the one way this can fail quietly.
 VOCABULARIES = [
-    ("assemblies/run-an-issue/forms/IMPASSE.toml", "ruling",
-     ["advance", "rework", "up"], cli._act_on_impasse),
-    ("assemblies/run-a-gate/forms/IMPASSE.toml", "ruling",
-     ["advance", "rework", "up"], cli._act_on_impasse),
-    ("assemblies/run-an-issue/forms/GATE_TRANSITION.toml", "plan-holds",
-     ["advance", "remint", "drop <gate-id>", "replan"], cli._act_on_outcome),
+    # GATE_TRANSITION's `plan-holds` used to be a row here, back when
+    # `_act_on_outcome` hand-read it. It now declares `decides`, so it is
+    # `_outcome`'s field like any other -- excluded from `swept` below and
+    # covered instead by `test_a_declared_outcome_and_its_field_note_are_the_same_list`.
     ("skills/reviewer/forms/CRITIC.toml", "verdict",
      ["pass", "revise", "escalate"], runmod.merged_verdict),
     ("skills/reviewer/forms/REVIEW.toml", "verdict",
@@ -388,8 +386,16 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
     so they can drift -- the agent offered a word the assembly cannot perform,
     or a row nobody is told about. Both are the menu-of-outcomes defect, from
     opposite ends.
+
+    A third check rides along: every `does` verb an outcome row names is one
+    `_perform` actually acts on -- `release`, the field's own default, is the
+    documented no-op and needs no branch to back it. This is the coverage
+    `VOCABULARIES` used to carry for the impasse's `ruling` field, back when
+    `_act_on_impasse` hand-read it; now that ruling is a `decides` field like
+    any other, the same proof belongs on the generic actor.
     """
-    checked = 0
+    perform_src = inspect.getsource(cli._perform)
+    checked = verbs_checked = 0
     for name in runmod.assemblies():
         asm = runmod.load_assembly(name)
         for seg in asm["segment"]:
@@ -400,7 +406,8 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
                 declared = [o["value"] for o in spec.get("outcome", [])]
                 taught = next(
                     (forms.vocabulary(fl["note"])
-                     for key in ("form", "step-form", "rework-form", "impasse-form")
+                     for key in ("form", "step-form", "rework-form", "impasse-form",
+                                "adjudication-form")
                      for src in (spec.get(key), seg.get(key)) if src
                      for fl in forms.load(runmod.resolve_form(asm, src))["fields"]
                      if fl["id"] == fid), None)
@@ -410,7 +417,18 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
                     f"{name}/{seg['id']}: the assembly acts on {declared} and the "
                     f"form teaches {taught}")
                 checked += 1
+                for o in spec.get("outcome", []):
+                    for verb in filter(None, (v.strip() for v in
+                                              o.get("does", "release").split(";"))):
+                        word = verb.split(" ", 1)[0]
+                        verbs_checked += 1
+                        if word == "release":
+                            continue
+                        assert re.search(rf'\b{re.escape(word)}\b', perform_src), (
+                            f"{name}/{seg['id']}: outcome {o['value']!r} does {word!r}; "
+                            f"_perform does nothing with it")
     assert checked, "no assembly declares an outcome -- this test swept nothing"
+    assert verbs_checked, "no outcome named a verb -- this test swept nothing"
 
 
 SKILL_BUDGETS = {"commander": 1500, "implementer": 800}

@@ -53,12 +53,12 @@ def test_load_implement():
 
 def test_load_gate_transition():
     form = forms.load(GATE_TRANSITION)
-    assert _ids(form) == ["learned", "plan-holds", "gate-spec"]
+    assert _ids(form) == ["findings", "plan-holds", "gate-spec"]
     kinds = _kinds(form)
     # `plan-holds` is a decision because the engine acts on its value, and that
     # kind is what makes its note's alternatives enforced -- see
-    # forms.enforced_vocabulary. `learned` is prose the engine only records.
-    assert kinds["learned"] == "evidence"
+    # forms.enforced_vocabulary. `findings` is prose the engine only records.
+    assert kinds["findings"] == "evidence"
     assert kinds["plan-holds"] == "decision"
     assert kinds["gate-spec"] == "plan"
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
@@ -95,7 +95,7 @@ def test_a_field_note_declares_the_values_the_engine_will_accept():
 
     # prose declares nothing, and neither does an enum that has been reworded
     # out of the note's opening -- the one failure mode of this that is silent
-    assert forms.vocabulary(_note(GATE_TRANSITION, "learned")) == []
+    assert forms.vocabulary(_note(GATE_TRANSITION, "findings")) == []
     assert forms.vocabulary("Say which way this goes. " * 3 + "advance | rework | up.") == []
 
     # and it is the same fact the response template already chose its slot on

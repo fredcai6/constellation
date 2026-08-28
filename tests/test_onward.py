@@ -134,7 +134,7 @@ def test_a_root_run_awaiting_close_claims_no_dispatcher(workdir, capsys):
     for step in ("g1", "g2"):
         _dispatch_and_close_child("issue17", step)
         _fill(journal.location("issue17") / "GATE_TRANSITION.toml",
-              'learned = "waived: nothing"\nplan-holds = "advance"\n')
+              'findings = "waived: nothing"\nplan-holds = "advance"\n')
         cli.main(["issue17", "submit"])
     from test_nesting import _fill_close
     _fill_close("issue17")

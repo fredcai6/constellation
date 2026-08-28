@@ -44,6 +44,19 @@ rework-form = "forms/REWORK.toml"
 impasse-after = 3
 impasse-form = "forms/IMPASSE.toml"
 worker = "conductor"
+decides = "ruling"     # IMPASSE.toml's; PLAN.toml and REWORK.toml have no such field
+
+  [[segment.outcome]]
+  value = "advance"
+  does = "transition"     # mints PLAN_TO_EXECUTE alone, over the live revise
+
+  [[segment.outcome]]
+  value = "rework"
+  does = "rework"     # another pass, through the rework-form
+
+  [[segment.outcome]]
+  value = "up"
+  does = "release"     # mints nothing; the run walks to its terminal step
 
 [segment.transition]
 anchor = true
@@ -73,12 +86,32 @@ filler = "conductor"
   criteria = "simplicity: what can be deleted"
 
 # The plan-to-execute transition mints this interior: a dispatch step and a
-# GATE_TRANSITION step per gate.
+# GATE_TRANSITION step per gate. `adjudication-form` is this segment's own
+# declaration of what a gate is adjudicated against -- read by `_mint_gates`
+# the way `step-form` and `rework-form` already are.
 [[segment]]
 id = "execute"
 interior = "steps"
 dispatches = "run-a-gate"
+adjudication-form = "forms/GATE_TRANSITION.toml"
 model = "standard"
+decides = "plan-holds"
+
+  [[segment.outcome]]
+  value = "advance"
+  does = "release"     # the adjudicating step's own amend is the record; nothing more to mint
+
+  [[segment.outcome]]
+  value = "remint"
+  does = "remint gate-spec"     # mints a fresh dispatch/adjudication pair from gate-spec
+
+  [[segment.outcome]]
+  value = "drop <gate-id>"
+  does = "close"     # closes the named not-done step and everything paired with it
+
+  [[segment.outcome]]
+  value = "replan"
+  does = "skip execute; refill plan"     # every pending gate closed, the plan recut
 
 [segment.transition]
 anchor = true

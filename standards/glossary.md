@@ -25,9 +25,11 @@ forms; coining a synonym for a term below is a defect.
 - **moot** — a board row settled by another row's answer rather than its own. The answer that
   mooted it is recorded as prose in its own `answer`; which row did the mooting is not
   recorded anywhere, and nothing needs it.
-- **transition** — a segment's exit gate: fires when the interior drains, and each firing
-  releases (advance, minting what comes next), refills the interior (rework, findings as
-  prefill), or goes up (escalate). The OODA beat; cycling is re-firing.
+- **transition** — one word, two senses, on the same grounds as `anchor`. *A segment's exit
+  gate:* fires when the interior drains, and each firing releases, refills the interior, or
+  goes up. The OODA beat; cycling is re-firing. *An outcome verb:* mints the named segment's
+  own transition step alone, without refilling its interior — `advance`'s move over a live
+  revise, distinct from `release`, which mints nothing at all.
 - **verdict panel** — 0..n reviewers a transition dispatches, each cold and prefilled with
   focused criteria; verdicts return to the transition. Any revise refills, findings merged.
   Review never lives in an interior.
@@ -46,7 +48,32 @@ forms; coining a synonym for a term below is a defect.
 - **vocabulary** — the values a `decision` field accepts, read from the alternatives its own
   note lists (`pass | revise | escalate`). One string, so what the agent is told and what the
   engine enforces cannot drift. A value outside it refuses; the kind, not the punctuation, is
-  what makes the note binding.
+  what makes the note binding. A field its own segment `decides` is exempt — `outcome` rows
+  enforce it instead, values and acts declared together.
+- **outcome** — a `[[outcome]]` row, declared on a segment or (a gate-adjudication step's) its
+  transition: pairs one legal value of the field its `decides` names with the verb(s) it
+  `does`. The engine refuses a value no row declares and performs exactly the verbs a matched
+  row names — no assembly's vocabulary lives in the engine.
+- **decides** — a segment or transition key naming the field whose leading word selects among
+  the segment's own `outcome` rows. The field's own note teaches the same values the rows
+  declare; a mismatch between them is a defect the field-note check holds to.
+- **release** — an `outcome` row's default `does`, needing no verb word at all: mints nothing,
+  the run walks on to whatever already follows.
+- **refill** — an outcome verb: a fresh round of the named segment, carrying the deciding
+  submit's own fields forward as prefill — a board segment's fresh transition step, or a
+  worklist segment's fresh round.
+- **rework** — an outcome verb: a fresh round of the named segment through its `rework-form`
+  (or its `step-form` where none is declared), carrying forward the deciding step's own
+  prefill — what caused the impasse — rather than the ruling fields just submitted. Where
+  `refill` forwards what was just decided, `rework` forwards what was already there.
+- **skip** — an outcome verb: amend-closes every not-done, non-terminal step of the named
+  segment. Its own terminal step is excluded, so sweeping a segment's gates never closes the
+  run's own close step sitting not-done alongside them.
+- **remint** — an outcome verb: mints a fresh dispatch/adjudication pair off the gate rows in
+  the field the `does` string names — the same mint a plan field first drove them through.
+- **close** — an outcome verb: closes the not-done step the decided field's own argument
+  names, plus every step sharing its `child` — a pair closes together, and the deciding step
+  can never target its own pair.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
 - **work id** — a run's address: the tracker issue's number when one exists (`issue17`),

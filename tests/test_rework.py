@@ -297,8 +297,9 @@ def test_the_count_reaches_the_outlet_on_the_round_after_the_third(workdir, caps
 
 
 def test_an_unhandled_ruling_refuses_rather_than_releasing_the_step(workdir, capsys):
-    """The ruling has no check of its own any more: it is refused by the
-    generic one, against the three alternatives its own note declares."""
+    """The ruling has no check of its own any more: it is refused by the same
+    generic mechanism that refuses CYCLE.toml's `decision` -- the segment's
+    own declared `[[outcome]]` rows, not a hand-rolled reader."""
     wid = _drive_to_impasse()
     capsys.readouterr()
     before = len(runmod.journal.read(wid))
@@ -307,8 +308,8 @@ def test_an_unhandled_ruling_refuses_rather_than_releasing_the_step(workdir, cap
     with pytest.raises(SystemExit) as e:
         cli.main([wid, "submit"])
     msg = str(e.value)
-    assert "ruling" in msg and "not a value this step can act on" in msg
-    assert "advance | rework | up" in msg          # the form's own list, verbatim
+    assert "ruling" in msg and "is not an outcome this step declares" in msg
+    assert "advance | rework | up" in msg        # the assembly's own outcome rows
     assert len(runmod.journal.read(wid)) == before  # not even the submit landed
     assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
 

@@ -121,14 +121,14 @@ def _dispatch_review(child_wid, verdict="pass", findings="none: waived: clean"):
 
 def _fill_gate_transition(wid):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
-learned = "the fix landed cleanly, no follow-on scope"
+findings = "the fix landed cleanly, no follow-on scope"
 plan-holds = "advance"
 ''')
 
 
 def _fill_gate_transition_drop(wid, gate_id):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
-learned = "no longer needed"
+findings = "no longer needed"
 plan-holds = "drop %s"
 ''' % gate_id)
 
@@ -136,7 +136,7 @@ plan-holds = "drop %s"
 def _fill_gate_transition_remint(wid, purpose="a corrected gate", scope="src/ only",
                                  proof="true"):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
-learned = "the spec was wrong, needs a redo"
+findings = "the spec was wrong, needs a redo"
 plan-holds = "remint"
 
 [[gate-spec]]
@@ -146,16 +146,16 @@ proof = "%s"
 ''' % (purpose, scope, proof))
 
 
-def _fill_gate_transition_replan(wid, learned="the cut was wrong from the start"):
+def _fill_gate_transition_replan(wid, findings="the cut was wrong from the start"):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
-learned = "%s"
+findings = "%s"
 plan-holds = "replan"
-''' % learned)
+''' % findings)
 
 
 def _fill_gate_transition_remint_no_spec(wid):
     _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
-learned = "reconsidering, but not sure what yet"
+findings = "reconsidering, but not sure what yet"
 plan-holds = "remint"
 ''')
 
@@ -521,7 +521,7 @@ def test_an_undeclared_outcome_refuses_and_a_declared_one_carries_its_reason(
 
     before = len(journal.read("issue17"))
     _fill(journal.location("issue17") / "GATE_TRANSITION.toml", '''
-learned = "the fix landed"
+findings = "the fix landed"
 plan-holds = "the plan holds, carry on"
 ''')
     with pytest.raises(SystemExit) as e:
@@ -543,7 +543,7 @@ plan-holds = "the plan holds, carry on"
 
     # and a declared word with its reason after it is performed, reason kept
     _fill(journal.location("issue17") / "GATE_TRANSITION.toml", '''
-learned = "the cut was wrong from the start"
+findings = "the cut was wrong from the start"
 plan-holds = "replan, the gates were cut along the wrong seam"
 ''')
     cli.main(["issue17", "submit"])
@@ -627,6 +627,74 @@ def test_remint_mints_a_gate_that_is_reachable_not_already_done(workdir, capsys)
     assert new_gate["id"] in runmod.state("issue17")["done"]
 
 
+def test_drop_closes_a_remint_minted_pair_too(workdir, capsys):
+    """The pairing `drop` relies on is derived from `child`, written on both
+    halves of a pair by `_mint_gates` -- and `_mint_gates` runs from two call
+    sites, plan-minted gates and a remint. This drives the remint route: a
+    pair minted mid-run, never part of the original plan cut, dropped like
+    any other."""
+    _mint_two_gates()
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+
+    _fill_gate_transition_remint("issue17", purpose="redo the fix", scope="src/parser.c")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    new_gate = next(s for s in runmod.state("issue17")["steps"]
+                    if s.get("dispatches") == "run-a-gate" and s["id"] not in ("g1", "g2"))
+    new_id = new_gate["id"]
+
+    _dispatch_and_close_child("issue17", "g2")
+    capsys.readouterr()
+    assert runmod.state("issue17")["current"]["id"] == "g2-adjudicate"
+
+    _fill_gate_transition_drop("issue17", new_id)
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    amends = [e for e in journal.read("issue17") if e["kind"] == "amend"]
+    assert {a["step"] for a in amends} == {new_id, f"{new_id}-adjudicate"}
+
+    ids = {s["id"] for s in runmod.state("issue17")["steps"]}
+    assert not ({new_id, f"{new_id}-adjudicate"} & ids)
+
+
+def test_drop_pairs_by_shared_child_not_by_id_suffix(workdir, capsys):
+    """Every pair `_mint_gates` produces carries the `-adjudicate` suffix by
+    construction, so driving `drop` only through the normal mint path proves
+    nothing about *how* the engine finds the pair -- suffix parsing and
+    `child` grouping agree on every fixture `_mint_gates` can produce. Here
+    the two steps sharing a `child` are journaled directly, with ids that
+    share no prefix at all: suffix parsing cannot pair them, `child`
+    grouping can."""
+    _mint_two_gates()
+    capsys.readouterr()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+    assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
+
+    journal.append("issue17", "step", id="odd-one", segment="execute",
+                   dispatches="run-a-gate",
+                   prefill={"purpose": "p", "scope": "s", "proof": "true"},
+                   child="issue17.odd-one", anchor=False, terminal=False, source="mint")
+    journal.append("issue17", "step", id="its-mate", segment="execute",
+                   form="forms/GATE_TRANSITION.toml", filler="conductor",
+                   child="issue17.odd-one", anchor=False, terminal=False,
+                   validates="", source="mint")
+
+    _fill_gate_transition_drop("issue17", "odd-one")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    amends = [e for e in journal.read("issue17") if e["kind"] == "amend"]
+    assert {a["step"] for a in amends} == {"odd-one", "its-mate"}, amends
+
+    ids = {s["id"] for s in runmod.state("issue17")["steps"]}
+    assert not ({"odd-one", "its-mate"} & ids)
+
+
 def test_reminting_twice_derives_distinct_ids_from_the_same_default(workdir, capsys):
     """Two reminds that both leave the id blank both derive the same default
     ("g1", position 1 within their own block) and both collide with the
@@ -667,7 +735,7 @@ def test_replan_closes_every_pending_gate_by_name_leaving_closed_gates_and_the_d
     capsys.readouterr()
     assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
 
-    _fill_gate_transition_replan("issue17", learned="the cut was wrong from the start")
+    _fill_gate_transition_replan("issue17", findings="the cut was wrong from the start")
     cli.main(["issue17", "submit"])
     capsys.readouterr()
 
@@ -713,7 +781,7 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
 
-    _fill_gate_transition_replan("issue17", learned="the cut was wrong from the start")
+    _fill_gate_transition_replan("issue17", findings="the cut was wrong from the start")
     cli.main(["issue17", "submit"])
     capsys.readouterr()
 

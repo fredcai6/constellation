@@ -15,6 +15,19 @@ impasse-after = 3
 impasse-form = "forms/IMPASSE.toml"
 worker = "implementer"
 model = "standard"
+decides = "ruling"     # IMPASSE.toml's; IMPLEMENT.toml has no such field
+
+  [[segment.outcome]]
+  value = "advance"
+  does = "transition"     # mints the review alone, over the live revise
+
+  [[segment.outcome]]
+  value = "rework"
+  does = "rework"     # another implement round; no rework-form here, so step-form again
+
+  [[segment.outcome]]
+  value = "up"
+  does = "release"     # mints nothing; the run walks to its terminal step
 
 [segment.transition]
 id = "review"

@@ -33,7 +33,6 @@ spine                               every open run
 spine <work-id> trace               this run and its children, as one timeline"""
 
 CHECK_TIMEOUT = 600  # a check that never returns wedges the agent's turn
-_GATE_ADJUDICATION_FORM = "forms/GATE_TRANSITION.toml"  # see run-an-issue's execute segment
 
 
 def _check_id(wid):
@@ -508,10 +507,9 @@ def cmd_submit(argv):
                 f"  a check is run by the engine, not filled in -- make it pass,\n"
                 f"  or drop this step: spine {wid} amend close {step['id']} --reason ..."))
 
-    _check_plan(form, fields)
+    _check_plan(asm, form, fields)
     _check_vocabulary(asm, step, form, fields)
-    _check_outcome(st, step, fields)
-    outcome = _outcome(asm, step, fields)
+    outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)
     _measure_artifacts(wid, step, form, fields)
@@ -526,15 +524,13 @@ def cmd_submit(argv):
         journal.append(wid, "prefill",
                        fields={**(st.get("prefill") or {}), **fields})
     _mint(wid, asm, step, form, fields)
-    _act_on_impasse(wid, asm, step, fields)
-    _act_on_outcome(wid, asm, step, fields)
     if outcome:
-        _perform(wid, asm, *outcome, fields)
+        _perform(wid, asm, *outcome, fields, step)
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
 
 
-def _check_plan(form, fields):
+def _check_plan(asm, form, fields):
     """A plan field must be a list of blocks, and what it says it mints must be
     something `_mint` performs. Both checked before anything is journaled: a
     submit is durable the moment it lands, so minting that dies -- or that
@@ -548,11 +544,12 @@ def _check_plan(form, fields):
             raise SystemExit(render.refusal(
                 f["id"], "must be one or more [[" + f["id"] + "]] blocks, not a "
                 "single value -- nothing was recorded"))
-        if f.get("mints") and f["mints"] not in _MINTS:
+        mintable = _mintable(asm)
+        if f.get("mints") and f["mints"] not in mintable:
             raise SystemExit(render.refusal(
                 f["id"], f"mints = {f['mints']!r} is nothing this engine mints -- "
                 "the form is wrong, not your answer; nothing was recorded",
-                escape="one of: " + ", ".join(_MINTS)))
+                escape="one of: " + ", ".join(sorted(mintable))))
 
 
 # [check-vocabulary]
@@ -587,9 +584,10 @@ def _check_vocabulary(asm, step, form, fields):
     is durable and an unhandled value walks the run forward having performed
     nothing -- the silent advance this check exists to end. Matching is exact:
     the acts downstream compare whole strings, so `advance, I think` is a value
-    nothing performs. A placeholder alternative (`drop <gate-id>`) matches on
-    its literal prefix alone, which leaves a bare `drop` a known move with a
-    missing argument -- refused, by name, where the argument is checked.
+    nothing performs. A placeholder alternative (`name <x>`) matches on its
+    literal prefix alone, so a value naming a runtime argument is still a
+    known move; once a field declares `decides`, this check stands down for
+    it and `_outcome` owns the argument itself.
     """
     decided = _decided_here(asm, step)
     for f in form["fields"]:
@@ -602,50 +600,6 @@ def _check_vocabulary(asm, step, form, fields):
             raise SystemExit(render.refusal(
                 f["id"], f"{word or 'empty'!r} is not a value this step can act on",
                 escape="one of: " + " | ".join(vocab)))
-
-
-def _own_gate(step_id):
-    """The gate an adjudication step decides -- itself, never a valid target
-    for that same step's own outcome."""
-    suffix = "-adjudicate"
-    return step_id[:-len(suffix)] if step_id.endswith(suffix) else step_id
-
-
-def _pending_gates(st, exclude=""):
-    """Gate ids with an unfinished dispatch or adjudication step -- the gate
-    under decision excluded, so an outcome can never name itself."""
-    gates = [s["id"] for s in st["steps"] if s.get("dispatches") == "run-a-gate"]
-    return [g for g in gates if g != exclude
-            and (g not in st["done"] or f"{g}-adjudicate" not in st["done"])]
-
-
-def _impasse_segment(asm, step):
-    """The segment whose impasse form this step is, or None for any other
-    step. Read off the assembly rather than matched against a name the engine
-    holds: an assembly that declares no outlet has none."""
-    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
-    return seg if seg.get("impasse-form") and step.get("form") == seg["impasse-form"] else None
-
-
-def _act_on_impasse(wid, asm, step, fields):
-    """Perform the ruling. `advance` mints the transition alone, so the plan
-    goes forward over a live revise and the panel's findings stay the record
-    that says so. `rework` is the ordinary round the outlet displaced. `up`
-    mints nothing and blocks the run, which is the move that already exists
-    for reaching a principal."""
-    seg = _impasse_segment(asm, step)
-    if not seg:
-        return
-    ruling = forms.leading_word(fields.get("ruling", ""))
-    if ruling == "rework":
-        _mint_segment_round(wid, asm, seg["id"], prefill=step.get("prefill") or {},
-                            form=seg.get("rework-form", ""))
-    elif ruling == "advance":
-        _mint_transition(wid, seg)
-    # `up` mints nothing, which is the whole of it. Not refilling is what an
-    # escalate verdict already does (run.merged_verdict), so the run walks to
-    # its terminal step and its record goes to whoever dispatched it -- the
-    # parent for a child, the human for a root run. One way up, not two.
 
 
 def _mint_transition(wid, seg, prefill=None):
@@ -666,117 +620,161 @@ def _mint_transition(wid, seg, prefill=None):
 # Rationale: a transition releases, refills, or goes elsewhere, and which
 #   word does which is the assembly's to say: `decides` names the field,
 #   `[[outcome]]` rows pair a `value` with what it `does` -- release; refill
-#   [<segment>]; skip <segment>; several joined by ";". The engine matches
-#   the field's first word, refuses one nothing declares naming those it
-#   can act on, and performs the verbs. No assembly's words appear here.
+#   [<segment>]; skip <segment>; transition [<segment>]; rework [<segment>];
+#   remint <field>; close; several joined by ";". The engine matches the field's
+#   first word, refuses one nothing declares naming those it can act on, and
+#   performs the verbs. No assembly's words appear here. `transition` and
+#   `rework` are the impasse's two moves, absorbed alongside the rest (#32)
+#   -- an offered `ruling` is now a `decides` field like any other, and
+#   `remint`/`close` are gate adjudication's, absorbed the same way.
 # See: #32 -- gate adjudication still carries its own interpreter.
-def _outcome(asm, step, fields):
+def _outcome(asm, step, fields, st):
     """(segment, does) for the outcome this submit selects; None when the
     step declares none or the field is nulled. Checked before the submit
-    lands, so a value the engine cannot act on never advances the run."""
+    lands, so a value the engine cannot act on -- or a runtime argument that
+    does not resolve -- never advances the run.
+
+    A declared value may carry a placeholder (`name <x>`): matched on the
+    word before the `<`, the same rule `_check_vocabulary` already used for
+    it. Where a value does carry one, the rest of the field's own text is
+    the argument, and its legal values are this step's own segment's
+    not-done, non-terminal steps that do not share this step's `child` --
+    the deciding step can never name its own pair, closing one step of a
+    pair takes the other with it (a pair is exactly the steps sharing a
+    `child`), and the segment's own terminal step is never a target (it has
+    no `child` of its own, and is what closing the run means, not something
+    a decision inside it drops). Neither idea is this field's; both are
+    `_mint_gates`' own data, read structurally rather than declared or
+    hardcoded.
+    """
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     t = seg.get("transition", {})
     spec = t if step.get("form") == t.get("form") else seg
     field = spec.get("decides")
     if not field or field not in fields:
         return None
-    value = forms.leading_word(fields[field])
+    raw = fields[field]
+    value = forms.leading_word(raw)
     if value.startswith(("waived", "unknown")):
         return None
-    legal = {o["value"]: o.get("does", "release") for o in spec.get("outcome", [])}
+    outcomes = spec.get("outcome", [])
+    legal = {o["value"].split("<")[0].strip().lower(): o for o in outcomes}
     if value not in legal:
         raise SystemExit(render.refusal(
             field, f"{value or 'empty'!r} is not an outcome this step declares",
-            escape="one of: " + ", ".join(legal)))
-    return seg, legal[value]
+            escape="one of: " + " | ".join(o["value"] for o in outcomes)))
+    chosen = legal[value]
+    declared = chosen["value"]
+    if "<" in declared:
+        parts = str(raw).split(None, 1)
+        target = parts[1].strip() if len(parts) > 1 else ""
+        pending = [s["id"] for s in st["steps"] if s["segment"] == step["segment"]
+                  and s["id"] not in st["done"] and not s.get("terminal")
+                  and s.get("child") != step.get("child")]
+        if not target:
+            raise SystemExit(render.refusal(
+                field, f"{value} needs a gate id -- {declared}",
+                escape="pending: " + (", ".join(pending) or "none")))
+        if target not in pending:
+            raise SystemExit(render.refusal(
+                field, f"{target!r} is not a pending gate",
+                escape="pending: " + (", ".join(pending) or "none")))
+    does = chosen.get("does", "release")
+    for verb in filter(None, (v.strip() for v in does.split(";"))):
+        word, _, argfield = verb.partition(" ")
+        if word == "remint" and not fields.get(argfield):
+            raise SystemExit(render.refusal(
+                argfield, "remint needs a new gate spec -- a remint with no "
+                "spec is a drop wearing the wrong name"))
+    return seg, does
 
 
-def _perform(wid, asm, seg, does, fields):
+# [impasse-verbs]
+# Rationale: `advance` and `rework` used to be handled by a stand-alone
+#   impasse actor, a reader outside the outcome mechanism. Absorbing the
+#   ruling as an ordinary `decides` field meant `_perform` needed two verbs
+#   nothing else spells:
+#   `transition` mints the segment's own transition alone (what `advance`
+#   does, over a live revise -- the panel's findings stay the record that
+#   says so), and `rework` refills through the segment's rework-form -- or
+#   its step-form where none is declared, run-a-gate's work -- carrying
+#   forward the deciding step's own prefill (what caused the impasse) rather
+#   than the ruling fields just submitted (the verdict on it). `up` needs
+#   neither: `release`, the field's own default, mints nothing, and the run
+#   walks to its terminal step. Gate adjudication added two more the same
+#   way: `remint` mints a fresh dispatch/adjudication pair from the plan
+#   field the deciding step's own form carries, and `close` closes the
+#   not-done step this step's segment holds whose id matches the decided
+#   field's own argument, and every step paired with it by `child`.
+# Rejected: naming the verbs `advance`/`rework` to match the outcome values.
+#   Verbs and values are already separate vocabularies elsewhere (`cycle`'s
+#   value is `cycle`, its verb is `refill`); reusing the impasse's words here
+#   would read that coincidence as a rule.
+# See: #32 -- gate adjudication still carries its own interpreter.
+def _perform(wid, asm, seg, does, fields, step):
     """The outcome's verbs, in order, against freshly folded state -- the
-    deciding submit is already journaled, so `skip` never closes it."""
+    deciding submit is already journaled, so `skip` and `close` never touch
+    it. An amend's reason is the agent's own words -- the decided field's
+    raw submitted text -- not the assembly's `does` string, which is a
+    mechanism label no principal reading the amend log asked for.
+
+    `skip` never closes a terminal step: `execute`'s own terminal step sits
+    not-done for the whole time its gates run, exactly like every other step
+    `skip` sweeps, so without this a replan mid-run would amend-close the run's
+    own close step along with the gates it means to drop -- a run the amend
+    log says is done and CLOSE.toml never filled. No existing `skip` target
+    reaches a terminal step, so this narrows nothing already relied on."""
+    field = _decided_here(asm, step)
+    reason = str(fields.get(field, does)).strip() if field else does
     for verb in filter(None, (v.strip() for v in does.split(";"))):
         word, _, target = verb.partition(" ")
         tseg = next((s for s in asm["segment"] if s["id"] == (target or seg["id"])), seg)
         if word == "skip":
             st = runmod.state(wid)
             for s in st["steps"]:
-                if s["segment"] == tseg["id"] and s["id"] not in st["done"]:
+                if (s["segment"] == tseg["id"] and s["id"] not in st["done"]
+                        and not s.get("terminal")):
                     journal.append(wid, "amend", action="close", segment=tseg["id"],
-                                   step=s["id"], reason=does, anchor=s.get("anchor", False))
+                                   step=s["id"], reason=reason, anchor=s.get("anchor", False))
         elif word == "refill" and tseg.get("interior") == "board":
             _mint_transition(wid, tseg, prefill=fields)
         elif word == "refill":
             _mint_segment_round(wid, asm, tseg["id"], prefill=fields)
-
-
-def _check_outcome(st, step, fields):
-    """GATE_TRANSITION's decision, validated before anything is journaled --
-    a submit is durable the moment it lands, so a bad drop target or an empty
-    remint would otherwise strand as a decision the run cannot act on."""
-    if step.get("form") != _GATE_ADJUDICATION_FORM:
-        return
-    outcome = fields.get("plan-holds", "").strip()
-    pending = _pending_gates(st, exclude=_own_gate(step["id"]))
-    if forms.leading_word(outcome) == "drop":
-        parts = outcome.split(None, 1)
-        target = parts[1].strip() if len(parts) > 1 else ""
-        if not target:
-            raise SystemExit(render.refusal(
-                "plan-holds", "drop needs a gate id -- drop <gate-id>",
-                escape="pending: " + (", ".join(pending) or "none")))
-        if target not in pending:
-            raise SystemExit(render.refusal(
-                "plan-holds", f"{target!r} is not a pending gate",
-                escape="pending: " + (", ".join(pending) or "none")))
-    elif forms.leading_word(outcome) == "remint":
-        if not fields.get("gate-spec"):
-            raise SystemExit(render.refusal(
-                "gate-spec", "remint needs a new gate spec -- a remint with no "
-                "spec is a drop wearing the wrong name"))
-
-
-def _act_on_outcome(wid, asm, step, fields):
-    """Perform the amends GATE_TRANSITION's outcome names, each journaled
-    with the outcome as its reason -- against freshly folded state, taken
-    now that the submit recording the decision is already journaled, so the
-    deciding step is already done and out of reach of anything this does.
-    `advance` performs nothing."""
-    if step.get("form") != _GATE_ADJUDICATION_FORM:
-        return
-    outcome = fields.get("plan-holds", "").strip()
-    if forms.leading_word(outcome) == "drop":
-        target = outcome.split(None, 1)[1].strip()
-        st = runmod.state(wid)
-        _close_gate(wid, st, target, outcome)
-    elif forms.leading_word(outcome) == "remint":
-        seg = next(s for s in asm["segment"] if s.get("dispatches") == "run-a-gate")
-        _mint_gates(wid, seg, fields["gate-spec"])
-    elif forms.leading_word(outcome) == "replan":
-        # Every gate still pending gets closed by name -- explicit entries,
-        # never a silent sweep -- and the plan segment gets one fresh round
-        # to try again, carrying what this gate taught us.
-        st = runmod.state(wid)
-        for gid in _pending_gates(st, exclude=_own_gate(step["id"])):
-            _close_gate(wid, st, gid, outcome)
-        _mint_segment_round(wid, asm, "plan", prefill={"findings": fields.get("learned", "")})
-
-
-def _close_gate(wid, st, gate_id, reason):
-    """Close one gate's dispatch and adjudication steps by name -- the move
-    both `drop` (one named target) and `replan` (every pending gate) need.
-    Already-done steps are left alone: history is not amendable."""
-    for sid in (gate_id, f"{gate_id}-adjudicate"):
-        s = next((x for x in st["steps"] if x["id"] == sid), None)
-        if s and sid not in st["done"]:
-            journal.append(wid, "amend", action="close", segment=s["segment"],
-                           step=sid, reason=reason, anchor=s.get("anchor", False))
+        elif word == "transition":
+            _mint_transition(wid, tseg)
+        elif word == "rework":
+            _mint_segment_round(wid, asm, tseg["id"], prefill=step.get("prefill") or {},
+                                form=tseg.get("rework-form", ""))
+        elif word == "remint":
+            _mint_gates(wid, seg, fields.get(target) or [])
+        elif word == "close":
+            parts = str(fields.get(field, "")).split(None, 1)
+            target_id = parts[1].strip() if len(parts) > 1 else ""
+            st = runmod.state(wid)
+            hit = next((s for s in st["steps"] if s["id"] == target_id), None)
+            if hit:
+                for s in st["steps"]:
+                    if s.get("child") == hit.get("child") and s["id"] not in st["done"]:
+                        journal.append(wid, "amend", action="close", segment=s["segment"],
+                                       step=s["id"], reason=reason,
+                                       anchor=s.get("anchor", False))
 
 
 # [mints]
-# Rationale: beside the branches, not beside the check that reads it -- a third
-#   thing worth minting is a branch added here, and the tuple is what makes
-#   `_check_plan` refuse it until it is.
-_MINTS = ("board rows", "run-a-gate")
+# Rationale: "board rows" is the one mint value the engine itself names --
+#   a board is engine vocabulary, no assembly declares one. Every other
+#   value is an assembly name, legal exactly when some segment in this tree
+#   dispatches it, so the set `_check_plan` refuses against is derived from
+#   the assembly rather than kept as a second list beside the branches. A
+#   third *kind* of mint still needs a branch added here -- that part a
+#   tuple never bought.
+_BOARD_MINT = "board rows"
+
+
+def _mintable(asm):
+    """The `mints` values legal in this assembly: `_BOARD_MINT`, plus every
+    name a segment here declares as `dispatches`."""
+    return {_BOARD_MINT} | {s["dispatches"] for s in asm["segment"] if s.get("dispatches")}
 
 
 def _mint(wid, asm, step, form, fields):
@@ -786,13 +784,13 @@ def _mint(wid, asm, step, form, fields):
             continue
         rows = fields[f["id"]]
         mints = f.get("mints")
-        if mints == "board rows":
+        if mints == _BOARD_MINT:
             seg = next((s for s in asm["segment"] if s.get("interior") == "board"), None)
             if seg:
                 path = journal.location(wid) / (pathlib.Path(seg["board"]).stem + ".toml")
                 _seed_board(runmod.resolve_form(asm, seg["board"]), path, rows)
                 journal.append(wid, "board", segment=seg["id"], path=str(path), rows=rows)
-        elif mints == "run-a-gate":
+        elif mints:
             seg = next((s for s in asm["segment"] if s.get("dispatches") == mints), None)
             if seg:
                 _mint_gates(wid, seg, rows)
@@ -801,7 +799,10 @@ def _mint(wid, asm, step, form, fields):
 def _mint_gates(wid, seg, gates):
     """Each gate block becomes a dispatch step and, right after it, the
     adjudication step that will hold its returns -- the pair the execute
-    segment's worklist is made of.
+    segment's worklist is made of. The adjudication form is the dispatching
+    segment's own declared `adjudication-form`, read the way `step-form` and
+    `rework-form` already are -- not an engine constant, so which form a
+    gate is adjudicated against is the assembly's to say.
 
     Ids are journal-aware: numbering by position was safe only while closing
     a gate freed its id. A remint no longer closes, so a derived id still
@@ -814,11 +815,11 @@ def _mint_gates(wid, seg, gates):
         existing.add(f"{gid}-adjudicate")
         prefill = {k: v for k, v in gate.items() if k != "id"}
         child = f"{wid}.{gid}"
-        journal.append(wid, "step", id=gid, segment=seg["id"], dispatches="run-a-gate",
+        journal.append(wid, "step", id=gid, segment=seg["id"], dispatches=seg["dispatches"],
                        prefill=prefill, child=child, anchor=False, terminal=False,
                        source="mint")
         journal.append(wid, "step", id=f"{gid}-adjudicate", segment=seg["id"],
-                       form=_GATE_ADJUDICATION_FORM, filler="conductor", child=child,
+                       form=seg["adjudication-form"], filler="conductor", child=child,
                        anchor=False, terminal=False, validates="", source="mint")
 
 
@@ -1125,6 +1126,31 @@ def _summary(st):
     }
 
 
+# [returned-decision]
+# Rationale: a `decides` field is not only a panel's -- a two-voices step's
+#   own ruling, and gate adjudication's `plan-holds`, are exactly as
+#   returnable as a panel's merged verdict, and both should reach a return
+#   through the one mechanism rather than a second one hardcoding which
+#   field name to look for. Read off the most recent done step that
+#   declares one, since an earlier round's decision (an impasse ruled, three
+#   gates back) is stale the moment a later one lands.
+# Rejected: reading only the terminal step. A run can close having decided
+#   nothing on its own terminal form -- run-a-gate's GATE_CLOSE has no
+#   `decides` field -- while an earlier step (its own impasse ruling) did;
+#   the terminal step is the wrong place to stop looking.
+def _last_decision(st, asm):
+    """The value of the last `decides` field this run itself answered, or
+    the empty string when it never declared one."""
+    for s in reversed(st["steps"]):
+        if s["id"] not in st["done"]:
+            continue
+        field = _decided_here(asm, s)
+        value = (st["done"][s["id"]].get("fields") or {}).get(field, "") if field else ""
+        if value:
+            return value
+    return ""
+
+
 def cmd_close(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -1152,11 +1178,14 @@ def cmd_close(argv):
     terminal = next((s for s in st["steps"] if s.get("terminal")), None)
     fields = st["done"][terminal["id"]].get("fields", {}) if terminal else {}
     summary = _summary(st)
-    journal.append(wid, "closed", fields=fields, summary=summary)
+    asm = runmod.load_assembly(st["assembly"])
+    decision = _last_decision(st, asm)
+    journal.append(wid, "closed", fields=fields, summary=summary, decision=decision)
     if st.get("parent") and st.get("parent_step"):
         if journal.exists(st["parent"]):
             journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
-                           row=st.get("row", ""), fields=fields, summary=summary)
+                           row=st.get("row", ""), fields=fields, summary=summary,
+                           decision=decision)
             _act_on_verdicts(st["parent"], st["parent_step"])
         else:
             # Writing anyway would create the parent's journal from nothing --

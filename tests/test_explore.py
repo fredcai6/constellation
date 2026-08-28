@@ -88,7 +88,7 @@ def test_an_excursion_from_no_such_row_is_refused(explore):
 def test_an_undeclared_outcome_is_refused_naming_the_declared_ones(explore):
     _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "maybe"\n')
     _, code = _spine(explore, "submit")
-    assert "cycle, converge, shelve" in str(code)
+    assert "cycle | converge | shelve" in str(code)
     assert _current(explore)["id"] == "explore", "the refusal advanced the run"
 
 

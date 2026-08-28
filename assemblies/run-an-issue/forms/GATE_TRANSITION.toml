@@ -10,9 +10,12 @@ check; outputs and roots, not belief — then decide whether the spec achieved
 the goal and whether the plan still holds."""
 
 [[field]]
-id = "learned"
+id = "findings"
 kind = "evidence"
-note = "What this gate taught us."
+note = """
+What this gate taught us. A `replan` carries this straight into the fresh
+plan round as its own `findings` -- the same word PLAN.toml's header uses
+for a rework round's, so name it the way that reader expects."""
 
 [[field]]
 id = "plan-holds"

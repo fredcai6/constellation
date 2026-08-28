@@ -11,8 +11,9 @@ import pathlib
 
 import pytest
 
-from engine import cli
-from test_nesting import _dispatch_and_close_child, _mint_two_gates
+from engine import cli, journal
+from test_nesting import _dispatch_and_close_child, _fill, _mint_two_gates
+from test_rework import _drive_gate_to_impasse
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -91,6 +92,32 @@ def test_trace_of_an_unknown_run_refuses_with_a_way_out(workdir, capsys):
     with pytest.raises(SystemExit) as e:
         cli.main(["nope", "trace"])
     assert "no run named nope" in str(e.value)
+
+
+def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
+    """`_event`'s return case used to fall back to a hardcoded `plan-holds`
+    key that no return could ever actually carry -- GATE_TRANSITION is
+    filled directly, never dispatched, so it never produces a `return` at
+    all. The replacement reads a stable `decision` key `cmd_close` computes
+    generically, off whatever `decides` field the closing run itself last
+    answered. Proved here against a real one that does reach a return: a
+    gate's own impasse ruling, carried onto the return its close causes --
+    so the render.py change is shown to preserve the trace, not silently
+    empty it."""
+    child = _drive_gate_to_impasse()  # issue17.g1, four revises deep
+    capsys.readouterr()
+    _fill(journal.location(child) / "IMPASSE.toml",
+          'ruling = "up"\nwhy = "the spec asked for something untestable"\n')
+    cli.main([child, "submit"])
+    capsys.readouterr()
+    _fill(journal.location(child) / "GATE_CLOSE.toml", 'residue = "waived: none"\n')
+    cli.main([child, "submit"])
+    cli.main([child, "close"])
+
+    lines = [l for l in _trace(capsys, wid="issue17").splitlines() if l.startswith("  2")]
+    ret = next(l for l in lines
+              if l.split()[1] == "issue17" and " return " in l and "issue17.g1" in l)
+    assert "up" in ret, ret
 
 
 def test_trace_is_not_offered_in_a_rooms_legal_moves(workdir, capsys):

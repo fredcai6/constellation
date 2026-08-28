@@ -140,10 +140,12 @@ def test_a_near_miss_verb_refuses_instead_of_rendering_the_room(workdir, capsys)
 
 def test_an_unhandled_mints_value_refuses_instead_of_minting_nothing(workdir, capsys,
                                                                      monkeypatch):
-    """`_mint` branches on two literal `mints` values. A form declaring a
-    third minted nothing and released the step anyway -- a run that looks
-    advanced with no work in it, which is what the plan check exists to
-    prevent. Refused before the submit is journaled, like its sibling."""
+    """`_mint` accepts `_BOARD_MINT` ("board rows") plus whatever `_mintable`
+    derives from the assembly's own `dispatches` segments -- no engine-held
+    list of names. A form declaring a value outside that set minted nothing
+    and released the step anyway -- a run that looks advanced with no work
+    in it, which is what the plan check exists to prevent. Refused before
+    the submit is journaled, like its sibling."""
     real = forms.load
 
     def third_thing(path):

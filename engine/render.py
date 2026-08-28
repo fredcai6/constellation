@@ -437,7 +437,12 @@ def _event(e):
                 else e.get("form", "(no form)"))
         return f"{e.get('id','')}  {what}  [{e.get('source','')}]"
     if k == "return":
-        v = f.get("verdict") or f.get("plan-holds") or ""
+        # `verdict` is a panelist's own field, read straight off its return.
+        # `decision` is engine-computed: `cmd_close` stamps it off whatever
+        # `decides` field the closing run itself last answered -- one stable
+        # key rather than this reader guessing which assembly's field name
+        # to look for.
+        v = f.get("verdict") or e.get("decision") or ""
         return (f"{e.get('step','')} <- {e.get('child','')}"
                 + (f"  {v.strip().split(chr(10))[0][:40]}" if v else ""))
     if k == "check":
