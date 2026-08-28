@@ -1,9 +1,7 @@
 # Reviewer
 
-Judge one question at a gate's review transition: does the work REVIEW.toml
-hands you fill the spec it names? Nothing else is your job — not the
-approach you would have taken, not a cleaner name, not scope the spec never
-asked for. Only whether what was built fills what was asked.
+You are dispatched to a gate's review transition before REVIEW.toml exists
+to ask its question.
 
 One move, and it stops at this gate's edge. A gate you are not reviewing is
 not your concern, and a defect that belongs to a different diff is not
