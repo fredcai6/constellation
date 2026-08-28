@@ -449,13 +449,12 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
     assert verbs_checked, "no outcome named a verb -- this test swept nothing"
 
 
-SKILL_BUDGETS = {"commander": 1500, "implementer": 800}
+SKILL_BUDGETS = {"commander": 1500, "implementer": 800, "critic": 850, "reviewer": 700}
 
 
-def test_commander_and_implementer_skills_exist_inside_budget():
-    """Layer 3 gives exactly two roles a SKILL.md -- commander and
-    implementer, the only postures with no form of their own to carry them.
-    Each budget is set in the spec and enforced with `wc -w`, FORMS INCLUDED
+def test_budgeted_skills_exist_inside_budget():
+    """Every role `SKILL_BUDGETS` lists gets a SKILL.md, checked against the
+    budget the spec sets and enforced with `wc -w`, FORMS INCLUDED
     (V2_DESIGN.md, "Draft per-skill word budgets, forms included"): what a
     role costs is everything its agent reads to hold that posture, and its
     own forms are read every time it is filled. This test used to count the
@@ -473,15 +472,16 @@ def test_commander_and_implementer_skills_exist_inside_budget():
 
 
 def test_no_skill_exists_for_a_role_the_roster_does_not_list():
-    """reviewer gets no SKILL.md: its forms already carry its whole posture,
-    and a skill repeating its form is corpus words with no work in them. That
-    call was made with evidence and stands until a later decision reopens it
-    with its own evidence.
+    """`reviewer` and `critic` used to share one panelist role, and the
+    decision on record was that its form already carried its whole posture,
+    so a SKILL.md would repeat it -- corpus words with no work in them.
+    Issue #50 split that role: `critic` judges plans, `reviewer` judges
+    gates, each one move now, so neither has the other to pair against and
+    the old decision no longer holds. Both write their own SKILL.md today.
 
-    The assertion is narrower than the decision it records: it catches a
-    SKILL.md appearing for a name the roster does not recognize. `reviewer` is
-    on the roster, so its absence is held by the decision and by
-    tests/test_brief.py, not by this line."""
+    The assertion is narrower than either decision: it catches a SKILL.md
+    appearing for a name the roster does not recognize, nothing about which
+    rostered roles have one. That is all this line has ever proven."""
     roster = set(re.findall(r"^\| `([a-z-]+)` \|", (ROOT / "docs" / "V2_DESIGN.md").read_text(),
                             re.M))
     assert roster, "could not read the roster from the spec"

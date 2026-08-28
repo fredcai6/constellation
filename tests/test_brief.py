@@ -54,6 +54,17 @@ def _mint_panel_step(wid="g9", worker="reviewer"):
                    panel=[{"worker": worker, "criteria": "the gate spec, whole and only"}])
 
 
+def _mint_work_step(wid="v1", filler="implementer"):
+    """A work-segment step standing on run-a-gate's real interior, built
+    directly so a synthetic `filler` can be given without the assembly's own
+    conductor (`implementer`, `reviewer` -- both written) getting in the
+    way."""
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="g1", segment="work",
+                   form="skills/implementer/forms/IMPLEMENT.toml", filler=filler,
+                   prefill={}, anchor=False, terminal=False, validates="", source="mint")
+
+
 # -- self-location: deterministic, no model ----------------------------------
 
 
@@ -242,17 +253,18 @@ def test_panelist_brief_names_where_its_own_role_is_written(workdir, capsys):
 
 
 def test_panelist_brief_names_no_file_for_a_role_that_has_no_skill(workdir, capsys):
-    """`reviewer` has no SKILL.md by a decision made with evidence
-    (tests/test_promises.py). A brief that named one anyway would be this
-    issue's own defect inverted -- a path to nothing."""
-    assert not (REPO / "skills" / "reviewer" / "SKILL.md").exists(), (
-        "the premise moved: reviewer now has a skill, so this case is stale")
-    _mint_panel_step(worker="reviewer")
+    """A panelist worker with no SKILL.md gets no posture line: naming one
+    anyway would be this issue's own defect inverted -- a path to nothing.
+    Proven against a fixture role rather than a rostered one with no
+    directory today: pinning to a real role re-arms the staleness trap this
+    test used to be, where a later SKILL.md for that role flips it green for
+    the wrong reason instead of failing loudly."""
+    _mint_panel_step(worker="ghostwriter")
     capsys.readouterr()
 
     cli.main(["g9"])
     out = capsys.readouterr().out
-    assert "role         reviewer" in out
+    assert "role         ghostwriter" in out
     assert _posture_line(out) is None, "the brief named a posture that does not exist"
 
 
@@ -281,9 +293,12 @@ def test_conductor_resolves_through_the_assembly_not_a_skills_conductor(workdir,
 
 
 def test_the_room_names_no_file_for_a_filler_that_has_no_skill(workdir, capsys):
-    """give-a-verdict's verdict step is filled by `reviewer`, which has no
-    SKILL.md: silence, not a path to nothing."""
-    cli.main(["open", "give-a-verdict", "--id", "v1"])
+    """The room a filler with no SKILL.md stands in: silence, not a path to
+    nothing. Proven against a fixture role, the same way the panelist case
+    above is -- every rostered role either has a directory today or is one
+    decision away from getting one, and pinning to a real one re-arms the
+    staleness trap this test used to be."""
+    _mint_work_step(filler="ghostwriter")
     capsys.readouterr()
 
     cli.main(["v1"])
