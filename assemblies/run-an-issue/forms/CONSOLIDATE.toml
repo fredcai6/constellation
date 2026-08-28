@@ -25,4 +25,10 @@ note = "This work's load-bearing terms; each cites its glossary entry or propose
 [[field]]
 id = "settle"
 kind = "evidence"
-note = "Name the spike, prototype, or data view that would settle something now — dispatched before planning — or decline with a reason."
+note = """
+What the board's excursion column produced: every excursion dispatched, the
+one question it answered and what its returns said; every decline, and the
+reason given. The row asks; this reports. It is the only path by which a
+per-row brief reaches the planner, the cold panel, and the next reader of the
+journal — the board stays behind in the work location, and these fields are
+what join the run's prefill."""
