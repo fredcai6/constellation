@@ -31,12 +31,21 @@ one pass over your own draft against the rules below before you return it.
 11. When it is your judgment, say so plainly instead of borrowing vague authority.
 12. State your confidence once, then commit. When the evidence points one way, make the call —
     no false balance, no flattery.
+13. A run's writing stands on itself and the codebase: what another issue, ticket, or
+    conversation knows is restated here in full, or it is not known — a gate spec, a plan, a
+    spec, a consolidated understanding. A commit sha is the exception, because it points into
+    the codebase rather than out of it. A reader that finds a gap dispatches an excursion
+    (`standards/understanding-moves.md`) or works the repository; it is never left holding a
+    pointer it cannot follow. The rule starts where a run consolidates its understanding —
+    before that, an agent records whatever it needs, tracker references included, on its board
+    and in `spine <work-id> note observation ...` entries, which fold to the run's notes and
+    reach no later reader.
 
 **Structure serves the reader.**
 
-13. Open on the substance and lead with the point when the reader needs it fast; let the
+14. Open on the substance and lead with the point when the reader needs it fast; let the
     context follow.
-14. Give the background that helps; cut what only repeats.
+15. Give the background that helps; cut what only repeats.
 
 ## Dials, not laws
 
