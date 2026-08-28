@@ -10,11 +10,14 @@ test = "python3 -m pytest -q"
 # anything ships: the fast suite plus the agent evals, which drive a real
 # light model against a real run and assert on its journal.
 validate = "python3 -m pytest -q && python3 -m pytest evals -q"
-# `lines` is the machinery cap's instrument (V2_DESIGN.md's Size section). It asks
-# git rather than the filesystem, so it counts the engine and `spine` as committed
-# and cannot drift with `engine/__pycache__/*.pyc`, which moved the number by 896
-# lines depending on whether the suite had been run.
-lines = "git ls-files engine spine | xargs wc -l | tail -1"
+# `lines` is the machinery cap's instrument (V2_DESIGN.md's Size section). It counts
+# code: blank lines, comments and docstrings print beside the number rather than
+# inside it, so explaining a decision better never spends the engine's budget. It
+# still asks git rather than the filesystem, so it counts the engine and `spine` as
+# committed and cannot drift with `engine/__pycache__/*.pyc`, which moved the number
+# by 896 lines depending on whether the suite had been run. Takes any paths, so the
+# same rule can measure a tree that is outside the cap.
+lines = "python3 -m tools.count_lines engine spine"
 # `map` is the closeout call: the derived code map, built into .code-map/ and map/,
 # both gitignored. Never committed -- a stale committed map is the failure #7 names.
 # `--render-only` narrows the page tree to one package; the walk behind it stays
