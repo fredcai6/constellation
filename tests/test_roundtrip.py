@@ -98,8 +98,12 @@ def test_refusal_names_the_field_and_the_way_out(workdir, capsys):
 
 
 def _fill_open(path):
-    path.write_text('''
-issue = "gh:17"
+    # the `issue` field names a file in the work location, so write one
+    issue = path.parent / "issue.md"
+    issue.write_text("The parser drops the last record of a file with no "
+                     "trailing newline.\n")
+    path.write_text(f'''
+issue = "{issue}"
 
 authority = """
 Principal: Tommy, live. I own driving this to a merged fix; gaps go to him."""

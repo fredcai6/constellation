@@ -10,7 +10,7 @@ worklist grows and shrinks as answers land."""
 [[field]]
 id = "issue"
 kind = "artifact"
-note = "The issue this run solves, per standards/issue.md — a tracker reference or a file in the work location."
+note = "The issue this run solves, per standards/issue.md — a file in the work location; the conductor writes prefill to it."
 
 [[field]]
 id = "authority"

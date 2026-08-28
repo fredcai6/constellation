@@ -176,6 +176,13 @@ key-terms = "waived: none"
     assert prefill["criteria"].startswith("intent-fit")
 
 
+def _plan_measures(wid):
+    """Prose lengths of the plan artifact, round by round. The `issue` field
+    is an artifact too and is measured on the open step; the room reports
+    drift per segment, so scoping here says what this test is about."""
+    return [m["words"] for m in runmod.state(wid)["measures"] if m["field"] == "plan"]
+
+
 def test_the_room_reports_how_the_plan_moved_across_its_rounds(workdir, capsys):
     """A rework round is told what the artifact did, and nothing more.
 
@@ -199,7 +206,7 @@ def test_the_room_reports_how_the_plan_moved_across_its_rounds(workdir, capsys):
     capsys.readouterr()
 
     # round one measured, and says nothing -- there is nothing yet to compare
-    assert [m["words"] for m in runmod.state(wid)["measures"]] == [10]
+    assert _plan_measures(wid) == [10]
     cli.main([wid])
     assert "prose words" not in capsys.readouterr().out
 
@@ -221,7 +228,7 @@ key-terms = "waived: none"
     cli.main([wid, "submit"])
     capsys.readouterr()
 
-    assert [m["words"] for m in runmod.state(wid)["measures"]] == [10, 12]
+    assert _plan_measures(wid) == [10, 12]
 
     # the room reports it at the NEXT round, where the conductor is writing:
     # the artifact on disk is the one just submitted, and now it has a history

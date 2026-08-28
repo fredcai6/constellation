@@ -30,8 +30,12 @@ def _fill(path, text):
 
 
 def _fill_open(wid):
-    _fill(pathlib.Path(f".agent-work/{wid}/OPEN.toml"), '''
-issue = "gh:17"
+    # the `issue` field names a file in the work location, so write one
+    issue = pathlib.Path(f".agent-work/{wid}/issue.md")
+    _fill(issue, "The parser drops the last record of a file with no "
+                 "trailing newline.\n")
+    _fill(pathlib.Path(f".agent-work/{wid}/OPEN.toml"), f'''
+issue = "{issue}"
 
 authority = """
 Principal: Tommy, live. I own driving this to a merged fix; gaps go to him."""

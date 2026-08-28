@@ -167,8 +167,12 @@ def test_validate_against_real_seeded_board(tmp_path, monkeypatch, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "demo"])
     capsys.readouterr()
 
+    # the `issue` field names a file in the work location, so write one
+    issue = pathlib.Path(".agent-work/issue17/issue.md")
+    issue.write_text("The parser drops the last record of a file with no "
+                     "trailing newline.\n")
     open_form = tmp_path / ".agent-work" / "issue17" / "OPEN.toml"
-    open_form.write_text("""issue = "gh:17"
+    open_form.write_text(f"""issue = "{issue}"
 authority = \"\"\"
 Principal: Tommy.\"\"\"
 [[questions]]
@@ -374,8 +378,12 @@ def _open_with_board(tmp_path, monkeypatch, seeds):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     cli.main(["open", "run-an-issue", "--issue", "42", "--title", "t"])
+    # the `issue` field names a file in the work location, so write one
+    issue = pathlib.Path(".agent-work/issue42/issue.md")
+    issue.write_text("The parser drops the last record of a file with no "
+                     "trailing newline.\n")
     open_form = tmp_path / ".agent-work" / "issue42" / "OPEN.toml"
-    open_form.write_text('issue = "gh:42"\nauthority = """\nPrincipal: Tommy."""\n'
+    open_form.write_text(f'issue = "{issue}"\nauthority = """\nPrincipal: Tommy."""\n'
                          + seeds)
     cli.main(["issue42", "submit"])
 

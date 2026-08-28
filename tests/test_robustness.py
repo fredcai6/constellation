@@ -23,6 +23,15 @@ def _open(wid="issue17"):
     cli.main(["open", "run-an-issue", "--id", wid, "--title", "t"])
 
 
+def _issue_file(wid="issue17"):
+    """The `issue` field names a file in the work location. Write it, and
+    return the path the form points at."""
+    path = pathlib.Path(f".agent-work/{wid}/issue.md")
+    path.write_text("The parser drops the last record of a file with no "
+                    "trailing newline.\n")
+    return path
+
+
 def _asm():
     """An assembly declaring no outcomes, so `_check_vocabulary` is the only
     enforcer -- the case this test is about."""
@@ -63,7 +72,8 @@ def test_a_malformed_plan_field_refuses_before_anything_is_recorded(workdir, cap
     minting, leaving a run that looked advanced with no work in it."""
     _open()
     pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
-        'issue = "gh:17"\nauthority = "Tommy."\nquestions = "not a list of blocks"\n')
+        f'issue = "{_issue_file()}"\nauthority = "Tommy."\n'
+        'questions = "not a list of blocks"\n')
     capsys.readouterr()
 
     with pytest.raises(SystemExit) as e:
@@ -158,7 +168,7 @@ def test_an_unhandled_mints_value_refuses_instead_of_minting_nothing(workdir, ca
     monkeypatch.setattr(forms, "load", third_thing)
     _open()
     pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
-        'issue = "gh:17"\nauthority = "Tommy."\n\n[[questions]]\n'
+        f'issue = "{_issue_file()}"\nauthority = "Tommy."\n\n[[questions]]\n'
         'question = "which inputs drop the last record?"\ntype = "fact"\n')
     capsys.readouterr()
 
@@ -288,7 +298,8 @@ def test_status_names_the_board_it_will_validate(workdir, capsys):
     already worked -- the room description lying about the room."""
     _open()
     pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
-        'issue = "gh:17"\nauthority = "T."\n[[questions]]\nquestion = "q?"\ntype = "fact"\n')
+        f'issue = "{_issue_file()}"\nauthority = "T."\n'
+        '[[questions]]\nquestion = "q?"\ntype = "fact"\n')
     cli.main(["issue17", "submit"])
     out = capsys.readouterr().out
     assert "UNDERSTAND.toml" in out
@@ -302,7 +313,8 @@ def test_every_refusal_states_an_escape_that_works(workdir):
     than printing none."""
     _open()
     pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
-        'issue = "gh:17"\nauthority = "T."\n[[questions]]\nquestion = "q?"\ntype = "fact"\n')
+        f'issue = "{_issue_file()}"\nauthority = "T."\n'
+        '[[questions]]\nquestion = "q?"\ntype = "fact"\n')
     cli.main(["issue17", "submit"])
     pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
         'learnings = "x"\nkey-terms = "waived: none"\nsettle = "waived: none"\n')

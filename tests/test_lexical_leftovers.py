@@ -28,6 +28,7 @@ below is re-measured against engine/ as it stands, not copied from the plan.
 import ast
 import pathlib
 import re
+import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ENGINE_PATHS = sorted((ROOT / "engine").glob("*.py"))
@@ -126,3 +127,51 @@ def test_every_load_bearing_term_has_a_glossary_headword():
     headwords = set(HEADWORD.findall(GLOSSARY.read_text()))
     missing = LOAD_BEARING_TERMS - headwords
     assert not missing, f"no glossary headword for {missing}"
+
+
+# Two more corpus promises nothing checks, and both are about the same thing:
+# a form sentence that describes a delivery the engine does not make. A reader
+# has no way to catch either by running anything -- the run still completes,
+# and the writer it misdirects is a fresh context that never sees the corpus
+# it was misdirected by. So they are checked here, lexically, on the same
+# grounds as everything above.
+
+RUN_AN_ISSUE_FORMS = ROOT / "assemblies" / "run-an-issue" / "forms"
+PLAN_FORM = RUN_AN_ISSUE_FORMS / "PLAN.toml"
+OPEN_FORM = RUN_AN_ISSUE_FORMS / "OPEN.toml"
+SENTENCE = re.compile(r"(?<=\.)\s+")
+
+
+def _note(form, field_id):
+    fields = tomllib.load(open(form, "rb")).get("field", [])
+    return next(f for f in fields if f["id"] == field_id)["note"]
+
+
+def test_the_plan_imperative_names_the_critics_real_inputs():
+    """A panelist's prefill is the run's prefill plus the producing step's
+    fields plus its criteria, and the run's prefill is fed by the one
+    transition marked `carries` -- the consolidate. The critic therefore
+    holds the understanding and the plan, never the issue, which
+    `skills/reviewer/forms/CRITIC.toml` states in its own header. Scoped to
+    the sentence that names the critic's inputs: the imperative's first
+    sentence says "how this issue gets solved" and is legal."""
+    imperative = tomllib.load(open(PLAN_FORM, "rb"))["imperative"]
+    named = [s for s in SENTENCE.split(imperative) if "critic" in s]
+    assert len(named) == 1, f"expected one sentence naming the critic, got {named}"
+    clause = " ".join(named[0].split())
+    assert "understanding" in clause, f"does not name the understanding: {clause!r}"
+    assert "issue" not in clause, f"promises the critic the issue: {clause!r}"
+
+
+def test_the_open_forms_issue_note_offers_no_tracker_branch():
+    """The field is `kind = "artifact"` and the corpus has no reader for a
+    tracker reference: nothing fetches one, so a run that answers with one
+    leaves every later reader holding a string. The note names the file.
+
+    The note is also deliberately short: `forms._is_short` mints a one-line
+    `issue = ""` slot for an artifact field whose note runs under 120
+    characters and a prose block above it, and this field takes one path.
+    Lengthening the note past that threshold changes the minted form."""
+    note = " ".join(_note(OPEN_FORM, "issue").split())
+    assert "tracker" not in note, f"still offers a tracker reference: {note!r}"
+    assert "file in the work location" in note, f"does not name the file: {note!r}"
