@@ -230,7 +230,8 @@ def test_escalate_releases_like_pass_and_the_verdict_rides_the_summary(workdir, 
 
     st = runmod.state("issue9.g5")
     assert st["current"]["id"] == "close"  # released, exactly like pass
-    _fill(journal.location("issue9.g5") / "GATE_CLOSE.toml", 'residue = "waived: none"\n')
+    _fill(journal.location("issue9.g5") / "GATE_CLOSE.toml",
+          'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main(["issue9.g5", "submit"])
     cli.main(["issue9.g5", "close"])
     capsys.readouterr()

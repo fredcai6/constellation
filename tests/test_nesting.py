@@ -94,7 +94,8 @@ deviations = "waived: none"
 
 
 def _fill_gate_close(wid):
-    _fill(journal.location(wid) / "GATE_CLOSE.toml", 'residue = "nothing surprising"\n')
+    _fill(journal.location(wid) / "GATE_CLOSE.toml",
+          'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "nothing surprising"\n')
 
 
 def _fill_review(wid, verdict="pass", findings="none: waived: clean"):

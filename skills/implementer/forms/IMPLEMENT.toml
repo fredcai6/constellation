@@ -11,7 +11,7 @@ disagree, that is a blocked note up, not an improvisation."""
 [[field]]
 id = "change"
 kind = "evidence"
-note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort. Name the branch and commit."
+note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort. Name the branch; the commit is made once at the gate's close, not per round."
 
 [[field]]
 id = "deviations"

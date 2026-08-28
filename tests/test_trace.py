@@ -110,7 +110,8 @@ def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
           'ruling = "up"\nwhy = "the spec asked for something untestable"\n')
     cli.main([child, "submit"])
     capsys.readouterr()
-    _fill(journal.location(child) / "GATE_CLOSE.toml", 'residue = "waived: none"\n')
+    _fill(journal.location(child) / "GATE_CLOSE.toml",
+          'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])
     cli.main([child, "close"])
 

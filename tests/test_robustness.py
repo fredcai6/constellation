@@ -248,7 +248,7 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
     pathlib.Path(f".agent-work/issue17/g1/GATE_CLOSE.toml").write_text(
-        'residue = "waived: none"\n')
+        'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])
 
     # the parent's record disappears -- a wiped worktree, a bad cleanup
