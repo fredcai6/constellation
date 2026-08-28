@@ -139,6 +139,10 @@ forms; coining a synonym for a term below is a defect.
   principal would describe the problem in the same words.
 - **frame** — what a board row is about: `capability`, `use-case`, `event`, `constraint`,
   `assumption`. Orthogonal to its type, which is what it resolves to.
+- **move** — how a board row gets settled: `read`, `trace`, `reproduce` or `evidence-loop`
+  worked in place, or an excursion dispatched as a child run; `ask` for a decision, `mirror`
+  for an understanding. The row's `move` column names the in-place one; `excursion` owns the
+  dispatched one.
 - **excursion** — a move dispatched as a child run to answer one named question, opened from a
   board row, which is its brief; its return lands under the row. Returns a scoped verdict and
   the command that regenerates it. Four kinds, each its own form: prior art, prototype,

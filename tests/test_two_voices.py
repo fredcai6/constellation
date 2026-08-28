@@ -17,7 +17,7 @@ import pathlib
 
 import pytest
 
-from engine import cli, journal, run as runmod
+from engine import cli, forms, journal, run as runmod
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -31,6 +31,7 @@ def workdir(tmp_path, monkeypatch):
 
 
 CRITIC = "skills/reviewer/forms/CRITIC.toml"
+CONSOLIDATE = REPO / "assemblies/run-an-issue/forms/CONSOLIDATE.toml"
 
 
 def _fill(path, text):
@@ -63,12 +64,12 @@ def _work_the_board(wid):
         'status = "open"', 'status = "answered"\nanswer = "settled."'))
 
 
-def _fill_consolidate(wid):
+def _fill_consolidate(wid, settle="waived: none"):
     _fill(f".agent-work/{wid}/CONSOLIDATE.toml", '''
 learnings = "settled."
 key-terms = "waived: none"
-settle = "waived: none"
-''')
+settle = "%s"
+''' % settle)
 
 
 def _fill_plan_form(wid):
@@ -131,7 +132,7 @@ def _dispatch_panel(pwid, step_id, verdict="pass", findings="none: waived: clean
         _dispatch_critic(pwid, step_id, verdict, findings, n=n)
 
 
-def _drive_to_plan_to_execute(wid="issue99"):
+def _drive_to_plan_to_execute(wid="issue99", settle="waived: none"):
     """Open a real run-an-issue and drive it to the plan-to-execute
     transition, right after the plan interior is submitted -- the moment
     the critic must fire before anything else."""
@@ -139,7 +140,7 @@ def _drive_to_plan_to_execute(wid="issue99"):
     _fill_open(wid)
     cli.main([wid, "submit"])
     _work_the_board(wid)
-    _fill_consolidate(wid)
+    _fill_consolidate(wid, settle)
     cli.main([wid, "submit"])
     _fill_plan_form(wid)
     cli.main([wid, "submit"])
@@ -205,6 +206,44 @@ def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdi
     assert prefill["learnings"] == "settled."      # the understanding crossed
     assert prefill["plan"] == f".agent-work/{wid}/plan.md"   # the artifact still rides
     assert prefill["criteria"].startswith("intent-fit")
+
+
+# [settle-carries]
+# Rationale: no part of the understand board crosses a segment boundary, so
+# consolidate's `settle` is the only carrier for what the excursion column
+# produced. The test pins both halves -- the note that says report, and the
+# prefill hop that delivers it to the cold panelist.
+# Rejected: reading the board file from the planner's step to prove the
+# answers arrived -- there is no such read, which is the whole reason this
+# field carries.
+def test_settle_carries_the_boards_answers(workdir, capsys):
+    """`settle` reports the board's excursion column; it does not re-ask it.
+
+    The board is a document in the work location and no part of it crosses a
+    segment boundary. Consolidate `carries`, so its fields join the run's
+    prefill -- which makes this one field the only path by which a per-row
+    brief and its return reach the planner, the cold panel, and the journal's
+    next reader. The mandate to name an excursion or decline one is already
+    on every row, once per row; asking for it a second time here collects one
+    fresh answer and drops the answers the column already holds.
+    """
+    note = next(f for f in forms.load(CONSOLIDATE)["fields"]
+                if f["id"] == "settle")["note"]
+    assert "excursion" in note        # it names the column it reports
+    assert "returns" in note          # what a dispatch produced
+    assert "decline" in note          # and what a decline produced
+
+    carried = ("q1 dispatched prior-art on retry budgets; it returned three "
+               "attempts as the ecosystem default. q2 declined one: the code "
+               "answers it outright.")
+    wid = _drive_to_plan_to_execute(settle=carried)
+    capsys.readouterr()
+
+    assert runmod.state(wid)["prefill"]["settle"] == carried
+
+    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])
+    capsys.readouterr()
+    assert runmod.state(f"{wid}.plan.p1")["prefill"]["settle"] == carried
 
 
 # -- 2. revise sends the plan back with findings attributed, panel re-fires -

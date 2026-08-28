@@ -8,9 +8,9 @@
 # other askable rows proceed.
 #
 # A row resolves in any style: prose evidence, an artifact in the work
-# location, or an excursion's returns. Moves per
-# standards/understanding-moves.md — reach for an excursion early; reading
-# is not the only move.
+# location, or an excursion's returns. The moves are on the columns below —
+# `move` holds the ones worked in place, `excursion` the ones dispatched.
+# Reach for an excursion early; reading is not the only move.
 
 imperative = """
 Reach common understanding of this ask with your principal, relentlessly,
@@ -23,6 +23,23 @@ what it opened."""
 [[question]]
 id = "q1"
 question = ""
+excursion = ""   # the child run that would settle this row now, or the
+                 # reason you decline one — a reason, never a blank. Three
+                 # moves leave the board, one per kind; brief the one you
+                 # pick here before you dispatch it: the single question it
+                 # answers, what an answer looks like, its budget and its
+                 # stop conditions.
+                 # prior-art — ask the world. What the literature, the
+                 # ecosystem, and this codebase's own history already say.
+                 # Primary sources, a citation per claim.
+                 # prototype — spike it. Throwaway code, disposed. It
+                 # answers the question and never becomes the
+                 # implementation.
+                 # picture — picture it. A table, a plot, a dump shaped so
+                 # the anomaly has nowhere to hide, plus a statement of what
+                 # the view cannot show.
+                 # Its returns stamp back here. Grounding evidence of every
+                 # other kind goes in artifact.
 type = ""        # fact | decision | understanding.
                  # fact: you resolve it yourself, with evidence.
                  # decision: a choice the principal owns — never self-answer it.
@@ -32,10 +49,26 @@ type = ""        # fact | decision | understanding.
 frame = ""       # optional — capability | use-case | event | constraint |
                  # assumption: what the row is about. A use case is how this
                  # changes the way the project is worked, concretely.
-move = ""        # how this gets settled: read | trace | reproduce |
-                 # evidence-loop — or an excursion: prior-art | prototype |
-                 # picture — or ask, for a decision; mirror, for an
-                 # understanding.
+move = ""        # how this gets settled without leaving the board: read |
+                 # trace | reproduce | evidence-loop — or ask, for a
+                 # decision; mirror, for an understanding. An excursion is
+                 # not one of these; it has its own column.
+                 # read — the code, the journal, the docs say it outright.
+                 # trace — follow one concrete input through the system end
+                 # to end and write down what happens at each hop.
+                 # reproduce — make the break happen on demand before you
+                 # reason about it. A break you cannot make happen again is
+                 # an open question, not a fact.
+                 # evidence-loop — for a break, or for intent and execution
+                 # disagreeing: make it happen on demand, then hypothesis →
+                 # test until the cause is shown, never guessed. Each cycle
+                 # names the hypothesis, the test that would falsify it, and
+                 # what the test showed; the loop ends when the cause makes
+                 # the break happen.
+                 # ask — a decision goes to the principal, one question at a
+                 # time; you record their words.
+                 # mirror — an understanding goes up as one sentence for the
+                 # principal to confirm or correct, verbatim.
 from = ""        # optional — the row whose answer raised this one. The tree
                  # you walk for gaps.
 cluster = ""     # optional — rows taken to the principal in one sitting
@@ -44,10 +77,10 @@ status = "open"  # open | answered | moot | up | deferred: <reason>
 answer = ""      # fact: the answer and what grounded it — never memory.
                  # decision, understanding: the principal's words, verbatim.
                  # moot: the answer that mooted it.  up: where it went.
-artifact = ""    # optional — the view, repro, or excursion return in the
-                 # work location that grounds the answer. An excursion is a
-                 # child run opened from this row; its returns stamp back
-                 # here.
+artifact = ""    # optional — the view, the repro, or the file in the work
+                 # location that grounds the answer: grounding evidence of
+                 # every kind except an excursion. The child run and its
+                 # returns live in excursion.
 
 # A decision goes to the principal one question at a time, carrying ~3 options
 # with pros and cons and a recommendation. An understanding goes up as a

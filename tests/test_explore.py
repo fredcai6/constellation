@@ -80,6 +80,20 @@ def test_a_second_excursion_off_one_row_gets_its_own_id(explore):
     assert a.split()[1] != b.split()[1]
 
 
+def test_usage_names_the_row_form(explore):
+    """USAGE documents both ways a child is opened, not just the step form.
+
+    The step form was there and the row form was not, so the whole of
+    `--row` -- the only way an excursion is ever opened -- was undocumented
+    in the one place an agent looks when it does not know a verb."""
+    assert "--parent <id> --row <row-id>" in cli.USAGE
+    assert "excursion" in cli.USAGE
+    for word in ("the row is the brief", "completes no step"):
+        assert word in cli.USAGE, f"the gloss does not say {word!r}"
+    out, _ = _spine("--help")
+    assert "--row <row-id>" in out, "--help does not print the row form"
+
+
 def test_an_excursion_from_no_such_row_is_refused(explore):
     out, code = _spine("open", "find-prior-art", "--parent", explore, "--row", "i9")
     assert code and "no board row" in str(code)

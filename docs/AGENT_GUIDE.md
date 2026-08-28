@@ -60,7 +60,6 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 | `standards/glossary.md` | one name for one thing |
 | `standards/issue.md` | what an issue and an epic are |
 | `standards/skill.md` | what a skill is and what it must carry |
-| `standards/understanding-moves.md` | converting an open question into evidence |
 
 ## Run things through the palette
 

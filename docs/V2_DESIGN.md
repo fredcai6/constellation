@@ -383,11 +383,17 @@ Short cited pages, not skills. Forms cite them from the field that produces the 
   means. Breadcrumbs are optional and discardable. Implementation steps in an issue are a defect.
 - `standards/skill.md` — what a good skill looks like: word budget, reads only its form, one move.
 - `standards/prose.md` — how-to-talk.
-- `standards/understanding-moves.md` — spike it (dispatch the prototyper), picture it (build a
-  data view that makes the problem visible), reproduce it, trace one case, and **run the
-  evidence loop** (v1 `diagnose`): reproduce the break, then hypothesis → test until the cause
-  is shown, never guessed. Both understanding forms carry a mandatory field: *name the spike or
-  data view that would settle something now, or decline with a reason.*
+
+The understanding moves were a fourth page once and are now at the fields that use them: the
+understand board's `excursion` column carries the three that dispatch a child run — ask the
+world, spike it, picture it — and its `move` column the three worked in place: reproduce it,
+trace one case, and **run the evidence loop** (v1 `diagnose`), which makes the break happen on
+demand and then runs hypothesis → test until the cause is shown, never guessed. The mandate is
+per row, not per form: *name the excursion that would settle this row now, or decline with a
+reason.* The plan form carries none — `PLAN.toml`'s `design-it-twice` argues a rival against a
+commitment already made, which is a different move from settling an open question before one.
+Consolidate's `settle` reports what the column produced, so the answers reach the planner and
+the cold panel.
 
 ### Vocabulary: the glossary and how terms flow
 
