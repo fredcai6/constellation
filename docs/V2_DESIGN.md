@@ -223,9 +223,14 @@ refusals, the MCP server, and every CLI-vs-door distinction. Bind/release descen
 ### Size
 
 One budget, and it is **the engine's** — `engine/` and the `spine` CLI, which is where the
-rail, assembly loading, Windows support and the install copy all live: **≤ 2,500 lines**,
-measured by `palette:lines`. The bar is an aspiration, not a wall — its job is to keep
-pressure on every line earning its keep. One kind of line always earns it:
+rail, assembly loading, Windows support and the install copy all live: **≤ 2,500 lines of
+code**, measured by `palette:lines`. Blank lines, comments and docstrings are prose: the
+instrument prints them beside the count, never inside it. Until 2026-08-27 it was `wc -l`,
+which counted them — so the engine read as 2,817 lines against a cap it had not breached,
+and the prose carrying this engine's reasons was the cheapest thing to cut to get green.
+Measured honestly the same tree is 1,625. **The bar did not move when the instrument was
+fixed; the headroom it now shows was always there.** The bar is an aspiration, not a wall —
+its job is to keep pressure on every line earning its keep. One kind of line always earns it:
 **anything the engine can derive, it derives.** A rule stated in a form for an agent to apply
 against data the engine already holds is mechanical work the secretary exists to remove, and a
 budget that argues for leaving it to the agent is arguing the wrong way (`docs/DERIVED_IS_CODE.md`) — and it is one number: a green engine achieved by relocating lines into another
@@ -410,10 +415,14 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 | Measure | v1 | v2 target |
 |---|---|---|
 | Corpus words (authored artifacts an agent must read before it can work) | ~57,000 | ≤ 15,000 |
-| Engine lines (`engine/` + `spine`: rail, loader, Windows, install copy — decoupled tools are outside it) | ~10,000 | ≤ 2,500 |
+| Engine lines of code (`engine/` + `spine`: rail, loader, Windows, install copy — decoupled tools are outside it) | ~10,000 | ≤ 2,500 |
 | Engine verbs | 18 | 6 |
 | Conductor pre-reading | 20–30k tokens of doctrine | the issue + the authority block |
 | Shared doctrine prose | ~11,000 words (`_shared/`) | one page + standards |
+
+v1's ~10,000 is a raw `wc -l`, taken before the instrument counted code; the two columns
+are not measured the same way, so read the row as an order of magnitude rather than a
+ratio.
 
 The corpus target counts artifacts someone authored and an agent must read before it can
 work. Derived output is not corpus: the code map is regenerated from the source at closeout,

@@ -24,8 +24,9 @@ calls the thesis alone cannot.
 
 Two budgets bound every addition, and no test enforces either — `docs/V2_DESIGN.md`'s Size
 section owns both numbers and what counts against them. Engine size is measured by
-`palette:lines`; corpus is the authored artifacts an agent must read before it can work,
-this file among them.
+`palette:lines`, which counts lines of code and prints comments and docstrings beside that
+number rather than in it; corpus is the authored artifacts an agent must read before it can
+work, this file among them.
 
 ## How work happens
 
