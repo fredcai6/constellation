@@ -59,7 +59,7 @@ child runs.
   chooser who needs sight of the many. On a board, blocked is per-row, never per-run: a
   decision in flight floats up while other askable rows proceed. A row resolves in any output
   style — prose evidence, an artifact in the work location (a data view, a repro), or a
-  dispatched child's returns: a child dispatched from a row (a prototyper spike) stamps its
+  dispatched child's returns: a child dispatched from a row (a prototype excursion) stamps its
   returns back to that row, the same mechanics as a gate one level earlier. An amend names the segment it
   inserts into; closed segments are history, not addresses.
 - **Transitions look back, decide, and instantiate.** A transition is its segment's exit gate:
@@ -325,7 +325,7 @@ each conductor dispatches the tier below and judges at its transitions:
 <open>            seeds the understand board from the issue
 [understand]      board: rows typed fact | decision, each naming its move —
                   read, trace, reproduce, spike, picture, evidence loop, ask;
-                  spikes dispatch the prototyper as child runs. Decisions go
+                  spikes dispatch an excursion as child runs. Decisions go
                   to the principal one at a time, ~3 options with pros/cons
                   and a recommendation — effort scales with criticality
 <consolidate>     learnings + key terms — the prefill for fresh-context
@@ -438,8 +438,8 @@ would not be a cap.
 
 Draft per-skill word budgets, forms included — revised at wave boundaries, enforced at cutover
 with `wc`: explorer 2,500 · admiral 1,500 · commander 1,500 · commander-delegated 500 ·
-interrogator 800 · critic 850 · reviewer 700 · implementer 800 · prototyper 600 ·
-triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum 14,350 against the
+interrogator 800 · critic 850 · reviewer 700 · implementer 800 · excursion 1,050 ·
+triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum 14,800 against the
 15,000 cap.
 
 ## Waves
@@ -449,7 +449,7 @@ triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum 14,350
    plan minting, prefill/returns, TOML journal + writer, the Zork-shaped CLI, advisory rail,
    Windows port, tests. Accepted when the appendix example round-trips.
 3. **run-an-issue + run-a-gate.** Forms and slimmed skills: commander, commander-delegated,
-   interrogator, implementer, reviewer, prototyper, triage — plus their v2
+   interrogator, implementer, reviewer, excursion, triage — plus their v2
    evals. **Ends with a real run-an-issue on a toy issue in this repo, run from the branch** —
    the toy issue builds a genuine v2 component, so the validation run also builds v2. The pivot
    criteria below arm here, not at cutover.
