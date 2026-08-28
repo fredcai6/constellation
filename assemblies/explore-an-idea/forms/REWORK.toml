@@ -1,7 +1,7 @@
 # Step: rework round of spec. Owned by explore-an-idea; filled by the
 # conductor. The panel's findings arrive as prefill. Every disposition is
-# the human's: the critic is cold and may relitigate settled ground, and the
-# human filters that, not you.
+# the human's: the critic reads from fresh context and may relitigate
+# settled ground, and the human filters that, not you.
 
 imperative = """
 Take each finding to the human and record their disposition in their words:

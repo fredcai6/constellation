@@ -212,7 +212,7 @@ def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdi
 # Rationale: no part of the understand board crosses a segment boundary, so
 # consolidate's `settle` is the only carrier for what the excursion column
 # produced. The test pins both halves -- the note that says report, and the
-# prefill hop that delivers it to the cold panelist.
+# prefill hop that delivers it to the fresh-context panelist.
 # Rejected: reading the board file from the planner's step to prove the
 # answers arrived -- there is no such read, which is the whole reason this
 # field carries.
@@ -222,7 +222,7 @@ def test_settle_carries_the_boards_answers(workdir, capsys):
     The board is a document in the work location and no part of it crosses a
     segment boundary. Consolidate `carries`, so its fields join the run's
     prefill -- which makes this one field the only path by which a per-row
-    brief and its return reach the planner, the cold panel, and the journal's
+    brief and its return reach the planner, the fresh-context panel, and the journal's
     next reader. The mandate to name an excursion or decline one is already
     on every row, once per row; asking for it a second time here collects one
     fresh answer and drops the answers the column already holds.
@@ -376,7 +376,7 @@ def test_an_escalated_plan_mints_the_outlet_instead_of_finishing(workdir, capsys
     assert outlet["prefill"]["arrival"] == "escalate"  # which way in, not just the findings
     assert "not where the record is dropped" in outlet["prefill"]["findings"]
     assert "[p1]" in outlet["prefill"]["findings"]     # attributed, like a revise's
-    # no fourth cold reader: the outlet carries no panel of its own
+    # no fourth fresh-context reader: the outlet carries no panel of its own
     assert not any(s.get("panel") and s["id"] not in st["done"] for s in st["steps"])
 
     # and the ruling is live from this arrival too -- advance overrules the

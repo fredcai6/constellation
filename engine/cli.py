@@ -1074,7 +1074,7 @@ def _act_on_verdicts(pwid, step_id):
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
     # Rationale: three reviews landing on one artifact means the artifact is
     #   not the one under repair, so the fourth revise mints a ruling instead
-    #   of a fourth round -- and mints it alone, since a fourth cold reader is
+    #   of a fourth round -- and mints it alone, since a fourth fresh-context reader is
     #   the loop rather than the way out. The number and the form are the
     #   assembly's; the engine names neither.
     after, outlet = seg.get("impasse-after", 0), seg.get("impasse-form", "")
@@ -1223,7 +1223,7 @@ def cmd_trace(argv):
     """A run and everything it dispatched, as one timeline.
 
     Deliberately not offered in `status`'s legal moves. A run's agents are
-    cold on purpose -- nothing about the engine is resident between steps,
+    fresh on purpose -- nothing about the engine is resident between steps,
     and history is exactly what a room description withholds. This verb is
     for whoever is debugging the engine from outside a run, which is a
     different reader with different needs.

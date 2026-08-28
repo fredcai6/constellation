@@ -7,8 +7,7 @@ imperative = """
 Work the board named above until every row is answered, mooted, or
 deferred with a reason — this step will not pass while a row is open, or
 while a decision is recorded with no words from the principal. Then
-consolidate what a fresh-context planner needs: the understanding, not the
-journey."""
+consolidate what a fresh-context planner needs: the spec, not the journey."""
 
 [[field]]
 id = "learnings"
@@ -29,6 +28,6 @@ note = """
 What the board's excursion column produced: every excursion dispatched, the
 one question it answered and what its returns said; every decline, and the
 reason given. The row asks; this reports. It is the only path by which a
-per-row brief reaches the planner, the cold panel, and the next reader of the
-journal — the board stays behind in the work location, and these fields are
-what join the run's prefill."""
+per-row brief reaches the planner, the fresh-context panel, and the next
+reader of the journal — the board stays behind in the work location, and these
+fields are what join the run's prefill."""

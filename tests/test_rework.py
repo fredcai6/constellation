@@ -280,7 +280,7 @@ def test_a_fourth_revise_mints_the_impasse_form_not_another_round(workdir, capsy
         f"the fourth revise minted {st['current']['form']!r} -- the segment "
         "declares impasse-after = 3, so this round is the ruling")
     assert "empty diff (3)" in st["current"]["prefill"]["findings"]
-    # no fourth panel: another cold reader is the loop, not the way out
+    # no fourth panel: another fresh-context reader is the loop, not the way out
     assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
                    for s in st["steps"]), "the impasse minted a panel"
 

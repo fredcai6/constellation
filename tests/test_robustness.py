@@ -1,6 +1,6 @@
 """Ways the engine could lose or corrupt the record.
 
-Every case here was found by a cold reviewer probing the running system, not
+Every case here was found by a fresh-context reviewer probing the running system, not
 by the suite that was green at the time. The secretary's one duty is to keep
 the record; each of these broke that duty silently.
 """

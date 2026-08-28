@@ -31,8 +31,8 @@ in kind rather than run it a third time. After the third round the engine
 stops offering a fourth and asks you to rule instead — advance over the
 verdict, run another round, or send it up, which ends the run and makes your
 ruling the record your principal reads. Never sharpen the panel's brief
-between rounds — a panel is cold on purpose, and a sharpened brief tells
-it what to find.
+between rounds — a panel reads from fresh context on purpose, and a
+sharpened brief tells it what to find.
 
 **A return is root-verified, never believed.** Before adjudicating any
 child's returns — a gate's, a spike's — open the artifact it names or re-run

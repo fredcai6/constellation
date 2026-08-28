@@ -122,7 +122,7 @@ def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
 
 
 def test_trace_is_not_offered_in_a_rooms_legal_moves(workdir, capsys):
-    """Deliberate. A run's agents are cold on purpose -- history is exactly
+    """Deliberate. A run's agents read from fresh context on purpose -- history is exactly
     what a room description withholds -- so `trace` is a verb for whoever is
     debugging the engine from outside a run, and lives in USAGE only."""
     _mint_two_gates()

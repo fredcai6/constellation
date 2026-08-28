@@ -136,7 +136,7 @@ def _to_rework(explore):
     _fill(explore, "SPEC.toml", 'spec = "SPEC.md"\nrivals = "waived: none"\nkey-terms = "waived: none"\n')
     _spine(explore, "submit")
     panel = _current(explore)["id"]
-    # Three cold readers, one per criterion; one revise among them refills.
+    # Three fresh-context readers, one per criterion; one revise among them refills.
     for n, verdict in enumerate(("revise", "pass", "pass"), start=1):
         out, _ = _spine("open", "give-a-verdict", "--parent", explore, "--step", f"{panel}.p{n}")
         critic = out.split()[1]

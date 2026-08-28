@@ -176,12 +176,7 @@ def test_the_plan_imperative_names_the_critics_real_inputs():
 def test_the_open_forms_issue_note_offers_no_tracker_branch():
     """The field is `kind = "artifact"` and the corpus has no reader for a
     tracker reference: nothing fetches one, so a run that answers with one
-    leaves every later reader holding a string. The note names the file.
-
-    The note is also deliberately short: `forms._is_short` mints a one-line
-    `issue = ""` slot for an artifact field whose note runs under 120
-    characters and a prose block above it, and this field takes one path.
-    Lengthening the note past that threshold changes the minted form."""
+    leaves every later reader holding a string. The note names the file."""
     note = " ".join(_note(OPEN_FORM, "issue").split())
     assert "tracker" not in note, f"still offers a tracker reference: {note!r}"
     assert "file in the work location" in note, f"does not name the file: {note!r}"

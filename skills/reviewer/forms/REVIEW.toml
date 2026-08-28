@@ -1,7 +1,7 @@
 # Verdict: dispatched by a transition's review panel; identical in any
 # assembly. Owned by the reviewer skill. The gate spec, your criteria, and
 # the implement step's outputs (change, deviations, check results) arrive as
-# prefill; your verdict returns to the transition. You are cold on purpose:
+# prefill; your verdict returns to the transition. You arrive with fresh context on purpose:
 # you get no history and should want none.
 
 imperative = """

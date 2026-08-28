@@ -2,8 +2,8 @@
 # the panel's objection cannot be answered by another ordinary round: either
 # the segment has been sent back `impasse-after` times, or the panel returned
 # `escalate` -- an objection to the artifact's root, which no round repairs.
-# `arrival` in the orders says which. It carries no panel: a fourth cold
-# reader is the loop, not the way out.
+# `arrival` in the orders says which. It carries no panel: a fourth
+# fresh-context reader is the loop, not the way out.
 
 imperative = """
 The plan's panel objected in a way another round does not answer. Read

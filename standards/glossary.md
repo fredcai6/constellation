@@ -30,9 +30,9 @@ forms; coining a synonym for a term below is a defect.
   goes up. The OODA beat; cycling is re-firing. *An outcome verb:* mints the named segment's
   own transition step alone, without refilling its interior — `advance`'s move over a live
   revise, distinct from `release`, which mints nothing at all.
-- **verdict panel** — 0..n reviewers a transition dispatches, each cold and prefilled with
-  focused criteria; verdicts return to the transition. Any revise refills, findings merged.
-  Review never lives in an interior.
+- **verdict panel** — 0..n reviewers a transition dispatches, each reading from fresh context
+  and prefilled with focused criteria; verdicts return to the transition. Any revise refills,
+  findings merged. Review never lives in an interior.
 - **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
   template step flagged so that amending it away is loud in the ledger and the parent's
@@ -106,6 +106,9 @@ forms; coining a synonym for a term below is a defect.
   order; contested by a blocked note up, never edited.
 - **return** — the child's terminal fields, stamped into the parent's waiting step at close,
   including the child's amend summary.
+- **fresh context** — what a reader holds at a boundary: the artifact in front of it and the
+  codebase, and nothing from the work that produced the artifact. The default at every step
+  boundary, and what a panelist reads from by design, so the form is the whole handoff.
 - **authority block** — who your principal is, what you own, your latitude, where gaps go;
   derived at dispatch, never authored.
 - **pivot criteria** — what changes the plan, not only what ends it.
@@ -113,10 +116,10 @@ forms; coining a synonym for a term below is a defect.
   check field reaches by name rather than spelling out, and the model-tier table.
 - **spec** — the statement of the problem a plan answers to, as its critic receives it. One name
   for a part two assemblies fill differently: run-an-issue's consolidate output,
-  explore-an-idea's SPEC.toml artifact. A cold reader is told it holds a spec and a plan, never
-  which document upstream produced the spec — that name is the assembly's business and nothing
-  the reader can act on. Distinct from **gate spec** below, which is orders for work rather than
-  a statement of a problem; the two never appear in one reading.
+  explore-an-idea's SPEC.toml artifact. A fresh-context reader is told it holds a spec and a
+  plan, never which document upstream produced the spec — that name is the assembly's business
+  and nothing the reader can act on. Distinct from **gate spec** below, which is orders for
+  work rather than a statement of a problem; the two never appear in one reading.
 - **gate spec** — the purpose, scope, proof and optional model a conductor writes per gate at
   plan-to-execute; minted as that gate's dispatch and carried into the child run as read-only
   prefill. The orders a gate is run from, and the only place a runner is named.

@@ -11,7 +11,7 @@ below the issue grain. Present it to the human one section at a time."""
 [[field]]
 id = "spec"
 kind = "artifact"
-note = "The spec, in the work location. It reads whole to a cold critic and to whoever cuts it — the board is not attached."
+note = "The spec, in the work location. It reads whole to a fresh-context critic and to whoever cuts it — the board is not attached."
 
 [[field]]
 id = "rivals"

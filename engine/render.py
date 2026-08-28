@@ -148,8 +148,8 @@ own close. It returns here when it closes, and this step completes then."""
 PANEL = """
 You open each outstanding panelist below and carry it through to its own
 close -- that close is what returns its verdict here. Run each in a subagent
-if you have one, in this session if you do not. Every panelist is a fresh
-cold reader and its brief is the whole handoff; the verdict on this work is
+if you have one, in this session if you do not. Every panelist reads from
+fresh context and its brief is the whole handoff; the verdict on this work is
 the panel's to give, which is the whole reason for a second voice. This step
 completes once the last verdict has returned."""
 

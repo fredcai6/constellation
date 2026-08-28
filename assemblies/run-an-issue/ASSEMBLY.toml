@@ -26,7 +26,7 @@ anchor = true
 form = "forms/CONSOLIDATE.toml"
 filler = "conductor"
 validates = "board"   # engine refuses an open row or a self-answered decision
-# The understanding joins the run's prefill, so every later dispatch carries it.
+# The spec joins the run's prefill, so every later dispatch carries it.
 # A panelist's prefill comes from prior steps in its own segment, so without
 # this the critic -- the reader consolidate is written for -- never sees it.
 carries = true
@@ -63,15 +63,16 @@ anchor = true
 form = "forms/PLAN_TO_EXECUTE.toml"
 filler = "conductor"
 
-  # One criterion per panelist. Three cold readers disagreeing is a panel; one
-  # reader holding three criteria is a reviewer with a checklist, and it reads
-  # the plan once with divided attention instead of three times with whole.
+  # One criterion per panelist. Three fresh-context readers disagreeing is a
+  # panel; one reader holding three criteria is a reviewer with a checklist,
+  # and it reads the plan once with divided attention instead of three times
+  # with whole.
 
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/CRITIC.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "intent-fit: does the plan serve the understanding it was built on"
+  criteria = "intent-fit: does the plan serve the spec it was built on"
 
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/CRITIC.toml"

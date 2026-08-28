@@ -60,10 +60,10 @@ decides = "next"       # REWORK.toml's; SPEC.toml has no such field
 anchor = true
 # No conductor form: pass releases to close, revise refills with the
 # findings, escalate goes up. A spec is judged on different criteria from a
-# plan -- the form is the same cold critic, the criteria are this
+# plan -- the form is the same fresh-context critic, the criteria are this
 # assembly's.
 
-  # One criterion per panelist, as run-an-issue's plan transition: three cold
+  # One criterion per panelist, as run-an-issue's plan transition: three fresh-context
   # readers disagreeing is a panel; one reader holding three criteria is a
   # reviewer with a checklist.
 

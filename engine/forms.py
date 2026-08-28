@@ -116,19 +116,30 @@ def enforced_vocabulary(field: dict) -> list[str]:
 
 
 def _is_short(field: dict) -> bool:
-    """Short `id = ""` slot vs multi-line prose slot -- judgment call: short
-    when the field takes one of a listed set of values, or is a brief
-    decision/artifact (typically one word or one path); else multi-line,
-    since prose is the common case.
+    """Short `id = ""` slot vs multi-line prose slot: two rules, then a proxy.
 
-    Keyed off `enforced_vocabulary` rather than the note alone, so a ` | ` in
-    ordinary prose means nothing here either -- one rule for what the
-    punctuation does, not one for the slot and another for the check. No form
-    in the corpus renders differently for it; the five fields with a listed set
-    are all decisions already."""
-    if enforced_vocabulary(field):
+    A field whose note lists its values takes one of them. That is keyed off
+    `enforced_vocabulary` rather than the note alone, so a ` | ` in ordinary
+    prose means nothing here either -- one rule for what the punctuation does,
+    not one for the slot and another for the check.
+
+    An `artifact` field takes a path: `cli._measure_artifacts` reads its value
+    with `Path(...).read_text()`, so one line is the only shape it was ever
+    going to be, however long the note explaining it runs. Reading the note's
+    length here instead gave run-an-issue PLAN.toml's `plan` a prose block and
+    PLAN_TO_EXECUTE.toml's `plan` a line for the same document.
+
+    The proxy is the last case, and it is a proxy: a `decision` note under 120
+    characters is read as a one-word answer and one over it as prose, which
+    guesses the answer's length from the note's. It holds across a 44-character
+    gap -- explore-an-idea CLOSE.toml's `confirmed` takes a line at 76, its
+    OPEN.toml's `authority` takes a block at 121 -- so there is no room to
+    raise the number, and a decision note that crosses it changes the minted
+    slot with nothing at the note to say so. Declaring the shape in the form
+    would end that."""
+    if enforced_vocabulary(field) or field["kind"] == "artifact":
         return True
-    return field["kind"] in ("decision", "artifact") and len(field["note"]) < 120
+    return field["kind"] == "decision" and len(field["note"]) < 120
 
 
 def _slot(field_id: str, short: bool) -> str:

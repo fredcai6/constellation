@@ -164,7 +164,7 @@ def test_the_implementer_skill_no_longer_repeats_the_room(workdir):
     """
     skill = (REPO / "skills/implementer/SKILL.md").read_text().lower()
     assert "dispatch what each brief names" not in skill
-    for phrase in ("subagent", "cold reader", "panelist"):
+    for phrase in ("subagent", "fresh context", "panelist"):
         assert phrase in render.PANEL.lower(), f"{phrase!r} is not the room's own word"
         assert phrase not in skill, (
             f"the skill says {phrase!r}; the panel step it stands you on "
