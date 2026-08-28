@@ -29,6 +29,10 @@ spine <work-id> amend reorder <step-id> --before <step-id> --reason "..."
 spine <work-id> close               terminal: legal once every step is done
 spine open <assembly> --title T [--issue N]
 spine open <assembly> --parent <id> --step <step-id>   open a dispatched child
+spine open <assembly> --parent <id> --row <row-id>     open an excursion from
+    a board row -- the row is the brief, its return lands under the row, and
+    it completes no step. Assemblies: find-prior-art, build-a-prototype,
+    draw-a-picture
 spine                               every open run
 spine <work-id> trace               this run and its children, as one timeline"""
 
