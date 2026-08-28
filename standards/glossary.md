@@ -111,6 +111,12 @@ forms; coining a synonym for a term below is a defect.
 - **pivot criteria** — what changes the plan, not only what ends it.
 - **command palette** — `constellation.toml`: the host repo's commands, which a gate spec's
   check field reaches by name rather than spelling out, and the model-tier table.
+- **spec** — the statement of the problem a plan answers to, as its critic receives it. One name
+  for a part two assemblies fill differently: run-an-issue's consolidate output,
+  explore-an-idea's SPEC.toml artifact. A cold reader is told it holds a spec and a plan, never
+  which document upstream produced the spec — that name is the assembly's business and nothing
+  the reader can act on. Distinct from **gate spec** below, which is orders for work rather than
+  a statement of a problem; the two never appear in one reading.
 - **gate spec** — the purpose, scope, proof and optional model a conductor writes per gate at
   plan-to-execute; minted as that gate's dispatch and carried into the child run as read-only
   prefill. The orders a gate is run from, and the only place a runner is named.
