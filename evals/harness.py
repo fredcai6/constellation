@@ -102,6 +102,7 @@ def drive(workdir, prompt, timeout=420, tier="light"):
                    f"\n\n# stderr\n\n{r.stderr}\n")
     r.transcript = log
     r.timed_out = bool(cut)
+    r.budget = timeout
     return r
 
 
@@ -114,6 +115,25 @@ def _captured(stream):
     return stream.decode(errors="replace") if isinstance(stream, bytes) else stream
 
 
+# [drive-unfinished]
+# Rationale: an eval reading the journal after a drive has to know whether it
+#   is reading a run that finished or a run that was stopped, and only `drive`
+#   knows the budget it was stopped at. One sentence, built here, is what lets
+#   an eval's failure say which of the two it is looking at -- the alternative
+#   is every assertion below a drive reporting the agent's behaviour for a
+#   drive that never got to behave.
+# Rejected: each eval reading `r.timed_out` itself. Same rule written per call
+#   site, and it drops the budget, which is the number that separates "too
+#   slow" from "wrong" for whoever reads the red.
+def unfinished(r):
+    """Why the drive did not run to completion -- "" when it did."""
+    if getattr(r, "timed_out", False):
+        return f"the drive was cut off after {getattr(r, 'budget', '?')}s, still working"
+    if r.returncode:
+        return f"the drive exited {r.returncode} before it was done"
+    return ""
+
+
 def evidence(workdir, work_id, r):
     """What a failing eval should say instead of the agent's last paragraph:
     the engine's own timeline of what actually happened, and where the full
@@ -121,8 +141,9 @@ def evidence(workdir, work_id, r):
     one ordering, which is the view the seam defects live in."""
     t = subprocess.run([SPINE, work_id, "trace"], cwd=workdir, capture_output=True,
                        text=True, timeout=60)
-    cut = ("\n-- the drive was cut off at its timeout, so the record above is "
-           "where the agent had got to --" if getattr(r, "timed_out", False) else "")
+    stopped = unfinished(r)
+    cut = (f"\n-- {stopped}, so the record above is where the agent had got "
+           "to --" if stopped else "")
     return (f"\n\n-- what the engine recorded --\n{t.stdout or t.stderr}{cut}"
             f"\n-- the agent's last words --\n{r.stdout[-800:]}"
             f"\n\n-- full transcript: {getattr(r, 'transcript', '(none)')}")
