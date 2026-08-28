@@ -27,11 +27,18 @@ mints = "board rows"
 note = """
 One block per seed question, minted as rows on the understand board
 (UNDERSTAND.toml). A seed may carry any board column (move, cluster, after);
-only these two are required."""
+only question and type carry an answer here."""
 
   [[field.item]]
   id = "question"
   note = "The question, concrete enough that its answer is checkable."
+
+  [[field.item]]
+  id = "excursion"
+  note = """
+Leave blank unless the seed already knows the excursion. It is here so every
+seeded row carries the column, which the interrogator then fills with the
+child run that would settle the row or the reason it declines one."""
 
   [[field.item]]
   id = "type"

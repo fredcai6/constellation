@@ -23,6 +23,13 @@ what it opened."""
 [[question]]
 id = "q1"
 question = ""
+excursion = ""   # the child run that would settle this row now, or the
+                 # reason you decline one — a reason, never a blank. Brief it
+                 # here before you dispatch: prior-art, prototype or picture;
+                 # the one question it answers; what an answer looks like;
+                 # its budget and its stop conditions. Its returns stamp back
+                 # here. Grounding evidence of every other kind goes in
+                 # artifact.
 type = ""        # fact | decision | understanding.
                  # fact: you resolve it yourself, with evidence.
                  # decision: a choice the principal owns — never self-answer it.
@@ -32,10 +39,10 @@ type = ""        # fact | decision | understanding.
 frame = ""       # optional — capability | use-case | event | constraint |
                  # assumption: what the row is about. A use case is how this
                  # changes the way the project is worked, concretely.
-move = ""        # how this gets settled: read | trace | reproduce |
-                 # evidence-loop — or an excursion: prior-art | prototype |
-                 # picture — or ask, for a decision; mirror, for an
-                 # understanding.
+move = ""        # how this gets settled without leaving the board: read |
+                 # trace | reproduce | evidence-loop — or ask, for a
+                 # decision; mirror, for an understanding. An excursion is
+                 # not one of these; it has its own column.
 from = ""        # optional — the row whose answer raised this one. The tree
                  # you walk for gaps.
 cluster = ""     # optional — rows taken to the principal in one sitting
@@ -44,10 +51,10 @@ status = "open"  # open | answered | moot | up | deferred: <reason>
 answer = ""      # fact: the answer and what grounded it — never memory.
                  # decision, understanding: the principal's words, verbatim.
                  # moot: the answer that mooted it.  up: where it went.
-artifact = ""    # optional — the view, repro, or excursion return in the
-                 # work location that grounds the answer. An excursion is a
-                 # child run opened from this row; its returns stamp back
-                 # here.
+artifact = ""    # optional — the view, the repro, or the file in the work
+                 # location that grounds the answer: grounding evidence of
+                 # every kind except an excursion. The child run and its
+                 # returns live in excursion.
 
 # A decision goes to the principal one question at a time, carrying ~3 options
 # with pros and cons and a recommendation. An understanding goes up as a
