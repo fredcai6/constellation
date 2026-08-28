@@ -50,8 +50,9 @@ def resolve_form(assembly, ref):
 # Rejected: joining the role to a cwd-relative root (the one `_palette` reads,
 #   engine/cli.py). `install.py` copies each bundle next to `engine/`, so a
 #   child working in some other tree would be handed a path that is not there.
-# Rejected: raising when a role has no SKILL.md. `reviewer` has none by a
-#   recorded decision (tests/test_promises.py), so absence is an answer, not a
+# Rejected: raising when a role has no SKILL.md. Five rostered roles --
+#   admiral, commander-delegated, interrogator-delegated, triage, how-to-talk
+#   -- have no skills/ directory at all, so absence is an answer, not a
 #   failure -- the caller renders no line.
 def resolve_skill(role):
     """Where a role's posture is written, or None when the role has none.

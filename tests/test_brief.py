@@ -220,6 +220,16 @@ def _posture_line(out):
     return next((l for l in out.splitlines() if "SKILL.md" in l), None)
 
 
+def _posture_text(line):
+    """The substring `render.posture` actually returns -- the path and its
+    imperative -- with the label before it stripped off. A brief and a room
+    prefix that substring with different labels ("  your posture:" vs the
+    room's own column), so comparing whole lines would fail on the label,
+    not the posture."""
+    idx = line.index(next(w for w in line.split() if w.endswith("SKILL.md")))
+    return line[idx:]
+
+
 def _assert_delivered(line, role):
     """What a posture line has to be to be worth anything: an absolute path,
     under the install root rather than the cwd the child happens to be in, to
@@ -305,3 +315,75 @@ def test_the_room_names_no_file_for_a_filler_that_has_no_skill(workdir, capsys):
     out = capsys.readouterr().out
     assert "your response form:" in out
     assert _posture_line(out) is None, "the room named a posture that does not exist"
+
+
+# -- the stamp: a panelist's room matches its brief ---------------------------
+#
+# engine/cli.py's `_open_child` stamps a dispatched panelist's step with the
+# panel entry's own `worker` (the comment above that line explains why:
+# without it, the child keeps give-a-verdict's literal `reviewer` filler no
+# matter which worker the panel entry names). The three tests below guard
+# that stamp landing and staying landed.
+
+
+def test_a_critic_panelists_room_names_the_critics_posture(workdir, capsys):
+    """The defect this gate exists to correct: a critic panel entry's
+    dispatched child must stand in a room naming `skills/critic/SKILL.md`,
+    not give-a-verdict's own conductor (`reviewer`)."""
+    _mint_panel_step(worker="critic")
+    capsys.readouterr()
+
+    cli.main(["open", "give-a-verdict", "--parent", "g9", "--step", "review.p1"])
+    capsys.readouterr()
+
+    cli.main(["g9.review.p1"])
+    out = capsys.readouterr().out
+    _assert_delivered(_posture_line(out), "critic")
+
+
+def test_the_brief_and_the_room_name_the_same_posture_for_the_same_child(workdir, capsys):
+    """The invariant the stamp buys and no other test states: the panel
+    step's brief renders the posture from the panel entry's `worker`, and
+    the panelist's own room -- once opened -- renders it from the child's
+    stamped `filler`. Those two answers cannot diverge, or a child is told
+    one thing on dispatch and stands somewhere else once it opens."""
+    _mint_panel_step(worker="critic")
+    capsys.readouterr()
+
+    cli.main(["g9"])
+    brief_line = _posture_line(capsys.readouterr().out)
+    _assert_delivered(brief_line, "critic")
+
+    cli.main(["open", "give-a-verdict", "--parent", "g9", "--step", "review.p1"])
+    capsys.readouterr()
+
+    cli.main(["g9.review.p1"])
+    room_line = _posture_line(capsys.readouterr().out)
+    _assert_delivered(room_line, "critic")
+
+    assert _posture_text(brief_line) == _posture_text(room_line)
+
+
+def test_a_reviewer_panelist_is_unmoved_by_a_neighboring_critic(workdir, capsys):
+    """The stamp must not have moved every panelist to whatever the last
+    entry said. Proven with a critic entry ahead of the reviewer entry in
+    the same panel, both opened: a stamp that quietly defaulted every child
+    to give-a-verdict's literal `reviewer` filler (what a no-op does) is
+    caught here by the critic entry, even though the reviewer entry alone --
+    already give-a-verdict's own default -- could never tell the two trees
+    apart."""
+    journal.append("g9", "run", title="t", assembly="run-a-gate")
+    journal.append("g9", "step", id="review", segment="work",
+                   panel=[{"worker": "critic", "criteria": "c"},
+                          {"worker": "reviewer", "criteria": "c"}])
+    capsys.readouterr()
+
+    cli.main(["open", "give-a-verdict", "--parent", "g9", "--step", "review.p1"])
+    capsys.readouterr()
+    cli.main(["g9.review.p1"])
+    _assert_delivered(_posture_line(capsys.readouterr().out), "critic")
+
+    cli.main(["open", "give-a-verdict", "--parent", "g9", "--step", "review.p2"])
+    capsys.readouterr()
+    cli.main(["g9.review.p2"])
+    _assert_delivered(_posture_line(capsys.readouterr().out), "reviewer")
