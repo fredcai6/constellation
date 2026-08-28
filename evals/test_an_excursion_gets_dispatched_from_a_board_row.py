@@ -138,13 +138,17 @@ def test_a_row_answerable_only_from_outside_the_repo_gets_an_excursion(workdir):
         f"the seeded rows do not carry the excursion column, so this eval "
         f"cannot measure anything: {rows}")
 
-    # 300s, below the harness default, because what is being measured is over
-    # long before the run is: both observed drives settled the board in about
-    # 90 seconds and then carried straight on into plan and execute despite
-    # the last sentence of this prompt. Every dispatch that could count has
-    # happened by then, so the extra minutes buy nothing and cost the whole
-    # `palette:validate` budget. A drive cut here comes back marked, not
-    # raised, and the assertion below still runs on the board it left.
+    # No budget of its own: the harness default is 420s and `[drive-budget]`
+    # holds the reasoning for the number. This call used to cut at 300s on the
+    # argument that both observed drives settled the board in about 90 seconds
+    # and then carried straight on into plan and execute, so the extra minutes
+    # bought nothing. Right about the measurement, wrong about the number: the
+    # two drives came in at 289s and 300.24s, so 300 sat *on* the observed cost
+    # rather than clear of it, and the eval spent as much of its life being
+    # killed at the margin as it did reporting anything. What that costs is not
+    # minutes, it is that a red at the margin can always be retried. The
+    # ceiling this has to stay under is `engine.cli.CHECK_TIMEOUT` (600s) less
+    # the fast suite the proof runs first (34s measured); 420 clears both ends.
     r = harness.drive(workdir, (
         "You are an agent working in this directory. Your work id is r1. "
         "Run `spine r1` to see where you are, read what it hands you, and do "
@@ -153,7 +157,7 @@ def test_a_row_answerable_only_from_outside_the_repo_gets_an_excursion(workdir):
         "settle it. Nobody is going to answer you part-way through, so act on "
         "what you have rather than stopping to ask for it. Stop as soon as no "
         "row on that board is still open -- do not go on to whatever the run "
-        "does next."), timeout=300)
+        "does next."))
 
     dispatched = excursions(workdir, "r1")
     after = board_rows(workdir, "r1")
@@ -165,8 +169,34 @@ def test_a_row_answerable_only_from_outside_the_repo_gets_an_excursion(workdir):
               f"{json.dumps(after, indent=2)}"
               f"\n-- rows still open --\n{still_open or 'none'}"
               f"\n-- excursions dispatched (row, assembly, id) --\n{dispatched}")
-    assert [e for e in dispatched if e[0] == "q1"], (
-        f"row q1 can only be answered from outside this repository, and no "
-        f"excursion was dispatched from it -- the column is on the board and "
-        f"the move is still not reachable.{detail}"
+
+    # Rationale: an open q1 is the one state in which this eval has measured
+    #   nothing at all, and it is the state a drive that ran out of clock comes
+    #   back in. The finding this eval exists to report is a q1 that was
+    #   *settled* without an excursion -- that is a model reaching for another
+    #   move with the column in front of it -- so the two are separated on
+    #   whether the row was worked, and the red says which one it is instead of
+    #   handing both the same empty list.
+    # Rejected: failing on `r.timed_out` alone, without the row. Both observed
+    #   drives settle the board around 90s and then keep going into plan and
+    #   execute, so the cut lands long after the measurement is complete;
+    #   failing on it would relabel every real decline as rerun-me, which is
+    #   the retry-to-green this whole gate is against.
+    # Rejected: raising the timeout out of `drive` instead. Then the board is
+    #   never read, and a cut drive that had already dispatched from q1 -- the
+    #   pass this eval is looking for -- would report as a failure.
+    from_q1 = [e for e in dispatched if e[0] == "q1"]
+    if not from_q1 and "q1" in still_open:
+        stopped = harness.unfinished(r) or "the drive stopped on its own"
+        pytest.fail(
+            f"this eval measured nothing: {stopped}, and row q1 was never "
+            f"settled. The absent excursion below is a drive that ran out of "
+            f"room, not a model that chose another move -- a broken "
+            f"instrument, not a result, and not the decline this eval exists "
+            f"to catch. Rerun it.{detail}"
+            f"{harness.evidence(workdir, 'r1', r)}")
+    assert from_q1, (
+        f"row q1 was settled without an excursion, and it can only be answered "
+        f"from outside this repository -- the column is on the board and the "
+        f"move is still not reachable.{detail}"
         f"{harness.evidence(workdir, 'r1', r)}")
