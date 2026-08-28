@@ -278,7 +278,8 @@ forms, and the standards — not a merged identity.
 | `commander` | one issue, live human principal; conducts run-an-issue |
 | `commander-delegated` | one issue, frozen launch order; genuine gaps go up, never improvised |
 | `implementer` | bounded diff from a prefilled gate spec |
-| `reviewer` | cold verdict panelist, dispatched by transitions; judges only the criteria it is handed |
+| `reviewer` | cold panelist, dispatched by a gate's review transition; reads a gate spec and an implement step's outputs, judges whether the work fills the spec |
+| `critic` | cold panelist, dispatched by a plan-shaped transition; reads a spec and a plan, judges whether the plan meets the spec's intent |
 | `excursion` | one named question as a child run — prior art, prototype, picture, or rival — returning a scoped verdict and what regenerates it |
 | `triage` | route candidates into issues per the standard; runs at close |
 | `how-to-talk` | prose standard, unchanged |
@@ -437,8 +438,8 @@ would not be a cap.
 
 Draft per-skill word budgets, forms included — revised at wave boundaries, enforced at cutover
 with `wc`: explorer 2,500 · admiral 1,500 · commander 1,500 · commander-delegated 500 ·
-interrogator 800 · reviewer 1,000 · implementer 800 · prototyper 600 ·
-triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum 13,800 against the
+interrogator 800 · critic 850 · reviewer 700 · implementer 800 · prototyper 600 ·
+triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum 14,350 against the
 15,000 cap.
 
 ## Waves

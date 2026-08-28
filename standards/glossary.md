@@ -30,7 +30,7 @@ forms; coining a synonym for a term below is a defect.
   goes up. The OODA beat; cycling is re-firing. *An outcome verb:* mints the named segment's
   own transition step alone, without refilling its interior — `advance`'s move over a live
   revise, distinct from `release`, which mints nothing at all.
-- **verdict panel** — 0..n reviewers a transition dispatches, each reading from fresh context
+- **verdict panel** — 0..n panelists a transition dispatches, each reading from fresh context
   and prefilled with focused criteria; verdicts return to the transition. Any revise refills,
   findings merged. Review never lives in an interior.
 - **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
