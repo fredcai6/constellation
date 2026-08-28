@@ -30,7 +30,7 @@ def workdir(tmp_path, monkeypatch):
     return tmp_path
 
 
-CRITIC = "skills/reviewer/forms/CRITIC.toml"
+CRITIC = "skills/critic/forms/CRITIC.toml"
 CONSOLIDATE = REPO / "assemblies/run-an-issue/forms/CONSOLIDATE.toml"
 
 

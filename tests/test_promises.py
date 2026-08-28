@@ -145,6 +145,24 @@ def test_every_panel_names_a_form_the_panelist_actually_fills():
                 assert (ROOT / p["form"]).exists(), f"{a.parent.name}: {p['form']}"
 
 
+def test_a_panel_entrys_form_lives_under_its_own_workers_skill():
+    """A panel entry names both a `form` and a `worker`; the two are one
+    claim -- this panelist, this posture -- made in two fields that nothing
+    ties together. The prior check only asks whether `form` exists on disk,
+    which a half-migrated entry still satisfies: move the form and leave the
+    worker behind (or the reverse) and the file is still there, just under
+    the wrong skill. That is exactly how a critic panel ended up handed
+    REVIEW.toml -- docs/DERIVED_IS_CODE.md:20."""
+    for a in ASSEMBLIES:
+        for seg in tomllib.load(open(a, "rb"))["segment"]:
+            for p in seg.get("transition", {}).get("panel", []):
+                form, worker = p["form"], p["worker"]
+                expected = f"skills/{worker}/forms/"
+                assert form.startswith(expected), (
+                    f"{a.parent.name}: panel form {form!r} does not live "
+                    f"under {expected!r} for worker {worker!r}")
+
+
 def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
     """A response template tells the agent which statuses a field accepts.
     Each must be one something actually acts on -- a status nobody reads is
@@ -321,7 +339,7 @@ VOCABULARIES = [
     # `_act_on_outcome` hand-read it. It now declares `decides`, so it is
     # `_outcome`'s field like any other -- excluded from `swept` below and
     # covered instead by `test_a_declared_outcome_and_its_field_note_are_the_same_list`.
-    ("skills/reviewer/forms/CRITIC.toml", "verdict",
+    ("skills/critic/forms/CRITIC.toml", "verdict",
      ["pass", "revise", "escalate"], runmod.merged_verdict),
     ("skills/reviewer/forms/REVIEW.toml", "verdict",
      ["pass", "revise", "escalate"], runmod.merged_verdict),

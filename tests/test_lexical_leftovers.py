@@ -152,7 +152,7 @@ def test_the_plan_imperative_names_the_critics_real_inputs():
     fields plus its criteria, and the run's prefill is fed by the one
     transition marked `carries` -- the consolidate. The critic therefore holds
     a statement of the problem and the plan, never the issue, which
-    `skills/reviewer/forms/CRITIC.toml` states in its own header.
+    `skills/critic/forms/CRITIC.toml` states in its own header.
 
     The word is `spec`. What run-an-issue hands a critic is the consolidate's
     output and what explore-an-idea hands one is SPEC.toml's artifact; both

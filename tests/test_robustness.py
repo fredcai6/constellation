@@ -92,7 +92,7 @@ def _critic_step(wid="c1"):
     a decision field's note declares, with no panel plumbing in the way."""
     journal.append(wid, "run", title="t", assembly="give-a-verdict")
     journal.append(wid, "step", id="verdict", segment="verdict",
-                   form="skills/reviewer/forms/CRITIC.toml", filler="reviewer",
+                   form="skills/critic/forms/CRITIC.toml", filler="reviewer",
                    anchor=True, terminal=True, validates="", source="open")
     cli.main([wid])                      # materializes the response template
     return wid

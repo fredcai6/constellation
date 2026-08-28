@@ -180,7 +180,7 @@ def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(workdir
     cli.main(["open", "run-an-issue", "--id", "i1", "--title", "t"])
     journal.append("i1", "step", id="plan", segment="plan",
                    form="forms/PLAN_TO_EXECUTE.toml", filler="conductor",
-                   panel=[{"form": "skills/reviewer/forms/CRITIC.toml",
+                   panel=[{"form": "skills/critic/forms/CRITIC.toml",
                            "worker": "reviewer", "criteria": "c"}],
                    anchor=True, source="open")
     journal.append("i1", "submit", step="open", fields={})

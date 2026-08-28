@@ -69,20 +69,20 @@ filler = "conductor"
   # with whole.
 
   [[segment.transition.panel]]
-  form = "skills/reviewer/forms/CRITIC.toml"
-  worker = "reviewer"
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
   model = "standard"
   criteria = "intent-fit: does the plan serve the spec it was built on"
 
   [[segment.transition.panel]]
-  form = "skills/reviewer/forms/CRITIC.toml"
-  worker = "reviewer"
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
   model = "standard"
   criteria = "testability: can each gate's proof be exercised, and does it cover what that gate's scope commits to"
 
   [[segment.transition.panel]]
-  form = "skills/reviewer/forms/CRITIC.toml"
-  worker = "reviewer"
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
   model = "standard"
   criteria = "simplicity: what can be deleted"
 

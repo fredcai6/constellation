@@ -68,20 +68,20 @@ anchor = true
   # reviewer with a checklist.
 
   [[segment.transition.panel]]
-  form = "skills/reviewer/forms/CRITIC.toml"
-  worker = "reviewer"
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
   model = "standard"
   criteria = "completeness: is every high-level ambiguity resolved -- could two readers cut different issues from this spec"
 
   [[segment.transition.panel]]
-  form = "skills/reviewer/forms/CRITIC.toml"
-  worker = "reviewer"
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
   model = "standard"
   criteria = "restraint: does it fix the shape and leave implementation to the issues it cuts -- name every line that decides below the issue grain"
 
   [[segment.transition.panel]]
-  form = "skills/reviewer/forms/CRITIC.toml"
-  worker = "reviewer"
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
   model = "standard"
   criteria = "simplicity: what can be deleted"
 

@@ -39,8 +39,8 @@ def test_open_mints_the_skeleton(workdir, capsys):
     # its step carries both, unabridged
     plan = next(s for s in st["steps"] if s["id"] == "plan")
     assert plan["form"] == "forms/PLAN_TO_EXECUTE.toml"
-    assert plan["panel"][0]["form"] == "skills/reviewer/forms/CRITIC.toml"
-    assert plan["panel"][0]["worker"] == "reviewer"
+    assert plan["panel"][0]["form"] == "skills/critic/forms/CRITIC.toml"
+    assert plan["panel"][0]["worker"] == "critic"
 
 
 def test_run_a_gate_skeleton_mints_a_review_step_for_its_panel(workdir, capsys):
