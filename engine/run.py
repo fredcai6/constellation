@@ -51,7 +51,7 @@ def resolve_form(assembly, ref):
 #   engine/cli.py). `install.py` copies each bundle next to `engine/`, so a
 #   child working in some other tree would be handed a path that is not there.
 # Rejected: raising when a role has no SKILL.md. Five rostered roles --
-#   admiral, commander-delegated, interrogator-delegated, triage, how-to-talk
+#   epic-conductor, issue-conductor-delegated, interrogator-delegated, triage, how-to-talk
 #   -- have no skills/ directory at all, so absence is an answer, not a
 #   failure -- the caller renders no line.
 def resolve_skill(role):
@@ -79,7 +79,7 @@ def role_of(assembly, step):
 # [hat]
 # Rationale: nothing dispatches a board's worker. Its transition is filled by
 #   the conductor, who works the board in the worker's posture -- the
-#   commander wears the interrogator's hat -- because a live principal is
+#   issue-conductor wears the interrogator's hat -- because a live principal is
 #   reachable only from the top of the run. A run with a parent has no human
 #   in reach, so it wears the delegated variant where one is written; where
 #   none is, the plain posture, which is the parked state (#15).
@@ -99,7 +99,7 @@ def hat(assembly, step, st):
 
 # [rework-rounds]
 # Rationale: the count is of rounds on one artifact, not rounds in the run --
-#   `skills/commander/SKILL.md` conditions its stopping rule on repetition
+#   `skills/issue-conductor/SKILL.md` conditions its stopping rule on repetition
 #   against the same thing. A step-form mint is a replan, which is a new
 #   artifact, so it restarts the count; a rework-form mint is another pass at
 #   the same one.

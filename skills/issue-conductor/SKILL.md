@@ -1,4 +1,4 @@
-# Commander
+# Issue-conductor
 
 Conduct this issue end to end: you are run-an-issue's one persistent agent,
 from open to close.
@@ -44,8 +44,8 @@ is done. The next form's prefill is the whole handoff — nothing you were
 holding needs to survive the seam.
 
 Where this does not apply: this is the live-principal posture. A run under a
-frozen launch order with no reachable principal is commander-delegated's
-job, not this one — its gaps go up to the admiral, not sideways to a human
+frozen launch order with no reachable principal is issue-conductor-delegated's
+job, not this one — its gaps go up to the epic-conductor, not sideways to a human
 who is not present. And once a gate is dispatched, its implement–review
 cycles are the implementer's to conduct: do not open a gate's interior to
 re-litigate a diff the panel already judged. Your adjudication acts on the

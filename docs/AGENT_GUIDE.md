@@ -94,7 +94,7 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 | Document | Source of truth for |
 |---|---|
 | `docs/AGENT_GUIDE.md` | this guide — purpose, layout, documentation map |
-| `docs/V2_DESIGN.md` | the design of record: thesis, rulings, budgets, waves. Read its prose as history and its rulings as live. |
+| `docs/V2_DESIGN.md` | the design of record: the workflow, thesis, rulings, budgets, waves. Where it and the tree differ, it says so in place. |
 | `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
 | `docs/DERIVED_IS_CODE.md` | why nothing generated is committed |
 | `standards/prose.md` | how this repo writes |

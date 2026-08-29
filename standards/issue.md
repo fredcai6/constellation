@@ -66,6 +66,6 @@ from: one claim too large for a single run to hold, plus the evidence that the c
 - **Findings** — measured, recorded, and not yet work. A finding becomes work by being cut into
   a wave; it never becomes work by aging.
 
-The admiral cuts a wave from the findings, dispatches those issue runs, and adjudicates at the
+The epic-conductor cuts a wave from the findings, dispatches those issue runs, and adjudicates at the
 wave transition before cutting the next. A finding enters a wave when it re-measures true and
 someone can name the run that goes wrong without it. An epic may `stop` with findings unfiled.

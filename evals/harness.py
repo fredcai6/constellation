@@ -95,7 +95,7 @@ def drive(workdir, prompt, timeout=420, tier="light"):
     # Keep the whole thing. What `r.stdout` holds is the agent's closing
     # summary -- the least reliable artifact in the run, and the only one
     # these evals used to fail with. Debugging from a self-report is the
-    # believe-the-record failure the commander skill exists to warn against.
+    # believe-the-record failure the issue-conductor skill exists to warn against.
     d = pathlib.Path(workdir)
     log = d / f"transcript-{len(list(d.glob('transcript-*.md'))) + 1}.md"
     log.write_text(f"# prompt\n\n{prompt}{cut}\n\n# stdout\n\n{r.stdout}"

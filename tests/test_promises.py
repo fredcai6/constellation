@@ -449,7 +449,7 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
     assert verbs_checked, "no outcome named a verb -- this test swept nothing"
 
 
-SKILL_BUDGETS = {"commander": 1500, "implementer": 800, "critic": 850, "reviewer": 700}
+SKILL_BUDGETS = {"issue-conductor": 1500, "implementer": 800, "critic": 850, "reviewer": 700}
 
 
 def test_budgeted_skills_exist_inside_budget():

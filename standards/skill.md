@@ -20,13 +20,14 @@ it. When a criterion is unclear, ask: does this make the next run more predictab
   | Skill | Words |
   |---|---|
   | explorer | 2,500 |
-  | admiral | 1,500 |
-  | commander | 1,500 |
-  | commander-delegated | 500 |
+  | epic-conductor | 1,500 |
+  | issue-conductor | 1,500 |
+  | issue-conductor-delegated | 500 |
   | interrogator | 800 |
   | critic | 850 |
   | reviewer | 700 |
   | implementer | 800 |
+  | gate-conductor | 800 |
   | excursion | 1,050 |
   | triage | 600 |
   | how-to-talk | 500 |

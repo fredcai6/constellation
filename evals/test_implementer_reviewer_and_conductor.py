@@ -46,7 +46,7 @@ def _mint_gate_pair(workdir, wid, gid, purpose, scope, proof, model=""):
         os.chdir(workdir)
         from engine import journal
         journal.append(wid, "run", title=purpose, assembly="run-an-issue",
-                       conductor="commander")
+                       conductor="issue-conductor")
         prefill = {"purpose": purpose, "scope": scope, "proof": proof}
         if model:
             prefill["model"] = model

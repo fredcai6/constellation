@@ -4,7 +4,7 @@
 # may override its own.
 
 assembly = "run-an-issue"
-conductor = "commander"
+conductor = "issue-conductor"
 
 [[segment]]
 id = "open"

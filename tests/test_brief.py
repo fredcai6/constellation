@@ -158,14 +158,14 @@ def test_the_dispatch_briefs_open_command_runs_with_path_stripped(workdir, capsy
 
 def test_gate_dispatch_role_is_the_dispatched_assemblys_conductor(workdir, capsys):
     """run-a-gate's own conductor is `implementer` -- the brief must name
-    that, not the dispatching run-an-issue's own conductor (`commander`)."""
+    that, not the dispatching run-an-issue's own conductor (`issue-conductor`)."""
     _mint_dispatch_step()
     capsys.readouterr()
 
     cli.main(["d1"])
     out = capsys.readouterr().out
     assert "role         implementer" in out
-    assert "role         commander" not in out
+    assert "role         issue-conductor" not in out
 
 
 def test_panelist_role_is_its_own_worker_not_the_assemblys_conductor(workdir, capsys):
@@ -292,13 +292,13 @@ def test_the_room_names_where_the_filler_of_this_step_is_written(workdir, capsys
 
 def test_conductor_resolves_through_the_assembly_not_a_skills_conductor(workdir, capsys):
     """`filler = "conductor"` is an indirection, not a role. run-an-issue's
-    open step declares it, and the assembly's conductor is `commander`."""
+    open step declares it, and the assembly's conductor is `issue-conductor`."""
     cli.main(["open", "run-an-issue", "--id", "i1", "--title", "t"])
     capsys.readouterr()
 
     cli.main(["i1"])
     out = capsys.readouterr().out
-    _assert_delivered(_posture_line(out), "commander")
+    _assert_delivered(_posture_line(out), "issue-conductor")
     assert "skills/conductor" not in out
 
 
