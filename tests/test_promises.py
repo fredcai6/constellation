@@ -454,9 +454,9 @@ SKILL_BUDGETS = {"commander": 1500, "implementer": 800, "critic": 850, "reviewer
 
 def test_budgeted_skills_exist_inside_budget():
     """Every role `SKILL_BUDGETS` lists gets a SKILL.md, checked against the
-    budget the spec sets and enforced with `wc -w`, FORMS INCLUDED
-    (V2_DESIGN.md, "Draft per-skill word budgets, forms included"): what a
-    role costs is everything its agent reads to hold that posture, and its
+    budget `standards/skill.md` sets and enforced with `wc -w`, FORMS
+    INCLUDED (that standard's word-budget bar): what a role costs is
+    everything its agent reads to hold that posture, and its
     own forms are read every time it is filled. This test used to count the
     SKILL.md alone and say so in this docstring, which left one budget with
     two live definitions and a skill free to spend the difference by moving
@@ -471,35 +471,22 @@ def test_budgeted_skills_exist_inside_budget():
             f"{budget}-word budget: {counts}")
 
 
-def test_no_skill_exists_for_a_role_the_roster_does_not_list():
-    """`reviewer` and `critic` used to share one panelist role, and the
-    decision on record was that its form already carried its whole posture,
-    so a SKILL.md would repeat it -- corpus words with no work in them.
-    Issue #50 split that role: `critic` judges plans, `reviewer` judges
-    gates, each one move now, so neither has the other to pair against and
-    the old decision no longer holds. Both write their own SKILL.md today.
+def test_every_role_an_assembly_names_has_a_skill_behind_it():
+    """An assembly naming a role with nobody behind it is a promise nothing
+    can fill. `gate-executor` outlived its own removal in four files because
+    this suite checked assembly *keys* and never their values, and the edit
+    that dropped it silently failed to match in every file but one.
 
-    The assertion is narrower than either decision: it catches a SKILL.md
-    appearing for a name the roster does not recognize, nothing about which
-    rostered roles have one. That is all this line has ever proven."""
-    roster = set(re.findall(r"^\| `([a-z-]+)` \|", (ROOT / "docs" / "V2_DESIGN.md").read_text(),
-                            re.M))
-    assert roster, "could not read the roster from the spec"
-    for skill_md in sorted((ROOT / "skills").glob("*/SKILL.md")):
-        name = skill_md.parent.name
-        assert name in roster, (
-            f"skills/{name}/SKILL.md exists for a role the roster does not list")
+    The roster is what is on disk. It was scraped out of the design doc's
+    prose until that document stopped being a source of truth; a role we want
+    to exist and have not built belongs in a plan, not in a check.
 
-
-def test_every_role_an_assembly_names_is_one_the_design_declares():
-    """An assembly naming a role the roster does not have is a promise with
-    nobody behind it. `gate-executor` outlived its own removal in four files
-    because this suite checked assembly *keys* and never their values, and the
-    edit that dropped it silently failed to match in every file but the spec.
+    A `skills/<role>/` directory is the whole bar. `run.resolve_skill` reads a
+    role with no SKILL.md as answered rather than failed, so demanding one
+    here would hold an assembly to more than the engine does.
     """
-    roster = set(re.findall(r"^\| `([a-z-]+)` \|", (ROOT / "docs" / "V2_DESIGN.md").read_text(),
-                            re.M))
-    assert roster, "could not read the roster from the spec"
+    roles_on_disk = {d.name for d in (ROOT / "skills").iterdir() if d.is_dir()}
+    assert roles_on_disk, "no skills on disk -- this test swept nothing"
     for a in ASSEMBLIES:
         spec = tomllib.load(open(a, "rb"))
         named = {spec.get("conductor", "")}
@@ -510,5 +497,5 @@ def test_every_role_an_assembly_names_is_one_the_design_declares():
         # whoever conducts this assembly. Resolve it before checking.
         named = {spec.get("conductor", "") if r == "conductor" else r for r in named}
         for role in named - {""}:
-            assert role in roster, (
-                f"{a.parent.name} names role {role!r}, which the spec's roster does not list")
+            assert role in roles_on_disk, (
+                f"{a.parent.name} names role {role!r}, which has no skills/{role}/")
