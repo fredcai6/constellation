@@ -52,9 +52,10 @@ an empty spec on a remint is refused."""
 The command that passes once this gate's work is done and fails while it is
 not. A command that passes on an empty diff proves nothing, and so does one
 that covers less than `scope` promised -- one check per commitment. Write the
-exact string you ran: this field is shell-executed in the dispatched child, so
-prose becomes a command and fails there. Reference the command palette
-(constellation.toml) rather than hardcoding where it applies."""
+exact string you ran, never a description of it: this field is shell-executed
+in the dispatched child, so prose becomes a command and fails there, after the
+work is done. Reference the command palette (constellation.toml) rather than
+hardcoding where it applies."""
 
   [[field.item]]
   id = "model"
