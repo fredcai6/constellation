@@ -43,7 +43,7 @@ verbatim. None found: waived: clean."""
 [[field]]
 id = "vocabulary"
 kind = "evidence"
-note = "Terms inconsistent with the glossary or the prose standard — or waived: consistent."
+note = "Terms inconsistent with the glossary or standards/prose.md — or waived: consistent."
 
 [[field]]
 id = "verdict"

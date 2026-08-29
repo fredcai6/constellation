@@ -32,4 +32,4 @@ weight. Skip a load-bearing commitment only with a stated reason."""
 [[field]]
 id = "key-terms"
 kind = "evidence"
-note = "New terms this plan introduces; each cites its glossary entry or proposes one. Coining a synonym is a defect."
+note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
