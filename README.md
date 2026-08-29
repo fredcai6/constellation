@@ -1,7 +1,9 @@
 # Constellation
 
-A choreography for agent work: structured runs of understand → plan → build → criticize →
-refine, driven by a small engine that acts as a secretary, never a guard.
+A framework for subagent-driven development: an engine walks a run through understand → plan →
+build → criticize → refine, handing each agent only the step in front of it. The engine is a
+secretary, never a guard. High-level decisions stay with the human; `docs/AGENT_GUIDE.md` states
+the purpose in full and is the page agents read.
 
 **The whole system:** Work happens in **runs**. A run is opened from an **assembly** — a fixed
 skeleton of **segments**, each a worklist of steps ending in a **transition**. Every step is a
@@ -28,5 +30,6 @@ constellation/
   tests/  evals/
 ```
 
-The test for every addition: does it make "here is how work is done" shorter to state, or
-longer? This page is the measure.
+A prompt for every addition: does it make "here is how work is done" shorter to state, or
+longer? Getting longer is not a refusal, it is a reason to look. What decides whether work is
+worth doing is in `docs/AGENT_GUIDE.md`.

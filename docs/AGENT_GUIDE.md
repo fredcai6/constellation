@@ -8,19 +8,54 @@ right about the design.
 
 ## What this is
 
-Constellation is a choreography for agent work: structured runs of understand → plan → build →
-criticize → refine, driven by a small engine that acts as a secretary, never a guard. Work
-happens in **runs**, opened from an **assembly** — a fixed skeleton of **segments**, each a
-worklist of steps ending in a **transition**. Every step is a **form**: an imperative and
-fields, which carry all the doctrine there is. Runs nest by dispatch; orders flow down as
-read-only **prefill**, evidence flows up as **returns**, and nothing else crosses. State is a
-fold over a per-run TOML journal, nothing else.
+Constellation is a framework for subagent-driven development. An engine walks a fixed template
+of steps and hands you only the step in front of you — its imperative, its fields, its checks —
+so instructions arrive when they are needed instead of all at once. The process is mechanical
+so your attention goes to the work rather than to remembering the process, and the record of
+what was done and why falls out of doing it, so a run can be set down and picked up cold by
+someone who was not there.
+
+Work runs as a hierarchy: human, conductor, worker. What each level may decide alone is written
+in the **authority block** its run opens with — your principal, what you own, your latitude, and
+where gaps go. High-level decisions stay with the human. That is the design, not a limit on it.
+
+**Report what you found, never what would fill the field.** A field with no answer takes
+`waived: <reason>` or `unknown: <reason>`, one journaled step. An intentional null is a result
+like any other: you still return it, and you still say why. Missing information, or a question
+your scope cannot answer, goes up the chain as far as the human. The level above may rule on it
+and send it back down — that is the hierarchy working, not a rebuke.
+
+If what you are asked to do has no visible connection to the run you are in, say so and ask up.
+A discontinuity is a signal, and carrying it upward is what the channel is for.
+
+**One name for one thing, so read the name here.** `standards/glossary.md` fixes what each
+technical term means in this repo, which is not always what it means elsewhere — `anchor`,
+`transition`, `corpus` and `move` all carry a local sense. When a word in a form could be read
+two ways, look it up before you act on your reading. If the entry does not settle it, ask up:
+*what do you mean by X* is a legitimate question at every level, and a term that keeps needing
+it belongs in the glossary through the `key-terms` field.
+
+Mechanically: a run is understand → plan → build → criticize → refine. Work happens in **runs**,
+opened from an **assembly** — a fixed skeleton of **segments**, each a worklist of steps ending
+in a **transition**. Every step is a **form**: an imperative and fields, which carry all the
+doctrine there is. Runs nest by dispatch; orders flow
+down as read-only **prefill**, evidence flows up as **returns**, and nothing else crosses. State
+is a fold over a per-run TOML journal, nothing else. The engine is a secretary, never a guard.
+
+This repo builds itself with itself: Constellation is both the system under development and the
+framework that development runs through. Work here is about the framework more often than about
+anything else, and a change to a form is real work.
 
 **The decision procedure for every keep/kill call: structure that shapes an agent's thinking
 stays; structure that audits an agent's behavior goes.** When a change would add a check on
 what an agent did, look first for the field or imperative that would have shaped what it did
 instead. `docs/V2_DESIGN.md` states the thesis in full, along with the corollary that settles
 calls the thesis alone cannot.
+
+That test decides what belongs in the system. A second question decides what is worth doing
+now: **does fixing this change what an agent does at a step, or what a human sees when it
+decides?** If neither, the finding is true and inert — record it and leave it. Real, cheap and
+correct is not sufficient, which is what `standards/issue.md` says from the other side.
 
 Two budgets bound every addition: engine code at **≤ 2,500 lines**, measured by
 `palette:lines`, which counts lines of code and prints comments and docstrings beside that
