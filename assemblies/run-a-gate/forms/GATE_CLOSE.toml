@@ -1,9 +1,10 @@
 # Anchor: close. Owned by run-a-gate; filled by the implementer, which conducts a gate.
 # Everything on this form returns — stamped into the parent's waiting gate
-# transition. The engine appends the mechanical record itself: the final
-# verdict, the change and deviations from the last implement step, the check
-# outputs, the implement/review cycle count, the model tier dispatched under,
-# and this run's amend summary (segment, reason, anchor touched or not).
+# transition. The engine appends the mechanical record itself: how many steps
+# landed, the implement/review cycle count, the final verdict, the change and
+# deviations from the last implement step, the check outputs, the model tier
+# dispatched under, this run's amend summary (segment, reason, anchor touched
+# or not), and every triage note raised here.
 
 imperative = """
 Where the work lives in a checkout, commit it before you fill this, on the

@@ -1110,10 +1110,11 @@ def _summary(st):
     """The mechanical record a `close` writes -- assembled from the journal,
     never typed: how many steps landed, how many were minted or amended into
     each segment beyond its first (the implement/review loop count), the
-    review panel's verdict where this run had one, every check the engine
-    ran, the tier this run was dispatched under, one line per amend, and
-    every triage note -- the candidates this run raised, so a parent
-    adjudicating the return sees them without opening the child's journal."""
+    review panel's verdict where this run had one, the change and deviations
+    the last implement step wrote, every check the engine ran, the tier this
+    run was dispatched under, one line per amend, and every triage note --
+    the candidates this run raised, so a parent adjudicating the return sees
+    them without opening the child's journal."""
     cycles = {}
     for s in st["steps"]:
         if s.get("source") in ("mint", "amend"):
@@ -1133,10 +1134,27 @@ def _summary(st):
                "anchor": a.get("anchor", False)} for a in st.get("amends", [])]
     triage = [{"text": n.get("text", "")} for n in st["notes"]
               if n.get("kind_detail") == "triage"]
+    # Rationale: an implement step is the step whose fields carry `change`,
+    #   which holds for IMPLEMENT.toml in whatever assembly declares it. The
+    #   last submitted one wins, because a revise round rewrites the diff and
+    #   the earlier round's account of it is stale.
+    # Rejected: keying off the assembly, the segment id or the form path.
+    #   That special-cases every run which fills no such form -- run-an-issue
+    #   closing, a gate released up through IMPASSE -- where both keys are
+    #   simply empty here instead.
+    change, deviations = "", ""
+    for entry in reversed(list(st["done"].values())):
+        fields = entry.get("fields") or {}
+        if "change" in fields:
+            change = fields.get("change", "")
+            deviations = fields.get("deviations", "")
+            break
     return {
         "steps_completed": len(st["done"]),
         "cycles": [{"segment": seg, "count": n} for seg, n in cycles.items()],
         "verdict": verdict,
+        "change": change,
+        "deviations": deviations,
         "checks": list(st.get("checks", [])),
         "model": st.get("model", ""),
         "amends": amends,
