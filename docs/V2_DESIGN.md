@@ -640,7 +640,7 @@ with `wc`. The live numbers are owned by `standards/skill.md`.
    evals. **Ends with a real run-an-issue on a toy issue in this repo, run from the branch** —
    the toy issue builds a genuine v2 component, so the validation run also builds v2. The pivot
    criteria below arm here, not at cutover.
-3b. **The issue workflow.** Three issue runs, not one: open and close as the engine's
+3b. **The issue workflow** (`#55`). Three issue runs, not one: open and close as the engine's
    (worktree, branch, archive, PR) first, because both later runs work inside it; then
    rolling-horizon planning with the reviewed spec; then the gate-conductor, run *under* the
    new planner as its validation — the wave-3 pattern, where the issue builds a genuine
