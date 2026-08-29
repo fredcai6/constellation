@@ -104,8 +104,8 @@ def main(argv):
         print(f"  {f:<{width}}  {counts[0]:>5}  {counts[1]:>5} prose")
     code, prose, blank = totals
     print(f"  {'':<{width}}  {'-' * 5}")
-    # The cap's number lives in V2_DESIGN.md's Size section and is not repeated
-    # here: this reports, and a report that also judged would be two sources of
+    # The cap's number lives in docs/AGENT_GUIDE.md and is not repeated here:
+    # this reports, and a report that also judged would be two sources of
     # truth for one budget. Nothing exits non-zero on a count.
     print(f"  {'code':<{width}}  {code:>5}")
     print(f"  {'prose':<{width}}  {prose:>5}  comments and docstrings")

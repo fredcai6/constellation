@@ -119,7 +119,7 @@ Branch and worktree names derive from the id too.
 A bare `spine` with no id prints the ledger — every open run's id, title, assembly, position,
 and state — generated on demand from the journals, never stored.
 
-### Verbs (6, down from 18)
+### Verbs (7, down from 18)
 
 | Verb | Does |
 |---|---|
@@ -129,6 +129,7 @@ and state — generated on demand from the journals, never stored.
 | `amend` | edit a segment's worklist — add, close, reorder; one required `reason` string, journaled |
 | `note` | append an observation, triage candidate, or decision to the record |
 | `close` | terminal; stamps return fields into the parent's waiting step if the run is parented; archives |
+| `trace` | this run and everything it dispatched, as one timeline; for debugging the seam, and deliberately not offered among `status`'s legal moves |
 
 Two run states the verbs must express:
 
@@ -223,14 +224,16 @@ refusals, the MCP server, and every CLI-vs-door distinction. Bind/release descen
 ### Size
 
 One budget, and it is **the engine's** — `engine/` and the `spine` CLI, which is where the
-rail, assembly loading, Windows support and the install copy all live: **≤ 2,500 lines of
-code**, measured by `palette:lines`. Blank lines, comments and docstrings are prose: the
-instrument prints them beside the count, never inside it. Until 2026-08-27 it was `wc -l`,
-which counted them — so the engine read as 2,817 lines against a cap it had not breached,
-and the prose carrying this engine's reasons was the cheapest thing to cut to get green.
-Measured honestly the same tree is 1,625. **The bar did not move when the instrument was
-fixed; the headroom it now shows was always there.** The bar is an aspiration, not a wall —
-its job is to keep pressure on every line earning its keep. One kind of line always earns it:
+rail, assembly loading, Windows support and the install copy all live, measured by
+`palette:lines`. The live number and what counts against it now live in
+`docs/AGENT_GUIDE.md`; this section keeps the reasoning, not the figure. Blank lines, comments
+and docstrings are prose: the instrument prints them beside the count, never inside it. Until
+2026-08-27 it was `wc -l`, which counted them — so the engine read as 2,817 lines against a cap
+it had not breached, and the prose carrying this engine's reasons was the cheapest thing to cut
+to get green. Measured honestly the same tree was 1,625. **The bar did not move when the
+instrument was fixed; the headroom it showed was always there.** The bar is an aspiration, not
+a wall — its job is to keep pressure on every line earning its keep. One kind of line always
+earns it:
 **anything the engine can derive, it derives.** A rule stated in a form for an agent to apply
 against data the engine already holds is mechanical work the secretary exists to remove, and a
 budget that argues for leaving it to the agent is arguing the wrong way (`docs/DERIVED_IS_CODE.md`) — and it is one number: a green engine achieved by relocating lines into another
@@ -421,15 +424,16 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 
 | Measure | v1 | v2 target |
 |---|---|---|
-| Corpus words (authored artifacts an agent must read before it can work) | ~57,000 | ≤ 15,000 |
-| Engine lines of code (`engine/` + `spine`: rail, loader, Windows, install copy — decoupled tools are outside it) | ~10,000 | ≤ 2,500 |
-| Engine verbs | 18 | 6 |
+| Corpus words (authored artifacts an agent must read before it can work) | ~57,000 | see `docs/AGENT_GUIDE.md` |
+| Engine lines of code (`engine/` + `spine`: rail, loader, Windows, install copy — decoupled tools are outside it) | ~10,000 | see `docs/AGENT_GUIDE.md` |
+| Engine verbs | 18 | 7 |
 | Conductor pre-reading | 20–30k tokens of doctrine | the issue + the authority block |
 | Shared doctrine prose | ~11,000 words (`_shared/`) | one page + standards |
 
-v1's ~10,000 is a raw `wc -l`, taken before the instrument counted code; the two columns
-are not measured the same way, so read the row as an order of magnitude rather than a
-ratio.
+v1's ~10,000 is a raw `wc -l`, taken before the instrument counted code; the two rows above
+are not measured the same way, so read v1 against v2 as an order of magnitude rather than a
+ratio. The live corpus and engine numbers, and what counts against each, are owned by
+`docs/AGENT_GUIDE.md` — not repeated here.
 
 The corpus target counts artifacts someone authored and an agent must read before it can
 work. Derived output is not corpus: the code map is regenerated from the source at closeout,
@@ -437,10 +441,7 @@ never committed, and read on the spot — and a cap that grew with the source it
 would not be a cap.
 
 Draft per-skill word budgets, forms included — revised at wave boundaries, enforced at cutover
-with `wc`: explorer 2,500 · admiral 1,500 · commander 1,500 · commander-delegated 500 ·
-interrogator 800 · critic 850 · reviewer 700 · implementer 800 · excursion 1,050 ·
-triage 600 · how-to-talk 500 · standards 1,500 · assemblies 2,000. Sum 14,800 against the
-15,000 cap.
+with `wc`. The live numbers are owned by `standards/skill.md`.
 
 ## Waves
 

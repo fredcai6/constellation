@@ -11,8 +11,27 @@ it. When a criterion is unclear, ask: does this make the next run more predictab
 - **Reads only its form.** A skill's procedure is: read the form `status` hands you, fill it,
   submit. A skill that requires other reading is carrying doctrine that belongs in a form
   field, an error message, or nowhere.
-- **Word budget.** Each skill has one, set in the spec and enforced at cutover with `wc`,
-  forms included.
+- **Word budget.** Each skill has one, forms included — a role costs everything its agent reads
+  to hold that posture. These are alert thresholds, like the repo-wide caps in
+  `docs/AGENT_GUIDE.md`: a crossing is a prompt to ask what the skill does not need, never a
+  reason to trim guidance just to shrink the number. Checked with `wc`; only some are enforced
+  by a test today.
+
+  | Skill | Words |
+  |---|---|
+  | explorer | 2,500 |
+  | admiral | 1,500 |
+  | commander | 1,500 |
+  | commander-delegated | 500 |
+  | interrogator | 800 |
+  | critic | 850 |
+  | reviewer | 700 |
+  | implementer | 800 |
+  | excursion | 1,050 |
+  | triage | 600 |
+  | how-to-talk | 500 |
+  | standards | 1,500 |
+  | assemblies | 2,000 |
 - **Leading words.** Open by telling the agent what to *do*, not by narrating background.
 - **Completion is checkable.** "Done" is a state two agents cannot disagree on.
 - **The no-op test.** Strip a sentence: if the run would go identically without it, it is

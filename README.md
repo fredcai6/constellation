@@ -21,7 +21,7 @@ check's escape is one journaled step. That's it.
 constellation/
   README.md           this page
   docs/V2_DESIGN.md   founding spec — thesis, rulings, budgets, waves
-  engine/             the secretary: 6 verbs, rail, install copy — ≤2,500 lines of code
+  engine/             the secretary: 7 verbs, rail, install copy — sized in docs/AGENT_GUIDE.md
   assemblies/         run templates: run-an-issue, run-a-gate, explore-an-idea, and one per excursion
   skills/<name>/      one posture each: SKILL.md + the forms only that skill fills
   standards/          issue.md · skill.md · prose.md · glossary.md

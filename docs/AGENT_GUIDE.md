@@ -22,11 +22,17 @@ what an agent did, look first for the field or imperative that would have shaped
 instead. `docs/V2_DESIGN.md` states the thesis in full, along with the corollary that settles
 calls the thesis alone cannot.
 
-Two budgets bound every addition, and no test enforces either — `docs/V2_DESIGN.md`'s Size
-section owns both numbers and what counts against them. Engine size is measured by
+Two budgets bound every addition: engine code at **≤ 2,500 lines**, measured by
 `palette:lines`, which counts lines of code and prints comments and docstrings beside that
-number rather than in it; corpus is the authored artifacts an agent must read before it can
-work, this file among them.
+number rather than in it (currently 1,660); and corpus — the authored artifacts an agent must
+read before it can work (`skills/`, `standards/`, `assemblies/`, this file) — at **≤ 20,000
+words** (currently ~14,860). No test enforces either. Both are alert thresholds, not walls:
+crossing one is not a refusal, it is a prompt to stop and ask what the repo does not need
+anymore, and whether a consolidation pass is due. Never trim an artifact just to bring a
+number down — that spends real guidance to shrink an integer, which is not a win. A green
+engine achieved by relocating lines into another component still counts as a miss: the cap
+tracks what the engine costs, not what `palette:lines` sees. `tools/` is outside both caps by
+ruling.
 
 ## How work happens
 

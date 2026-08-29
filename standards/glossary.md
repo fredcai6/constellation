@@ -133,8 +133,8 @@ forms; coining a synonym for a term below is a defect.
   what it is for. Counted per module and repo-wide in the map's report.
 - **corpus** — one word, two senses, on the same grounds as `anchor`. *The v2 corpus:* the
   authored artifacts an agent must read before it can work — skills, forms, standards,
-  assemblies — measured in words against the 15,000 target (`docs/V2_DESIGN.md`, Measurable
-  goals). Derived output is not in it. *The mappable corpus:* every tracked `.py` file the map
+  assemblies — measured in words against the target `docs/AGENT_GUIDE.md` sets.
+  Derived output is not in it. *The mappable corpus:* every tracked `.py` file the map
   is built from, which is the sense `tools/code_map` uses throughout its own docstrings.
 - **understanding** — a board row type beside `fact` and `decision`: the reading you are
   proceeding on, resolved only by the principal confirming or correcting it. Sent up as a

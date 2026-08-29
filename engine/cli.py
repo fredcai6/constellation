@@ -1,4 +1,4 @@
-"""`spine` -- the six verbs.
+"""`spine` -- the seven verbs.
 
 Argument shape is deliberately flat: the work id comes first and is always
 required, because an id inferred from the environment is how a dispatched

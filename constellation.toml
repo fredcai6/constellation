@@ -10,7 +10,7 @@ test = "python3 -m pytest -q"
 # anything ships: the fast suite plus the agent evals, which drive a real
 # light model against a real run and assert on its journal.
 validate = "python3 -m pytest -q && python3 -m pytest evals -q"
-# `lines` is the machinery cap's instrument (V2_DESIGN.md's Size section). It counts
+# `lines` is the machinery cap's instrument (docs/AGENT_GUIDE.md owns the cap). It counts
 # code: blank lines, comments and docstrings print beside the number rather than
 # inside it, so explaining a decision better never spends the engine's budget. It
 # still asks git rather than the filesystem, so it counts the engine and `spine` as
