@@ -59,8 +59,8 @@ def _mint_panel_step(wid="g9", worker="reviewer"):
 def _mint_work_step(wid="v1", filler="implementer"):
     """A work-segment step standing on run-a-gate's real interior, built
     directly so a synthetic `filler` can be given without the assembly's own
-    conductor (`implementer`, `reviewer` -- both written) getting in the
-    way."""
+    conductor or worker (`gate-conductor`, `implementer`, `reviewer` -- all
+    written) getting in the way."""
     journal.append(wid, "run", title="t", assembly="run-a-gate")
     journal.append(wid, "step", id="g1", segment="work",
                    form="skills/implementer/forms/IMPLEMENT.toml", filler=filler,
@@ -105,7 +105,7 @@ def test_dispatch_brief_carries_every_ingredient(workdir, capsys):
     out = capsys.readouterr().out
 
     assert "d1.g1" in out                                    # the child id
-    assert "role         implementer" in out                 # see role test below
+    assert "role         gate-conductor" in out              # see role test below
     assert "tier         standard" in out
     assert "runner       claude-sonnet-5" in out              # the resolved runner
     assert "finishing:" in out and "GATE_CLOSE.toml" in out   # what finishing means
@@ -159,14 +159,14 @@ def test_the_dispatch_briefs_open_command_runs_with_path_stripped(workdir, capsy
 
 
 def test_gate_dispatch_role_is_the_dispatched_assemblys_conductor(workdir, capsys):
-    """run-a-gate's own conductor is `implementer` -- the brief must name
+    """run-a-gate's own conductor is `gate-conductor` -- the brief must name
     that, not the dispatching run-an-issue's own conductor (`issue-conductor`)."""
     _mint_dispatch_step()
     capsys.readouterr()
 
     cli.main(["d1"])
     out = capsys.readouterr().out
-    assert "role         implementer" in out
+    assert "role         gate-conductor" in out
     assert "role         issue-conductor" not in out
 
 
@@ -246,13 +246,14 @@ def _assert_delivered(line, role):
 
 
 def test_dispatch_brief_names_where_the_dispatched_role_is_written(workdir, capsys):
-    """The defect in this issue's title: the child was told `implementer` and
-    never told where `implementer` is written."""
+    """The defect in this issue's title: the child was told a role name and
+    never told where that role is written. The role here is run-a-gate's own
+    conductor, so the file named follows the assembly's `conductor` field."""
     _mint_dispatch_step()
     capsys.readouterr()
 
     cli.main(["d1"])
-    _assert_delivered(_posture_line(capsys.readouterr().out), "implementer")
+    _assert_delivered(_posture_line(capsys.readouterr().out), "gate-conductor")
 
 
 def test_panelist_brief_names_where_its_own_role_is_written(workdir, capsys):

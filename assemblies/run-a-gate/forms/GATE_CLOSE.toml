@@ -1,4 +1,4 @@
-# Anchor: close. Owned by run-a-gate; filled by the implementer, which conducts a gate.
+# Anchor: close. Owned by run-a-gate; filled by whoever conducts the gate.
 # Everything on this form returns — stamped into the parent's waiting gate
 # transition. The engine appends the mechanical record itself: how many steps
 # landed, the implement/review cycle count, the final verdict, the change and

@@ -491,3 +491,54 @@ def test_the_opening_step_is_not_a_send_back(workdir, capsys):
     capsys.readouterr()
     asm = runmod.load_assembly("run-a-gate")
     assert runmod.rework_rounds(runmod.state("issue17.g1"), asm, "work") == 0
+
+
+# -- who a gate dispatches, driven rather than grepped -------------------------
+#
+# [gate-dispatch-role]
+# Rationale: run-a-gate's conductor field is an indirection, and the two steps
+#   below are the ones that resolve it -- the close transition (no `filler` of
+#   its own) and the impasse outlet minted in `_perform` with a bare
+#   `filler="conductor"`. Reading the assembly file for `conductor =
+#   "gate-conductor"` would pass while either step still stood up the
+#   implementer, which is exactly what a hardcoded `filler = "implementer"` on
+#   the close transition did until this test existed.
+# Rejected: asserting on the rendered room's text instead. `role_of`/`hat` are
+#   what the room and a dispatch brief both call, so resolving through them
+#   proves the same fact without pinning the assertion to a print format.
+
+
+def _dispatched_role(child):
+    """Who the step in front of a gate resolves to, through the same two calls
+    a rendered room and a dispatch brief both make."""
+    st = runmod.state(child)
+    asm = runmod.load_assembly("run-a-gate")
+    return runmod.role_of(asm, st["current"]), runmod.hat(asm, st["current"], st)
+
+
+def test_a_gates_close_step_is_filled_by_its_conductor(workdir, capsys):
+    """Drive a gate through one implement round and a passing review to the
+    close step itself, then ask who fills it: whoever conducts run-a-gate."""
+    _mint_n_gates(1)
+    cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
+    child = "issue17.g1"
+    _fill_implement(child, runmod.state(child)["current"]["id"])
+    cli.main([child, "submit"])
+    _dispatch_review(child)     # pass, disposed of with `close`
+    capsys.readouterr()
+
+    st = runmod.state(child)
+    assert st["current"]["form"] == "forms/GATE_CLOSE.toml"
+    assert "filler" not in runmod.load_assembly("run-a-gate")["segment"][-1]["transition"], (
+        "the close transition names a filler again, so it no longer follows a rename")
+    assert _dispatched_role(child) == ("gate-conductor", "gate-conductor")
+
+
+def test_a_gates_impasse_step_is_filled_by_its_conductor(workdir, capsys):
+    """The fourth revise mints the impasse outlet, and the hand it stands up
+    follows the assembly's conductor the same way the close step does."""
+    child = _drive_gate_to_impasse()
+    capsys.readouterr()
+
+    assert runmod.state(child)["current"]["form"] == "forms/IMPASSE.toml"
+    assert _dispatched_role(child) == ("gate-conductor", "gate-conductor")

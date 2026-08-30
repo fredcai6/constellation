@@ -1,5 +1,5 @@
-# Step: impasse. Owned by run-a-gate; filled by the implementer, who conducts
-# this gate. Minted in place of a fourth implement round once the review has
+# Step: impasse. Owned by run-a-gate; filled by whoever conducts the gate.
+# Minted in place of a fourth implement round once the review has
 # sent the same diff back `impasse-after` times -- counted on the conductor's
 # own rework, since that is the hand the round is actually sent back by. It
 # carries no panel: a fourth fresh-context reader is the loop, not the way out

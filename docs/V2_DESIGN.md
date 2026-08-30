@@ -78,8 +78,8 @@ do 2 (the spec-writer's own round, in place rather than a dispatched subagent) s
 cold critic panel and the route sitting on its one transition; there is no `up` outcome
 distinct from the interrogator's own impasse path. The issue-conductor still writes the plan
 itself; `run-an-issue` cuts
-every gate at plan-to-execute; `run-a-gate` names the implementer as its conductor, has no
-select or route step, and commits at its close; `up` at an impasse walks the run to close;
+every gate at plan-to-execute; `run-a-gate` has no select or route step and commits at its
+close; `up` at an impasse walks the run to close;
 `PLAN` carries a design-it-twice field; open and close create no worktree, archive nothing,
 and push nothing. Wave 3b brings the tree to the shape above.
 
@@ -406,8 +406,8 @@ each conductor dispatches the tier below and judges at its transitions:
 <close>           returns stamped up if parented
 ```
 
-- **run-a-gate** (conductor: gate-conductor; the assembly on disk names the implementer,
-  which the gate-conductor issue changes): `<open (prefilled spec)> → [implement]* →
+- **run-a-gate** (conductor: gate-conductor, which the assembly on disk now names):
+  `<open (prefilled spec)> → [implement]* →
   <review: panel picked by the gate-conductor; synthesis; pass | revise> →
   <close (gate report)>`. A gate is n cycles of implement-then-review; the implementer's
   submit is what fires the review transition. The judgment between the two — which lenses

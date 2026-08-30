@@ -10,6 +10,13 @@ test = "python3 -m pytest -q"
 # anything ships: the fast suite plus the agent evals, which drive a real
 # light model against a real run and assert on its journal.
 validate = "python3 -m pytest -q && python3 -m pytest evals -q"
+# `validate-gate-loop` is the fast suite plus exactly one eval: the drive that
+# carries a gate through implement, review and close from its orders alone. It
+# is for a gate whose diff touches that one drive's assertions or the identity
+# it dispatches under. It covers neither the other three cases in that eval's
+# own file nor the wider `evals/` sweep `validate` runs, so it is a rung
+# between `test` and `validate`, not a stand-in for either.
+validate-gate-loop = "python3 -m pytest -q && python3 -m pytest 'evals/test_implementer_reviewer_and_conductor.py::test_an_implementer_completes_a_gate_from_its_orders_alone' -q"
 # `lines` is the machinery cap's instrument (docs/AGENT_GUIDE.md owns the cap). It counts
 # code: blank lines, comments and docstrings print beside the number rather than
 # inside it, so explaining a decision better never spends the engine's budget. It

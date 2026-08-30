@@ -3,7 +3,7 @@
 # opening prefill — there is nothing to fill at open, so it has no form.
 
 assembly = "run-a-gate"
-conductor = "implementer"
+conductor = "gate-conductor"
 
 [[segment]]
 id = "work"
@@ -80,4 +80,6 @@ id = "close"
 anchor = true
 terminal = true
 form = "forms/GATE_CLOSE.toml"
-filler = "implementer"
+# No `filler`, for the same reason the review transition above carries none:
+# an absent one defaults to the bare `conductor` indirection, so close is
+# filled by whoever conducts this assembly rather than by a role named twice.
