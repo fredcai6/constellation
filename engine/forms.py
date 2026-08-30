@@ -24,6 +24,15 @@ def _field(raw: dict) -> dict:
     }
     if "mints" in raw:
         out["mints"] = raw["mints"]
+    # Rationale: a `mints = "board rows"` field used to reach the only board
+    #   segment an assembly ever had, found by being the one whose `interior`
+    #   is `"board"` -- unambiguous while true. `board` names which of
+    #   several a field seeds, the moment run-an-issue holds two
+    #   (`engine/cli.py`'s `_board_segment`); carried through `_field` here
+    #   the same way `mints` itself already is, so it survives from the raw
+    #   TOML into what `_mint` reads at submit.
+    if "board" in raw:
+        out["board"] = raw["board"]
     if raw.get("record-only"):  # the producer's ledger -- the prefill guard reads this
         out["record-only"] = True
     if "item" in raw:

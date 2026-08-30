@@ -24,10 +24,14 @@ recorded from the human when it does not."""
 id = "questions"
 kind = "plan"
 mints = "board rows"
+board = "understand"
 note = """
 One block per seed question, minted as rows on the understand board
 (UNDERSTAND.toml). A seed may carry any board column (move, cluster, after);
-only question and type carry an answer here."""
+only question and type carry an answer here. `board` names which of this
+assembly's two board segments these rows seed -- the moment a second one
+(execution-state) exists, the engine can no longer pick by being the only
+one there."""
 
   [[field.item]]
   id = "question"

@@ -75,6 +75,17 @@ decides = "resolution"
   model = "standard"
   criteria = "simplicity: what can be deleted"
 
+# A board with no transition of its own: nothing here stands the run on a
+# step, so `skeleton` mints none for it (no `form`, no `panel`) -- it exists
+# only as a place consolidate's `obligations` field seeds, and execute's own
+# `settle` verb reads. Positioned right after `understand`, the segment that
+# seeds it, though nothing about its own reachability depends on where it
+# sits: it is never `current`.
+[[segment]]
+id = "execution-state"
+interior = "board"
+board = "forms/EXECUTION_STATE.toml"
+
 [[segment]]
 id = "plan"
 interior = "steps"
@@ -175,7 +186,10 @@ decides = "plan-holds"
 
   [[segment.outcome]]
   value = "advance"
-  does = "commit"     # one commit for the gate that just proved out; nothing else to mint
+  does = "commit; settle"     # one commit for the gate that just proved out; then the
+    # engine's own call -- an obligation still open on the execution-state
+    # board refills plan for another round, every obligation disposed mints
+    # nothing and the run walks to close
 
   [[segment.outcome]]
   value = "remint"

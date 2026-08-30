@@ -43,11 +43,17 @@ def test_load_open():
 
 def test_load_consolidate():
     form = forms.load(CONSOLIDATE)
-    assert _ids(form) == ["spec", "key-terms", "settle", "resolution"]
+    assert _ids(form) == ["spec", "key-terms", "settle", "obligations", "resolution"]
     kinds = _kinds(form)
     assert kinds["spec"] == "artifact"
     assert kinds["key-terms"] == kinds["settle"] == "evidence"
+    assert kinds["obligations"] == "plan"
     assert kinds["resolution"] == "decision"
+    obligations = next(f for f in form["fields"] if f["id"] == "obligations")
+    assert obligations["mints"] == "board rows"
+    assert obligations["board"] == "execution-state"
+    assert obligations["optional"] is True
+    assert [it["id"] for it in obligations["item"]] == ["obligation"]
 
 
 def test_load_implement():
@@ -59,13 +65,17 @@ def test_load_implement():
 
 def test_load_gate_transition():
     form = forms.load(GATE_TRANSITION)
-    assert _ids(form) == ["findings", "plan-holds", "gate-spec"]
+    assert _ids(form) == ["findings", "plan-holds", "dispositions", "gate-spec"]
     kinds = _kinds(form)
     # `plan-holds` is a decision because the engine acts on its value, and that
     # kind is what makes its note's alternatives enforced -- see
     # forms.enforced_vocabulary. `findings` is prose the engine only records.
+    # `dispositions` is a plan field like `gate-spec` -- the engine mints its
+    # rows onto the execution-state board rather than acting on the field
+    # itself, so it carries no enforced vocabulary either (#56).
     assert kinds["findings"] == "evidence"
     assert kinds["plan-holds"] == "decision"
+    assert kinds["dispositions"] == "plan"
     assert kinds["gate-spec"] == "plan"
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True
