@@ -7,26 +7,10 @@
 # or not), and every triage note raised here.
 
 imperative = """
-Where the work lives in a checkout, commit it before you fill this, on the
-branch you have been working: one commit per gate, now, not a pile held to
-the end of the run. The gate is the unit that was reviewed and proven, so it
-is the unit worth committing, and a parent adjudicating a return needs
-something to open that is not a working tree still moving under it. Where it
-does not — a scratch tree, an eval, anywhere `git` has nothing to commit to —
-say so in `commit` and close; the instruction is to leave the work findable,
-not to manufacture a repository.
-
-Then close the gate. The rest of the record returns mechanically; add only
-what the parent cannot read from it."""
-
-[[field]]
-id = "commit"
-kind = "evidence"
-note = """
-The branch and the commit this gate landed as. A sha, not a description —
-the parent root-verifies a return by opening what it names, and cannot open
-a promise. Where there was nothing to commit to, name that instead: `waived:
-not a checkout` is a real answer and a fabricated sha is not."""
+Close the gate. The engine commits the work itself once the parent accepts
+this return -- one commit, on the issue's own branch, for the gate that just
+proved out. The rest of the record returns mechanically; add only what the
+parent cannot read from it."""
 
 [[field]]
 id = "residue"

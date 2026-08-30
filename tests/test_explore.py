@@ -10,6 +10,7 @@ import pytest
 
 from engine import cli
 from engine import run as runmod
+from gitremote import init_checkout
 
 
 def _spine(*args):
@@ -35,6 +36,7 @@ def _current(wid):
 def explore(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test")
+    init_checkout(tmp_path)
     out, _ = _spine("open", "explore-an-idea", "--title", "memory graph")
     wid = out.split()[1]
     _fill(wid, "OPEN.toml", 'idea = "x"\nauthority = "Tommy"\n'

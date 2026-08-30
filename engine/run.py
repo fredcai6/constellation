@@ -239,7 +239,8 @@ def state(work_id):
             st.update(title=e.get("title", ""), assembly=e.get("assembly", ""),
                       opened=e.get("at", ""), parent=e.get("parent", ""),
                       parent_step=e.get("parent_step", ""), model=e.get("model", ""),
-                      row=e.get("row", ""))
+                      row=e.get("row", ""), branch=e.get("branch", ""),
+                      worktree=e.get("worktree", ""))
         elif kind == "step":
             raw_steps.append(dict(e))
         elif kind == "submit":

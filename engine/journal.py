@@ -17,13 +17,70 @@ from engine import tomlw
 _RETRY_WINERRORS = (32, 33)  # sharing violation, lock violation
 
 
-def location(work_id: str) -> pathlib.Path:
-    """Work location for an id; dotted ids nest ("issue17.g1" -> issue17/g1)."""
-    return pathlib.Path(".agent-work", *work_id.split("."))
+# [worktree-reach]
+# Rationale: a work id addresses the same run whether the caller stands in
+#   the top-level checkout or inside the issue worktree that run's work
+#   location actually lives in -- ruling 8 put git at the issue tier, which
+#   means every id below the root physically nests inside one of these.
+#   `.worktrees` is a sibling of the top-level checkout's own tracked tree
+#   (never nested inside a worktree itself), so this is reachable only from
+#   the top level and from inside the one worktree it names -- never from a
+#   second, unrelated worktree, which cannot see a sibling it did not make.
+# Rejected: threading a project-root parameter through every call site that
+#   addresses a run. The id is the address; a second parameter carrying the
+#   same information by another route is the thing ruling 8's "never
+#   inferred from cwd" was already refusing, aimed at a different word.
+_WORKTREES_DIR = ".worktrees"  # mirrors engine/cli.py's own -- both name the
+                                # one convention a worktree is made under
 
 
-def journal_path(work_id: str) -> pathlib.Path:
-    return location(work_id) / "journal.toml"
+def _worktree_agent_work_dirs() -> list[pathlib.Path]:
+    """Every sibling worktree's own `.agent-work`, present only from the
+    top-level checkout."""
+    d = pathlib.Path(_WORKTREES_DIR)
+    if not d.is_dir():
+        return []
+    return [p / ".agent-work" for p in sorted(d.iterdir()) if (p / ".agent-work").is_dir()]
+
+
+def agent_work_roots() -> list[pathlib.Path]:
+    """Every `.agent-work` reachable from here: this checkout's own, then
+    each sibling worktree's -- what a scan for every open run needs in order
+    to see one that lives inside a worktree from the top level."""
+    roots = [pathlib.Path(".agent-work")] if pathlib.Path(".agent-work").is_dir() else []
+    return roots + _worktree_agent_work_dirs()
+
+
+def root_for(work_id: str) -> pathlib.Path:
+    """Where an existing work id's `.agent-work` actually lives: this
+    checkout's own, tried first, then each sibling worktree's. Found in
+    neither -- the ordinary case for a run not yet minted -- defaults to
+    here, exactly where it has always landed."""
+    rel = pathlib.Path(*work_id.split("."))
+    if (pathlib.Path(".agent-work") / rel).exists():
+        return pathlib.Path(".")
+    for d in _worktree_agent_work_dirs():
+        if (d / rel).exists():
+            return d.parent
+    return pathlib.Path(".")
+
+
+def location(work_id: str, root: pathlib.Path = None) -> pathlib.Path:
+    """Work location for an id; dotted ids nest ("issue17.g1" -> issue17/g1).
+
+    Resolved against `root_for` by default, so an id addresses the same run
+    from the top level or from inside its own worktree. `root` is an escape
+    for the one caller that must not use that resolution: `_open_child`
+    minting a brand-new child, which exists in neither root yet and so would
+    otherwise resolve against cwd -- wrong when cwd is not the child's
+    parent's own worktree. That caller passes the parent's actual root
+    instead of leaving this to guess.
+    """
+    return (root_for(work_id) if root is None else root) / ".agent-work" / pathlib.Path(*work_id.split("."))
+
+
+def journal_path(work_id: str, root: pathlib.Path = None) -> pathlib.Path:
+    return location(work_id, root) / "journal.toml"
 
 
 def exists(work_id: str) -> bool:
@@ -45,15 +102,20 @@ def _open_for_append(path: pathlib.Path, attempts=5, delay=0.05):
             time.sleep(delay)
 
 
-def append(work_id: str, kind: str, **data) -> dict:
-    """Append one [[entry]] block; return the entry as written."""
+def append(work_id: str, kind: str, *, root: pathlib.Path = None, **data) -> dict:
+    """Append one [[entry]] block; return the entry as written.
+
+    `root` is the same escape `location` takes -- unused once a run's first
+    entry has landed, since every append after that finds it through
+    ordinary resolution.
+    """
     stamps = {
         "kind": kind,
         "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "session": os.environ.get("CONSTELLATION_SESSION", str(os.getpid())),
     }
     entry = {**stamps, **data}  # caller-supplied keys win over stamps
-    path = journal_path(work_id)
+    path = journal_path(work_id, root)
     path.parent.mkdir(parents=True, exist_ok=True)
     block = tomlw.table("entry", entry) + "\n"
     f = _open_for_append(path)

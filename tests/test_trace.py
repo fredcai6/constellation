@@ -8,10 +8,12 @@ have: it shows the seam, and it does not lie about ordering.
 """
 
 import pathlib
+import re
 
 import pytest
 
 from engine import cli, journal
+from gitremote import init_checkout
 from test_nesting import _dispatch_and_close_child, _fill, _mint_two_gates
 from test_rework import _drive_gate_to_impasse
 
@@ -23,6 +25,7 @@ def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    init_checkout(tmp_path)
     return tmp_path
 
 
@@ -128,5 +131,9 @@ def test_trace_is_not_offered_in_a_rooms_legal_moves(workdir, capsys):
     _mint_two_gates()
     capsys.readouterr()
     cli.main(["issue17"])
-    assert "trace" not in capsys.readouterr().out
+    # A word boundary, not a bare substring: the room now names the run's own
+    # worktree path, and pytest's own tmp dir is named after this test
+    # function -- "test_trace_is_..." -- which contains "trace" as a
+    # substring with no word boundary around it.
+    assert not re.search(r"\btrace\b", capsys.readouterr().out)
     assert "trace" in cli.USAGE

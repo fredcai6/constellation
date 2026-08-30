@@ -10,12 +10,14 @@ import pathlib
 import pytest
 
 from engine import cli, forms, journal, run as runmod
+from gitremote import init_checkout
 
 
 @pytest.fixture
 def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
+    init_checkout(tmp_path)
     return tmp_path
 
 

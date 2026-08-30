@@ -19,6 +19,12 @@ lists all open runs with their titles. Each step names the **skill** that fills 
 hundred words. Any field may be answered `waived: <reason>` or `unknown: <reason>`; every
 check's escape is one journaled step. That's it.
 
+An issue run needs a git checkout with a remote: `open` makes and pushes its worktree's
+branch there, and `close` pushes again to open the PR — nothing below the issue tier touches
+git. The engine assumes `.agent-work/` is gitignored, which keeps a gate's commit to its own
+diff; nothing enforces that assumption, so a checkout that commits `.agent-work/` still works,
+just with the work package riding along.
+
 ```text
 constellation/
   README.md           this page

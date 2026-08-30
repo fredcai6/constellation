@@ -13,6 +13,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
+from gitremote import init_checkout, read_archived, stub_gh
 from test_nesting import (
     _dispatch_plan_critic, _dispatch_review, _fill, _fill_close,
     _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
@@ -27,6 +28,7 @@ def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    init_checkout(tmp_path)
     return tmp_path
 
 
@@ -65,10 +67,15 @@ def test_gate_close_summary_carries_the_last_implement_round(workdir):
     assert ret["summary"]["deviations"] == closed["summary"]["deviations"]
 
 
-def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir):
+def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, monkeypatch):
     """A run-an-issue closing after its critics escalated fills no implement
     form anywhere. Both keys are present and empty -- a parent reading the
-    summary asks for them the same way whatever closed."""
+    summary asks for them the same way whatever closed.
+
+    An issue-tier close now pushes and opens a PR before it archives, so
+    `gh` is stubbed (never a real remote) and the closed entry is read off
+    the archive it lands in rather than through `journal.read`, which no
+    longer resolves an id once `close` has swept it there."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -84,12 +91,14 @@ def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir):
     cli.main([wid, "submit"])
     _fill_close(wid)
     cli.main([wid, "submit"])
-    cli.main([wid, "close"])
 
     summary = cli._summary(runmod.state(wid))
     assert summary["change"] == ""
     assert summary["deviations"] == ""
 
-    closed = next(e for e in journal.read(wid) if e["kind"] == "closed")
+    stub_gh(monkeypatch)
+    cli.main([wid, "close"])
+
+    closed = read_archived(workdir, wid, "closed")
     assert closed["summary"]["change"] == ""
     assert closed["summary"]["deviations"] == ""

@@ -100,7 +100,7 @@ decides = "plan-holds"
 
   [[segment.outcome]]
   value = "advance"
-  does = "release"     # the adjudicating step's own amend is the record; nothing more to mint
+  does = "commit"     # one commit for the gate that just proved out; nothing else to mint
 
   [[segment.outcome]]
   value = "remint"

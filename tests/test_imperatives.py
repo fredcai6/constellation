@@ -18,6 +18,7 @@ import re
 import pytest
 
 from engine import cli, render, run as runmod
+from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_child, _fill_consolidate,
     _fill_gate_transition, _fill_implement, _fill_open, _fill_plan,
@@ -33,6 +34,7 @@ def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    init_checkout(tmp_path)
     return tmp_path
 
 

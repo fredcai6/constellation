@@ -11,25 +11,27 @@ that raises blocks the agent's turn, which is strictly worse than silence.
 
 import itertools
 import json
-import pathlib
 import sys
 
-from engine import run as runmod
+from engine import journal, run as runmod
 
 SCAN_CAP = 20  # journals inspected, so an enormous tree can't slow the hook
 SHOW_CAP = 3   # runs named before the rest collapse into a count
 
 
 def _open_runs():
-    root = pathlib.Path(".agent-work")
-    if not root.exists():
-        return []
+    # Both roots: this checkout's own `.agent-work`, then each sibling
+    # worktree's -- an issue-tier run works inside one, and this nudge must
+    # still see it from the top level.
     try:
-        paths = list(itertools.islice(root.glob("**/journal.toml"), SCAN_CAP))
+        candidates = itertools.chain.from_iterable(
+            ((root, p) for p in root.glob("**/journal.toml"))
+            for root in journal.agent_work_roots())
+        pairs = list(itertools.islice(candidates, SCAN_CAP))
     except Exception:
         return []
     runs = []
-    for p in paths:
+    for root, p in pairs:
         try:
             wid = str(p.parent.relative_to(root)).replace("/", ".")
             st = runmod.state(wid)

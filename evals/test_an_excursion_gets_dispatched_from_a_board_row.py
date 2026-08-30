@@ -38,6 +38,7 @@ def workdir(tmp_path):
         "def retry_delay(attempt):\n"
         "    \"\"\"Seconds to wait before retry attempt N.\"\"\"\n"
         "    return min(2 ** (attempt - 1), 4)\n")
+    harness.init_checkout(tmp_path)
     return tmp_path
 
 
@@ -55,7 +56,7 @@ def workdir(tmp_path):
 # See: engine/cli.py `_seed_board`, assemblies/run-an-issue/forms/OPEN.toml
 def seed_open(workdir, wid, seeds):
     """Fill the minted OPEN.toml the way a conductor does, one block per seed."""
-    p = pathlib.Path(workdir) / ".agent-work" / wid / "OPEN.toml"
+    p = harness.run_root(workdir) / ".agent-work" / wid / "OPEN.toml"
     head, mark, block = p.read_text().partition("[[questions]]")
     head = head.replace('issue = ""', 'issue = "issue-43"')
     # The authority has to be true of the room the drive actually runs in.
@@ -86,7 +87,7 @@ def excursions(workdir, wid):
     Read from the children's own journals: `_open_excursion` stamps the row it
     came from onto the child's `run` entry, so this counts dispatches that
     actually happened rather than rows that claim one."""
-    base = pathlib.Path(workdir) / ".agent-work" / wid.replace(".", "/")
+    base = harness.run_root(workdir) / ".agent-work" / wid.replace(".", "/")
     out = []
     for j in sorted(base.glob("*/journal.toml")):
         entries = tomllib.loads(j.read_text()).get("entry", [])
@@ -98,7 +99,7 @@ def excursions(workdir, wid):
 
 def board_rows(workdir, wid):
     """The board as the agent left it -- for evidence, not for the assertion."""
-    return boards.rows(pathlib.Path(workdir) / ".agent-work" / wid / "UNDERSTAND.toml")
+    return boards.rows(harness.run_root(workdir) / ".agent-work" / wid / "UNDERSTAND.toml")
 
 
 def test_a_row_answerable_only_from_outside_the_repo_gets_an_excursion(workdir):

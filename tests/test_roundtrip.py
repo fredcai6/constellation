@@ -11,12 +11,14 @@ import pytest
 import tomllib
 
 from engine import cli, journal, run as runmod
+from gitremote import init_checkout
 
 
 @pytest.fixture
 def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
+    init_checkout(tmp_path)
     return tmp_path
 
 
@@ -165,10 +167,22 @@ def test_note_blocked_surfaces_first(workdir, capsys):
     assert out.index("BLOCKED") < out.index("your response form")
 
 
-def test_ledger_lists_open_runs(workdir, capsys):
+def test_ledger_lists_open_runs(workdir, capsys, monkeypatch):
+    """Each root run works inside its own worktree (ruling 8): opening
+    issue18 moves the process into `.worktrees/issue18`, a directory that
+    does not nest under issue17's own -- top-level resolution (see
+    test_worktree_reach.py) lands it beside issue17 instead. `cmd_ledger`
+    now scans both roots -- this checkout's own `.agent-work` and every
+    sibling worktree's -- so bare `spine` from the top level lists both runs
+    together, not just each from inside its own tree."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser eof"])
+    capsys.readouterr()
+    monkeypatch.chdir(workdir)  # back to the top level, not issue17's own worktree
+
     cli.main(["open", "run-an-issue", "--issue", "18", "--title", "writer atomicity"])
     capsys.readouterr()
+    monkeypatch.chdir(workdir)  # back to the top level, not issue18's own worktree
+
     cli.main([])
     out = capsys.readouterr().out
     assert "issue17" in out and "parser eof" in out
