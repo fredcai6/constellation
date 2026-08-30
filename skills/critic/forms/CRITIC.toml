@@ -49,11 +49,13 @@ note = "Terms inconsistent with the glossary or standards/prose.md — or waived
 id = "verdict"
 kind = "decision"
 note = """
-pass | revise | escalate. The gap test: would this plan produce wrong work?
+pass | revise. The gap test: would this plan produce wrong work?
 A better sentence is not a gap, and detail below the grain of the tier
 below — a gate's, an issue's — is that tier's latitude, though a plan longer
 than the work it plans is itself a finding. If nothing you found would change what gets built, the verdict is
 pass and the findings go in the record; withholding a pass to seem rigorous
-is its own failure. Any gap means revise; revise mints a fresh plan step
-with your findings as prefill. escalate means the issue itself is wrong —
-it goes up, not around."""
+is its own failure. Any gap means revise, root objection included — there is
+no third word for "the issue itself is wrong," so name it as a gap and let
+the round answer it; revise mints a fresh plan step with your findings as
+prefill. Three rounds landing on the same objection is what routes it up
+from there, not your verdict."""

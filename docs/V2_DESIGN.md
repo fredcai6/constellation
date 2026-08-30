@@ -77,9 +77,8 @@ Where the tree differs today: understand and consolidate are two segments with n
 between them; the issue-conductor writes the spec and the plan itself; `run-an-issue` cuts
 every gate at plan-to-execute; `run-a-gate` names the implementer as its conductor, has no
 select or route step, and commits at its close; `up` at an impasse walks the run to close;
-`PLAN` carries a design-it-twice field; the verdict forms carry `escalate`; open and close
-create no worktree, archive nothing, and push nothing. Wave 3b brings the tree to the shape
-above.
+`PLAN` carries a design-it-twice field; open and close create no worktree, archive nothing,
+and push nothing. Wave 3b brings the tree to the shape above.
 
 ## Why now — measurements
 
@@ -125,7 +124,8 @@ child runs.
 - **Transitions look back, decide, and instantiate.** A transition is its segment's exit gate:
   it fires when the interior drains, and each firing does one of three things — **releases**
   (advance, filling the look-forward: a `plan` field minted as what comes next), **refills**
-  the interior (rework: a fresh step with the findings as prefill), or **goes up** (escalate).
+  the interior (rework: a fresh step with the findings as prefill), or **goes up** (a ruling's
+  `up`, reached from an impasse or a route form -- never a verdict panel's own third word).
   Cycling is the transition re-firing; the engine has no loop concept, and the firing count
   rides the returns. The v1 concepts "refine step," "OODA beat," "replan," and every
   review/criticize step are all this one mechanism. The cheap path — two sentences, no
@@ -350,7 +350,8 @@ conducts at the gate tier, not the issue-conductor's, and the gate-conductor con
 
 **Three jobs at a gate, kept apart by their forms.** The review panel at the gate's transition
 answers *did the work fill the spec* — `pass` releases to close, `revise` refills the interior
-with the findings, `escalate` sends the spec itself up. The gate-conductor answers *what does
+with the findings; a panel that thinks the spec itself is wrong writes that as a revise finding,
+not a third verdict word. The gate-conductor answers *what does
 this review mean* — it picks the panel, and disposes of each finding before any refill:
 blocking, accepted, beyond, or rejected with a reason, because a panel finding is advice and
 never a work order. The issue-conductor at its gate-adjudication step answers *did the spec achieve
@@ -404,7 +405,7 @@ each conductor dispatches the tier below and judges at its transitions:
 
 - **run-a-gate** (conductor: gate-conductor; the assembly on disk names the implementer,
   which the gate-conductor issue changes): `<open (prefilled spec)> → [implement]* →
-  <review: panel picked by the gate-conductor; synthesis; pass | revise | escalate> →
+  <review: panel picked by the gate-conductor; synthesis; pass | revise> →
   <close (gate report)>`. A gate is n cycles of implement-then-review; the implementer's
   submit is what fires the review transition. The judgment between the two — which lenses
   read this diff, which findings gate, what returns — is the gate-conductor's and never the
@@ -486,7 +487,7 @@ authority, encoded rather than inferred:
 |---|---|
 | implementer | local implementation detail inside the spec; routine refactors inside the gate; forward-leaning fixes under ruling 4 |
 | gate-conductor | sequencing inside the gate; which lenses read the diff; whether a finding gates; whether the evidence is sufficient; what becomes triage |
-| issue-conductor | whether the gate achieved the issue's intent; what the next gate is; whether the plan holds; whether the issue is done; what escalates |
+| issue-conductor | whether the gate achieved the issue's intent; what the next gate is; whether the plan holds; whether the issue is done; what goes up |
 | human / epic-conductor | architecture that crosses a stated boundary; scope changes; changes to intent; tradeoffs that turn on priorities outside the run |
 
 **3. The gate-spec contract, which both issues plan against.** A gate spec is `purpose`,

@@ -380,9 +380,8 @@ def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
 
 
 def test_up_mints_nothing_and_the_run_walks_to_its_close(workdir, capsys):
-    """One way up, not two. Refilling nothing is what an escalate verdict
-    already does, so the run reaches its terminal form and the ruling becomes
-    the record whoever dispatched it reads."""
+    """Refilling nothing is what `up` does: the run reaches its terminal form
+    and the ruling becomes the record whoever dispatched it reads."""
     wid = _drive_to_impasse()
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()

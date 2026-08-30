@@ -15,8 +15,8 @@ import pytest
 from engine import cli, journal, run as runmod
 from gitremote import init_checkout, read_archived, stub_gh
 from test_nesting import (
-    _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _fill, _fill_close,
-    _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
+    _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _drive_plan_to_impasse,
+    _fill, _fill_close, _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
     _mint_first_gate, _work_the_board,
 )
 
@@ -68,9 +68,9 @@ def test_gate_close_summary_carries_the_last_implement_round(workdir):
 
 
 def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, monkeypatch):
-    """A run-an-issue closing after its critics escalated fills no implement
-    form anywhere. Both keys are present and empty -- a parent reading the
-    summary asks for them the same way whatever closed.
+    """A run-an-issue closing after its critics reached an impasse fills no
+    implement form anywhere. Both keys are present and empty -- a parent
+    reading the summary asks for them the same way whatever closed.
 
     An issue-tier close now pushes and opens a PR before it archives, so
     `gh` is stubbed (never a real remote) and the closed entry is read off
@@ -84,7 +84,7 @@ def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, mo
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
-    _dispatch_plan_critic(wid, verdict="escalate", findings="gap: wrong artifact entirely")
+    _drive_plan_to_impasse(wid)
     _fill(journal.location(wid) / "IMPASSE.toml",
           'ruling = "up"\nwhy = "the critics read the plan against the wrong issue"\n')
     cli.main([wid, "submit"])

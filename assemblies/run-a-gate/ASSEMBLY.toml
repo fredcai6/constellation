@@ -35,9 +35,20 @@ anchor = true
 # Anchored because a gate reaching close without review has graded its own
 # work: amending this away stays one journaled step, but it is loud in the
 # ledger and in the parent's adjudication view.
-# no conductor form: release/refill/up is mechanical from the verdicts —
-# pass releases, any revise refills the interior with merged findings,
-# escalate goes up
+# no conductor form: release/refill is mechanical from the verdicts — pass
+# releases, any revise refills the interior with merged findings. There is no
+# third verdict word: a root objection is a revise finding, and only three of
+# them in a row reach `work`'s own impasse-form above, whose `up` is the way
+# out this transition itself does not carry.
+decides = "verdict"     # the panel's own merged verdict; no conductor form submits it
+
+  [[segment.transition.outcome]]
+  value = "pass"
+  does = "release"     # mints nothing; the run walks past review on its own
+
+  [[segment.transition.outcome]]
+  value = "revise"
+  does = "rework"     # another implement round, findings as prefill
 
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"

@@ -59,9 +59,20 @@ decides = "next"       # REWORK.toml's; SPEC.toml has no such field
 [segment.transition]
 anchor = true
 # No conductor form: pass releases to close, revise refills with the
-# findings, escalate goes up. A spec is judged on different criteria from a
-# plan -- the form is the same fresh-context critic, the criteria are this
-# assembly's.
+# findings. There is no third verdict word, and this segment declares no
+# impasse outlet either (see above) -- a root objection is a revise finding,
+# and a fourth round on it is already the human's own call. A spec is judged
+# on different criteria from a plan -- the form is the same fresh-context
+# critic, the criteria are this assembly's.
+decides = "verdict"     # the panel's own merged verdict; no conductor form submits it
+
+  [[segment.transition.outcome]]
+  value = "pass"
+  does = "release"     # mints nothing; the run walks past spec on its own
+
+  [[segment.transition.outcome]]
+  value = "revise"
+  does = "rework"     # another spec round, through REWORK.toml, findings as prefill
 
   # One criterion per panelist, as run-an-issue's plan transition: three fresh-context
   # readers disagreeing is a panel; one reader holding three criteria is a

@@ -45,6 +45,10 @@ note = "Names the change introduces that fight the glossary or standards/prose.m
 id = "verdict"
 kind = "decision"
 note = """
-pass | revise | escalate. Any blocking finding means revise; revise mints a
-fresh implement step with your findings as prefill. escalate means the spec
-itself is wrong — it goes up to the parent, never patched here."""
+pass | revise. Any blocking finding means revise; revise mints a fresh
+implement step with your findings as prefill. There is no third word for "the
+spec itself is wrong" -- write that as a gap finding like any other, under
+revise. This review is panel-only, so nobody routes it for you on the spot:
+three revises landing on the same objection is what reaches the implementer's
+ruling, and the implementer -- who conducts this gate -- is who takes it to
+the parent from there, never you."""

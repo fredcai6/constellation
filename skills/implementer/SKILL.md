@@ -50,15 +50,16 @@ The verdict decides what happens next:
   stamps your returns to the parent.
 - `revise` mints a fresh IMPLEMENT.toml prefilled with the panel's findings,
   verbatim. Work from them as written; a revise is not an invitation to
-  argue the verdict you were given.
-- `escalate` means the spec itself is wrong. It goes to the parent run, and
-  there is nothing left for you to do on this gate.
+  argue the verdict you were given. There is no third verdict word: a
+  reviewer who thinks the spec itself is wrong writes that as a revise
+  finding, same as any other.
 
 After a third revise the engine stops offering a fourth round and asks you to
 rule instead: close the gate on the diff as it stands, run another round, or
 send it up, which closes the gate and returns your ruling to the run that
-dispatched you — the same move `escalate` makes.
+dispatched you.
 
 Where this does not apply: the plan behind the gate is not yours to remake.
-If the gate itself looks like the wrong move, escalate says so — this skill
-covers building what the spec says, not deciding whether it should be built.
+If the gate itself looks like the wrong move, that ruling's `up` says so —
+this skill covers building what the spec says, not deciding whether it
+should be built.

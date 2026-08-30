@@ -227,11 +227,10 @@ def _ordered(raw_steps, seg_order):
 
 
 def merged_verdict(returns):
-    """Escalate outranks revise outranks pass: a wrong spec outranks a wrong
-    diff, and any blocking finding outranks a clean one."""
+    """Revise outranks pass: any blocking finding outranks a clean one. The
+    panel's whole vocabulary is `pass | revise` -- there is no third word, so
+    one revise among the returns is what decides it."""
     vs = [forms.leading_word((r.get("fields") or {}).get("verdict", "")) for r in returns]
-    if "escalate" in vs:
-        return "escalate"
     if "revise" in vs:
         return "revise"
     return "pass"

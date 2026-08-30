@@ -6,8 +6,11 @@ the same `--parent`/`--step` mechanism with a `.pN` tag naming which panel
 entry. These tests prove the four things the review transition promises:
 status renders a copyable command per panelist; opening one prefills the
 artifact and criteria; the merged verdict acts (pass releases, revise
-refills with concatenated attributed findings, escalate releases and rides
-the summary); and a gate cannot reach close without review having fired.
+refills with concatenated attributed findings); and a gate cannot reach
+close without review having fired. The panel's vocabulary is `pass | revise`
+-- there is no third word, so a reviewer who objects at the root writes that
+as a revise finding, the same as any other; test_rework.py drives four of
+them to the segment's own outlet.
 """
 
 import pathlib
@@ -156,7 +159,7 @@ def test_opening_an_untagged_or_out_of_range_panel_step_refuses(workdir, capsys)
         cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", "review.p2"])
 
 
-# -- the transition acts: pass releases, revise refills, escalate releases --
+# -- the transition acts: pass releases, revise refills ---------------------
 
 
 def test_pass_releases_and_the_gate_proceeds_to_close(workdir, capsys):
@@ -217,29 +220,42 @@ def test_revise_refills_with_every_panelists_findings_concatenated_and_attribute
     assert st["current"]["id"] == fresh["id"]                # work resumes, not close
 
 
-def test_escalate_releases_like_pass_and_the_verdict_rides_the_summary(workdir, capsys):
+def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
+    """There is no third verdict word to release a two-voices step early: a
+    root objection is a revise finding like any other, so the only way this
+    gate's review ever releases without a final pass is the loop -- four
+    revises, the fourth reaching the impasse, `up` walking the gate to close.
+    `_summary` stamps the panel's own last merged verdict onto the return,
+    not the conductor's ruling on it, so the parent adjudicating sees what
+    the panel actually said."""
     journal.append("issue9", "run", title="t", assembly="run-an-issue")
     journal.append("issue9", "step", id="g5", segment="execute", dispatches="run-a-gate",
                    prefill={"purpose": "p"}, child="issue9.g5", source="mint")
     cli.main(["open", "run-a-gate", "--parent", "issue9", "--step", "g5"])
-    _fill_implement("issue9.g5")
-    cli.main(["issue9.g5", "submit"])
-    panelist = _open_panelist("issue9.g5", "review")
-    _fill_review(panelist, "escalate", "gap: the spec asks for the wrong file entirely")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    child = "issue9.g5"
+    for n in range(4):
+        _fill_implement(child)
+        cli.main([child, "submit"])
+        panel_id = runmod.state(child)["current"]["id"]
+        panelist = _open_panelist(child, panel_id)
+        _fill_review(panelist, "revise", f"gap: still off by one ({n})")
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     capsys.readouterr()
 
-    st = runmod.state("issue9.g5")
-    assert st["current"]["id"] == "close"  # released, exactly like pass
-    _fill(journal.location("issue9.g5") / "GATE_CLOSE.toml",
+    st = runmod.state(child)
+    assert st["current"]["form"] == "forms/IMPASSE.toml"
+    _fill(journal.location(child) / "IMPASSE.toml",
+          'ruling = "up"\nwhy = "the spec asks for something untestable"\n')
+    cli.main([child, "submit"])
+    _fill(journal.location(child) / "GATE_CLOSE.toml",
           'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
-    cli.main(["issue9.g5", "submit"])
-    cli.main(["issue9.g5", "close"])
+    cli.main([child, "submit"])
+    cli.main([child, "close"])
     capsys.readouterr()
 
     ret = next(e for e in journal.read("issue9") if e["kind"] == "return")
-    assert ret["summary"]["verdict"] == "escalate"  # stamped up for the parent to adjudicate
+    assert ret["summary"]["verdict"] == "revise"  # the panel's own word, not the ruling
 
 
 def test_a_verdict_outside_the_vocabulary_refuses_at_the_panelists_submit(workdir, capsys):
@@ -254,7 +270,7 @@ def test_a_verdict_outside_the_vocabulary_refuses_at_the_panelists_submit(workdi
     with pytest.raises(SystemExit) as e:
         cli.main([panelist, "submit"])
     msg = str(e.value)
-    assert "verdict" in msg and "pass | revise | escalate" in msg
+    assert "verdict" in msg and "pass | revise" in msg
 
     st = runmod.state(panelist)
     assert not st["done"]                            # the panelist did not advance

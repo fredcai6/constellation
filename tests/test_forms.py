@@ -89,7 +89,7 @@ def test_a_field_note_declares_the_values_the_engine_will_accept():
     """A transition's alternatives are written once, in the note the agent
     reads. `vocabulary` is how the engine reads the same string, so the enum
     an agent is told and the enum the engine enforces cannot drift."""
-    assert forms.vocabulary(_note(REVIEW, "verdict")) == ["pass", "revise", "escalate"]
+    assert forms.vocabulary(_note(REVIEW, "verdict")) == ["pass", "revise"]
     assert forms.vocabulary(_note(GATE_IMPASSE, "ruling")) == ["advance", "rework", "up"]
     # a placeholder alternative survives whole: the argument is another
     # check's question, and the note is what the refusal quotes back
