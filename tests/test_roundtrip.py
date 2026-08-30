@@ -45,26 +45,22 @@ def test_open_mints_the_skeleton(workdir, capsys):
     assert plan["panel"][0]["worker"] == "critic"
 
 
-def test_run_a_gate_skeleton_mints_a_review_step_for_its_panel(workdir, capsys):
-    # run-a-gate's review transition declares a panel -- it used to mint
-    # nothing at all, which is why a gate ran implement -> close with no
-    # reviewer ever involved. It declares a conductor form beside the panel
-    # now, so one skeleton step carries both voices: the panel fires first
-    # and the form disposes of the round it judged.
+def test_run_a_gate_skeleton_mints_select_and_no_review_step(workdir, capsys):
+    # run-a-gate's review transition used to declare a panel, and a static
+    # panel is a panel nobody chose: `select` exists so the readers of a diff
+    # are named after the diff is in. So `work`'s own transition is `select`
+    # -- a form and no panel -- and the `review` segment declares neither a
+    # form nor a panel, which is exactly what stops `skeleton` minting a step
+    # for it here. That step is `select`'s submit to mint.
     steps = runmod.skeleton(runmod.load_assembly("run-a-gate"))
-    assert [s["id"] for s in steps] == ["work-1", "review", "close"]
+    assert [s["id"] for s in steps] == ["work-1", "select", "close"]
 
-    review = steps[1]
-    assert review["form"] == "forms/REVIEW_ROUND.toml"
-    assert review["filler"] == "conductor"  # the bare indirection, not a named role
-    assert review["panel"] == [{
-        "form": "skills/reviewer/forms/REVIEW.toml",
-        "worker": "reviewer",
-        "model": "standard",
-        "criteria": "the gate spec, whole and only",
-    }]
+    select = steps[1]
+    assert select["form"] == "forms/SELECT.toml"
+    assert select["filler"] == "conductor"  # the bare indirection, not a named role
+    assert "panel" not in select            # nothing to argue with here; nobody is dispatched
 
-    # close's transition still declares only a form -- unaffected by the fix
+    # close's transition still declares only a form -- unaffected
     close = steps[2]
     assert close["form"] == "forms/GATE_CLOSE.toml"
     assert "panel" not in close

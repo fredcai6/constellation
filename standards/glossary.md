@@ -37,7 +37,9 @@ forms; coining a synonym for a term below is a defect.
   The merged verdict resolves the same way a submitted decision field does — against the
   transition's own declared `outcome` rows where one names a `decides` field, or (a panel-only
   transition with none) by refilling directly, three rounds of it reaching the segment's own
-  impasse form where one is declared. Review never lives in an interior.
+  impasse form where one is declared. A panel is written once, at the mint that makes its
+  step: declared on a transition, or named at an earlier one (run-a-gate's `select`), never
+  grown after. Review never lives in an interior.
 - **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
   template step flagged so that amending it away is loud in the ledger and the parent's
@@ -122,7 +124,8 @@ forms; coining a synonym for a term below is a defect.
   gate's work is done and fails while it is not. Its exit status decides the step; a
   command that passes on an empty diff proves nothing.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
-  implementer working its interior and firing its review transition.
+  implementer working its interior and the gate-conductor naming, at `select`, the panel that
+  reviews it.
 - **epic** — one claim too large for a single run, plus the evidence that the claim is true.
   Runs as run-an-epic under the epic-conductor, dispatching issue runs. Never a list of issues.
 - **wave** — a segment of an epic whose interior dispatches whole issue runs. The epic-conductor cuts

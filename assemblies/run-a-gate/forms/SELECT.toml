@@ -1,0 +1,51 @@
+# Transition: work → review. Owned by run-a-gate; filled by whoever conducts
+# the gate. One voice, no panel: this is where the readers are chosen, not
+# where they answer. Submitting it mints the review step itself -- the
+# panelists named below and the route form their round is disposed of on --
+# so a gate that never fills this has no review to fire, and a gate that
+# fills it twice has had two rounds read by two panels it chose separately.
+
+imperative = """
+The diff is in. Say which lenses read it, before anybody is dispatched. Two
+are the default and go on the panel unless something about this diff makes
+one of them inert; a third is warranted when the change reaches somewhere
+neither of them looks. Submitting this dispatches nobody -- it mints the
+review step, and the room prints one command per panelist after."""
+
+[[field]]
+id = "omitted"
+kind = "evidence"
+note = """
+Which of the two defaults this round leaves off the panel, and what about
+this diff makes it inert -- `waived: none` when both are on it. An omission
+is a real answer here and costs one line; an unstated one is the panel
+quietly shrinking round after round with nothing in the record to say when it
+happened."""
+
+[[field]]
+id = "panelists"
+kind = "plan"
+mints = "panelists"
+note = """
+One block per reader this round dispatches, minted onto the review step as
+its panel the moment this releases. The two defaults are written out here
+rather than left to be remembered, because they are what you copy in:
+spec-fit -- "does the work fill the specification, whole and only"; and test
+adequacy -- "are these the right tests, or could the work be substantially
+wrong while they pass". Both are worker `reviewer` at model `standard`. Add a
+block where the diff reaches somewhere neither lens looks, and name above the
+one you dropped. Every block needs all three values: `worker` and `model` are
+the hand and the tier the brief dispatches under, and a block missing either
+renders a brief nobody can run."""
+
+  [[field.item]]
+  id = "worker"
+  note = "The role that reads -- `reviewer` for both defaults."
+
+  [[field.item]]
+  id = "model"
+  note = "The tier the brief dispatches under -- `standard` for both defaults."
+
+  [[field.item]]
+  id = "criteria"
+  note = "The lens itself, verbatim: what this reader looks for, and nothing else."

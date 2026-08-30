@@ -159,30 +159,48 @@ verdict = "%s"
 ''' % (findings, verdict))
 
 
-def _fill_review_round(wid, resolution):
-    """The conductor's own half of the review transition: where the round
-    the panel just judged goes next."""
-    _fill(journal.location(wid) / "REVIEW_ROUND.toml", 'resolution = "%s"\n' % resolution)
+def _fill_route(wid, resolution):
+    """The conductor's own half of the review step: where the round the panel
+    just judged goes next."""
+    _fill(journal.location(wid) / "ROUTE.toml", 'resolution = "%s"\n' % resolution)
+
+
+SELECT_PANEL = ('omitted = "waived: none"\n\n[[panelists]]\n'
+                'worker = "reviewer"\nmodel = "standard"\n'
+                'criteria = "spec-fit: does the work fill the specification"\n')
+
+
+def _select_panel(wid, body=SELECT_PANEL):
+    """`work`'s own transition: one form, no panel, and submitting it is what
+    mints the review step -- the panelists named here plus the route form
+    their round is disposed of on. Every drive through a gate goes through
+    it, including the fresh round after a rework, so the lenses are chosen
+    again rather than inherited."""
+    _fill(journal.location(wid) / "SELECT.toml", body)
+    cli.main([wid, "submit"])
 
 
 def _dispatch_review(child_wid, verdict="pass", findings="none: waived: clean",
                      resolution=None):
-    """Open the review panel's one panelist, fill and close it, then dispose
-    of the round on the transition's own conductor form -- the same nesting
-    mechanics as a gate dispatch, one step down, plus the second voice.
-    Neither of the panel's words acts on its own now: both release, so the
-    step stays open and `resolution` is what mints (or does not). It
-    defaults to the answer the verdict argues for -- `rework` after a
-    revise, `close` after a pass. Returns the step id that fired, since a
-    rework round mints a fresh review step."""
+    """Select the panel if the gate is standing on `select`, open the one
+    panelist it named, fill and close it, then dispose of the round on the
+    review step's own conductor form -- the same nesting mechanics as a gate
+    dispatch, one step down, plus the second voice. Neither of the panel's
+    words acts on its own: both release, so the step stays open and
+    `resolution` is what mints (or does not). It defaults to the answer the
+    verdict argues for -- `rework` after a revise, `close` after a pass.
+    Returns the step id that fired, since every round mints a fresh review
+    step."""
+    if runmod.state(child_wid)["current"].get("form") == "forms/SELECT.toml":
+        _select_panel(child_wid)
     step_id = runmod.state(child_wid)["current"]["id"]
     cli.main(["open", "give-a-verdict", "--parent", child_wid, "--step", f"{step_id}.p1"])
     panelist = f"{child_wid}.{step_id}.p1"
     _fill_review(panelist, verdict, findings)
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
-    _fill_review_round(child_wid, resolution or
-                       ("rework" if verdict == "revise" else "close"))
+    _fill_route(child_wid, resolution or
+                ("rework" if verdict == "revise" else "close"))
     cli.main([child_wid, "submit"])
     return step_id
 
@@ -523,11 +541,11 @@ def test_child_close_completes_dispatch_step_and_carries_mechanical_summary(work
     # review panelist, a final pass, and a real engine-run check -- none of
     # it typed by the agent
     summary = ret["summary"]
-    # first-pass implement + first review + 2 rework rounds (implement +
-    # review each) + final review + close
-    assert summary["steps_completed"] == 7
-    # `cycles` counts rework beyond the first pass -- the re-fired review
-    # steps do not double-count it, only the fresh implement steps do
+    # first-pass implement + select + first review + 2 rework rounds
+    # (implement + select + review each) + final select + review + close
+    assert summary["steps_completed"] == 10
+    # `cycles` counts rework beyond the first pass -- the re-fired select and
+    # review steps do not double-count it, only the fresh implement steps do
     assert {"segment": "work", "count": 2} in summary["cycles"]
     assert summary["verdict"] == "pass"  # the panel's final verdict rides the summary
     assert any(c["command"] == "true" and c["exit"] == 0 for c in summary["checks"])

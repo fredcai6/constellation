@@ -7,13 +7,16 @@ step (run-an-issue's plan-to-execute) already used. This file proves the
 merged verdict now resolves the same way there too, and that nothing in the
 engine's routing still compares the word itself.
 
-#57 then made run-a-gate's review a two-voices transition of its own: both
-of the panel's words perform the declared `release` (a no-op -- nothing
-mints), which leaves the step open on its own conductor form, and that
-form's `close` or `rework` is what walks the gate on or refills the
-interior. So the table is still what routes; there are simply two voices
-answering it, and the one with findings in front of it is the one that
-decides.
+#57 then made run-a-gate's review a two-voices step of its own: both of the
+panel's words perform the declared `release` (a no-op -- nothing mints),
+which leaves the step open on its own conductor form, and that form's
+`close` or `rework work` is what walks the gate on or refills `work`. So the
+table is still what routes; there are simply two voices answering it, and the
+one with findings in front of it is the one that decides. The second wave
+moved that step into its own `review` segment and made it *minted* rather
+than declared -- `select` writes its panel and `route-form` names its form --
+so the outcome rows it resolves against sit at segment grain, which is what
+`deciding_spec` reaches for a step whose form is not the transition's own.
 
 Drives the real `run-a-gate` assembly, not a fixture -- `test_verdict_panels.py`
 already does, and its fixtures are reused here rather than re-declared.
@@ -25,7 +28,7 @@ import pathlib
 from engine import cli, run as runmod
 from test_two_voices import CRITIC
 from test_verdict_panels import (  # noqa: F401
-    _fill_review, _fill_review_round, _open_gate, _open_panelist, workdir,
+    _fill_review, _fill_route, _open_gate, _open_panelist, _review_step, workdir,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -44,25 +47,26 @@ def test_run_a_gates_review_declares_resolution_disjoint_from_ruling():
     actually declares: the panel's two are both inert, and the conductor's
     `rework` is the one that mints."""
     asm = runmod.load_assembly("run-a-gate")
-    step = {"segment": "work", "form": "forms/REVIEW_ROUND.toml",
+    step = {"segment": "review", "form": "forms/ROUTE.toml",
             "panel": [{"form": "skills/reviewer/forms/REVIEW.toml"}]}
 
     field = cli._decided_here(asm, step)
     assert field == "resolution"
-    assert field != "ruling"  # the segment's own decides -- IMPASSE.toml's, not this
+    assert field != "ruling"  # `work`'s own decides -- IMPASSE.toml's, not this
 
     # the panel's own two words: neither acts, so the step stays open for the
     # form and the conductor is the one who says where the round goes
     for verdict in ("pass", "revise"):
         seg, does = cli._outcome(asm, step, {"resolution": verdict}, {"steps": []})
-        assert seg["id"] == "work" and does == "release"
+        assert seg["id"] == "review" and does == "release"
 
-    # the conductor's two
+    # the conductor's two. `rework` names its target now: review is not the
+    # segment the fresh round lands in, so a bare verb would refill review.
     seg, does = cli._outcome(asm, step, {"resolution": "rework"}, {"steps": []})
-    assert seg["id"] == "work" and does == "rework"
+    assert seg["id"] == "review" and does == "rework work"
 
     seg, does = cli._outcome(asm, step, {"resolution": "close"}, {"steps": []})
-    assert seg["id"] == "work" and does == "release"
+    assert seg["id"] == "review" and does == "release"
 
 
 # -- end to end: both verdicts hold for the form, the form routes ---------
@@ -76,7 +80,8 @@ def test_a_pass_resolves_through_the_outcome_table_and_holds_for_the_form(workdi
     walks it on by the step order minted at open, never by a mint either
     submit makes."""
     _open_gate()
-    panelist = _open_panelist("g1", "review")
+    review = _review_step("g1")
+    panelist = _open_panelist("g1", review)
     _fill_review(panelist, "pass")
     cli.main([panelist, "submit"])
     capsys.readouterr()
@@ -84,16 +89,16 @@ def test_a_pass_resolves_through_the_outcome_table_and_holds_for_the_form(workdi
     capsys.readouterr()
 
     st = runmod.state("g1")
-    assert st["current"]["id"] == "review"        # held for the second voice
-    assert st["current"]["form"] == "forms/REVIEW_ROUND.toml"
+    assert st["current"]["id"] == review          # held for the second voice
+    assert st["current"]["form"] == "forms/ROUTE.toml"
 
-    _fill_review_round("g1", "close")
+    _fill_route("g1", "close")
     cli.main(["g1", "submit"])
     capsys.readouterr()
 
     st = runmod.state("g1")
     assert st["current"]["id"] == "close"
-    assert [s["id"] for s in st["steps"]] == ["work-1", "review", "close"]
+    assert [s["id"] for s in st["steps"]] == ["work-1", "select", review, "close"]
 
 
 def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdir, capsys):
@@ -104,7 +109,8 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
     fresh implement round, and it still carries the panel's own findings as
     prefill, the shape the mechanical refill produced."""
     _open_gate()
-    panelist = _open_panelist("g1", "review")
+    review = _review_step("g1")
+    panelist = _open_panelist("g1", review)
     _fill_review(panelist, "revise", findings="gap: the bound is still off")
     cli.main([panelist, "submit"])
     capsys.readouterr()
@@ -112,10 +118,13 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
     capsys.readouterr()
 
     st = runmod.state("g1")
-    assert st["current"]["id"] == "review"        # nothing minted off the word
-    assert not any(s.get("source") == "mint" for s in st["steps"])
+    assert st["current"]["id"] == review          # nothing minted off the word
+    # the review step itself is a mint (select's); no *round* was minted off
+    # the word, which is what this pins
+    assert not any(s["segment"] == "work" and s.get("source") == "mint"
+                   for s in st["steps"])
 
-    _fill_review_round("g1", "rework")
+    _fill_route("g1", "rework")
     cli.main(["g1", "submit"])
     capsys.readouterr()
 
@@ -129,41 +138,56 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
 # -- the generalization is a strict superset: nobody else's fold moved -----
 
 
-# Every two-voices transition in the tree -- a transition declaring both a
-# `panel` and a `form` -- and which merged verdicts leave its step open for
-# that form. Pinned as a table rather than swept blindly, because the claim
-# under test is a *comparison*: before this gate the answer was `pass` at all
-# three, by a literal in `state()`; now it is whatever each assembly's own
-# outcome rows say is inert, and only run-a-gate's -- the one this gate edited
-# -- changed. A new row here means an assembly gained a two-voices transition
-# and someone has to say what its fold does; a changed row means an existing
-# consumer's behavior moved, which is exactly what this gate promised not to do.
+# Every two-voices step shape in the tree -- one step standing a `panel` and a
+# `form` together -- and which merged verdicts leave it open for that form.
+# Pinned as a table rather than swept blindly, because the claim under test is
+# a *comparison*: before #56 the answer was `pass` at all three, by a literal
+# in `state()`; now it is whatever each assembly's own outcome rows say is
+# inert, and only run-a-gate's changed. A new row here means an assembly
+# gained a two-voices step and someone has to say what its fold does; a
+# changed row means an existing consumer's behavior moved.
 TWO_VOICES = {
-    ("run-a-gate", "work"): ["pass", "revise"],      # this gate's own edit
+    ("run-a-gate", "review"): ["pass", "revise"],    # minted by select, not declared
     ("run-an-issue", "understand"): ["pass"],        # consolidate -- untouched
     ("run-an-issue", "plan"): ["pass"],              # plan-to-execute -- untouched
 }
 
 
-def test_only_run_a_gates_own_fold_moved_and_the_other_consumers_are_untouched():
-    """`state()` holds a two-voices step open on the verdicts its own
-    transition declares inert, so consolidate and plan-to-execute still reach
-    their forms on `pass` and still refill behind the conductor on `revise` --
-    their `revise` rows read `rework`, which acts, and this gate did not edit
-    them. Asserting the whole table, not just run-a-gate's row, is what makes
-    "strict superset" a checked claim instead of a hope."""
-    found = {}
+def _two_voices_steps():
+    """Every step shape in the tree that carries a panel and a form at once.
+
+    Two ways to be one now. A transition declaring both statically is the
+    original; run-a-gate's review is the second -- `select` writes the panel
+    at its own submit and `route-form` names the form, so no static table
+    holds the pair and a sweep that reads only `[segment.transition]` sees
+    nothing where the tree's most-exercised two-voices step actually is.
+    """
     for name in runmod.assemblies():
         asm = runmod.load_assembly(name)
         for seg in asm["segment"]:
             t = seg.get("transition", {})
-            if not (t.get("panel") and t.get("form")):
+            if t.get("panel") and t.get("form"):
+                panel, form = t["panel"], t["form"]
+            elif seg.get("route-form"):
+                panel, form = [{"worker": "reviewer", "criteria": "c"}], seg["route-form"]
+            else:
                 continue
-            step = {"segment": seg["id"], "form": t["form"], "panel": t["panel"]}
-            st = {"assembly": name, "steps": [step]}
-            found[(name, seg["id"])] = [
-                v for v in ("pass", "revise")
-                if runmod._holds_for_its_form(st, step, [{"fields": {"verdict": v}}])]
+            yield name, seg["id"], {"segment": seg["id"], "form": form, "panel": panel}
+
+
+def test_only_run_a_gates_own_fold_moved_and_the_other_consumers_are_untouched():
+    """`state()` holds a two-voices step open on the verdicts its own deciding
+    spec declares inert, so consolidate and plan-to-execute still reach their
+    forms on `pass` and still refill behind the conductor on `revise` -- their
+    `revise` rows read `rework`, which acts, and neither gate edited them.
+    Asserting the whole table, not just run-a-gate's row, is what makes
+    "strict superset" a checked claim instead of a hope."""
+    found = {}
+    for name, seg_id, step in _two_voices_steps():
+        st = {"assembly": name, "steps": [step]}
+        found[(name, seg_id)] = [
+            v for v in ("pass", "revise")
+            if runmod._holds_for_its_form(st, step, [{"fields": {"verdict": v}}])]
     assert found == TWO_VOICES
 
 
