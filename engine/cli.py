@@ -1161,6 +1161,23 @@ def _mint(wid, asm, step, form, fields):
                 _mint_gates(wid, seg, rows)
 
 
+# [mint-ids-include-closed]
+# Rationale: `state()["steps"]` folds `amend close` out of the worklist --
+#   right for what runs next, wrong for what an id may still name. A gate
+#   closed by amend still named a real gate with a real spec; minting a
+#   second gate under that id makes `trace`, `drop <gate-id>` and a later
+#   `amend close` name two different gates with one string (#56). The raw
+#   journal never drops a "step" entry, closed or not, so reading ids from
+#   it rather than from the folded state is what keeps a closed id taken.
+# Rejected: keeping the folded `state()["steps"]` and unioning in the ids
+#   named by `amend close` entries. That re-derives, at the call site,
+#   exactly what "every step this journal ever named" already is -- two
+#   places to keep in sync instead of one source read directly.
+def _minted_step_ids(wid):
+    """Every step id this journal has ever named, live or closed by amend."""
+    return {e["id"] for e in journal.read(wid) if e.get("kind") == "step"}
+
+
 def _mint_gates(wid, seg, gates, start=1):
     """Each gate block becomes a dispatch step and, right after it, the
     adjudication step that will hold its returns -- the pair the execute
@@ -1178,7 +1195,7 @@ def _mint_gates(wid, seg, gates, start=1):
     see `test_remint_mints_a_gate_that_is_reachable_not_already_done`), while
     a plan round's own projection wants the next number in the sequence, not
     a fresh collision every round."""
-    existing = {s["id"] for s in runmod.state(wid)["steps"]}
+    existing = _minted_step_ids(wid)
     for i, gate in enumerate(gates, start=start):
         gid = _unique_id(gate.get("id") or f"g{i}", existing)
         existing.add(gid)
