@@ -6,10 +6,11 @@ the record; each of these broke that duty silently.
 """
 
 import pathlib
+import tomllib
 
 import pytest
 
-from engine import cli, forms, journal, run as runmod
+from engine import cli, forms, journal, render, run as runmod, tomlw
 from gitremote import init_checkout
 
 
@@ -495,3 +496,313 @@ note = "advance | rework | up. What happens to the artifact."
     with pytest.raises(SystemExit) as e:
         cli._check_vocabulary(_asm(), _step(), form, {"ruling": "keep going"})
     assert "not a value this step can act on" in str(e.value)
+
+
+# --- #70: a TOML escape sequence in a form field ---------------------------
+#
+# Found live on `issue57` while filling a plan form: a word-boundary regex,
+# written as ordinary prose, decodes through `tomllib` to a 0x08 byte. The
+# byte was written raw into the journal, which made the file unreadable, and
+# the torn-tail recovery above then dropped the submit without a word. Two
+# submits landed and neither folded.
+
+
+def test_a_control_character_round_trips_through_write_and_read():
+    """`tomlw` owes its caller one property: what it writes, `tomllib` reads
+    back unchanged. A raw control byte breaks that -- and it is reachable
+    from any field an agent writes prose into, since `\\b` in a form is a
+    word boundary to the agent and a backspace to the parser."""
+    for raw in ("match on \bword\b boundaries",     # the live case
+                "a\x0cform feed", "a\rcarriage return", "a\x00null"):
+        written = tomlw.table("entry", {"text": raw})
+        back = tomllib.loads(written)["entry"][0]["text"]
+        assert back == raw, f"{raw!r} did not survive the round trip"
+
+
+def test_a_control_character_round_trips_inside_prose():
+    """The multi-line writer is the one prose actually takes: any field whose
+    value has a newline in it renders as a multi-line basic string."""
+    raw = "first line\nmatch on \bword\b boundaries\nlast line"
+    written = tomlw.table("entry", {"text": raw})
+    assert tomllib.loads(written)["entry"][0]["text"] == raw
+
+
+def test_a_form_field_carrying_an_escape_sequence_folds(workdir, capsys):
+    """End to end, the way it was hit: the agent writes the escape into its
+    response form, the engine journals it, and the submit must fold. The
+    defect was silent -- the step stayed current, which invited the retry
+    that corrupted the file a second time."""
+    _open()
+    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+        f'issue = "{_issue_file()}"\n'
+        'authority = "Tommy. Terms are matched on \\bword\\b boundaries."\n'
+        '\n[[questions]]\nquestion = "q?"\ntype = "fact"\n')
+    capsys.readouterr()
+
+    cli.main(["issue17", "submit"])
+
+    submits = [e for e in journal.read("issue17") if e.get("kind") == "submit"]
+    assert submits, "the submit was journaled and then dropped by the read"
+    assert "\bword\b" in submits[-1]["fields"]["authority"]
+
+
+def test_a_read_that_discards_an_entry_says_so(workdir, capsys):
+    """The recovery above is right to keep the work, and wrong to keep it
+    quietly. A dropped entry is lost state; the agent that wrote it is the
+    one person who can put it back, and it is told nothing today."""
+    _open()
+    capsys.readouterr()
+    with open(".agent-work/issue17/journal.toml", "a") as f:
+        f.write('\n[[entry]]\nkind = "note"\nat = "2026-08-24T0')
+
+    journal.read("issue17")
+
+    err = capsys.readouterr().err
+    assert "journal.toml" in err, "a discarded entry was dropped silently"
+    assert "1 entry" in err, "the count of what was dropped is not named"
+
+
+# --- #71: a form that no longer exists -------------------------------------
+#
+# A journal is append-only and its `step` entries name form paths, so a gate
+# that renames a form strands every run already standing on it -- including
+# its own. On `issue57.g4` the rename of REVIEW_ROUND.toml to ROUTE.toml made
+# `spine issue57.g4` die with a traceback: the run could not be advanced,
+# closed, or even looked at, and was unwedged only by `amend close`.
+
+
+def _rename_current_form(wid="issue17"):
+    """Move the form the run's current step names, the way a gate renaming a
+    form does. Returns the path that is now missing."""
+    st = runmod.state(wid)
+    asm = runmod.load_assembly(st["assembly"])
+    path = runmod.resolve_form(asm, st["current"]["form"])
+    path.rename(path.with_name("RENAMED.toml"))
+    return path
+
+
+def test_a_missing_form_refuses_and_names_it(workdir, capsys):
+    """The engine is a secretary and never crashes. A form it cannot resolve
+    is a refusal that names the form -- a traceback is neither a refusal nor
+    a hand-in."""
+    _open()
+    capsys.readouterr()
+    missing = _rename_current_form()
+    try:
+        with pytest.raises(SystemExit) as e:
+            cli.main(["issue17"])
+    finally:
+        missing.with_name("RENAMED.toml").rename(missing)  # the tree is shared
+    assert missing.name in str(e.value), "the refusal does not name the form"
+
+
+def test_a_run_standing_on_a_missing_form_can_still_be_unwedged(workdir, capsys):
+    """The escape the refusal offers has to work -- that is what
+    `test_promises` asks of every refusal, and it is the whole difference
+    between a wedged run and a recoverable one."""
+    _open()
+    capsys.readouterr()
+    missing = _rename_current_form()
+    step = runmod.state("issue17")["current"]["id"]
+    try:
+        with pytest.raises(SystemExit) as e:
+            cli.main(["issue17"])
+        assert f"amend close {step}" in str(e.value)
+        cli.main(["issue17", "amend", "close", step, "--reason", "form renamed"])
+    finally:
+        missing.with_name("RENAMED.toml").rename(missing)
+    assert runmod.state("issue17")["current"]["id"] != step
+
+
+# --- #49: one malformed journal, and the whole ledger ----------------------
+#
+# Bare `spine` folds every run under every `.agent-work` root. `.agent-work`
+# is exactly where hand-written debris accumulates, and three agents hit this
+# independently during #43: a stub journal with no `segment` on a step entry
+# raised KeyError out of `_ordered` and took the ledger down for every run.
+
+
+def _debris(path=".agent-work/bogus/journal.toml"):
+    """A journal of the shape hand-written test debris actually takes: a step
+    entry with no `segment`, which every real one carries."""
+    p = pathlib.Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text('[[entry]]\nkind = "run"\nassembly = "run-an-issue"\n\n'
+                 '[[entry]]\nkind = "step"\nform = "x"\n')
+    return p
+
+
+def test_one_malformed_journal_does_not_take_down_the_ledger(workdir, capsys):
+    """The ledger is how an agent finds its own run. A single unreadable
+    journal beside it must not be able to hide every other run in the tree."""
+    _open()
+    _debris()
+    capsys.readouterr()
+
+    assert cli.main([]) == 0
+    out = capsys.readouterr().out
+    assert "issue17" in out, "a real run was hidden by unreadable debris"
+
+
+def test_a_journal_the_ledger_cannot_fold_is_named(workdir, capsys):
+    """Skipping it quietly would leave an agent looking for a run the ledger
+    will never show. The secretary says which journal it could not read."""
+    _open()
+    bad = _debris()
+    capsys.readouterr()
+
+    cli.main([])
+    both = capsys.readouterr()
+    assert str(bad) in both.out + both.err, "the unreadable journal is not named"
+
+
+# --- #33: two refusals that do not refuse ----------------------------------
+#
+# The third observation -- an unrecognized verb printing the room and exiting
+# 0 -- is fixed and guarded in test_promises. These two stand.
+
+
+def test_an_unknown_palette_entry_refuses_and_names_the_entries(workdir):
+    """`tests/test_robustness` already requires that every refusal states an
+    escape that works; this one raised a bare SystemExit through neither
+    `refusal` nor `located`, so it named no way forward. The whole
+    `palette:` branch had no coverage, which is how it stayed that way."""
+    pathlib.Path("constellation.toml").write_text(
+        '[commands]\ntest = "python3 -m pytest -q"\n')
+
+    with pytest.raises(SystemExit) as e:
+        cli._resolve_one("palette:nosuch")
+
+    said = str(e.value)
+    assert "nosuch" in said
+    assert "test" in said, "the refusal does not name the entries that exist"
+
+
+def test_a_refusal_does_not_rewrite_the_agents_own_prose(workdir):
+    """`located` rewrites the word `spine` into an absolute path so a printed
+    command is runnable. Routed over an agent's own answer it edits the
+    record instead -- observed as `change: working: rewrite the
+    /home/tommy/.../spine module and its tests`. In this repo `spine` is a
+    word agents write."""
+    said = render.refusal("change", "{q} is not a value this step can act on",
+                          escape="one of: advance | rework",
+                          quoting="'rewrite the spine module'")
+
+    assert "rewrite the spine module" in said, "the agent's prose was rewritten"
+    assert str(pathlib.Path(__file__).resolve().parent.parent) not in said
+
+
+def test_located_still_rewrites_a_command_the_engine_prints():
+    """The rewrite is correct everywhere it applies to engine-authored text,
+    which is the reason the fix is at the call site rather than in the
+    regex. Guard that half so a narrowing does not creep in later."""
+    assert render.located("spine issue17 submit").startswith(
+        str(pathlib.Path(__file__).resolve().parent.parent))
+    assert render.located("  open runs: spine").endswith("spine")
+
+
+def test_a_value_the_step_cannot_act_on_still_names_what_was_rejected(workdir):
+    """Protecting the agent's prose must not cost the refusal its subject:
+    two agents reading it should still know which word was refused."""
+    form = {"fields": [{"id": "ruling", "kind": "decision",
+                        "note": "advance | rework. Say which."}]}
+    with pytest.raises(SystemExit) as e:
+        cli._check_vocabulary(_asm(), _step(), form, {"ruling": "spine forward"})
+    said = str(e.value)
+    assert "spine forward" in said or "'spine'" in said
+    assert str(pathlib.Path(__file__).resolve().parent.parent) not in said
+
+
+# --- #34: the error paths an agent meets most often ------------------------
+#
+# The suite covered the check that passes and the check that times out, and
+# skipped the one in between -- the failing check is the case an implementer
+# meets daily. `trace` is the verb reached when a run has already gone wrong,
+# and three of its branches had never been executed.
+
+
+def _gate_with_proof(proof, wid="g1"):
+    """A gate standing on IMPLEMENT.toml with a caller-chosen proof command
+    -- the same shape the hanging-check test above uses."""
+    pathlib.Path("constellation.toml").write_text('[models]\nstandard = "x"\n')
+    cli.main(["open", "run-a-gate", "--id", wid])
+    journal.append(wid, "prefill", fields={"proof": proof})
+    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+        'change = "c"\ndeviations = "waived: none"\n')
+    return wid
+
+
+def test_a_failing_check_refuses_and_records_what_it_ran(workdir, capsys):
+    """A check is run by the engine, not filled in, so a failure is not the
+    agent's answer to correct -- the refusal has to say that and name a way
+    out. The record of what actually ran is what the next reader needs."""
+    _gate_with_proof("exit 1")
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g1", "submit"])
+
+    msg = str(e.value)
+    assert "exited 1" in msg
+    assert "amend close" in msg              # the escape, and it works
+    checks = [x for x in journal.read("g1") if x.get("kind") == "check"]
+    assert checks and checks[-1]["exit"] == 1
+    assert checks[-1]["command"] == "exit 1"
+
+
+def test_trace_renders_a_run_that_had_a_failed_check_a_note_and_an_amend(
+        workdir, capsys):
+    """`trace` is the debugging verb: its output on a run that went wrong is
+    the case it exists for, and the three branches that render exactly that
+    had never been run. A standalone `check` entry is written only on
+    failure, which is why the passing-check test could not reach this."""
+    _gate_with_proof("exit 1")
+    with pytest.raises(SystemExit):
+        cli.main(["g1", "submit"])
+    cli.main(["g1", "note", "observation", "the proof names the wrong suite"])
+    step = runmod.state("g1")["current"]["id"]
+    cli.main(["g1", "amend", "close", step, "--reason", "spec was wrong"])
+    capsys.readouterr()
+
+    cli.main(["g1", "trace"])
+    out = capsys.readouterr().out
+
+    assert "exit 1" in out          # render._event's `check` branch
+    assert "observation" in out     # its `note` branch
+    assert "spec was wrong" in out  # its `amend` branch
+
+
+def test_a_journal_torn_in_two_places_reads_as_the_work_that_survives(
+        workdir, capsys):
+    """Recovery was tested past exactly one tear. The loop back past a second
+    bad block is the arm that had never run -- and a file torn twice is what
+    a second submit after a first failure actually produces."""
+    _open()
+    capsys.readouterr()
+    before = len(journal.read("issue17"))
+    with open(".agent-work/issue17/journal.toml", "a") as f:
+        f.write('\n[[entry]]\nkind = "note"\nat = "2026-08-24T0')
+        f.write('\n\n[[entry]]\nkind = "note"\nat = "2026-08-24T1')
+
+    assert len(journal.read("issue17")) == before
+    cli.main(["issue17"])                 # and every verb still works
+    assert "issue17" in capsys.readouterr().out
+
+
+def test_a_journal_destroyed_entirely_reads_as_no_history(workdir, capsys):
+    """Total loss: nothing in the file parses, so there is no prefix to
+    recover. It must read as empty rather than raise -- a raising read bricks
+    the verbs that would repair the run.
+
+    Note what this is *not*. #34 recorded the `return []` after the recovery
+    loop as an uncovered line; it was uncovered because it was unreachable.
+    `split` yields at least one block and the empty join parses, so the loop
+    always returns and total loss arrives through it. The dead line is gone
+    and this test pins the behaviour, which is the part that was ever real."""
+    _open()
+    capsys.readouterr()
+    pathlib.Path(".agent-work/issue17/journal.toml").write_text(
+        "[[entry]\nkind = ?not toml at all\n")
+
+    assert journal.read("issue17") == []
+    assert "could not be read" in capsys.readouterr().err

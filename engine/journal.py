@@ -9,6 +9,7 @@ shows, never a race the engine has to prevent.
 import datetime
 import os
 import pathlib
+import sys
 import time
 import tomllib
 
@@ -137,6 +138,12 @@ def read(work_id: str) -> list[dict]:
     fold over this file, a raising read would brick every verb on the run.
     Entries are blank-line separated by construction, so the last intact
     boundary is recoverable: drop the torn block, keep the work.
+
+    The loop always returns: `split` yields at least one block, and once the
+    last has been popped the join is the empty string, which parses as no
+    entries. Total loss is that case, not a separate arm -- there was a
+    `return []` after this loop for years and no test could reach it, which
+    is what #34 measured as an uncovered line and what it actually was.
     """
     path = journal_path(work_id)
     if not path.exists():
@@ -147,10 +154,30 @@ def read(work_id: str) -> list[dict]:
     except tomllib.TOMLDecodeError:
         pass
     blocks = text.split("\n\n")
-    while blocks:
+    dropped = 0
+    while True:
         blocks.pop()  # the torn tail, and any block it broke
+        dropped += 1
         try:
-            return tomllib.loads("\n\n".join(blocks)).get("entry", [])
+            entries = tomllib.loads("\n\n".join(blocks)).get("entry", [])
         except tomllib.TOMLDecodeError:
             continue
-    return []
+        _say_dropped(path, dropped)
+        return entries
+
+
+# [never-drop-quietly]
+# Rationale: keeping the work past a tear is right; keeping it quietly is
+#   not. A discarded block is lost state, and the agent that just wrote it is
+#   the only one who can put it back -- on `issue57` two submits landed,
+#   neither folded, and the run looked untouched until the file was opened by
+#   hand. The step also still reads as current, which invites the retry that
+#   tears the file a second time.
+# Rejected: raising instead. State is a fold over this file, so a raising
+#   read bricks every verb on the run -- including the ones that would repair
+#   it. The secretary says what it lost and carries on.
+def _say_dropped(path, count):
+    print(f"{path}: {count} entry block{'s' if count > 1 else ''} could not be read "
+          f"and {'were' if count > 1 else 'was'} skipped -- the work in "
+          f"{'them' if count > 1 else 'it'} is not in this run's state",
+          file=sys.stderr)

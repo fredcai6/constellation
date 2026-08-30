@@ -47,6 +47,35 @@ Install is a copy, so the installed tree keeps the same shape — if that ever
 requires rewriting paths inside files, the shapes have diverged and the fix
 is the layout, never an installer.
 
+## Renaming a form while runs are open
+
+A journal is append-only and its `step` entries name form paths, so a form's
+path is part of the record of every run standing on it. Move or rename the
+form and those runs cite something that is no longer there — including the
+run doing the renaming, which is the usual way this is discovered.
+
+The engine refuses rather than crashes: a step whose form is not in the tree
+gets a refusal naming the form, with `amend close <step>` as the escape. That
+keeps the run recoverable; it does not make the rename free.
+
+The rule, in order of preference:
+
+1. **Don't rename a form while a run stands on it.** Cheapest, and almost
+   always available — a form's name is not usually load-bearing enough to be
+   worth the churn mid-run.
+2. **If a gate must rename one, it owns the migration**: land the new form and
+   leave the old path in place for the life of the open runs, or close the
+   affected steps by `amend` and remint them against the new form. Either way
+   the gate's scope says which, because the gate is the only place that knows
+   what is open.
+3. **Never repoint a live run by editing its journal.** The journal is the
+   record; a rewrite makes it a story about what should have happened.
+
+`issue57.g4` renamed `REVIEW_ROUND.toml` to `ROUTE.toml` and stranded its own
+run — `spine issue57.g4` died and the gate could not be routed or closed. The
+refusal above is what that would meet today; rule 2 is what would have avoided
+it.
+
 ## Open: how bundles reach a host's skill discovery
 
 `install.py` copies one self-contained tree (default `~/.claude/constellation/`)

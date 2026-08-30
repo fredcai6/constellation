@@ -240,3 +240,53 @@ def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, ca
     # returned no outlet for a step with no panel, so a fourth round was
     # minted where a fifth panel-judged rework would have hit the outlet again
     assert runmod.rework_rounds(st, runmod.load_assembly("run-a-gate"), "work") == 4
+
+
+# --- #73: amend add --transition, against a segment with a route-form ------
+#
+# This gate's own g4 taught `_mint_transition` to fall back to the segment's
+# `route-form` when the transition declares no `form` of its own. `_amend_add`
+# was not taught it, and `review` is exactly that segment: it declares no
+# `[segment.transition]` table at all. The amended-in step came out with no
+# form, no panel and no dispatches -- nothing an agent can fill, and nothing
+# `cmd_submit` can load a form for, which wedges the run the way #71 does by
+# a different route.
+
+
+def test_an_amended_transition_is_fillable_on_a_route_form_segment(workdir, capsys):
+    """The amend exists so a live run can catch up with a template that grew;
+    a step it mints that no agent can fill is worse than a refusal."""
+    _open_and_implement("g1")
+    capsys.readouterr()
+
+    cli.main(["g1", "amend", "add", "--transition", "--segment", "review",
+              "--reason", "catching up with the template"])
+    capsys.readouterr()
+
+    minted = [s for s in runmod.state("g1")["steps"]
+              if s["segment"] == "review" and s.get("source") == "amend"]
+    assert minted, "the amend minted nothing into review"
+    step = minted[-1]
+    assert step.get("form") or step.get("panel") or step.get("dispatches"), (
+        "amend add --transition minted a step with no form, panel or dispatch "
+        "-- no agent can fill it and cmd_submit has no form to load")
+    assert step["form"] == "forms/ROUTE.toml", (
+        "the segment's own route-form is what a minted review step stands on")
+
+
+def test_an_amended_transition_still_reads_a_declared_form(workdir, capsys):
+    """The fallback must not shadow the ordinary case: a segment whose
+    transition declares its own `form` keeps it."""
+    _open_and_implement("g1")
+    capsys.readouterr()
+
+    cli.main(["g1", "amend", "add", "--transition", "--segment", "close",
+              "--reason", "catching up with the template"])
+    capsys.readouterr()
+
+    asm = runmod.load_assembly("run-a-gate")
+    seg = next(s for s in asm["segment"] if s["id"] == "close")
+    declared = seg.get("transition", {}).get("form") or seg.get("route-form")
+    minted = [s for s in runmod.state("g1")["steps"]
+              if s["segment"] == "close" and s.get("source") == "amend"]
+    assert minted[-1].get("form") == declared

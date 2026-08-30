@@ -481,7 +481,22 @@ def escape_for(vocab, verb="fill"):
 FILL_OR_NULL = escape_for(())
 
 
-def refusal(field_id, why, escape=FILL_OR_NULL):
+# [quoting-is-not-located]
+# Rationale: `located` rewrites the bare word `spine` into an absolute path so
+#   a command the engine prints can be run where the agent is standing. That
+#   is right for every string the engine authored and wrong for the one thing
+#   a refusal often has to quote back -- the agent's own answer. In this repo
+#   `spine` is a word agents write, and the rewrite was observed editing one:
+#   `change: working: rewrite the /home/tommy/.../spine module and its tests`.
+#   A caller with agent text to quote writes `{q}` into `why` and passes the
+#   text as `quoting`; it is substituted after `located` has run, so it is
+#   never a candidate for rewriting.
+# Rejected: narrowing the regex instead. The rewrite is correct everywhere it
+#   is applied to engine-authored strings, and the shapes it must keep
+#   matching include a bare trailing `spine` with no arguments ("open runs:
+#   spine") -- there is no lexical rule separating that from prose. The
+#   defect is which text is routed through it, not how it matches.
+def refusal(field_id, why, escape=FILL_OR_NULL, *, quoting=None):
     """A refusal names what failed and how to get past it -- no lecture.
 
     The escape is a parameter because it is not always the same one. A board
@@ -490,8 +505,12 @@ def refusal(field_id, why, escape=FILL_OR_NULL):
     different command entirely. One hardcoded suffix made half the refusals in
     this engine print an escape that does not work, which is worse than
     printing none.
+
+    `quoting` is agent-supplied text, substituted for `{q}` in `why` after
+    the engine's own text has been located -- see [quoting-is-not-located].
     """
-    return located(f"{field_id}: {why}" + (f"\n  {escape}" if escape else ""))
+    out = located(f"{field_id}: {why}" + (f"\n  {escape}" if escape else ""))
+    return out.replace("{q}", quoting) if quoting is not None else out
 
 
 def _event(e):

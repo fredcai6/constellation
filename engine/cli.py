@@ -128,9 +128,16 @@ def _resolve_one(text, root=None):
     if not text.startswith("palette:"):
         return text
     name, _, rest = text[len("palette:"):].partition(" ")
-    cmd = _palette(root).get("commands", {}).get(name)
+    commands = _palette(root).get("commands", {})
+    cmd = commands.get(name)
     if not cmd:
-        raise SystemExit(f"command palette has no entry named {name!r}")
+        # Through `refusal` like every other one: raised bare, this named no
+        # escape and no way forward, and `test_robustness`'s sweep of the
+        # engine's refusals walked past it because it is not an entry point.
+        raise SystemExit(render.refusal(
+            "check", f"the command palette has no entry named {name!r}",
+            escape=("entries: " + ", ".join(sorted(commands))) if commands else
+                   "constellation.toml declares no [commands] at all"))
     return f"{cmd} {rest}".strip()
 
 
@@ -161,7 +168,29 @@ def _current_form(st):
         return asm, step, None  # a marker step: no form of its own to fall through to
     if step.get("dispatches"):
         return asm, step, None  # rendered as a command, not a form
-    return asm, step, forms.load(runmod.resolve_form(asm, step["form"]))
+    return asm, step, _load_form(asm, step["form"], st["id"], step["id"])
+
+
+# [form-went-missing]
+# Rationale: a journal is append-only and its `step` entries name form paths,
+#   so renaming or moving a form strands every run already standing on it --
+#   an ordinary, correct change, not a corrupt file, which is what separates
+#   this from a torn journal. `forms.load` opening the path bare meant the
+#   run could not be advanced, closed, or even looked at: `spine issue57.g4`
+#   died with a FileNotFoundError after that gate renamed REVIEW_ROUND.toml.
+#   The engine is a secretary; it refuses and names the way out.
+# Rejected: falling back to a form of the same stem elsewhere in the tree. A
+#   run would then quietly stand on a form nobody chose for it, which is the
+#   contamination this file spends `_unique_id` and `_open_child`'s guard
+#   avoiding, arriving by a helpful-looking route.
+def _load_form(asm, ref, wid, step_id):
+    path = runmod.resolve_form(asm, ref)
+    if not path.exists():
+        raise SystemExit(render.refusal(
+            pathlib.Path(ref).name, f"this step's form is not in the tree -- {ref}",
+            escape=f"restore it, or drop this step: spine {wid} amend close "
+                   f"{step_id} --reason ..."))
+    return forms.load(path)
 
 
 def _response_path(st, step):
@@ -344,7 +373,7 @@ def _round_artifact(asm, st, seg_id, step_id):
     if not prior:
         return {}
     last = prior[-1]
-    form = (forms.load(runmod.resolve_form(asm, last["form"]))
+    form = (_load_form(asm, last["form"], st["id"], last["id"])
             if last.get("form") else {})
     private = {f["id"] for f in form.get("fields", []) if f.get("record-only")}
     return {k: v for k, v in st["done"].get(last["id"], {}).get("fields", {}).items()
@@ -874,8 +903,9 @@ def _check_vocabulary(asm, step, form, fields):
         word = forms.leading_word(value)
         if word not in [alt.split("<")[0].strip().lower() for alt in vocab]:
             raise SystemExit(render.refusal(
-                f["id"], f"{word or 'empty'!r} is not a value this step can act on",
-                escape="one of: " + " | ".join(vocab)))
+                f["id"], "{q} is not a value this step can act on",
+                escape="one of: " + " | ".join(vocab),
+                quoting=repr(word) if word else "'empty'"))
 
 
 def _mint_transition(wid, seg, prefill=None):
@@ -1686,13 +1716,22 @@ def _amend_add(wid, st, argv, reason):
         # this is how a live run catches up with a template that grew a
         # panelist: one journaled amend, loud if the step it replaces was
         # anchored.
-        t = next(x for x in asm["segment"] if x["id"] == seg).get("transition", {})
+        segment = next(x for x in asm["segment"] if x["id"] == seg)
+        t = segment.get("transition", {})
         sid = f"{seg}-a{secrets.token_hex(2)}"
         step = {"id": sid, "segment": seg, "filler": t.get("filler", "conductor"),
                 "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
                 "validates": t.get("validates", ""), "source": "amend"}
-        if t.get("form"):
-            step["form"] = t["form"]
+        # The segment's `route-form` is the same fallback `_mint_transition`
+        # reads, for the same reason and from the same place: a segment whose
+        # transition step is minted rather than declared carries no `form` on
+        # the transition at all -- `run-a-gate`'s `review` declares no
+        # `[segment.transition]` table whatsoever. Reading only `t` here minted
+        # a step with no form, which no agent can fill and `cmd_submit` cannot
+        # load, wedging the run the way a renamed form does.
+        form = t.get("form") or segment.get("route-form", "")
+        if form:
+            step["form"] = form
         if t.get("panel"):
             step["panel"] = t["panel"]
         journal.append(wid, "step", **step)
@@ -2137,7 +2176,24 @@ def cmd_ledger():
             if rel.parts[:1] == ("archive",):
                 continue
             wid = str(rel).replace("/", ".")
-            st = runmod.state(wid)
+            # [one-bad-journal]
+            # Rationale: this is the only verb that folds runs it was not
+            #   asked about, so it is the only one where a journal nobody
+            #   named can decide what happens. `.agent-work` is where
+            #   hand-written debris accumulates, and one stub with no
+            #   `segment` on a step entry used to raise out of `_ordered` and
+            #   take the ledger down for every run -- hit by three agents
+            #   independently during #43. The ledger is how an agent finds
+            #   its own run; losing all of them to one file it did not write
+            #   is the worst trade this verb can make.
+            # Rejected: skipping quietly. An agent would then look for a run
+            #   the ledger will never show, with nothing to point at.
+            try:
+                st = runmod.state(wid)
+            except Exception as e:
+                print(f"{j}: could not be folded and is not listed -- "
+                      f"{type(e).__name__}: {e}", file=sys.stderr)
+                continue
             if not st:
                 continue
             i, n, seg = runmod.position(st, None)

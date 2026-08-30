@@ -44,16 +44,84 @@ def _keys(obj, out):
             _keys(v, out)
 
 
+# [read-not-merely-present]
+# Rationale: this check is named for a class -- declared and unwired -- and a
+#   substring sweep of the engine source cannot see that class at all. A key
+#   the engine only ever *writes* satisfies `'"k}" in ENGINE_SRC'`, so
+#   `filler` was declared in all three assemblies, written at five sites,
+#   read by no production code, and passed this test for the engine's whole
+#   life. The reader it did have was a test asserting a value the test itself
+#   had written.
+# Rejected: keeping the substring sweep and listing known-write-only keys
+#   beside it. That is the same defect with a maintenance burden: the list
+#   would be written once, by someone who already knew, and the next
+#   write-only key would pass exactly as `filler` did.
+_READING_CALLS = {"get", "pop", "setdefault"}
+
+
+def _keys_read_by(source: str) -> set:
+    """String constants the source actually *reads* a mapping by: `x["k"]`,
+    `x.get("k")`, `"k" in x`. A dict literal's own key and a subscript being
+    assigned to are writes, and are what this must not count."""
+    tree = ast.parse(source)
+    written = set()
+    for node in ast.walk(tree):
+        # `d["k"] = v` -- the subscript is a target, not a read
+        targets = (node.targets if isinstance(node, ast.Assign) else
+                   [node.target] if isinstance(node, (ast.AugAssign, ast.AnnAssign)) else [])
+        for t in targets:
+            if isinstance(t, ast.Subscript) and isinstance(t.slice, ast.Constant):
+                written.add(id(t))
+    read = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Subscript) and id(node) not in written:
+            if isinstance(node.slice, ast.Constant) and isinstance(node.slice.value, str):
+                read.add(node.slice.value)
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if node.func.attr in _READING_CALLS and node.args:
+                first = node.args[0]
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    read.add(first.value)
+        elif isinstance(node, ast.Compare):
+            ops = {type(o) for o in node.ops}
+            if (ops & {ast.In, ast.NotIn}) and isinstance(node.left, ast.Constant):
+                if isinstance(node.left.value, str):
+                    read.add(node.left.value)
+    return read
+
+
+ENGINE_READS = _keys_read_by(ENGINE_SRC)
+
+
 def test_every_assembly_key_is_read_by_the_engine():
     """A key an assembly declares and no engine file reads is a promise with
     nothing behind it -- `validates = "board"` sat unread while the form it
-    belongs to told agents the engine was checking their work."""
+    belongs to told agents the engine was checking their work.
+
+    Read, not merely present: see [read-not-merely-present]."""
     declared = set()
     for a in ASSEMBLIES:
         _keys(tomllib.load(open(a, "rb")), declared)
-    unread = sorted(k for k in declared - STRUCTURAL
-                    if f'"{k}"' not in ENGINE_SRC and f"'{k}'" not in ENGINE_SRC)
+    unread = sorted(declared - STRUCTURAL - ENGINE_READS)
     assert not unread, f"declared in an assembly, read by nothing: {unread}"
+
+
+def test_the_unwired_key_check_fails_on_a_key_that_is_only_written():
+    """The check on the check -- #32's standard, and the one that matters
+    most here, since this instrument was blind to its own class for the
+    engine's whole life. A key written and never read must not pass."""
+    written_only = "\n".join((
+        'def f(step):',
+        '    entry = {"quezacotl": step.id}',
+        '    journal.append(wid, "step", **entry)',
+        '    return {"quezacotl": 1}',
+    ))
+    assert "quezacotl" not in _keys_read_by(written_only)
+    # and the substring sweep this replaced would have passed it
+    assert '"quezacotl"' in written_only
+
+    read_too = written_only + "\n\ndef g(e):\n    return e[\"quezacotl\"]\n"
+    assert "quezacotl" in _keys_read_by(read_too)
 
 
 def test_every_field_kind_is_one_the_engine_handles():
