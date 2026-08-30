@@ -295,11 +295,13 @@ def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
     finding like any other, so the only way this gate's review ever ends
     without a final pass is the loop -- four revises the conductor sends
     back through the transition's own form, the fourth reaching the impasse,
-    `up` walking the gate to close. The count is spent on the form's own
-    `rework` now, which is the path the mint moved onto; `_summary` still
-    stamps the panel's own last merged verdict onto the return, not the
-    conductor's ruling on it, so the parent adjudicating sees what the panel
-    actually said."""
+    `advance` walking the gate on to its own close over the live revise (`up`
+    now pauses rather than closing, so it cannot drive this scenario to a
+    return any more -- see test_pause_gate.py for that path instead). The
+    count is spent on the form's own `rework` now, which is the path the
+    mint moved onto; `_summary` still stamps the panel's own last merged
+    verdict onto the return, not the conductor's ruling on it, so the parent
+    adjudicating sees what the panel actually said."""
     journal.append("issue9", "run", title="t", assembly="run-an-issue")
     journal.append("issue9", "step", id="g5", segment="execute", dispatches="run-a-gate",
                    prefill={"purpose": "p"}, child="issue9.g5", source="mint")
@@ -320,7 +322,9 @@ def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
     st = runmod.state(child)
     assert st["current"]["form"] == "forms/IMPASSE.toml"
     _fill(journal.location(child) / "IMPASSE.toml",
-          'ruling = "up"\nwhy = "the spec asks for something untestable"\n')
+          'ruling = "advance"\nwhy = "the diff stands as it is over the live revise"\n')
+    cli.main([child, "submit"])
+    _fill_route(child, "close")
     cli.main([child, "submit"])
     _fill(journal.location(child) / "GATE_CLOSE.toml",
           'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')

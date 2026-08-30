@@ -43,7 +43,7 @@ decides = "ruling"     # IMPASSE.toml's; IMPLEMENT.toml has no such field
 
   [[segment.outcome]]
   value = "up"
-  does = "release"     # mints nothing; the run walks to its terminal step
+  does = "pause"     # mints an ask into the parent and a marker here; see [pause-gate]
 
 [segment.transition]
 id = "select"
@@ -93,12 +93,14 @@ decides = "resolution"     # both voices answer it: the panel's merged verdict, 
 
   [[segment.outcome]]
   value = "up"
-  does = "release"     # the same no-op `work`'s own `up` spells: the round the
-                       # conductor cannot rule on from here releases and rides
-                       # up as the record. Declared so the word is legal at
-                       # route at all -- an undeclared value refuses, so
-                       # without this row a gate could only send its ask up by
-                       # closing and calling it something else.
+  does = "pause work"     # the same pause `work`'s own `up` spells, targeted
+                          # explicitly since review is no longer the segment
+                          # work is in: an ask into the parent, and a marker
+                          # back in `work`, the segment the parent's answer
+                          # resumes. Declared so the word is legal at route at
+                          # all -- an undeclared value refuses, so without
+                          # this row a gate could only send its ask up by
+                          # closing and calling it something else.
 
 [segment.transition]
 id = "review"
@@ -118,9 +120,9 @@ anchor = true
 # still no third verdict word -- a root objection is a revise finding -- and
 # `rework` is what carries one back into `work`, only three of those in a row
 # reaching that segment's own impasse-form. `up` is on this table too now, so
-# the way out no longer runs through that form alone -- it still releases
-# rather than pausing, which is the part the impasse form's own `up` also
-# leaves to be built.
+# the way out no longer runs through that form alone -- it pauses the same
+# way the impasse form's own `up` does, an ask standing at the parent until
+# it answers.
 
 [[segment]]
 id = "close"

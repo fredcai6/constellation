@@ -83,8 +83,11 @@ calls every review finding and every declared deviation blocking/accepted/beyond
 `rework` carrying the blocking ones alone into the next implement round. Its one-word
 `resolution` keeps `revise` beside the three words this table names, because the review panel's
 own merged verdict resolves against that same outcome table and an undeclared value refuses;
-`up` is a legal word at `route` now as well as at an impasse, but it still releases the round
-and walks the run to close rather than pausing it;
+`up` is a legal word at `route` now as well as at an impasse, and at this tier both now pause
+the gate rather than releasing it -- an ask standing at the run that dispatched it until that
+run answers, run-a-gate's own two sites alone; `run-an-issue`'s own `up`, at the plan segment's
+impasse, still releases and walks the run to its own close, an inconsistency left named rather
+than hidden until that site is done too.
 `PLAN` carries a design-it-twice field; open and close create no worktree, archive nothing,
 and push nothing. Wave 3b brings the tree to the shape above.
 

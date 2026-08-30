@@ -81,6 +81,16 @@ forms; coining a synonym for a term below is a defect.
 - **close** — an outcome verb: closes the not-done step the decided field's own argument
   names, plus every step sharing its `child` — a pair closes together, and the deciding step
   can never target its own pair.
+- **pause** — an outcome verb, currently `up`'s alone at a gate's own `work` and `review`:
+  mints an ask into the run that dispatched this one — a step standing on the still-live
+  pair that dispatched it, reordered ahead of it, so the parent sees the ask without opening
+  the child — and a paused marker here, in place of the round it decided at. The parent's own
+  answer resumes that marker's segment as a fresh round, carrying the answer forward as
+  prefill the same shape `rework` already carries its own findings.
+- **paused marker** — the step `pause` mints in place of the round it decided at: no form, no
+  panel, no dispatch, only the positive `paused` key naming the segment the parent's answer
+  will resume. Recognized everywhere by that key, never by the absence of the other three,
+  which `amend add --transition` already mints today with no pause behind it at all.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
 - **work id** — a run's address: the tracker issue's number when one exists (`issue17`),

@@ -28,9 +28,11 @@ fresh rather than inherited; after `impasse-after` of them the ruling form
 comes instead. `close` releases this round and walks the gate to its close,
 which is the answer after a pass and the answer after a revise you have
 decided not to run. `up` is the round you cannot rule on from here, the spec
-being wrong the usual reason: it releases exactly as `close` does today and
-becomes the record the parent reads, so say the ask in `calls` below where it
-belongs to a finding."""
+being wrong the usual reason: it pauses this gate rather than closing it, an
+ask standing at the run that dispatched you until it answers -- with what it
+answers carried back as this gate's own next round. Say the ask in `calls`
+below where it belongs to a finding, since that call is what the ask itself
+carries up."""
 
 # `calls` is written last, after the scalar `resolution`, because a plan
 # field renders as a bare `[[calls]]` header and every scalar declared after

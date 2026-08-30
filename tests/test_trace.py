@@ -16,6 +16,7 @@ from engine import cli, journal
 from gitremote import init_checkout
 from test_nesting import _dispatch_and_close_child, _fill, _mint_first_gate
 from test_rework import _drive_gate_to_impasse
+from test_verdict_panels import _fill_route
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -110,13 +111,17 @@ def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
     answered. Proved here against a real one that does reach a return: a
     gate's own impasse ruling, carried onto the return its close causes --
     so the render.py change is shown to preserve the trace, not silently
-    empty it."""
+    empty it. `advance`, not `up`: `up` now pauses the gate rather than
+    closing it, so it no longer reaches a return here at all -- see
+    test_pause_gate.py for that path."""
     child = _drive_gate_to_impasse()  # issue17.g1, four revises deep
     capsys.readouterr()
     _fill(journal.location(child) / "IMPASSE.toml",
-          'ruling = "up"\nwhy = "the spec asked for something untestable"\n')
+          'ruling = "advance"\nwhy = "the diff stands as it is over the live revise"\n')
     cli.main([child, "submit"])
     capsys.readouterr()
+    _fill_route(child, "close")
+    cli.main([child, "submit"])
     _fill(journal.location(child) / "GATE_CLOSE.toml",
           'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])
@@ -125,7 +130,11 @@ def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
     lines = [l for l in _trace(capsys, wid="issue17").splitlines() if l.startswith("  2")]
     ret = next(l for l in lines
               if l.split()[1] == "issue17" and " return " in l and "issue17.g1" in l)
-    assert "up" in ret, ret
+    # The last `decides` field this run answered before its own close -- not
+    # the impasse ruling any more, since `advance` (unlike the old `up`) mints
+    # ROUTE.toml before this gate reaches GATE_CLOSE, and that is the later
+    # answer `_last_decision` finds.
+    assert "close" in ret, ret
 
 
 def test_trace_is_not_offered_in_a_rooms_legal_moves(workdir, capsys):
