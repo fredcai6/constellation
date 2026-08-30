@@ -29,6 +29,31 @@ amendable. drop closes the named gate's dispatch and adjudication steps —
 it must be pending, and never this one."""
 
 [[field]]
+id = "dispositions"
+kind = "plan"
+mints = "dispositions"
+board = "execution-state"
+optional = true
+note = """
+Every obligation this gate settled, root-verified against what it actually
+returned -- open the artifact, re-run a check, not belief. One block per
+obligation; leave blank where this gate settled none. The engine writes
+each disposition onto the matching row of the execution-state board, this
+gate's own id stamped alongside it. An obligation left unnamed here stays
+open, and the run plans another gate for it -- naming every obligation is
+not required, and none of this is checked against the spec."""
+
+  [[field.item]]
+  id = "obligation"
+  note = "The obligation's row id on the execution-state board, e.g. o1."
+
+  [[field.item]]
+  id = "disposition"
+  note = """
+satisfied | deferred: <reason> | invalidated: <reason> | handed-off:
+<reason> | rejected: <reason>"""
+
+[[field]]
 id = "gate-spec"
 kind = "plan"
 optional = true

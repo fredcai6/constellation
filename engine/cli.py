@@ -266,8 +266,13 @@ def _commit_open(wid, worktree):
 #   remembered to add its name here.
 # See: ruling 8, docs/V2_DESIGN.md -- "git is the issue tier's, and the
 #   engine's"; an idea or an excursion produces a spec, not a diff.
+# `_DISPOSE_MINT` joined `_BOARD_MINT` as a second engine-named mint (#56):
+# both sit in every assembly's `_mintable(asm)` whether or not that
+# assembly's own forms use them, so both are subtracted here -- an
+# assembly is issue tier on a real `dispatches` name, never on an engine
+# literal alone.
 def _issue_tier(asm):
-    return bool(_mintable(asm) - {_BOARD_MINT})
+    return bool(_mintable(asm) - {_BOARD_MINT, _DISPOSE_MINT})
 
 
 def cmd_open(argv):
@@ -967,6 +972,8 @@ def _perform(wid, asm, seg, does, fields, step):
                                        anchor=s.get("anchor", False))
         elif word == "commit":
             _commit_gate(wid, asm, step)
+        elif word == "settle":
+            _settle_execution(wid, asm)
 
 
 # [gate-commit]
@@ -1027,6 +1034,34 @@ def _commit_gate(wid, asm, step):
                        text=f"{gate_id} staged nothing to commit")
 
 
+# [settle-execution]
+# Rationale: ruling 1 -- the engine decides the run is done, not the
+#   conductor watching its own worklist run dry. `execute`'s advance used to
+#   `commit` alone, so a run closed the moment its last gate's
+#   dispatch/adjudication pair completed, whether or not anything the spec
+#   committed to was ever satisfied -- "the run never closes because the
+#   gate list ran out" is exactly the shape ruling 1 forbids. This is the one
+#   new move: read the execution-state board every gate's advance already
+#   passes through, and either refill the plan segment for another round
+#   (`_mint_segment_round`, unchanged) or mint nothing, letting the run walk
+#   on to its own terminal step. The engine reads dispositions and refuses
+#   nothing here: any status but `open` counts as settled, whatever word or
+#   reason it carries, and a run that never seeded the board at all --
+#   consolidate's `obligations` field is optional -- settles trivially, the
+#   exact behaviour every run had before this gate.
+# Rejected: validating dispositions the way `validates = "board"` does for
+#   the understand board. The principal's own ruling: execution state is
+#   mechanical-lane fields, not a second gate the engine adjudicates.
+def _settle_execution(wid, asm):
+    st = runmod.state(wid)
+    path = st["boards"].get("execution-state", "")
+    if not path or boards.summary(path)["by_status"].get("open", 0) == 0:
+        return
+    plan = next((s for s in asm["segment"] if s["id"] == "plan"), None)
+    if plan:
+        _mint_segment_round(wid, asm, plan["id"])
+
+
 # [mints]
 # Rationale: "board rows" is the one mint value the engine itself names --
 #   a board is engine vocabulary, no assembly declares one. Every other
@@ -1038,25 +1073,88 @@ def _commit_gate(wid, asm, step):
 _BOARD_MINT = "board rows"
 
 
+# [dispose-mint]
+# Rationale: `_BOARD_MINT` always writes a board fresh from the rows
+#   submitted -- right for consolidate seeding execution-state the first
+#   time, wrong for an adjudication settling rows that already exist:
+#   reseeding from only the obligations the conductor named would drop
+#   every column `_seed_board` never received and silently vanish every
+#   obligation left unnamed. `_DISPOSE_MINT` reads the board's current rows
+#   through `boards.rows` -- the same read `_settle_execution` (g5) already
+#   trusts -- and writes back through `_seed_board` unchanged: only the
+#   merge in `_mint` below is new, the row-writer is not.
+# Rejected: a second row-writer that patches the TOML file's disposed rows
+#   directly. The gate that added this field was scoped to reuse the mint
+#   path rather than grow a second one, and `_seed_board` already renders a
+#   board's own guidance and columns faithfully.
+_DISPOSE_MINT = "dispositions"
+
+
 def _mintable(asm):
-    """The `mints` values legal in this assembly: `_BOARD_MINT`, plus every
-    name a segment here declares as `dispatches`."""
-    return {_BOARD_MINT} | {s["dispatches"] for s in asm["segment"] if s.get("dispatches")}
+    """The `mints` values legal in this assembly: `_BOARD_MINT`,
+    `_DISPOSE_MINT`, plus every name a segment here declares as
+    `dispatches`."""
+    return ({_BOARD_MINT, _DISPOSE_MINT}
+            | {s["dispatches"] for s in asm["segment"] if s.get("dispatches")})
+
+
+# [board-segment]
+# Rationale: picking the first `interior == "board"` segment was correct
+#   while an assembly held at most one -- run-an-issue now holds two (its
+#   understand board, and the execution-state board this gate adds), so
+#   position alone would resolve a `mints = "board rows"` field to whichever
+#   board happens to sort first, silently wrong for the other. A field names
+#   its target explicitly (`board = "understand"`) the moment it could mean
+#   either; the sole board still resolves with no name at all, so every
+#   field that seeds one (explore-an-idea's own) is unchanged.
+def _board_segment(asm, target):
+    found = [s for s in asm["segment"] if s.get("interior") == "board"]
+    if target:
+        return next((s for s in found if s["id"] == target), None)
+    return found[0] if len(found) == 1 else None
+
+
+# [gate-id-for]
+# Rationale: shared by `_commit_gate` and the dispose branch below -- both
+#   need the gate that ran, not the child work id the adjudication step
+#   itself carries as `child`. The dispatch step paired with that child (the
+#   one with `dispatches` set) is minted with its own id as the gate's name;
+#   where no such pairing is found the child id is the closest thing to a
+#   name and stands in, same as `_commit_gate` always did before this was
+#   pulled out.
+def _gate_id_for(st, child):
+    gate = next((s for s in st["steps"] if s.get("child") == child and s.get("dispatches")), None)
+    return gate["id"] if gate else child
 
 
 def _mint(wid, asm, step, form, fields):
-    """A `plan` field's content becomes structure: board rows, or steps."""
+    """A `plan` field's content becomes structure: board rows, updated board
+    rows, or steps."""
     for f in form["fields"]:
         if f.get("kind") != "plan" or f["id"] not in fields:
             continue
         rows = fields[f["id"]]
         mints = f.get("mints")
         if mints == _BOARD_MINT:
-            seg = next((s for s in asm["segment"] if s.get("interior") == "board"), None)
+            seg = _board_segment(asm, f.get("board"))
             if seg:
                 path = journal.location(wid) / (pathlib.Path(seg["board"]).stem + ".toml")
                 _seed_board(runmod.resolve_form(asm, seg["board"]), path, rows)
                 journal.append(wid, "board", segment=seg["id"], path=str(path), rows=rows)
+        elif mints == _DISPOSE_MINT:
+            seg = _board_segment(asm, f.get("board"))
+            if seg:
+                st = runmod.state(wid)
+                path = pathlib.Path(st["boards"].get(seg["id"], ""))
+                if path.name and path.exists():
+                    gate_id = _gate_id_for(st, step.get("child", ""))
+                    named = {str(r.get("obligation", "")).strip(): r for r in rows}
+                    merged = [{**row, "status": named[row["id"]].get("disposition", ""),
+                               "gate": gate_id}
+                              if row.get("id") in named else row
+                              for row in boards.rows(path)]
+                    _seed_board(runmod.resolve_form(asm, seg["board"]), path, merged)
+                    journal.append(wid, "board", segment=seg["id"], path=str(path), rows=merged)
         elif mints:
             seg = next((s for s in asm["segment"] if s.get("dispatches") == mints), None)
             if seg:

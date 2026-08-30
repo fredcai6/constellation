@@ -650,8 +650,12 @@ def test_every_role_an_assembly_names_has_a_skill_behind_it():
         spec = tomllib.load(open(a, "rb"))
         named = {spec.get("conductor", "")}
         for seg in spec["segment"]:
-            named |= {seg.get("worker", ""), seg["transition"].get("filler", "")}
-            named |= {p.get("worker", "") for p in seg["transition"].get("panel", [])}
+            # A segment need not declare a transition at all -- a board with
+            # nothing standing the run on a step, run-an-issue's own
+            # execution-state, has none.
+            transition = seg.get("transition", {})
+            named |= {seg.get("worker", ""), transition.get("filler", "")}
+            named |= {p.get("worker", "") for p in transition.get("panel", [])}
         # `filler = "conductor"` is an indirection, not a role: it means
         # whoever conducts this assembly. Resolve it before checking.
         named = {spec.get("conductor", "") if r == "conductor" else r for r in named}

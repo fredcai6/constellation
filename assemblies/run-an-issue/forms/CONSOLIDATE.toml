@@ -43,6 +43,25 @@ reader of the journal — the board stays behind in the work location, and these
 fields are what join the run's prefill."""
 
 [[field]]
+id = "obligations"
+kind = "plan"
+mints = "board rows"
+board = "execution-state"
+optional = true
+note = """
+One block per commitment the spec makes, verbatim from its own numbered
+list. Minted as rows on the execution-state board (EXECUTION_STATE.toml) the
+moment this releases -- every gate's advance reads their dispositions
+afterward to decide whether the run is done, never the spec's prose again.
+Leave blank on a run whose gates already close it out some other way; a
+run that fills nothing here settles trivially, exactly as before this
+board existed."""
+
+  [[field.item]]
+  id = "obligation"
+  note = "One spec commitment, verbatim."
+
+[[field]]
 id = "resolution"
 kind = "decision"
 optional = true
