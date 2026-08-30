@@ -584,7 +584,14 @@ def test_glossary_worktree_and_archive_paths_match_the_engine():
     assert '_WORKTREES_DIR = ".worktrees"' in ENGINE_SRC
     assert ".worktrees/<work-id>" in worktree
     assert 'top / ".agent-work" / "archive"' in ENGINE_SRC
-    assert ".agent-work/archive/<work-id>/" in archive
+    # [archive-nesting]
+    # Rationale: The engine builds nested paths by splitting the work-id on dots:
+    # `dest = top / ".agent-work" / "archive" / pathlib.Path(*wid.split("."))`.
+    # For `issue17.g1`, this produces `.agent-work/archive/issue17/g1/`, not a
+    # flat path with a `<work-id>` template. The glossary entry correctly
+    # describes this nesting with a worked example; check for that example
+    # instead of the stale template.
+    assert ".agent-work/archive/issue17/g1" in archive
     assert "<project>" not in worktree
     assert "<project>" not in archive
 
