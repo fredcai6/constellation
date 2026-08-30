@@ -279,6 +279,11 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
         'vocabulary = "waived: consistent"\nverdict = "pass"\n')
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
+    # a pass releases nothing on its own now: the round is disposed of on the
+    # transition's own conductor form, which is what walks the gate to close
+    pathlib.Path(f".agent-work/issue17/g1/REVIEW_ROUND.toml").write_text(
+        'resolution = "close"\n')
+    cli.main([child, "submit"])
     pathlib.Path(f".agent-work/issue17/g1/GATE_CLOSE.toml").write_text(
         'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])

@@ -1,16 +1,18 @@
 # Step: impasse. Owned by run-a-gate; filled by the implementer, who conducts
 # this gate. Minted in place of a fourth implement round once the review has
-# sent the same diff back `impasse-after` times. It carries no panel: a fourth
-# fresh-context reader is the loop, not the way out of it.
+# sent the same diff back `impasse-after` times -- counted on the conductor's
+# own rework, since that is the hand the round is actually sent back by. It
+# carries no panel: a fourth fresh-context reader is the loop, not the way out
+# of it.
 
 imperative = """
 The review has sent this diff back three times. Rule on the loop, not on the
 findings: three reviews landing on the same thing means the gate spec, not the
 diff, is what keeps failing. `arrival` in your orders reads `rework-rounds`
-here always -- this gate's review is panel-only and its verdict is
-`pass | revise`, so a root objection arrives as a revise finding, not a third
-word, and only a repeated one reaches you here. Say which way this gate goes,
-and what the three rounds had in common."""
+here always -- the panel's verdict is `pass | revise`, so a root objection
+arrives as a revise finding, not a third word, and only three you yourself
+sent back reach you here. Say which way this gate goes, and what the three
+rounds had in common."""
 
 [[field]]
 id = "ruling"

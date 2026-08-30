@@ -20,6 +20,7 @@ from test_nesting import (
     _dispatch_and_close_plan,
     _dispatch_plan_critic,
     _dispatch_review,
+    _fill_review_round,
     _fill,
     _fill_consolidate,
     _fill_gate_transition_replan,
@@ -144,8 +145,10 @@ plan = "the plan doc"
 
 
 def test_revise_without_rework_form_mints_the_step_form(workdir, capsys):
-    """run-a-gate's work segment declares no rework-form, so a review revise
-    refills with IMPLEMENT.toml exactly as before."""
+    """run-a-gate's work segment declares no rework-form, so the round the
+    review transition sends back refills with IMPLEMENT.toml exactly as
+    before -- `_dispatch_review` drives both voices, the panel's revise and
+    the conductor form's `rework` that acts on it."""
     cli.main(["open", "run-a-gate", "--id", "g1"])
     _fill_implement("g1", "work-1")
     cli.main(["g1", "submit"])
@@ -416,10 +419,13 @@ def test_up_mints_nothing_and_the_run_walks_to_its_close(workdir, capsys):
 
 
 def _drive_gate_to_impasse(child="issue17.g1"):
-    """Four review revises on one diff: the first three refill the interior,
-    and the fourth is the one the outlet takes. run-a-gate's work segment
-    declares no rework-form, so every refill mints the step-form again -- the
-    count is of those, and the opening step is not one."""
+    """Four review revises on one diff, each disposed of on the review
+    transition's own conductor form: the first three refill the interior
+    through its `rework`, and the fourth is the one the outlet takes. A
+    revise releases on its own now, so the form's `rework` is the path the
+    mint -- and the count with it -- actually runs on. run-a-gate's work
+    segment declares no rework-form, so every refill mints the step-form
+    again; the count is of those, and the opening step is not one."""
     _mint_n_gates(1)
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     for n in (1, 2, 3, 4):
@@ -441,9 +447,13 @@ def test_a_gates_fourth_revise_mints_the_impasse_form(workdir, capsys):
     assert runmod.rework_rounds(st, asm, "work") == 3
 
 
-def test_a_gates_advance_walks_to_close_since_its_transition_has_no_form(workdir, capsys):
-    """run-a-gate's review transition declares no conductor form -- releasing
-    is the whole of it -- so advancing mints nothing and the run walks on."""
+def test_a_gates_advance_mints_its_transition_and_the_form_closes_the_round(workdir, capsys):
+    """`advance` mints the segment's own transition alone, over the live
+    revise. That transition carries a conductor form now, so what the ruling
+    stands the implementer on is one more disposal of the round -- no panel
+    to argue with, and `close` there walks the gate to GATE_CLOSE. Before
+    review carried a form, `_mint_transition` had nothing to mint and the run
+    walked on by itself."""
     child = _drive_gate_to_impasse()
     capsys.readouterr()
     before = len(runmod.state(child)["steps"])
@@ -453,8 +463,14 @@ def test_a_gates_advance_walks_to_close_since_its_transition_has_no_form(workdir
     capsys.readouterr()
 
     st = runmod.state(child)
-    assert len(st["steps"]) == before, "advance minted a step for a formless transition"
-    assert st["current"]["form"] == "forms/GATE_CLOSE.toml"
+    assert len(st["steps"]) == before + 1, "advance minted more than its transition"
+    assert st["current"]["form"] == "forms/REVIEW_ROUND.toml"
+    assert not st["current"].get("panel"), "advance minted a fresh panel to argue with"
+
+    _fill_review_round(child, "close")
+    cli.main([child, "submit"])
+    capsys.readouterr()
+    assert runmod.state(child)["current"]["form"] == "forms/GATE_CLOSE.toml"
 
 
 def test_a_gates_rework_mints_the_step_form_again(workdir, capsys):

@@ -188,13 +188,16 @@ MINT_TARGETS = {
     # verb (`_mint_segment_round(wid, asm, tseg["id"], prefill=fields)`) --
     # `fields` is forwarded whole, not a literal dict this sweep can see, so
     # there is no site left here for gate adjudication's replan to name.
-    ("_act_on_verdicts", "outlet"): ("impasse-form",),
-    # An ordinary revise (no impasse loop) now resolves through the same
+    # The outlet moved onto `_perform`'s own `rework` verb, where both voices
+    # that can decide a rework reach it: the panel's merged verdict resolving
+    # to `rework`, and a conductor form submitting on the step that panel
+    # returned to. `_act_on_verdicts` no longer mints anything itself.
+    ("_perform", "outlet"): ("impasse-form",),
+    # An ordinary revise (no impasse loop) resolves through the same
     # declared-outcome table a two-voices step already used -- `_perform`'s
-    # `rework` verb, called with a synthesized step whose own `prefill` is
-    # `step.get("prefill") or {}` (forwarded, not a literal this sweep can
-    # see). The literal-dict site that used to sit directly in
-    # `_act_on_verdicts` is gone; nothing replaces it here.
+    # `rework` verb, whose prefill is either the deciding step's own
+    # (forwarded, not a literal this sweep can see) or `_panel_judged_rework`'s
+    # findings, built there rather than as a literal dict at the mint.
 }
 
 # A form that receives a minted key its own prose never names, and the file

@@ -46,14 +46,17 @@ def test_open_mints_the_skeleton(workdir, capsys):
 
 
 def test_run_a_gate_skeleton_mints_a_review_step_for_its_panel(workdir, capsys):
-    # run-a-gate's review transition declares a panel and no form -- it used
-    # to mint nothing, which is why a gate ran implement -> close with no
-    # reviewer ever involved
+    # run-a-gate's review transition declares a panel -- it used to mint
+    # nothing at all, which is why a gate ran implement -> close with no
+    # reviewer ever involved. It declares a conductor form beside the panel
+    # now, so one skeleton step carries both voices: the panel fires first
+    # and the form disposes of the round it judged.
     steps = runmod.skeleton(runmod.load_assembly("run-a-gate"))
     assert [s["id"] for s in steps] == ["work-1", "review", "close"]
 
     review = steps[1]
-    assert "form" not in review  # no form to fill -- the conductor fires the panel
+    assert review["form"] == "forms/REVIEW_ROUND.toml"
+    assert review["filler"] == "conductor"  # the bare indirection, not a named role
     assert review["panel"] == [{
         "form": "skills/reviewer/forms/REVIEW.toml",
         "worker": "reviewer",

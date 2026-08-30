@@ -50,6 +50,13 @@ verdict = "%s"
 ''' % (findings, verdict))
 
 
+def _fill_review_round(wid, resolution):
+    """The conductor's own half of the review transition: where the round
+    the panel just judged goes next. `rework` refills the interior with the
+    panel's findings; `close` releases the round and the gate walks on."""
+    _fill(journal.location(wid) / "REVIEW_ROUND.toml", 'resolution = "%s"\n' % resolution)
+
+
 def _open_gate(gid="g1"):
     """A standalone run-a-gate, opened top-level the way test_robustness.py's
     hanging-check test does -- no run-an-issue plumbing needed to exercise
@@ -61,12 +68,15 @@ def _open_gate(gid="g1"):
 
 
 def _pass_the_panel(gwid, step_id="review"):
-    """Drive the panel to a pass so the gate's next pending step is its
+    """Drive the panel to a pass and dispose of the round on the
+    transition's own conductor form, so the gate's next pending step is its
     ordinary close form."""
     wid = _open_panelist(gwid, step_id)
     _fill_review(wid, "pass")
     cli.main([wid, "submit"])
     cli.main([wid, "close"])
+    _fill_review_round(gwid, "close")
+    cli.main([gwid, "submit"])
 
 
 def _open_panelist(gwid, step_id, n=1):
@@ -162,7 +172,12 @@ def test_opening_an_untagged_or_out_of_range_panel_step_refuses(workdir, capsys)
 # -- the transition acts: pass releases, revise refills ---------------------
 
 
-def test_pass_releases_and_the_gate_proceeds_to_close(workdir, capsys):
+def test_pass_holds_for_the_conductors_form_and_close_proceeds_to_close(workdir, capsys):
+    """A pass is inert -- its declared verb is `release`, which mints
+    nothing -- so it no longer walks the gate on by itself: the review step
+    stays open on its own conductor form, and `close` there is what proceeds.
+    One manual step where review used to auto-walk, and the same three steps
+    either way: neither voice mints anything on a clean round."""
     _open_gate()
     panelist = _open_panelist("g1", "review")
     _fill_review(panelist, "pass")
@@ -173,15 +188,32 @@ def test_pass_releases_and_the_gate_proceeds_to_close(workdir, capsys):
     capsys.readouterr()
 
     st = runmod.state("g1")
-    assert st["current"]["id"] == "close"           # released straight through
+    assert st["current"]["id"] == "review"           # held, not released
+    assert st["current"]["form"] == "forms/REVIEW_ROUND.toml"
+
+    _fill_review_round("g1", "close")
+    cli.main(["g1", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("g1")
+    assert st["current"]["id"] == "close"
     assert [s["id"] for s in st["steps"]] == ["work-1", "review", "close"]  # nothing minted
 
 
-def test_revise_refills_with_every_panelists_findings_concatenated_and_attributed(workdir, capsys):
+def test_rework_refills_with_every_panelists_findings_concatenated_and_attributed(workdir, capsys):
+    """*What* refills is unchanged -- every panelist's findings, verbatim,
+    concatenated and attributed -- but *who* says so is not: the revise
+    holds the step open, and the conductor's own `rework` is what mints the
+    round the findings ride into."""
     journal.append("g4", "run", title="t", assembly="run-a-gate")
     journal.append("g4", "step", id="work-1", segment="work", form="skills/implementer/forms/IMPLEMENT.toml",
                    filler="implementer", anchor=False, terminal=False, validates="", source="open")
+    # the transition's own form rides on the step beside the panel -- the
+    # real two-voices shape `skeleton` mints; only the panel is overridden
+    # here, to exercise attribution across more panelists than run-a-gate
+    # itself declares
     journal.append("g4", "step", id="review", segment="work",
+                   form="forms/REVIEW_ROUND.toml",
                    panel=[{"worker": "reviewer", "criteria": "c1"},
                           {"worker": "reviewer", "criteria": "c2"}])
     _fill_implement("g4")
@@ -198,6 +230,12 @@ def test_revise_refills_with_every_panelists_findings_concatenated_and_attribute
 
     cli.main([p1, "close"])
     cli.main([p2, "close"])
+    capsys.readouterr()
+
+    st = runmod.state("g4")
+    assert st["current"]["id"] == "review"   # the revise minted nothing on its own
+    _fill_review_round("g4", "rework")
+    cli.main(["g4", "submit"])
     capsys.readouterr()
 
     st = runmod.state("g4")
@@ -221,13 +259,15 @@ def test_revise_refills_with_every_panelists_findings_concatenated_and_attribute
 
 
 def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
-    """There is no third verdict word to release a two-voices step early: a
-    root objection is a revise finding like any other, so the only way this
-    gate's review ever releases without a final pass is the loop -- four
-    revises, the fourth reaching the impasse, `up` walking the gate to close.
-    `_summary` stamps the panel's own last merged verdict onto the return,
-    not the conductor's ruling on it, so the parent adjudicating sees what
-    the panel actually said."""
+    """There is still no third verdict word: a root objection is a revise
+    finding like any other, so the only way this gate's review ever ends
+    without a final pass is the loop -- four revises the conductor sends
+    back through the transition's own form, the fourth reaching the impasse,
+    `up` walking the gate to close. The count is spent on the form's own
+    `rework` now, which is the path the mint moved onto; `_summary` still
+    stamps the panel's own last merged verdict onto the return, not the
+    conductor's ruling on it, so the parent adjudicating sees what the panel
+    actually said."""
     journal.append("issue9", "run", title="t", assembly="run-an-issue")
     journal.append("issue9", "step", id="g5", segment="execute", dispatches="run-a-gate",
                    prefill={"purpose": "p"}, child="issue9.g5", source="mint")
@@ -241,6 +281,8 @@ def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
         _fill_review(panelist, "revise", f"gap: still off by one ({n})")
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
+        _fill_review_round(child, "rework")
+        cli.main([child, "submit"])
     capsys.readouterr()
 
     st = runmod.state(child)

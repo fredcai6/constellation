@@ -790,10 +790,7 @@ def _decided_here(asm, step):
     check stands down there rather than running first and refusing on
     stricter terms -- one field, one enforcer.
     """
-    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
-    t = seg.get("transition", {})
-    spec = t if step.get("form") == t.get("form") else seg
-    return spec.get("decides")
+    return runmod.deciding_spec(asm, step)[1].get("decides")
 
 
 def _check_vocabulary(asm, step, form, fields):
@@ -866,9 +863,7 @@ def _outcome(asm, step, fields, st):
     `_mint_gates`' own data, read structurally rather than declared or
     hardcoded.
     """
-    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
-    t = seg.get("transition", {})
-    spec = t if step.get("form") == t.get("form") else seg
+    seg, spec = runmod.deciding_spec(asm, step)
     field = spec.get("decides")
     if not field or field not in fields:
         return None
@@ -898,7 +893,7 @@ def _outcome(asm, step, fields, st):
             raise SystemExit(render.refusal(
                 field, f"{target!r} is not a pending gate",
                 escape="pending: " + (", ".join(pending) or "none")))
-    does = chosen.get("does", "release")
+    does = runmod.declared_does(spec, value)
     for verb in filter(None, (v.strip() for v in does.split(";"))):
         word, _, argfield = verb.partition(" ")
         if word == "remint" and not fields.get(argfield):
@@ -906,6 +901,54 @@ def _outcome(asm, step, fields, st):
                 argfield, "remint needs a new gate spec -- a remint with no "
                 "spec is a drop wearing the wrong name"))
     return seg, does
+
+
+# [panel-judged-rework]
+# Rationale: a rework decided at a transition its own panel returned to is
+#   the same act whichever voice decided it -- the merged verdict resolving
+#   to `rework` (run-an-issue's consolidate and plan-to-execute,
+#   explore-an-idea's spec) or a conductor's form submitting on the step
+#   that panel already returned to (run-a-gate's review). Both owe the fresh
+#   round the panel's own findings as prefill, and both spend the segment's
+#   `impasse-after` count. So both live here, on the verb, rather than at
+#   either caller: run-a-gate's review resolves `revise` to `release` now,
+#   so the panel-return path never reaches `rework` for it again and an
+#   outlet checked only there would silently stop firing.
+# Rejected: duplicating the check on the ordinary submit path. Two counts
+#   that happen to agree is the shape that drifts, and the fourth round is
+#   exactly the round nobody re-tests by hand.
+def _panel_judged_rework(wid, asm, seg, step):
+    """(prefill, outlet) for a rework decided at `seg`'s own panel-bearing
+    transition: the panel's findings concatenated, never summarised, and
+    attributed to the panelist that raised them -- plus any `horizon` the
+    round just judged wrote, which `skills/planner/SKILL.md` promises the
+    next round arrives holding. `outlet` is the segment's impasse form once
+    `impasse-after` rounds have already landed on this artifact, so a
+    conductor rules on the loop rather than the run finishing around it.
+
+    `(None, "")` where `step` is not that transition -- an impasse ruling's
+    own `rework` carries the prefill that caused it and never spends the
+    count, which is what makes the outlet a way out rather than a wall.
+    """
+    t = seg.get("transition", {})
+    if not (step.get("panel") and step.get("segment") == seg["id"]
+            and step.get("form") == t.get("form")):
+        return None, ""
+    st = runmod.state(wid)
+    findings = "\n\n".join(
+        f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
+        for r in st["returns"].get(step["id"], []))
+    # The round just judged is the segment's own most recent non-panel step --
+    # the same lookup a panelist's own prefill uses (`_open_child`) to find
+    # the artifact it is reviewing. Carried under the producing form's own
+    # key, not a name this engine chose, so `test_promises.py`'s mint sweep
+    # does not hold this call to it the way it holds `findings`.
+    prior = [s for s in st["steps"] if s["segment"] == seg["id"] and s["id"] != step["id"]]
+    produced = st["done"].get(prior[-1]["id"], {}).get("fields", {}) if prior else {}
+    carried = {"horizon": produced["horizon"]} if produced.get("horizon") else {}
+    after = seg.get("impasse-after", 0)
+    looped = bool(after) and runmod.rework_rounds(st, asm, seg["id"]) >= after
+    return {"findings": findings, **carried}, (seg.get("impasse-form", "") if looped else "")
 
 
 # [impasse-verbs]
@@ -962,7 +1005,15 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "transition":
             _mint_transition(wid, tseg)
         elif word == "rework":
-            _mint_segment_round(wid, asm, tseg["id"], prefill=step.get("prefill") or {},
+            judged, outlet = _panel_judged_rework(wid, asm, tseg, step)
+            if outlet:
+                journal.append(wid, "step", id=f"{tseg['id']}-a{secrets.token_hex(2)}",
+                               segment=tseg["id"], form=outlet, filler="conductor",
+                               prefill={**judged, "arrival": "rework-rounds"},
+                               anchor=False, terminal=False, validates="", source="mint")
+                continue
+            _mint_segment_round(wid, asm, tseg["id"],
+                                prefill=step.get("prefill") or {} if judged is None else judged,
                                 form=tseg.get("rework-form", ""))
         elif word == "remint":
             _mint_gates(wid, seg, fields.get(target) or [])
@@ -1504,10 +1555,10 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
 #   literal word `revise` -- in front of this. It did two jobs at once:
 #   short-circuiting a pass (now `release`'s job) and keeping the
 #   three-rounds impasse check from firing on anything but a revise (now
-#   `does == "rework"`'s job, read off the resolved verb rather than the
-#   raw word) -- and a transition that declares no outcome at all now
-#   simply does nothing, the same inertness `release` spells for one that
-#   does. Comparing the merged word against a literal anywhere in this
+#   `_perform`'s own `rework` verb owns that, so both voices that can decide
+#   a rework spend the same count) -- and a transition that declares no
+#   outcome at all now simply does nothing, the same inertness `release`
+#   spells for one that does. Comparing the merged word against a literal anywhere in this
 #   function would leave one more place dispatching on the vocabulary the
 #   outcome table now owns end to end.
 # See: assemblies/run-an-issue/forms/PLAN_TO_EXECUTE.toml
@@ -1521,12 +1572,13 @@ def _act_on_verdicts(pwid, step_id):
     there is nothing more to mint, the verdict itself rides the summary up
     to whoever adjudicates next; for a two-voices step, `state()` has
     already left it open instead, so this is inert twice over and the form
-    is what releases it. Revise's declared verb is `rework`, which refills
-    the interior with a fresh round of the segment -- findings
-    concatenated, never summarised, and attributed to the panelist that
-    raised them -- unless three rounds have already landed on this segment,
-    in which case it mints the segment's outlet instead, so a conductor
-    rules on the loop rather than the run finishing around it."""
+    is what releases it -- run-a-gate's review declares both of its verdicts
+    that way, so its rounds are always disposed of by a conductor. A verb
+    that acts -- `rework`, which run-an-issue's consolidate and
+    plan-to-execute still declare for `revise` -- is `_perform`'s from here,
+    findings and the segment's own three-round outlet included, since a
+    conductor form deciding the same rework reaches that verb by the
+    ordinary submit and owes the round exactly the same two things."""
     pst = runmod.state(pwid)
     step = next((s for s in pst["steps"] if s["id"] == step_id), None)
     if not step or not step.get("panel") or runmod.panel_outstanding(pst, step):
@@ -1552,48 +1604,12 @@ def _act_on_verdicts(pwid, step_id):
     if not outcome:
         return
     seg, does = outcome
-    findings = "\n\n".join(
-        f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
-        for r in returns)
-    # Rationale: three reviews landing on one artifact means the artifact is
-    #   not the one under repair, so the fourth revise mints a ruling instead
-    #   of a fourth round -- and mints it alone, since a fourth fresh-context reader is
-    #   the loop rather than the way out. The number and the form are the
-    #   assembly's; the engine names neither. Gated on the resolved verb, not
-    #   the verdict word, so a `release` never spends a read on the count.
-    if does == "rework":
-        after, outlet = seg.get("impasse-after", 0), seg.get("impasse-form", "")
-        looped = bool(after) and runmod.rework_rounds(pst, asm, step["segment"]) >= after
-        if outlet and looped:
-            journal.append(pwid, "step", id=f"{step['segment']}-a{secrets.token_hex(2)}",
-                           segment=step["segment"], form=outlet, filler="conductor",
-                           prefill={"findings": findings, "arrival": "rework-rounds"},
-                           anchor=False, terminal=False, validates="", source="mint")
-            return
-    # The round just judged is the segment's own most recent non-panel
-    # step -- the same lookup a panelist's own prefill uses (`_open_child`)
-    # to find the artifact it is reviewing. Its `horizon`, when it wrote
-    # one, rides forward into the next round's prefill beside `findings`:
-    # `skills/planner/SKILL.md` promises the coarse sketch behind the
-    # gate arrives as prefill, and a fresh round otherwise never sees
-    # what the round before it sketched. Carried under the producing
-    # form's own key via `**carried`, the same way a panelist's own
-    # artifact fields already ride (`_open_child`) -- not a name this
-    # engine chose, so `test_promises.py`'s mint sweep does not hold
-    # this call to it the way it holds `findings` (a literal key, right
-    # there in the dict) to every rework-form and step-form in the tree.
-    prior = [s for s in pst["steps"] if s["segment"] == step["segment"] and s["id"] != step_id]
-    produced = pst["done"].get(prior[-1]["id"], {}).get("fields", {}) if prior else {}
-    carried = {"horizon": produced["horizon"]} if produced.get("horizon") else {}
-    # The deciding step's own prefill is what `_perform`'s `rework` verb
-    # carries forward (see `[impasse-verbs]`) -- right for a ruling
-    # reworking what caused it, wrong here, where the fresh round's
-    # prefill is this panel's findings (and any carried horizon), not
-    # whatever the panel itself was dispatched to read. A step-shaped
-    # copy with that one field swapped is `_perform`'s real contract
-    # without duplicating what it does.
-    synth = {**step, "prefill": {"findings": findings, **carried}}
-    _perform(pwid, asm, seg, does, {field: verdict, "findings": findings, **carried}, synth)
+    # The fresh round's prefill and the segment's own three-round outlet are
+    # `_perform`'s `rework` verb to apply (see `[panel-judged-rework]`), not
+    # this caller's: a conductor's form submitting on this same step reaches
+    # that verb by the ordinary route and owes the round exactly the same
+    # two things.
+    _perform(pwid, asm, seg, does, {field: verdict}, step)
 
 
 def _summary(st):
