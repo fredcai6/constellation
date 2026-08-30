@@ -11,6 +11,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
+from gitremote import init_checkout, read_archived, stub_gh
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -22,6 +23,7 @@ def workdir(tmp_path, monkeypatch):
     # the command palette (models, check commands) is host-repo config;
     # tests run in an isolated tmp cwd, so it travels with them
     (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    init_checkout(tmp_path)
     return tmp_path
 
 
@@ -475,9 +477,13 @@ def test_advance_performs_no_amends(workdir, capsys):
     cli.main(["issue17", "submit"])
     capsys.readouterr()
 
-    entries = journal.read("issue17")
-    assert len(entries) == before + 1  # nothing beyond the submit itself
-    assert entries[-1]["kind"] == "submit"
+    # advance now commits the gate (issue19.g3) -- here the implement round
+    # only touched `.agent-work`, gitignored, so the engine's own commit
+    # attempt stages nothing and journals its no-op note rather than an
+    # amend; either way, advance itself never amends anything
+    new_entries = journal.read("issue17")[before:]
+    assert new_entries[0]["kind"] == "submit"
+    assert not any(e["kind"] == "amend" for e in new_entries)
     assert runmod.state("issue17")["current"]["id"] == "g2"
 
 
@@ -866,11 +872,16 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     assert st["current"]["id"] == fresh_plan["id"]
 
 
-def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys):
+def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeypatch):
     """The summary's verdict was read off panel-only steps, so a run whose
     critics had ruled on the plan closed carrying the empty string where the
     panel's word belongs -- and an escalated run, which is exactly the one a
-    principal reads the summary of, said nothing at all."""
+    principal reads the summary of, said nothing at all.
+
+    An issue-tier close now pushes and opens a PR before it archives, so
+    `gh` is stubbed here (never a real remote) and the closed entry is read
+    off the archive rather than through `journal.read`, which no longer
+    resolves an id once `close` has swept it there."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -891,10 +902,11 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys):
     cli.main([wid, "submit"])
     _fill_close(wid)
     cli.main([wid, "submit"])
+    stub_gh(monkeypatch)
     cli.main([wid, "close"])
     capsys.readouterr()
 
-    closed = next(e for e in journal.read(wid) if e["kind"] == "closed")
+    closed = read_archived(workdir, wid, "closed")
     assert closed["summary"]["verdict"] == "escalate", (
         "the close summary of an escalated run carries "
         f"{closed['summary']['verdict']!r} where three critics ruled")

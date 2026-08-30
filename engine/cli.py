@@ -10,6 +10,7 @@ import os
 import pathlib
 import re
 import secrets
+import shutil
 import subprocess
 import sys
 import tomllib
@@ -64,8 +65,8 @@ def mint_id(issue=None, kind="issue"):
             return wid
 
 
-def _palette():
-    p = pathlib.Path("constellation.toml")
+def _palette(root=None):
+    p = pathlib.Path(root or ".", "constellation.toml")
     return tomllib.load(open(p, "rb")) if p.exists() else {}
 
 
@@ -95,28 +96,39 @@ def _prose_words(path):
 def _measure_artifacts(wid, step, form, fields):
     """Record each artifact field's prose length, so a later round can say how
     the artifact moved. Recorded, never enforced -- the engine has no opinion
-    about the number and refuses nothing on it."""
+    about the number and refuses nothing on it.
+
+    A stored artifact path is already work-location-inclusive
+    (`.agent-work/<work-id>/plan.md`), so it is read against the run's own
+    tree -- `journal.root_for`, not `journal.location` -- or resolving it
+    again would double the prefix and break every run, not only a worktree
+    one."""
+    root = journal.root_for(wid)
     for f in form.get("fields", []):
         if f.get("kind") != "artifact" or not isinstance(fields.get(f["id"]), str):
             continue
-        words = _prose_words(fields[f["id"]])
+        words = _prose_words(root / fields[f["id"]])
         if words:
             journal.append(wid, "measure", segment=step["segment"], step=step["id"],
                            field=f["id"], path=fields[f["id"]], words=words)
 
-def _resolve_command(text):
+def _resolve_command(text, root=None):
     """`palette:test args` -> the host repo's test command plus args. A proof
     chaining several named jobs with `&&` (`palette:test && palette:lines`)
     resolves each side on its own, so the second name is looked up rather
-    than handed to the shell as a literal command it does not have."""
-    return " && ".join(_resolve_one(part.strip()) for part in text.split("&&"))
+    than handed to the shell as a literal command it does not have.
+
+    `root` is the run's own tree, not cwd -- a check both resolves and later
+    runs there, so which command a `palette:` proof expands to stops
+    depending on the shell the agent happens to be standing in."""
+    return " && ".join(_resolve_one(part.strip(), root) for part in text.split("&&"))
 
 
-def _resolve_one(text):
+def _resolve_one(text, root=None):
     if not text.startswith("palette:"):
         return text
     name, _, rest = text[len("palette:"):].partition(" ")
-    cmd = _palette().get("commands", {}).get(name)
+    cmd = _palette(root).get("commands", {}).get(name)
     if not cmd:
         raise SystemExit(f"command palette has no entry named {name!r}")
     return f"{cmd} {rest}".strip()
@@ -148,6 +160,116 @@ def _response_path(st, step):
     return journal.location(st["id"]) / name
 
 
+_WORKTREES_DIR = ".worktrees"  # sibling of the top-level checkout's tracked tree
+
+
+def _git(cwd, *args):
+    """One git call against an explicit directory -- never the process's own
+    cwd, which a root open is about to move. Never raises: a missing git or
+    a wedged process reads through the return code like any other git
+    failure, so the caller has one shape to check rather than two."""
+    try:
+        return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
+                              text=True, timeout=CHECK_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return subprocess.CompletedProcess(args, 1, "", str(e))
+
+
+def _gh(cwd, *args):
+    """One `gh` call against an explicit directory -- the same never-raises
+    shape as `_git`, so `cmd_close` has one kind of failure to check for
+    either. Intercepted on argv by the fast suite exactly where `_git` is
+    not: a test that let this reach a real `gh` binary could open a real
+    pull request against whatever `origin` happens to point at."""
+    try:
+        return subprocess.run(["gh", *args], cwd=str(cwd), capture_output=True,
+                              text=True, timeout=CHECK_TIMEOUT)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return subprocess.CompletedProcess(args, 1, "", str(e))
+
+
+# [toplevel-checkout]
+# Rationale: `--git-common-dir` always names the *main* checkout's `.git`,
+#   even called from inside a linked worktree, because every worktree of one
+#   repo shares it. That makes resolution safe to call again from inside a
+#   worktree `open` itself just produced, without climbing back out first.
+# Rejected: `--show-toplevel`. From inside a linked worktree it names the
+#   worktree itself, so a second root run opened without leaving the first
+#   would nest its worktree inside it instead of beside it.
+def _toplevel_checkout(cwd):
+    r = _git(cwd, "rev-parse", "--git-common-dir")
+    if r.returncode != 0:
+        return None
+    return (pathlib.Path(cwd) / r.stdout.strip()).resolve().parent
+
+
+# [push-before-journal]
+# Rationale: the branch and worktree are made and pushed before anything is
+#   journaled. A push failure then leaves nothing behind to clean up beyond
+#   what this function undoes itself, so the caller's retry is the same
+#   command again, not a cleanup followed by a command.
+# Rejected: journaling the run first and pushing after -- a failed push
+#   would then leave a run that `journal.exists` calls real, and `--id`
+#   would have to be swapped for a retry instead of just repeated.
+def _open_root_worktree(wid, assembly, title):
+    top = _toplevel_checkout(pathlib.Path.cwd())
+    if top is None:
+        raise SystemExit(render.refusal(
+            "checkout", "not a git checkout",
+            escape="open this from inside a git checkout of the project"))
+    if not _git(top, "remote").stdout.strip():
+        raise SystemExit(render.refusal(
+            "remote", "the checkout has no remote",
+            escape=f"add one: git -C {top} remote add origin <url>"))
+    worktree = top / _WORKTREES_DIR / wid
+    made = _git(top, "worktree", "add", "-b", wid, str(worktree))
+    if made.returncode != 0:
+        raise SystemExit(render.refusal(
+            "branch", f"could not create {wid}'s worktree -- "
+            f"{(made.stderr or made.stdout).strip()}"))
+    # Run from `top`, not `worktree`: a relative remote URL (`origin
+    # ../remote.git`) is resolved against the cwd `git push` runs in, and
+    # it was set up relative to `top`, the checkout it was configured in --
+    # not `worktree`, a directory `git worktree add` just created one level
+    # deeper.
+    pushed = _git(top, "push", "-u", "origin", wid)
+    if pushed.returncode != 0:
+        _git(top, "worktree", "remove", "--force", str(worktree))
+        _git(top, "branch", "-D", wid)
+        raise SystemExit(render.refusal(
+            "push", f"push failed -- {(pushed.stderr or pushed.stdout).strip()}",
+            escape=f"the branch and worktree just made are already removed -- "
+                   f"retry: spine open {assembly} --id {wid} --title \"{title}\""))
+    return worktree
+
+
+def _commit_open(wid, worktree):
+    """The commit `open` makes once the run's own work area exists inside
+    the worktree. `.agent-work` is gitignored, so the ordinary case stages
+    nothing -- a journaled no-op, not a failure the agent has to explain."""
+    _git(worktree, "add", "-A")
+    made = _git(worktree, "commit", "-m", f"open {wid}")
+    if made.returncode != 0:
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
+                       kind_detail="observation", about="commit",
+                       text="open staged nothing to commit")
+
+
+# [issue-tier-worktree]
+# Rationale: `_mintable` already derives, from the assembly itself, every
+#   name some segment declares as `dispatches` -- the run-an-issue shape,
+#   the only one with gates to commit. Reusing it here means a new
+#   issue-shaped assembly is in the issue tier the moment its plan segment
+#   dispatches gates, with nothing to update beside this function.
+# Rejected: a name list (`{"run-an-issue"}`) kept beside this check -- a new
+#   issue-shaped assembly would silently sit outside git until someone
+#   remembered to add its name here.
+# See: ruling 8, docs/V2_DESIGN.md -- "git is the issue tier's, and the
+#   engine's"; an idea or an excursion produces a spec, not a diff.
+def _issue_tier(asm):
+    return bool(_mintable(asm) - {_BOARD_MINT})
+
+
 def cmd_open(argv):
     if not argv or argv[0].startswith("--"):
         raise SystemExit("spine open <assembly> --title T [--issue N]\n  assemblies: "
@@ -162,11 +284,21 @@ def cmd_open(argv):
     if journal.exists(wid):
         raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
+    on_issue_tier = _issue_tier(asm)
+    landed = ""
+    if on_issue_tier:
+        worktree = _open_root_worktree(wid, assembly, title)
+        os.chdir(worktree)  # the work location this mints lands inside the worktree
+        landed = (f"\n  now inside the worktree -- if this shell has not followed:\n"
+                  f"  cd {worktree}\n")
     journal.append(wid, "run", title=title, assembly=assembly,
-                   conductor=asm.get("conductor", ""))
+                   conductor=asm.get("conductor", ""), branch=wid,
+                   worktree=str(pathlib.Path.cwd()))
     for step in runmod.skeleton(asm):
         journal.append(wid, "step", **step)
-    print(f"opened {wid}\n")
+    if on_issue_tier:
+        _commit_open(wid, pathlib.Path.cwd())
+    print(f"opened {wid}\n{landed}")
     return cmd_status([wid])
 
 
@@ -180,12 +312,22 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     entry, and the tag rides the work id so several children can share one
     parent step without colliding. An excursion is the same mechanism from
     a board row: the row is its brief, and its return lands under the row
-    rather than completing any step."""
+    rather than completing any step.
+
+    A child's work location nests inside its parent's actual location, never
+    cwd -- the two never agree unless the caller happened to be standing in
+    the parent's own worktree, and a child minted elsewhere would strand
+    itself outside the tree the archive move (g4) physically walks. The
+    child does not exist in either root yet, so two-root resolution cannot
+    find it either; `proot`, read off the parent (which does exist), is
+    handed to the child's first journal entry instead.
+    """
     pst = runmod.state(parent)
     if pst is None:
         raise SystemExit(render.located(f"no run named {parent}\n  open runs: spine"))
+    proot = journal.root_for(parent)
     if row_id:
-        return _open_excursion(assembly, parent, pst, row_id)
+        return _open_excursion(assembly, parent, pst, row_id, proot)
     m = _PANEL_TAG.match(pstep_id or "")
     step_id, tag = (m.group(1), m.group(2)) if m else (pstep_id, "")
     n = int(tag[1:]) if tag else 0
@@ -232,7 +374,7 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
-                   parent_step=step_id, model=tier)
+                   parent_step=step_id, model=tier, root=proot)
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
         # A panel names the form its panelist fills -- a critic reads a plan
@@ -259,7 +401,7 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
 #   step's: an excursion answers a row, and a row completes nothing.
 # Rejected: the engine writing the return into the board. Two writers on one
 #   file is the hazard a board avoids; the return renders, the agent folds.
-def _open_excursion(assembly, parent, pst, row_id):
+def _open_excursion(assembly, parent, pst, row_id, proot):
     seg_id, row = next(((sid, r) for sid, p in pst["boards"].items()
                         for r in boards.rows(p) if r.get("id") == row_id), ("", None))
     if row is None:
@@ -275,7 +417,8 @@ def _open_excursion(assembly, parent, pst, row_id):
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=boards.label(row)[:72], assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
-                   parent_step=seg_id, row=row_id, model=seg.get("model", ""))
+                   parent_step=seg_id, row=row_id, model=seg.get("model", ""),
+                   root=proot)
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
         journal.append(wid, "step", **step)
@@ -298,6 +441,29 @@ def _finishing(asm, form_override=""):
     return (seg.get("transition", {}).get("form", "")) if seg else ""
 
 
+# [tree-info]
+# Rationale: a dispatched child inherits its parent's tree (ruling 8), so the
+#   worktree to name is simply where this run's own journal physically
+#   lives -- `journal.root_for`, correct at any nesting depth without
+#   climbing, since a gate or panelist nests inside its issue's own. The
+#   branch is not derivable that way -- only a root run's opening entry
+#   carries one -- so it is read off the nearest ancestor that has it.
+# Rejected: a `branch` stamped on every run, including nested ones. That
+#   would repeat one fact at every depth for no reason two-root resolution
+#   does not already give for free once `worktree` is derived structurally.
+def _tree_info(wid, st):
+    """Where a dispatched child actually lands: this run's own worktree, and
+    the branch stamped on the nearest issue-tier ancestor -- climbed to
+    because only a root run's own opening entry carries one."""
+    worktree = str(journal.root_for(wid).resolve())
+    branch, seen, parent = st.get("branch", ""), {wid}, st.get("parent", "")
+    while not branch and parent and parent not in seen:
+        seen.add(parent)
+        pst = runmod.state(parent) or {}
+        branch, parent = pst.get("branch", ""), pst.get("parent", "")
+    return worktree, branch
+
+
 def _dispatch_status(wid, st, asm, step, blocked):
     """A dispatch step renders a brief, not a form: the engine launches
     nothing, so making the one right invocation is the whole job. The brief
@@ -306,11 +472,13 @@ def _dispatch_status(wid, st, asm, step, blocked):
     tier = _tier(step, asm)
     child_id = step.get("child") or f"{wid}.{step['id']}"
     open_cmd = f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"
+    worktree, branch = _tree_info(wid, st)
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.DISPATCH))
     lines.append("")
     lines.append(render.brief(child_id, dispatched.get("conductor", ""), tier,
-                              _runner(tier), open_cmd, _finishing(dispatched)))
+                              _runner(tier), open_cmd, _finishing(dispatched),
+                              worktree, branch))
     lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
@@ -326,6 +494,7 @@ def _panel_status(wid, st, asm, step, blocked):
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
     verdict_asm = runmod.load_assembly("give-a-verdict")
     returned = {r["child"].rsplit(".", 1)[-1] for r in st["returns"].get(step["id"], [])}
+    worktree, branch = _tree_info(wid, st)
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.PANEL))
     lines.append("")
@@ -340,7 +509,8 @@ def _panel_status(wid, st, asm, step, blocked):
             child_id = f"{wid}.{step['id']}.{tag}"
             open_cmd = f"spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}"
             lines.append(render.brief(child_id, panelist.get("worker", ""), tier,
-                                      _runner(tier), open_cmd, finishing))
+                                      _runner(tier), open_cmd, finishing,
+                                      worktree, branch))
         lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
@@ -496,6 +666,10 @@ def cmd_submit(argv):
                 escape=render.escape_for(vocab, verb="finish")))
         fields[fid] = filled[fid]
 
+    # A check both resolves and runs against this run's own tree -- not
+    # against whatever directory the invoking shell happens to be standing
+    # in, which a worktree can silently disagree with.
+    check_root = journal.root_for(wid)
     for f in form["fields"]:
         if f.get("kind") != "check":
             continue
@@ -503,12 +677,12 @@ def cmd_submit(argv):
         # it has one, else the run's -- a dispatched child carries its spec at
         # the run level, and its first step is minted before that spec exists.
         orders = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
-        cmd = _resolve_command(orders.get(f["id"], ""))
+        cmd = _resolve_command(orders.get(f["id"], ""), check_root)
         if not cmd:
             continue
         try:
             r = subprocess.run(cmd, shell=True, capture_output=True, text=True,
-                               timeout=CHECK_TIMEOUT)
+                               timeout=CHECK_TIMEOUT, cwd=str(check_root))
         except subprocess.TimeoutExpired:
             journal.append(wid, "check", step=step["id"], command=cmd,
                            exit=-1, output=f"no result after {CHECK_TIMEOUT}s")
@@ -776,6 +950,66 @@ def _perform(wid, asm, seg, does, fields, step):
                         journal.append(wid, "amend", action="close", segment=s["segment"],
                                        step=s["id"], reason=reason,
                                        anchor=s.get("anchor", False))
+        elif word == "commit":
+            _commit_gate(wid, asm, step)
+
+
+# [gate-commit]
+# Rationale: `_issue_tier` is checked structurally, not the branch/worktree
+#   fields alone -- `cmd_open` stamps both onto every root run's opening
+#   entry, including a non-issue-tier one with no real branch behind it
+#   (`branch=wid`, unconditional, even though no such git branch was ever
+#   made). Trusting the fields without this check would let a misdeclared
+#   outcome commit into whatever directory a non-issue run happened to open
+#   from. `_commit_open`'s own rule for "nothing to land" is reused rather
+#   than re-derived: a real commit failure and the ordinary nothing-staged
+#   case both surface as one nonzero exit, and neither this verb nor that
+#   one can tell them apart from the exit code alone. Both guards below
+#   land that same journaled no-op rather than a refusal -- the corollary
+#   (docs/V2_DESIGN.md) requires a check's escape be one journaled step
+#   available to the agent being checked, and neither condition names a
+#   field the agent can fill or a fix within its reach: `issue19`, opened
+#   before the worktree feature existed, carries neither `branch` nor
+#   `worktree` and never will unless a human replans it.
+# Rejected: checking `st.get("branch")` truthiness alone -- a non-empty
+#   string that names nothing real is exactly what a non-issue-tier run
+#   carries, so a truthiness check would pass on the one case it exists to
+#   catch.
+def _commit_gate(wid, asm, step):
+    """One commit for the gate that just advanced: `git add -A` staged
+    against the run's own worktree, on its own branch, the message naming
+    the gate and its spec purpose and carrying the gate's own work id as a
+    trailer. Nothing staged is the ordinary case wherever a gate's proof
+    left no tracked diff -- a journaled no-op, never a refusal and never an
+    empty commit. Neither guard below ever reaches `git`: each is the same
+    shape of no-op, so a run this verb cannot commit for advances instead
+    of stopping on an escape it has no way to take."""
+    child = step.get("child", "")
+    if not _issue_tier(asm):
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
+                        kind_detail="observation", about="commit",
+                        text=f"{child or wid} is not an issue-tier run -- "
+                             "no worktree or branch to commit a gate to")
+        return
+    st = runmod.state(wid)
+    worktree, branch = st.get("worktree", ""), st.get("branch", "")
+    if not worktree or not branch:
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
+                        kind_detail="observation", about="commit",
+                        text=f"{child or wid} has no branch or worktree "
+                             "stamped -- nothing to commit to")
+        return
+    gate = next((s for s in st["steps"]
+                if s.get("child") == child and s.get("dispatches")), None)
+    gate_id = gate["id"] if gate else child
+    purpose = (gate.get("prefill") or {}).get("purpose", "") if gate else ""
+    _git(worktree, "add", "-A")
+    message = f"{gate_id}: {purpose}\n\nWork-Id: {child or wid}"
+    made = _git(worktree, "commit", "-m", message)
+    if made.returncode != 0:
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
+                       kind_detail="observation", about="commit",
+                       text=f"{gate_id} staged nothing to commit")
 
 
 # [mints]
@@ -1187,6 +1421,49 @@ def _last_decision(st, asm):
     return ""
 
 
+# [close-pushes-before-anything-moves]
+# Rationale: mirrors `_open_root_worktree`'s own push-before-journal choice,
+#   aimed at the same remote and the same blip. Nothing is journaled closed
+#   and nothing is moved until the branch is pushed and the PR exists, so a
+#   failure here leaves an intact run the same `spine <id> close` retries --
+#   never a run journaled closed, archived and swept with no PR and no
+#   defined recovery.
+# Rejected: journaling `closed` first and pushing after. A failed push or PR
+#   would then leave `st["closed"]` true, and this function's own guard two
+#   lines up would refuse the retry with "already closed" -- an escape that
+#   does not work, which the corollary rules out.
+def _push_and_open_pr(wid, top, branch, title):
+    pushed = _git(top, "push", "origin", branch)
+    if pushed.returncode != 0:
+        raise SystemExit(render.refusal(
+            "push", f"push failed -- {(pushed.stderr or pushed.stdout).strip()}",
+            escape=f"the run is untouched -- retry: spine {wid} close"))
+    pr = _gh(top, "pr", "create", "--head", branch,
+             "--title", title or wid, "--body", f"Work-Id: {wid}")
+    if pr.returncode != 0:
+        raise SystemExit(render.refusal(
+            "pr", f"gh pr create failed -- {(pr.stderr or pr.stdout).strip()}",
+            escape=f"the branch is pushed and the run is otherwise untouched -- "
+                   f"retry: spine {wid} close"))
+    return pr.stdout.strip()
+
+
+# [archive-then-sweep]
+# Rationale: the work location lives inside the worktree
+#   (`<worktree>/.agent-work/<wid>`), so it has to be moved out before the
+#   worktree is removed -- removing it first would delete the record this
+#   is trying to preserve, not merely the tree around it. `os.chdir(top)`
+#   before the remove for the same reason `cmd_open` chdirs into the
+#   worktree it just made: the worktree being removed may be this very
+#   process's own cwd, and a process left standing in a directory that no
+#   longer exists is not a state anything after it can rely on.
+def _sweep_to_archive(wid, top, dest, worktree):
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(journal.location(wid)), str(dest))
+    os.chdir(top)
+    _git(top, "worktree", "remove", "--force", str(worktree))
+
+
 def cmd_close(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -1211,10 +1488,25 @@ def cmd_close(argv):
         raise SystemExit(render.refusal(
             step["id"], "not complete",
             escape=f"{how}\n  or drop it: spine {wid} amend close {step['id']} --reason ..."))
+    asm = runmod.load_assembly(st["assembly"])
+    # Structural, like `_commit_gate`'s own guard: `_issue_tier` alone is not
+    # enough, since `cmd_open` stamps `branch`/`worktree` onto every root
+    # run's opening entry, issue-tier or not. Both together name exactly the
+    # runs g1 actually gave a pushed worktree to.
+    archiving = _issue_tier(asm) and bool(st.get("worktree")) and bool(st.get("branch"))
+    top = dest = worktree = pr_url = None
+    if archiving:
+        worktree = pathlib.Path(st["worktree"])
+        top = worktree.parent.parent  # <top>/.worktrees/<wid> -- g1's own fixed layout
+        dest = top / ".agent-work" / "archive" / pathlib.Path(*wid.split("."))
+        if dest.exists():
+            raise SystemExit(render.refusal(
+                "archive", f"{dest} already exists -- {wid} reused",
+                escape=f"move it aside, then retry: spine {wid} close"))
+        pr_url = _push_and_open_pr(wid, top, st["branch"], st.get("title", ""))
     terminal = next((s for s in st["steps"] if s.get("terminal")), None)
     fields = st["done"][terminal["id"]].get("fields", {}) if terminal else {}
     summary = _summary(st)
-    asm = runmod.load_assembly(st["assembly"])
     decision = _last_decision(st, asm)
     journal.append(wid, "closed", fields=fields, summary=summary, decision=decision)
     if st.get("parent") and st.get("parent_step"):
@@ -1232,21 +1524,41 @@ def cmd_close(argv):
                            text=f"parent {st['parent']} not found -- return not delivered")
             print(f"warning: parent {st['parent']} not found -- return not delivered")
     print(f"closed {wid}\n")
-    return cmd_status([wid])
+    result = cmd_status([wid])
+    if archiving:
+        _sweep_to_archive(wid, top, dest, worktree)
+        # A shell that was standing inside the worktree this just removed is
+        # now stranded in a directory that no longer exists -- `os.chdir`
+        # above only moves this process, the same asymmetry `cmd_open`'s own
+        # "if this shell has not followed" already names for the open side.
+        print(f"{pr_url}\narchived to {dest}\n  worktree removed: {worktree}\n"
+              f"  if this shell was standing inside it:\n  cd {top}\n")
+    return result
 
 
 def cmd_ledger():
-    root = pathlib.Path(".agent-work")
+    # Both roots: this checkout's own `.agent-work`, then each sibling
+    # worktree's -- a run opened at the issue tier works inside one, and
+    # bare `spine` from the top level must still list it. `archive` is
+    # never a worktree's own -- `cmd_close` only ever makes one in the
+    # top-level checkout's `.agent-work` -- so skipping that one name here
+    # is enough: without it, a closed and archived run would still surface,
+    # under a mangled id (`archive.<wid>`, `relative_to` walking straight
+    # through the extra path segment) rather than not at all.
     rows = []
-    for j in sorted(root.glob("**/journal.toml")) if root.exists() else []:
-        wid = str(j.parent.relative_to(root)).replace("/", ".")
-        st = runmod.state(wid)
-        if not st:
-            continue
-        i, n, seg = runmod.position(st, None)
-        rows.append({"id": wid, "assembly": st.get("assembly", ""),
-                     "where": f"{seg} ({i}/{n})" if st["open"] else "closed",
-                     "title": st.get("title", "")})
+    for root in journal.agent_work_roots():
+        for j in sorted(root.glob("**/journal.toml")):
+            rel = j.parent.relative_to(root)
+            if rel.parts[:1] == ("archive",):
+                continue
+            wid = str(rel).replace("/", ".")
+            st = runmod.state(wid)
+            if not st:
+                continue
+            i, n, seg = runmod.position(st, None)
+            rows.append({"id": wid, "assembly": st.get("assembly", ""),
+                         "where": f"{seg} ({i}/{n})" if st["open"] else "closed",
+                         "title": st.get("title", "")})
     print(render.ledger(rows))
     return 0
 
@@ -1263,9 +1575,12 @@ def cmd_trace(argv):
     wid = argv[0]
     if not journal.exists(wid):
         raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+    # Relative to this run's own `.agent-work` -- not a literal cwd-relative
+    # one -- since a traced run's tree may be a worktree's rather than here.
+    agent_work = journal.root_for(wid) / ".agent-work"
     rows = []
     for path in sorted(journal.location(wid).glob("**/journal.toml")):
-        run = str(path.parent.relative_to(".agent-work")).replace(os.sep, ".")
+        run = str(path.parent.relative_to(agent_work)).replace(os.sep, ".")
         rows += [(e.get("at", ""), run, i, e)
                  for i, e in enumerate(journal.read(run))]
     # Stamps are second-resolution, so ties need a tiebreak, and the tie that

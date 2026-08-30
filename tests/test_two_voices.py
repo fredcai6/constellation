@@ -18,6 +18,7 @@ import pathlib
 import pytest
 
 from engine import cli, forms, journal, run as runmod
+from gitremote import init_checkout
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -27,6 +28,7 @@ def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    init_checkout(tmp_path)
     return tmp_path
 
 

@@ -18,7 +18,7 @@ import re
 import tempfile
 import tomllib
 
-from engine import cli, forms, run as runmod
+from engine import cli, forms, journal, run as runmod
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ENGINE_SRC = "\n".join(p.read_text() for p in sorted((ROOT / "engine").glob("*.py")))
@@ -469,6 +469,126 @@ def test_budgeted_skills_exist_inside_budget():
         assert sum(counts.values()) <= budget, (
             f"skills/{name} is {sum(counts.values())} words, over its "
             f"{budget}-word budget: {counts}")
+
+
+def _glossary_entry(text, name):
+    """The bullet's own text, from `- **name** —` to the next `- **` bullet or
+    end of file. A `re.search` for the name alone would match a substring of a
+    longer term (`work location` inside some future `work location id`), so
+    the anchor is the literal bold-and-dash opening every entry uses."""
+    m = re.search(rf"- \*\*{re.escape(name)}\*\* —.*?(?=\n- \*\*|\Z)",
+                   text, re.DOTALL)
+    assert m, f"no glossary entry named {name!r}"
+    return m.group(0)
+
+
+GLOSSARY = (ROOT / "standards" / "glossary.md").read_text()
+V2_DESIGN = (ROOT / "docs" / "V2_DESIGN.md").read_text()
+CONSTELLATION_TOML = (ROOT / "constellation.toml").read_text()
+README = (ROOT / "README.md").read_text()
+
+
+def test_readmes_git_claim_matches_what_cmd_open_actually_refuses_on():
+    """README says an issue run needs a git checkout with a remote.
+    `_open_root_worktree` is the ground truth: its two refusals are the only
+    places `cmd_open` checks git at all, and both fire only for an issue-tier
+    assembly -- a claim that drops that scope would say the engine needs git
+    for every run, which is not what the code does."""
+    src = ENGINE_SRC
+    assert '"not a git checkout"' in src
+    assert '"the checkout has no remote"' in src
+    # cmd_open only calls the function that raises those refusals when the
+    # assembly is issue-tier -- the guard README's scoping claim rests on.
+    assert "if on_issue_tier:\n        worktree = _open_root_worktree" in src
+    para = README.split("An issue run needs a git checkout")[1].split("\n\n")[0]
+    assert "remote" in para
+    assert "issue" in para  # scoped to the issue tier, not stated as a blanket engine requirement
+
+
+def test_readmes_gitignore_assumption_is_held_loosely_not_hardcoded():
+    """The principal's caveat: hold the `.agent-work/` gitignore assumption
+    loosely rather than hardcode it. Grounded both ways -- README must say
+    nothing enforces it, and the engine must in fact never parse `.gitignore`
+    to decide anything; if it ever does, this claim goes false, not moot."""
+    para = README.split("The engine assumes")[1].split("\n\n")[0]
+    assert "nothing enforces" in para
+    assert ".gitignore" not in ENGINE_SRC
+
+
+def test_glossary_work_location_drops_the_visible_to_everyone_claim():
+    """The old entry said a work location is 'visible to everyone' -- false
+    once an issue-tier run's location can live inside its own worktree
+    instead of the top-level checkout. `root_for` is the ground truth for how
+    it is actually found."""
+    entry = _glossary_entry(GLOSSARY, "work location")
+    assert "visible to everyone" not in entry
+    assert "sibling" in entry  # root_for's own two-tree search
+    root_for_src = inspect.getsource(journal.root_for)
+    assert "sibling" in root_for_src or "_worktree_agent_work_dirs" in root_for_src
+
+
+def test_glossary_work_location_states_the_artifact_path_convention():
+    """`_measure_artifacts` already leans on a convention no document stated:
+    a stored artifact path is recorded work-location-inclusive. The gate's
+    own risk is a wrong entry passing an exists-sweep, so this checks the
+    words, not just that the bullet is there."""
+    entry = _glossary_entry(GLOSSARY, "work location")
+    assert "work-location-inclusive" in entry
+    assert "work-location-inclusive" in ENGINE_SRC  # the convention this entry names is real, not invented
+
+
+def test_glossary_worktree_and_archive_paths_match_the_engine():
+    """The new `worktree` and `archive` entries state literal paths; both
+    must match the paths `cli.py` actually builds, not a paraphrase of them."""
+    worktree = _glossary_entry(GLOSSARY, "worktree")
+    archive = _glossary_entry(GLOSSARY, "archive")
+    assert '_WORKTREES_DIR = ".worktrees"' in ENGINE_SRC
+    assert ".worktrees/<work-id>" in worktree
+    assert 'top / ".agent-work" / "archive"' in ENGINE_SRC
+    assert ".agent-work/archive/<work-id>/" in archive
+    assert "<project>" not in worktree
+    assert "<project>" not in archive
+
+
+def test_v2_design_drops_the_false_constellation_toml_archive_claim():
+    """Ruling 8 used to say whether a repo commits the archive is a call made
+    in `constellation.toml`. It is not: `constellation.toml` has no archive
+    setting at all, so the claim was false the moment anyone read the file it
+    pointed at."""
+    ruling8 = V2_DESIGN.split("**8. Git is the issue tier's")[1].split("\n\n**9.")[0]
+    assert "constellation.toml" not in ruling8
+    assert "archive" not in CONSTELLATION_TOML.lower()
+
+
+def test_v2_design_names_the_top_level_checkout_one_way():
+    """Ruling 8 called the same tree `<project>` in one sentence and 'the
+    top-level checkout' in the next; the open-beat table row carried the same
+    `<project>` spelling. One name for one thing, so neither should reappear
+    anywhere `top-level checkout` is also used for the same tree."""
+    assert "<project>" not in V2_DESIGN
+    assert V2_DESIGN.count("top-level checkout") >= 3  # table's open row, table's close row, ruling 8
+
+
+def test_gitignore_actually_covers_the_paths_the_docs_call_gitignored():
+    """`README.md`, the glossary's `archive`, and `docs/AGENT_GUIDE.md` all
+    call `.agent-work/` and `.worktrees/` gitignored. `.gitignore` is the only
+    thing that can make that true."""
+    gi = (ROOT / ".gitignore").read_text()
+    assert ".agent-work/" in gi
+    assert ".worktrees/" in gi
+
+
+def test_agent_guide_worktrees_row_is_accurate_if_present():
+    """`.worktrees/` only belongs in the layout table if an agent actually
+    meets that path -- `render.brief`'s `tree` line and `cmd_open`/`cmd_close`
+    both print it literally, so it qualifies. If the row exists, it must say
+    the path is gitignored, since that is the claim it would otherwise get
+    wrong silently."""
+    guide = (ROOT / "docs" / "AGENT_GUIDE.md").read_text()
+    assert "worktree}" in (ROOT / "engine" / "render.py").read_text()  # the agent-facing print this row rests on
+    rows = [l for l in guide.splitlines() if l.startswith("| `.worktrees/`")]
+    assert rows, "docs/AGENT_GUIDE.md's layout table has no .worktrees/ row"
+    assert "gitignored" in rows[0].lower()
 
 
 def test_every_role_an_assembly_names_has_a_skill_behind_it():

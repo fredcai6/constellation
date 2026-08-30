@@ -17,6 +17,7 @@ import subprocess
 import pytest
 
 from engine import cli, journal, render
+from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_child, _fill, _fill_gate_close, _fill_implement,
     _mint_two_gates,
@@ -30,6 +31,7 @@ def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    init_checkout(tmp_path)
     return tmp_path
 
 
@@ -74,8 +76,11 @@ def test_the_continue_command_actually_lands_on_the_unblocked_step(workdir, caps
     line = next(l for l in capsys.readouterr().out.splitlines() if "continue there:" in l)
     cmd = line.split("continue there:", 1)[1].strip().split()
 
+    # not `workdir`: the run this continues into now works inside the
+    # worktree `open` made for it (ruling 8), which is where the process
+    # already stands -- exactly where a dispatched child's own shell would be.
     r = subprocess.run(cmd, capture_output=True, text=True, env={},
-                       cwd=workdir, timeout=20)
+                       cwd=pathlib.Path.cwd(), timeout=20)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "GATE_TRANSITION.toml" in r.stdout, r.stdout
     assert "returns from issue17.g1" in r.stdout, r.stdout

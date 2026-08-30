@@ -80,7 +80,21 @@ forms; coining a synonym for a term below is a defect.
   `<kind><hash>` otherwise (`issue7c3f`); children by suffix (`issue17.g1`). The title holds
   the "what." Required on every call, never inferred.
 - **work location** — a run's work package, `.agent-work/<work-id>/`: journal, response forms,
-  plan artifacts, notes; child runs nest inside. Derived from the id, visible to everyone.
+  plan artifacts, notes; child runs nest inside. Derived from the id, resolved against whichever
+  tree actually holds it — this checkout's own `.agent-work/`, or a sibling worktree's, never
+  assumed. A stored artifact path is work-location-inclusive: recorded whole
+  (`.agent-work/<work-id>/plan.md`), not relative to some other root.
+- **worktree** — the git worktree an issue-tier run opens into: `open` makes it at
+  `<top-level checkout>/.worktrees/<work-id>` on a pushed branch of the same name, before
+  anything is journaled. Only the issue-tier root gets one; a gate dispatched under it nests its
+  own work location inside that same worktree rather than opening a second one.
+- **top-level checkout** — the git checkout a worktree is a sibling of: where `.worktrees/` and
+  the archive live, and where `close` pushes the branch and opens the PR. One name throughout —
+  never `<project>`.
+- **archive** — where `close` moves a closed issue-tier run's work location,
+  `.agent-work/archive/<work-id>/` in the top-level checkout, once the PR is pushed and before
+  the worktree is removed, so sweeping the worktree does not take the record with it. Still
+  under `.agent-work/`, so still gitignored — not a separate call a repo makes.
 - **journal** — the per-run append-only TOML record in its work location; run state is a fold
   over it.
 - **ledger** — the on-demand listing of open runs (bare `spine`): id, title, position, state;

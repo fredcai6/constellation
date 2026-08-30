@@ -37,9 +37,53 @@ def tier_model(tier="light"):
     return palette["models"][tier]
 
 
+def init_checkout(workdir):
+    """Make `workdir` a git checkout with a commit and a local bare remote
+    named `origin` -- `spine open`'s root-run path (ruling 8) refuses one
+    with neither, and every eval that opens a root run needs somewhere real
+    to point at without ever reaching a live remote. Call after `workdir`
+    already carries whatever else the eval seeds it with (a `retry.py`, a
+    `constellation.toml`) -- everything on disk at that point is what the
+    commit, and so every worktree opened from here, carries."""
+    workdir = pathlib.Path(workdir)
+    remote = workdir.parent / f"{workdir.name}-remote.git"
+    git = lambda *a: subprocess.run(["git", *a], cwd=workdir, check=True,
+                                    capture_output=True, text=True)
+    subprocess.run(["git", "init", "--quiet", "--bare", str(remote)],
+                   cwd=workdir.parent, check=True, capture_output=True)
+    git("init", "--quiet")
+    git("config", "user.email", "eval@example.com")
+    git("config", "user.name", "eval")
+    git("remote", "add", "origin", str(remote))
+    (workdir / ".gitignore").write_text(".agent-work/\n.worktrees/\n")
+    git("add", "-A")
+    git("commit", "--quiet", "-m", "initial")
+    return remote
+
+
+# [eval-run-root]
+# Rationale: `spine open` on a root run now makes a worktree beside
+#   `workdir` and works inside it (ruling 8), so `workdir` itself is only
+#   ever right for the *first* `open` -- every call after that has to land
+#   in whatever worktree that run's own id already lives in. Each eval here
+#   drives exactly one run per workdir, so "the one worktree there is" is
+#   unambiguous; picking the right one among several is the two-root
+#   resolution a later gate owns, not a distinction these evals need yet.
+# Rejected: threading a work id through every helper here instead. `drive`
+#   has none to thread -- the model is handed a directory and a prompt, not
+#   a work id -- so the resolution has to work from `workdir` alone.
+def run_root(workdir):
+    """The directory a run opened from `workdir` actually works in: the sole
+    worktree under `.worktrees/` once one exists, else `workdir` itself."""
+    trees = pathlib.Path(workdir) / ".worktrees"
+    found = sorted(p for p in trees.glob("*") if p.is_dir()) if trees.is_dir() else []
+    return found[0] if len(found) == 1 else pathlib.Path(workdir)
+
+
 def spine(workdir, *args):
     """Run a spine command in the eval's workdir, as an agent would."""
-    return subprocess.run([SPINE, *args], cwd=workdir, capture_output=True,
+    cwd = workdir if (not args or args[0] == "open") else run_root(workdir)
+    return subprocess.run([SPINE, *args], cwd=cwd, capture_output=True,
                           text=True, timeout=60)
 
 
@@ -83,8 +127,11 @@ def drive(workdir, prompt, timeout=420, tier="light"):
            "PATH": f"{ROOT}:{os.environ.get('PATH', '')}"}
     cmd = ["claude", "-p", prompt, "--model", tier_model(tier),
            "--allowedTools", "Bash", "Read", "Write", "Edit"]
+    # the model works wherever a real agent would land after `spine open`
+    # ran -- inside the run's own worktree once one exists, `workdir` before
+    d = run_root(workdir)
     try:
-        r = subprocess.run(cmd, cwd=workdir, capture_output=True, text=True,
+        r = subprocess.run(cmd, cwd=d, capture_output=True, text=True,
                            timeout=timeout, env=env)
         cut = ""
     except subprocess.TimeoutExpired as e:
@@ -96,7 +143,6 @@ def drive(workdir, prompt, timeout=420, tier="light"):
     # summary -- the least reliable artifact in the run, and the only one
     # these evals used to fail with. Debugging from a self-report is the
     # believe-the-record failure the issue-conductor skill exists to warn against.
-    d = pathlib.Path(workdir)
     log = d / f"transcript-{len(list(d.glob('transcript-*.md'))) + 1}.md"
     log.write_text(f"# prompt\n\n{prompt}{cut}\n\n# stdout\n\n{r.stdout}"
                    f"\n\n# stderr\n\n{r.stderr}\n")
@@ -139,8 +185,8 @@ def evidence(workdir, work_id, r):
     the engine's own timeline of what actually happened, and where the full
     transcript is. `trace` folds the run and every child it dispatched into
     one ordering, which is the view the seam defects live in."""
-    t = subprocess.run([SPINE, work_id, "trace"], cwd=workdir, capture_output=True,
-                       text=True, timeout=60)
+    t = subprocess.run([SPINE, work_id, "trace"], cwd=run_root(workdir),
+                       capture_output=True, text=True, timeout=60)
     stopped = unfinished(r)
     cut = (f"\n-- {stopped}, so the record above is where the agent had got "
            "to --" if stopped else "")
@@ -153,14 +199,14 @@ def state(workdir, work_id):
     """The run's state, folded from its journal -- what the eval asserts on."""
     cwd = os.getcwd()
     try:
-        os.chdir(workdir)
+        os.chdir(run_root(workdir))
         return runmod.state(work_id)
     finally:
         os.chdir(cwd)
 
 
 def journal_text(workdir, work_id):
-    p = pathlib.Path(workdir) / ".agent-work" / work_id.replace(".", "/") / "journal.toml"
+    p = run_root(workdir) / ".agent-work" / work_id.replace(".", "/") / "journal.toml"
     return p.read_text() if p.exists() else ""
 
 
@@ -169,7 +215,7 @@ def prefill(workdir, work_id, **fields):
     a gate spec without a parent run."""
     cwd = os.getcwd()
     try:
-        os.chdir(workdir)
+        os.chdir(run_root(workdir))
         from engine import journal
         journal.append(work_id, "prefill", fields=fields)
     finally:
@@ -177,5 +223,5 @@ def prefill(workdir, work_id, **fields):
 
 
 def form_text(workdir, work_id, name):
-    p = (pathlib.Path(workdir) / ".agent-work" / work_id.replace(".", "/") / name)
+    p = run_root(workdir) / ".agent-work" / work_id.replace(".", "/") / name
     return p.read_text() if p.exists() else ""

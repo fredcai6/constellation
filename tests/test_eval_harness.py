@@ -41,6 +41,7 @@ def _workdir(tmp_path):
     (tmp_path / "retry.py").write_text(
         "def retry_delay(attempt):\n"
         "    return min(2 ** (attempt - 1), 4)\n")
+    harness.init_checkout(tmp_path)
     return tmp_path
 
 

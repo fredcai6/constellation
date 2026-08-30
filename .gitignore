@@ -5,6 +5,8 @@ __pycache__/
 *.pyc
 # Run work packages: journals and response forms, written by the engine.
 .agent-work/
+# Issue-tier worktrees, one per open root run, beside this checkout.
+.worktrees/
 # The code map, built by `palette:map` at closeout and read on the spot.
 # `.code-map/` is the statement store, `map/` the page tree.
 .code-map/

@@ -48,7 +48,7 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 
 | Beat | Who | Form | Produces | Then |
 |---|---|---|---|---|
-| **open** | engine | — | the worktree at `<project>/.worktrees/<work-id>` on a pushed branch; the work area at `.agent-work/<work-id>/`; the issue and the authority block captured as prefill | understand |
+| **open** | engine | — | the worktree at `<top-level checkout>/.worktrees/<work-id>` on a pushed branch; the work area at `.agent-work/<work-id>/`; the issue and the authority block captured as prefill | understand |
 | **understand** · do 1 | issue-conductor with the human; a subagent under a delegated principal | `UNDERSTAND` board | every row answered, mooted, or deferred with a reason; decisions and understandings in the principal's words; excursions dispatched from rows, returns stamped to the row | do 2 |
 | understand · do 2 | subagent, the spec writer | `SPEC` | the **problem specification** — standalone, every category considered, each obligation carrying a disposition | review |
 | understand · review | critic subagents, cold | `CRITIC` | completeness and ambiguity: findings classed gap / beyond; `pass | revise` | route |
@@ -535,15 +535,16 @@ is missing, back to the writer when it is there and the spec needs amending, for
 planner could work from it without guessing what the human meant. Sufficient, not perfect.
 
 **8. Git is the issue tier's, and the engine's.** Open makes the worktree at
-`<project>/.worktrees/<work-id>` on a pushed branch, the work area at `.agent-work/<work-id>/`,
-and captures the issue and the authority block as prefill; nothing is filled by hand. Each
-accepted gate is one commit on that branch, made at execute·route on `advance` — a gate is
-small enough to be the unit of commit, and nothing below the issue tier touches git. Close
-builds the report the human or epic-conductor reads — what landed, the evidence, the
-decisions, open triage, residue — moves the run's work folder to
+`<top-level checkout>/.worktrees/<work-id>` on a pushed branch, the work area at
+`.agent-work/<work-id>/`, and captures the issue and the authority block as prefill; nothing is
+filled by hand. Each accepted gate is one commit on that branch, made at execute·route on
+`advance` — a gate is small enough to be the unit of commit, and nothing below the issue tier
+touches git. Close builds the report the human or epic-conductor reads — what landed, the
+evidence, the decisions, open triage, residue — moves the run's work folder to
 `.agent-work/archive/<work-id>/` in the top-level checkout so a swept worktree does not take
-the record with it, and pushes the PR. The archive stays gitignored; whether a repo commits it
-is that repo's call, made in `constellation.toml`.
+the record with it, and pushes the PR. The archive stays gitignored: it lands under
+`.agent-work/`, the same entry every run's own work location already sits under, so there is no
+second gitignore call for a repo to make.
 
 **9. `up` is an ask for help, not an exit.** At any route, `up` pauses the run with the ask —
 what was attempted, what failed, the findings, the question the tier cannot answer — and the

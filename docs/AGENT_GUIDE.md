@@ -88,6 +88,7 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 | `tests/` | the fast suite: no model calls |
 | `evals/` | end-to-end runs against a real light model |
 | `constellation.toml` | the palette, and the logical model tiers resolved at dispatch |
+| `.worktrees/` | one git worktree per open issue-tier run, made and pushed by `open`, removed by `close` once the archive holds the record. Gitignored. |
 
 ## Documentation map
 

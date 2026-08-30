@@ -201,12 +201,14 @@ def posture(role):
     return f"{path} -- read it before you start" if path else ""
 
 
-def brief(child_id, role, tier, runner, open_cmd, finish_form):
+def brief(child_id, role, tier, runner, open_cmd, finish_form, worktree="", branch=""):
     """One dispatch's whole brief, shared by a gate dispatch and a panelist
     so the two never render this as two drifting copies: who the child will
-    be, what it runs under, the command that mints it, and what finishing
-    means for the assembly it is about to run. This is the text a conductor
-    hands its harness -- nothing else should be needed to start.
+    be, what it runs under, the command that mints it, what finishing means
+    for the assembly it is about to run, and -- a child inherits its
+    parent's tree rather than making one of its own -- which tree that is
+    and the branch it is on. This is the text a conductor hands its harness
+    -- nothing else should be needed to start.
     """
     lines = [
         f"  brief -- {child_id}",
@@ -218,8 +220,10 @@ def brief(child_id, role, tier, runner, open_cmd, finish_form):
     lines += [
         f"    tier         {tier or '(unset)'}",
         f"    runner       {runner or '(unresolved -- check constellation.toml [models])'}",
-        f"    open it:     {located(open_cmd)}",
     ]
+    if worktree:
+        lines.append(f"    tree         {worktree}" + (f" -- branch {branch}" if branch else ""))
+    lines.append(f"    open it:     {located(open_cmd)}")
     close_cmd = located(f"spine {child_id} close")
     if finish_form:
         lines.append(f"    finishing:   fill {finish_form}, then: {close_cmd}")
