@@ -7,27 +7,59 @@
 # not an objection to rebut.
 
 imperative = """
-Produce the plan: how this issue gets solved, cut into gates. A fresh-context
-critic must be able to attack it from the spec and the plan alone, and a
-fresh-context implementer must be able to execute a gate from its spec
-alone."""
+Cut the next gate: purpose, scope, proof, and, when you know them, a model
+override and a direction for what it should teach. A fresh-context critic
+must be able to attack it from the spec and the plan alone, and a
+fresh-context implementer must be able to execute it from the gate spec
+alone. Sketch the horizon behind it -- coarsely, and only as far as you can
+actually commit to before the ground shifts."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
-The plan document, in the work location: the approach, the gates it cuts into
-(purpose, scope, proof — the plan-to-execute transition copies these), and the
-risks that would change it. Implementation detail below gate grain is a
-defect — that is the gate's latitude."""
+The plan document, in this run's work location (.agent-work/<work-id>/): the
+approach and the risks that would change it. This gate's purpose, scope and
+proof are the fields below, not restated here -- implementation detail below
+gate grain is a defect, that is the gate's latitude."""
 
 [[field]]
-id = "design-it-twice"
+id = "purpose"
+note = "What this gate accomplishes, and why the plan needs it."
+
+[[field]]
+id = "scope"
+note = "Where the change lives, and what is out of bounds."
+
+[[field]]
+id = "proof"
+note = """
+The command that passes once this gate's work is done and fails while it is
+not. A command that passes on an empty diff proves nothing, and so does one
+that covers less than `scope` promised -- one check per commitment. Write the
+exact string to run, never a description of it: this field rides into the
+dispatched child as its own `proof`, shell-executed there, so prose becomes a
+command and fails only after the work is done. Reference the command palette
+(constellation.toml) rather than hardcoding where it applies."""
+
+[[field]]
+id = "model"
+optional = true
+note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+
+[[field]]
+id = "direction"
+optional = true
+note = "What this gate is expected to teach the next plan round, when you know it."
+
+[[field]]
+id = "horizon"
 kind = "evidence"
 note = """
-For each irreversible or load-bearing commitment: the genuinely different
-alternative considered, and why the winner won. Reversible details earn no
-weight. Skip a load-bearing commitment only with a stated reason."""
+The gates likely to follow this one, coarsely, and the conditions that would
+change them. Provisional by construction: read by the critics alongside the
+gate above, but never attacked at gate grain, and never carried into the
+implementer's own prefill -- the gate ahead is this one alone."""
 
 [[field]]
 id = "key-terms"

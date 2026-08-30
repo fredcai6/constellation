@@ -1,47 +1,22 @@
 # Transition: plan → execute. Owned by run-an-issue. Two voices: the critic
 # panel's verdicts return here (any revise refills the plan interior with the
-# findings; escalate goes up); on pass the conductor fills the mint below.
+# findings; escalate goes up); on pass, submitting the form below releases it.
 
 imperative = """
-The plan has passed critique. Cut it into gates — each gate is dispatched as
-its own run, and the fields you fill per gate become that run's opening
-orders, read-only. What you leave out here, the implementer cannot know.
-State the gate, not its history: necessary context only."""
+The plan has passed critique. There is nothing to author here: point at the
+plan artifact that passed, and submit. The round the critics just judged
+already cut the gate whole -- purpose, scope, proof, and any model or
+direction override -- and submitting this mints it as its own dispatched
+run, its fields carried across read-only."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
-note = "The plan artifact that passed critique, in this run's work location (.agent-work/<work-id>/)."
-
-[[field]]
-id = "gates"
-kind = "plan"
-mints = "run-a-gate"
 note = """
-One block per gate, in intended order. Each block is minted as a dispatch step
-plus this gate's transition; the block's fields are the child run's prefill."""
-
-  [[field.item]]
-  id = "purpose"
-  note = "What this gate accomplishes, and why the plan needs it."
-
-  [[field.item]]
-  id = "scope"
-  note = "Where the change lives, and what is out of bounds."
-
-  [[field.item]]
-  id = "proof"
-  kind = "check"
-  note = """
-The command that passes once this gate's work is done and fails while it is
-not. A command that passes on an empty diff proves nothing, and so does one
-that covers less than `scope` promised -- one check per commitment. Write the
-exact string you ran, never a description of it: this field is shell-executed
-in the dispatched child, so prose becomes a command and fails there, after the
-work is done. Reference the command palette (constellation.toml) rather than
-hardcoding where it applies."""
-
-  [[field.item]]
-  id = "model"
-  optional = true
-  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+The plan artifact that passed critique, in this run's work location
+(.agent-work/<work-id>/). Submitting this projects the one gate the round
+ahead cut into its own dispatch -- a projection of the planner's own form,
+never a copy typed here: purpose, scope, proof and any model or direction
+override cross into the child's prefill; the horizon behind them does not.
+The critics who just judged the round could see the whole future plan; the
+gate that executes it sees only its own piece."""

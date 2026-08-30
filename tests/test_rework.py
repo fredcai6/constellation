@@ -128,11 +128,6 @@ def test_a_replan_restarts_the_rework_count(workdir, capsys):
     capsys.readouterr()
     _fill(runmod.journal.location(wid) / "PLAN_TO_EXECUTE.toml", '''
 plan = "the plan doc"
-
-[[gates]]
-purpose = "p"
-scope = "s"
-proof = "true"
 ''')
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -175,6 +170,10 @@ def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdi
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
     _fill(runmod.journal.location(child) / "REWORK.toml", '''
 plan = ".agent-work/%s/plan.md"
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
+horizon = "waived: none yet"
 findings-addressed = "accepted: rewrote gate 1's done as a runnable command"
 deleted = "the restated approach section; the gates already carry it"
 key-terms = "waived: none"
@@ -204,22 +203,19 @@ def _plan_measures(wid):
     return [m["words"] for m in runmod.state(wid)["measures"] if m["field"] == "plan"]
 
 
-def test_the_plan_segments_room_never_reports_drift_since_every_round_dispatches(
-        workdir, capsys):
-    """A rework round is measured in the dispatched child's own journal, the
-    same as the first cut always was -- so unlike a segment that stays
-    local (run-a-gate's `work`), the plan segment's own room has nothing to
-    compare across rounds, because no round of it is ever local any more.
-    `drift` (render.py) reads `measures` filtered to the current step's
-    segment, and this run's own journal never gains a `measure` entry tagged
-    `plan` -- every one of them lands in a dispatched child's journal
-    instead, round after round.
+def test_the_plan_segments_measures_fold_into_the_parent_each_round(workdir, capsys):
+    """A round is still measured in the dispatched child's own journal
+    first, the same as it always was -- but the return that closes it now
+    folds that measure into the parent, under the step that dispatched the
+    round (`_fold_measures`, engine/cli.py). That is what gives the plan
+    segment's own room something to compare across rounds again, the same
+    way a local segment (run-a-gate's `work`) always could.
 
-    This inverts what this test proved before every round dispatched: growth
-    used to be reported locally starting at the first rework round. The
-    engine's measuring mechanism is unchanged (proved for `work` elsewhere);
-    what changed is that the plan segment no longer has a local round for it
-    to ever fire on.
+    Before that fold existed, this test proved the opposite: growth was
+    invisible in this run's own room because every round dispatched and no
+    round of it was ever local. `tests/test_round_carry.py` is the fuller
+    account of the fix; this one stays as the rework-specific case, driven
+    the same way the rest of this module drives everything else.
     """
     wid = "issue44"
     cli.main(["open", "run-an-issue", "--issue", "44", "--title", "a plan that grows"])
@@ -229,8 +225,7 @@ def test_the_plan_segments_room_never_reports_drift_since_every_round_dispatches
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
 
-    # round one: the dispatch. Measured in the child's own journal, silent
-    # in this one -- there is nothing here yet to compare.
+    # round one: the dispatch, measured in the child's own journal first.
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
     child = f"{wid}.plan-1"
     art = runmod.journal.location(child) / "plan.md"
@@ -241,15 +236,14 @@ def test_the_plan_segments_room_never_reports_drift_since_every_round_dispatches
     cli.main([child, "close"])
     capsys.readouterr()
 
-    assert _plan_measures(wid) == []
-    cli.main([wid])
-    assert "prose words" not in capsys.readouterr().out
+    # the return folded it into the parent
+    assert _plan_measures(wid) == [10]
 
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
 
-    # the rework round dispatches too -- still measured in a child's own
-    # journal, never this run's
+    # the rework round dispatches too -- measured in its own child's journal
+    # first, same as round one
     fresh = _fresh_mint(runmod.state(wid), "plan")
     assert fresh["dispatches"] == "cut-a-gate"
     rework_child = f"{wid}.{fresh['id']}"
@@ -258,6 +252,10 @@ def test_the_plan_segments_room_never_reports_drift_since_every_round_dispatches
     rework_art.write_text("one two three four five six seven eight nine ten eleven twelve\n")
     _fill(runmod.journal.location(rework_child) / "REWORK.toml", '''
 plan = "%s"
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
+horizon = "waived: none yet"
 findings-addressed = "accepted: thickened gate 1"
 deleted = "nothing; the growth is all prose"
 key-terms = "waived: none"
@@ -267,10 +265,8 @@ key-terms = "waived: none"
     cli.main([rework_child, "close"])
     capsys.readouterr()
 
-    # still nothing local to compare -- this run's own room saw nothing
-    assert _plan_measures(wid) == []
-    cli.main([wid])
-    assert "prose words" not in capsys.readouterr().out
+    # both rounds are now in the parent's own journal, in order
+    assert _plan_measures(wid) == [10, 12]
 
 
 # -- 5. the outlet: a fourth revise mints a ruling, not a fourth round --------
@@ -279,6 +275,10 @@ key-terms = "waived: none"
 def _fill_rework(wid):
     _fill(runmod.journal.location(wid) / "REWORK.toml", '''
 plan = "the plan doc"
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
+horizon = "waived: none yet"
 findings-addressed = "waived: first pass"
 deleted = "waived: nothing"
 key-terms = "none"

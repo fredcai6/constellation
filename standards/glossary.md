@@ -134,9 +134,14 @@ forms; coining a synonym for a term below is a defect.
   plan, never which document upstream produced the spec — that name is the assembly's business
   and nothing the reader can act on. Distinct from **gate spec** below, which is orders for
   work rather than a statement of a problem; the two never appear in one reading.
-- **gate spec** — the purpose, scope, proof and optional model a conductor writes per gate at
-  plan-to-execute; minted as that gate's dispatch and carried into the child run as read-only
+- **gate spec** — the purpose, scope, proof and optional model, optional direction a planner
+  writes per round of the plan segment — one gate spec per round, the round's own artifact.
+  Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only
   prefill. The orders a gate is run from, and the only place a runner is named.
+- **horizon** — the gates likely to follow the one a plan round just cut, coarsely, and the
+  conditions that would change them. Sits beside the gate spec on the same round; the critics
+  read it, provisional by construction and never attacked at gate grain, and it never crosses
+  into the implementer's own prefill — the gate ahead is this one alone.
 - **map** — the derived page tree under `map/`: one page per entity, a module index per module,
   one top index. Built by `tools/code_map` — the generator, and that is its only name — through
   `palette:map`; gitignored, regenerated at closeout, never committed. The artifact, not the act
