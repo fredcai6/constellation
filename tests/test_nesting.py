@@ -237,6 +237,39 @@ def _fill_critic(wid, verdict, findings="none: waived: clean"):
           % (findings, verdict))
 
 
+def _fill_plan_rework(wid, purpose="fix the parser to handle EOF without a trailing newline",
+                      scope="src/parser.c only", proof="true",
+                      findings_addressed="waived: first pass", deleted="waived: nothing"):
+    """A revise round's dispatched child fills REWORK.toml, not PLAN.toml --
+    the form override `_mint_segment_round` carries on the fresh interior
+    step."""
+    loc = journal.location(wid)
+    _fill(loc / "REWORK.toml", '''
+plan = "%s/plan.md"
+purpose = "%s"
+scope = "%s"
+proof = "%s"
+horizon = "waived: none yet"
+findings-addressed = "%s"
+deleted = "%s"
+key-terms = "waived: none"
+''' % (loc, purpose, scope, proof, findings_addressed, deleted))
+
+
+def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
+    """Four revises landing on the same objection -- the only way a root
+    objection reaches the plan segment's impasse form now that the panel's
+    vocabulary is `pass | revise`, not a third word that jumps there in one."""
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings)
+    for _ in range(3):
+        st = runmod.state(wid)
+        fresh = next(s for s in st["steps"]
+                    if s["segment"] == "plan" and s.get("source") == "mint"
+                    and s["id"] not in st["done"] and s.get("dispatches"))
+        _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
+        _dispatch_plan_critic(wid, verdict="revise", findings=findings)
+
+
 def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean"):
     """Open every one of plan-to-execute's panelists, fill and close each --
     the two-voices transition's panel half, which must pass before its form
@@ -945,8 +978,8 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
 def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeypatch):
     """The summary's verdict was read off panel-only steps, so a run whose
     critics had ruled on the plan closed carrying the empty string where the
-    panel's word belongs -- and an escalated run, which is exactly the one a
-    principal reads the summary of, said nothing at all.
+    panel's word belongs -- and a run that reached its impasse this way, which
+    is exactly the one a principal reads the summary of, said nothing at all.
 
     An issue-tier close now pushes and opens a PR before it archives, so
     `gh` is stubbed here (never a real remote) and the closed entry is read
@@ -960,10 +993,10 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeyp
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
-    _dispatch_plan_critic(wid, verdict="escalate", findings="gap: wrong artifact entirely")
+    _drive_plan_to_impasse(wid)
     capsys.readouterr()
 
-    # the outlet the escalate minted: rule `up`, which is the move that ends
+    # the outlet four revises minted: rule `up`, which is the move that ends
     # the run and makes the ruling the record
     assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
     _fill(journal.location(wid) / "IMPASSE.toml",
@@ -976,6 +1009,6 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeyp
     capsys.readouterr()
 
     closed = read_archived(workdir, wid, "closed")
-    assert closed["summary"]["verdict"] == "escalate", (
-        "the close summary of an escalated run carries "
-        f"{closed['summary']['verdict']!r} where three critics ruled")
+    assert closed["summary"]["verdict"] == "revise", (
+        "the close summary of a run that reached its impasse carries "
+        f"{closed['summary']['verdict']!r} where the panel last ruled revise")

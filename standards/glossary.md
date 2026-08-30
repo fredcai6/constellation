@@ -31,8 +31,13 @@ forms; coining a synonym for a term below is a defect.
   own transition step alone, without refilling its interior — `advance`'s move over a live
   revise, distinct from `release`, which mints nothing at all.
 - **verdict panel** — 0..n panelists a transition dispatches, each reading from fresh context
-  and prefilled with focused criteria; verdicts return to the transition. Any revise refills,
-  findings merged. Review never lives in an interior.
+  and prefilled with focused criteria; verdicts return to the transition. The panel's vocabulary
+  is `pass | revise`, never a third word: a panel that judges the artifact itself wrong to build
+  writes that as a revise finding, the same as any other. Any revise refills, findings merged.
+  The merged verdict resolves the same way a submitted decision field does — against the
+  transition's own declared `outcome` rows where one names a `decides` field, or (a panel-only
+  transition with none) by refilling directly, three rounds of it reaching the segment's own
+  impasse form where one is declared. Review never lives in an interior.
 - **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
   template step flagged so that amending it away is loud in the ledger and the parent's
@@ -46,7 +51,7 @@ forms; coining a synonym for a term below is a defect.
   except a `decision` whose note declares a vocabulary, where the values are the whole of
   what it accepts.
 - **vocabulary** — the values a `decision` field accepts, read from the alternatives its own
-  note lists (`pass | revise | escalate`). One string, so what the agent is told and what the
+  note lists (`pass | revise`). One string, so what the agent is told and what the
   engine enforces cannot drift. A value outside it refuses; the kind, not the punctuation, is
   what makes the note binding. A field its own segment `decides` is exempt — `outcome` rows
   enforce it instead, values and acts declared together.

@@ -70,7 +70,7 @@ _ALTERNATIVES = re.compile(rf"{_TOKEN}(?:\s*\|\s*{_TOKEN})+")
 #   agent actually reads -- so the copy the engine trusted could be the wrong
 #   one.
 def vocabulary(note: str) -> list[str]:
-    """The alternatives a note declares -- `["pass", "revise", "escalate"]` --
+    """The alternatives a note declares -- `["pass", "revise"]` --
     or `[]` for a note that declares none.
 
     The enum has to open the note to count. A note reworded so its ` | ` falls

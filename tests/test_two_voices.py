@@ -155,6 +155,22 @@ def _dispatch_panel(pwid, step_id, verdict="pass", findings="none: waived: clean
         _dispatch_critic(pwid, step_id, verdict, findings, n=n)
 
 
+def _drive_plan_to_impasse(wid, panel_id="plan", findings="gap: wrong artifact entirely"):
+    """Four revises landing on the same objection -- the only way a root
+    objection reaches the plan segment's impasse form now that the panel's
+    vocabulary is `pass | revise`, not a third word that jumps there in one."""
+    _dispatch_panel(wid, panel_id, verdict="revise", findings=findings)
+    for _ in range(3):
+        st = runmod.state(wid)
+        fresh_interior = next(s for s in st["steps"]
+                              if s["segment"] == "plan" and s.get("dispatches")
+                              and s["id"] not in st["done"])
+        _dispatch_and_close_plan(wid, fresh_interior["id"], _fill_rework_form)
+        panel_id = next(s["id"] for s in runmod.state(wid)["steps"]
+                        if s.get("panel") and s["id"] not in runmod.state(wid)["done"])
+        _dispatch_panel(wid, panel_id, verdict="revise", findings=findings)
+
+
 def _drive_to_plan_to_execute(wid="issue99", settle="waived: none"):
     """Open a real run-an-issue and drive it to the plan-to-execute
     transition, right after the plan interior is submitted -- the moment
@@ -371,59 +387,36 @@ def test_submit_refuses_while_a_verdict_is_outstanding(workdir, capsys):
     assert "outstanding" not in str(e.value)            # past the panel now
 
 
-# -- 5. an escalate mints the segment's outlet, and the room says so ---------
+# -- 5. a root objection is a revise finding; the room names a non-pass verdict
 
-
-def test_an_escalated_plan_mints_the_outlet_instead_of_finishing(workdir, capsys):
-    """A panel objecting at the root leaves a two-voices step with nowhere to
-    go: `state()` marks it done without its form -- correct, an escalated
-    plan should not fill the mint form -- and before this the transition
-    acted only on `revise`, so nothing was minted and the run walked to its
-    terminal close with no gates and no ruling. The outlet is where it goes
-    now; the same three rulings a looped revise gets."""
-    wid = _drive_to_plan_to_execute()
-    capsys.readouterr()
-
-    _dispatch_panel(wid, "plan", verdict="escalate",
-                    findings="gap: the parser is not where the record is dropped")
-    capsys.readouterr()
-
-    st = runmod.state(wid)
-    assert "plan" in st["done"]                       # released, like any non-pass
-    assert not any(s.get("dispatches") == "run-a-gate" for s in st["steps"]), \
-        "an escalate minted gates"
-
-    outlet = st["current"]
-    assert outlet["form"] == "forms/IMPASSE.toml", (
-        f"the escalate left the run on {outlet.get('form')!r} -- an escalated "
-        "plan walked to its close instead of reaching a ruling")
-    assert outlet["prefill"]["arrival"] == "escalate"  # which way in, not just the findings
-    assert "not where the record is dropped" in outlet["prefill"]["findings"]
-    assert "[p1]" in outlet["prefill"]["findings"]     # attributed, like a revise's
-    # no fourth fresh-context reader: the outlet carries no panel of its own
-    assert not any(s.get("panel") and s["id"] not in st["done"] for s in st["steps"])
-
-    # and the ruling is live from this arrival too -- advance overrules the
-    # panel and takes the plan to its transition
-    _fill(journal.location(wid) / "IMPASSE.toml",
-          'ruling = "advance"\nwhy = "the panel read the plan against the wrong issue"\n')
-    cli.main([wid, "submit"])
-    capsys.readouterr()
-    assert runmod.state(wid)["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
+# There is no third verdict word. A panel that objects at the root writes it
+# as a revise finding, the same as any other -- and, once the panel's own
+# vocabulary is `pass | revise`, only three of them landing on the plan in a
+# row reaches the segment's outlet. That path -- four revises, the fourth
+# minting IMPASSE.toml with `arrival = "rework-rounds"` -- is pinned in
+# tests/test_rework.py, which drives it for both run-an-issue and run-a-gate;
+# this file's own job is the two-voices shape (panel and form on one step),
+# which the room-naming test below still exercises with a plain revise.
 
 
 def test_the_room_names_a_returned_panels_non_pass_verdict(workdir, capsys):
     """The findings arrived as orders and the word the panel merged on did
     not, so the reader of an outlet room had to infer whether three critics
-    had looped or objected at the root. A pass is the room arriving normally
-    and is not named."""
+    had looped or not. A pass is the room arriving normally and is not
+    named.
+
+    A single revise no longer proves this: every round now dispatches (#27),
+    so the very next room after one revise is the dispatch view, which never
+    reaches `_returned_verdict` at all. Only the outlet -- a looped revise's
+    non-dispatch IMPASSE.toml -- lands the reader on the room this test is
+    about, the same room an escalate used to reach in one."""
     wid = _drive_to_plan_to_execute()
-    _dispatch_panel(wid, "plan", verdict="escalate", findings="gap: wrong artifact entirely")
+    _drive_plan_to_impasse(wid)
     capsys.readouterr()
 
     cli.main([wid])
     out = " ".join(capsys.readouterr().out.split())
-    assert "The panel that last ruled here returned escalate." in out
+    assert "The panel that last ruled here returned revise." in out
 
     # a pass says nothing: the run simply reached the conductor's own form
     journal.append("i3", "run", title="t", assembly="run-an-issue")

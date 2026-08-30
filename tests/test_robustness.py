@@ -120,7 +120,7 @@ def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(workdir, capsy
         cli.main(["c1", "submit"])
     msg = str(e.value)
     assert "verdict" in msg
-    assert "pass | revise | escalate" in msg          # the note's own list
+    assert "pass | revise" in msg          # the note's own list
     assert len(journal.read("c1")) == before          # not even the submit landed
     assert not runmod.state("c1")["done"]
 
@@ -360,7 +360,7 @@ def test_a_refusal_on_a_vocabulary_field_offers_its_values_not_an_escape_it_refu
         line = next(ln for ln in msg.splitlines() if "one of:" in ln)
         offered.append([v.strip() for v in line.split("one of:")[1].split("|")])
 
-    assert offered[0] == offered[1] == ["pass", "revise", "escalate"]
+    assert offered[0] == offered[1] == ["pass", "revise"]
 
     # Take the escape at its word. Were it naming a value the submit refuses,
     # this raises -- which is exactly the defect, one step later.

@@ -181,8 +181,7 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
 # itself is the assembly's choice and not the engine's. The keys come off the
 # source, so a key added to one of these sites joins the sweep below without
 # anyone remembering to; the sites are pinned so that a new one fails loudly
-# instead of going unswept. `_mint_segment_round` falls back to the segment's
-# step-form when its caller names no rework form, so both roles receive it.
+# instead of going unswept.
 MINT_TARGETS = {
     ("_open_child", None): ("panel",),                 # a panelist's dispatch
     # a replan's fresh round now goes through `_perform`'s generic `refill`
@@ -190,10 +189,12 @@ MINT_TARGETS = {
     # `fields` is forwarded whole, not a literal dict this sweep can see, so
     # there is no site left here for gate adjudication's replan to name.
     ("_act_on_verdicts", "outlet"): ("impasse-form",),
-    # `_mint_segment_round` takes the rework-form where the segment declares
-    # one and the step-form otherwise -- a fallback, not both. Sweeping the
-    # union holds a step-form to keys no revise can ever hand it.
-    ("_act_on_verdicts", 'seg.get("rework-form", "")'): ("rework-form|step-form",),
+    # An ordinary revise (no impasse loop) now resolves through the same
+    # declared-outcome table a two-voices step already used -- `_perform`'s
+    # `rework` verb, called with a synthesized step whose own `prefill` is
+    # `step.get("prefill") or {}` (forwarded, not a literal this sweep can
+    # see). The literal-dict site that used to sit directly in
+    # `_act_on_verdicts` is gone; nothing replaces it here.
 }
 
 # A form that receives a minted key its own prose never names, and the file
@@ -340,9 +341,9 @@ VOCABULARIES = [
     # `_outcome`'s field like any other -- excluded from `swept` below and
     # covered instead by `test_a_declared_outcome_and_its_field_note_are_the_same_list`.
     ("skills/critic/forms/CRITIC.toml", "verdict",
-     ["pass", "revise", "escalate"], runmod.merged_verdict),
+     ["pass", "revise"], runmod.merged_verdict),
     ("skills/reviewer/forms/REVIEW.toml", "verdict",
-     ["pass", "revise", "escalate"], runmod.merged_verdict),
+     ["pass", "revise"], runmod.merged_verdict),
     # These two the engine enforces and no engine code reads: the value is
     # carried in prefill and the reader is the agent on the other side. Saying
     # so is the point -- a string here instead of a function is a claim that
@@ -356,17 +357,44 @@ VOCABULARIES = [
 ]
 
 
+def _direct_taught(asm, seg, spec, fid):
+    """The vocabulary a real, submittable form of this assembly's own teaches
+    for `fid` -- `None` where none of `spec`'s (or its segment's, as a
+    fallback) `form`/`step-form`/`rework-form`/`impasse-form`/
+    `adjudication-form` keys reach a field of that name. A panel-only
+    transition's own keys are all empty, so it always resolves to `None`
+    here -- its decided field is never a form any submit in this assembly
+    carries; `_panel_taught` below is its own, separate teacher."""
+    return next(
+        (forms.vocabulary(fl["note"])
+         for key in ("form", "step-form", "rework-form", "impasse-form",
+                    "adjudication-form")
+         for src in (spec.get(key), seg.get(key)) if src
+         for fl in forms.load(runmod.resolve_form(asm, src))["fields"]
+         if fl["id"] == fid), None)
+
+
 def test_every_vocabulary_the_engine_enforces_is_the_one_the_form_teaches():
     """The engine refuses a value outside the alternatives a field's note
     declares, so those alternatives are load-bearing twice over: every field
     that had one must still yield one, and every value in it must be one the
     act downstream actually performs. An alternative nothing performs is the
     menu-of-outcomes defect again -- offered to the agent, acted on by
-    nothing."""
+    nothing.
+
+    `decided` is scoped to fields a real form of the deciding assembly
+    itself teaches (`_direct_taught`), not merely to a field id some
+    `decides` names -- a panel-only transition's decided field (`verdict`,
+    the panel's own merged word, never a submitted field) shares a name
+    with the panelist forms' own `verdict`, and that field is still
+    `_check_vocabulary`'s to enforce, on a wholly different submit, in a
+    wholly different assembly. Scoping by name alone would exclude it from
+    this sweep for a reason that never applies to it."""
     decided = {fid for name in runmod.assemblies()
-               for seg in runmod.load_assembly(name)["segment"]
+               for asm in [runmod.load_assembly(name)]
+               for seg in asm["segment"]
                for spec in (seg, seg.get("transition", {}))
-               if (fid := spec.get("decides"))}
+               if (fid := spec.get("decides")) and _direct_taught(asm, seg, spec, fid)}
     swept = {}
     for f in FORMS:
         for field in forms.load(f)["fields"]:
@@ -411,6 +439,13 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
     `VOCABULARIES` used to carry for the impasse's `ruling` field, back when
     `_act_on_impasse` hand-read it; now that ruling is a `decides` field like
     any other, the same proof belongs on the generic actor.
+
+    A panel-only transition submits no form of its own, so `_direct_taught`
+    always misses it -- `_act_on_verdicts` synthesizes the decided field from
+    `merged_verdict`, never from a step this assembly minted. What teaches
+    the agent there is the panel's own form instead: every panelist declares
+    a field of the same name (the vote `merged_verdict` folds), so the panel
+    is checked in `_direct_taught`'s place, requiring every panelist agree.
     """
     perform_src = inspect.getsource(cli._perform)
     checked = verbs_checked = 0
@@ -422,13 +457,16 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
                 if not fid:
                     continue
                 declared = [o["value"] for o in spec.get("outcome", [])]
-                taught = next(
-                    (forms.vocabulary(fl["note"])
-                     for key in ("form", "step-form", "rework-form", "impasse-form",
-                                "adjudication-form")
-                     for src in (spec.get(key), seg.get(key)) if src
-                     for fl in forms.load(runmod.resolve_form(asm, src))["fields"]
-                     if fl["id"] == fid), None)
+                taught = _direct_taught(asm, seg, spec, fid)
+                if taught is None and spec.get("panel"):
+                    panel_taught = [forms.vocabulary(fl["note"])
+                                    for p in spec["panel"]
+                                    for fl in forms.load(runmod.resolve_form(asm, p["form"]))["fields"]
+                                    if fl["id"] == fid]
+                    assert panel_taught and all(t == panel_taught[0] for t in panel_taught), (
+                        f"{name}/{seg['id']}: decides {fid!r}, and the panel's own "
+                        f"forms do not all teach the same vocabulary for it: {panel_taught}")
+                    taught = panel_taught[0]
                 assert taught is not None, \
                     f"{name}/{seg['id']}: decides {fid!r}, and no form it reaches has that field"
                 assert declared == taught, (

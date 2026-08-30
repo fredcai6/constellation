@@ -75,6 +75,21 @@ filler = "conductor"
 # this form projects it into `execute` below rather than asking the
 # conductor to retype what the panel already read (#27).
 projects = "run-a-gate"
+# The panel's own decides field, distinct from `ruling` above: that one is
+# IMPASSE.toml's, filled by the conductor; this one is PLAN_TO_EXECUTE.toml's
+# `resolution`, and its value is never typed -- it is the merged verdict,
+# resolved through the outcome rows below the same way a submitted decision
+# field would be. Named apart from `ruling` so the two outcome tables stay
+# disjoint: a word in one is never a legal answer read from the other.
+decides = "resolution"
+
+  [[segment.transition.outcome]]
+  value = "pass"
+  does = "release"     # the panel cleared the plan; the projection above already mints
+
+  [[segment.transition.outcome]]
+  value = "revise"
+  does = "rework"     # another pass, through the rework-form, findings as prefill
 
   # One criterion per panelist. Three fresh-context readers disagreeing is a
   # panel; one reader holding three criteria is a reviewer with a checklist,

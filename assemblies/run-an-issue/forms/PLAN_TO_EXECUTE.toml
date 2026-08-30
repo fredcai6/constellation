@@ -1,6 +1,8 @@
 # Transition: plan → execute. Owned by run-an-issue. Two voices: the critic
-# panel's verdicts return here (any revise refills the plan interior with the
-# findings; escalate goes up); on pass, submitting the form below releases it.
+# panel's verdicts return here -- a revise refills the plan interior with the
+# findings, resolved through this transition's own `resolution` outcome row,
+# three rounds of it reaching the plan segment's impasse form instead; on
+# pass, submitting the form below releases it.
 
 imperative = """
 The plan has passed critique. There is nothing to author here: point at the
@@ -20,3 +22,15 @@ never a copy typed here: purpose, scope, proof and any model or direction
 override cross into the child's prefill; the horizon behind them does not.
 The critics who just judged the round could see the whole future plan; the
 gate that executes it sees only its own piece."""
+
+[[field]]
+id = "resolution"
+kind = "decision"
+optional = true
+note = """
+pass | revise. The critic panel's own merged verdict, carried onto this
+transition's outcome table -- not yours to argue, only to record if you want
+the record explicit. It reads `pass` every time you actually see this form: a
+`revise` refills the plan before this step is ever reached, so it never lands
+here to answer. Typing anything but `pass` mints a redundant rework round
+alongside the projection above, not a correction to it."""

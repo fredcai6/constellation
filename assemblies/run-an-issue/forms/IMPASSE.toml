@@ -1,18 +1,15 @@
-# Step: impasse. Owned by run-an-issue; filled by the conductor. Minted when
-# the panel's objection cannot be answered by another ordinary round: either
-# the segment has been sent back `impasse-after` times, or the panel returned
-# `escalate` -- an objection to the artifact's root, which no round repairs.
-# `arrival` in the orders says which. It carries no panel: a fourth
-# fresh-context reader is the loop, not the way out.
+# Step: impasse. Owned by run-an-issue; filled by the conductor. Minted once
+# the segment has been sent back `impasse-after` times: three reviews landing
+# on the same plan means the plan, not the round, is what keeps failing.
+# `arrival` in the orders reads `rework-rounds` here always -- the panel's
+# verdict is `pass | revise`, so a root objection arrives as a revise finding
+# like any other, and only a repeated one reaches you here. It carries no
+# panel: a fourth fresh-context reader is the loop, not the way out.
 
 imperative = """
-The plan's panel objected in a way another round does not answer. Read
-`arrival`: `rework-rounds` means three reviews sent this plan back, so rule on
-the loop rather than the findings -- three reviews finding the same kind of
-thing means the artifact is not the one under repair. `escalate` means the
-panel objected at the root on the round it read, so rule on that objection: the
-critics say the plan is wrong to build, not that it is short of a fix. Either
-way, say which way this run goes, and why."""
+Three reviews have sent this plan back. Rule on the loop, not on the findings:
+three reviews finding the same kind of thing means the artifact is not the one
+under repair. Say which way this run goes, and why."""
 
 [[field]]
 id = "ruling"
@@ -20,18 +17,16 @@ kind = "decision"
 note = """
 advance | rework | up. `advance` takes the plan to its transition as it stands,
 over a live objection — the findings remain the record that says you did.
-`rework` runs another round, and is the answer only when you can name what that
-round changes: for an escalate, what the plan does differently; for a loop,
-what the last three rounds did not. `up` refills nothing and lets the run walk
-to its close, so this ruling and its reason become the record your principal
-reads. It is the move an escalate verdict already makes on a panel-only review,
-and it ends the run rather than pausing it."""
+`rework` runs another round, and is the answer only when you can name what
+that round changes that the last three did not. `up` refills nothing and lets
+the run walk to its close, so this ruling and its reason become the record
+your principal reads -- the right move when the plan itself is what is wrong,
+not merely short of a fix."""
 
 [[field]]
 id = "why"
 kind = "evidence"
 note = """
 What the panel landed on, and what that says about the artifact. The run's own
-record is the evidence: name the field or the claim the findings are about --
-across the three rounds where they looped, in the escalate where they did
-not."""
+record is the evidence: name the field or the claim the findings kept landing
+on across the three rounds."""
