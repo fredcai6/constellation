@@ -34,16 +34,25 @@ carries = true
 [[segment]]
 id = "plan"
 interior = "steps"
-step-form = "forms/PLAN.toml"
+# The conductor that will judge the cut cannot also be the hand that drafted
+# it (ruling 6) -- the round this seeds opens as a dispatch to a fresh
+# planner's own child run, not a form on the issue-conductor's own worklist.
+dispatches = "cut-a-gate"
+step-form = "skills/planner/forms/PLAN.toml"
 # A revise mints this in place of the step-form: rework is its own move, not
-# a second first draft. A replan still mints the step-form.
-rework-form = "forms/REWORK.toml"
+# a second first draft. A replan still mints the step-form. A rework round
+# dispatches the same way the first cut does -- ruling 6 does not lapse on
+# round two -- carried to the child as a form override so it fills REWORK.toml
+# in place of cut-a-gate's own PLAN.toml. The verdict that forces the round,
+# and the loop it may become, stay the issue-conductor's to hold; only the
+# drafting hand moves.
+rework-form = "skills/planner/forms/REWORK.toml"
 # After this many rework rounds on one artifact, a further revise mints the
 # impasse form instead: the loop itself becomes the thing the conductor rules
 # on. Counted since the last step-form mint, so a replan starts over.
 impasse-after = 3
 impasse-form = "forms/IMPASSE.toml"
-worker = "conductor"
+worker = "planner"
 decides = "ruling"     # IMPASSE.toml's; PLAN.toml and REWORK.toml have no such field
 
   [[segment.outcome]]

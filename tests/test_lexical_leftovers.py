@@ -137,7 +137,7 @@ def test_every_load_bearing_term_has_a_glossary_headword():
 # grounds as everything above.
 
 RUN_AN_ISSUE_FORMS = ROOT / "assemblies" / "run-an-issue" / "forms"
-PLAN_FORM = RUN_AN_ISSUE_FORMS / "PLAN.toml"
+PLAN_FORM = ROOT / "skills" / "planner" / "forms" / "PLAN.toml"
 OPEN_FORM = RUN_AN_ISSUE_FORMS / "OPEN.toml"
 SENTENCE = re.compile(r"(?<=\.)\s+")
 

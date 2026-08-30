@@ -17,6 +17,7 @@ from gitremote import init_checkout
 
 from test_nesting import (
     _dispatch_and_close_child,
+    _dispatch_and_close_plan,
     _dispatch_plan_critic,
     _dispatch_review,
     _fill,
@@ -50,8 +51,7 @@ def _drive_to_revise(wid="issue17", findings="gap: gate 1 is untestable"):
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    _fill_plan(wid)
-    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid, verdict="revise", findings=findings)
     return wid
 
@@ -59,6 +59,18 @@ def _drive_to_revise(wid="issue17", findings="gap: gate 1 is untestable"):
 def _fresh_mint(st, segment):
     return next(s for s in st["steps"]
                 if s["segment"] == segment and s.get("source") == "mint")
+
+
+def _dispatch_rework_round(wid, fill_fn=None):
+    """Dispatch the plan round current at `wid` -- a rework round or a
+    replan alike, since every round dispatches now -- fill it, submit and
+    close the child. `st["current"]` names it, not `_fresh_mint`: a run with
+    more than one rework round behind it has more than one minted plan step,
+    and only the current one is still open. `fill_fn` defaults to
+    `_fill_rework`; a replan passes `_fill_plan` instead. Returns the
+    child's work id."""
+    step_id = runmod.state(wid)["current"]["id"]
+    return _dispatch_and_close_plan(wid, step_id, fill_fn or _fill_rework)
 
 
 # -- 1. a revise mints the segment's rework form, findings as prefill --------
@@ -70,14 +82,17 @@ def test_revise_mints_rework_form_with_findings_as_prefill(workdir, capsys):
 
     st = runmod.state(wid)
     fresh = _fresh_mint(st, "plan")
-    assert fresh["form"] == "forms/REWORK.toml"
+    assert fresh["dispatches"] == "cut-a-gate"  # a rework round dispatches too
+    assert fresh["form"] == "skills/planner/forms/REWORK.toml"  # the override
     assert "gate 1 is untestable" in fresh["prefill"]["findings"]
     assert st["current"]["id"] == fresh["id"]
 
-    # the fresh round materializes REWORK.toml, not another PLAN.toml
-    cli.main([wid])
+    # the dispatched child materializes REWORK.toml, not another PLAN.toml
+    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
+    child = f"{wid}.{fresh['id']}"
+    cli.main([child])
     capsys.readouterr()
-    assert (pathlib.Path(f".agent-work/{wid}/REWORK.toml")).exists()
+    assert (runmod.journal.location(child) / "REWORK.toml").exists()
 
 
 # -- 2. a replan mints the step-form ------------------------------------------
@@ -94,7 +109,8 @@ def test_replan_mints_the_step_form(workdir, capsys):
     capsys.readouterr()
 
     fresh = _fresh_mint(runmod.state("issue17"), "plan")
-    assert fresh["form"] == "forms/PLAN.toml"  # a replan re-plans from scratch
+    assert fresh["dispatches"] == "cut-a-gate"  # a replan dispatches too
+    assert fresh["form"] == "skills/planner/forms/PLAN.toml"  # a replan re-plans from scratch
 
 
 def test_a_replan_restarts_the_rework_count(workdir, capsys):
@@ -107,8 +123,7 @@ def test_a_replan_restarts_the_rework_count(workdir, capsys):
     assert runmod.rework_rounds(runmod.state(wid), asm, "plan") == 2
 
     # carry that plan through to a gate, then replan from the gate transition
-    _fill_rework(wid)
-    cli.main([wid, "submit"])
+    _dispatch_rework_round(wid)
     _dispatch_plan_critic(wid, verdict="pass")
     capsys.readouterr()
     _fill(runmod.journal.location(wid) / "PLAN_TO_EXECUTE.toml", '''
@@ -155,13 +170,17 @@ def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdi
     wid = _drive_to_revise()
     capsys.readouterr()
 
-    _fill(pathlib.Path(f".agent-work/{wid}/REWORK.toml"), '''
+    fresh = _fresh_mint(runmod.state(wid), "plan")
+    child = f"{wid}.{fresh['id']}"
+    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
+    _fill(runmod.journal.location(child) / "REWORK.toml", '''
 plan = ".agent-work/%s/plan.md"
 findings-addressed = "accepted: rewrote gate 1's done as a runnable command"
 deleted = "the restated approach section; the gates already carry it"
 key-terms = "waived: none"
-''' % wid)
-    cli.main([wid, "submit"])
+''' % child)
+    cli.main([child, "submit"])
+    cli.main([child, "close"])
     capsys.readouterr()
 
     st = runmod.state(wid)
@@ -173,7 +192,7 @@ key-terms = "waived: none"
     prefill = runmod.state(f"{wid}.{panel_id}.p1")["prefill"]
     assert "findings-addressed" not in prefill  # the producer's ledger stays behind
     assert "deleted" not in prefill
-    assert prefill["plan"] == f".agent-work/{wid}/plan.md"  # the artifact still rides
+    assert prefill["plan"] == f".agent-work/{child}/plan.md"  # the artifact still rides
     assert prefill["key-terms"] == "waived: none"
     assert prefill["criteria"].startswith("intent-fit")
 
@@ -185,13 +204,22 @@ def _plan_measures(wid):
     return [m["words"] for m in runmod.state(wid)["measures"] if m["field"] == "plan"]
 
 
-def test_the_room_reports_how_the_plan_moved_across_its_rounds(workdir, capsys):
-    """A rework round is told what the artifact did, and nothing more.
+def test_the_plan_segments_room_never_reports_drift_since_every_round_dispatches(
+        workdir, capsys):
+    """A rework round is measured in the dispatched child's own journal, the
+    same as the first cut always was -- so unlike a segment that stays
+    local (run-a-gate's `work`), the plan segment's own room has nothing to
+    compare across rounds, because no round of it is ever local any more.
+    `drift` (render.py) reads `measures` filtered to the current step's
+    segment, and this run's own journal never gains a `measure` entry tagged
+    `plan` -- every one of them lands in a dispatched child's journal
+    instead, round after round.
 
-    The engine measures prose only -- fenced blocks, tables and indented code
-    do not count -- because a plan that grew by gaining proofs has not
-    accreted, and a count that cannot tell those apart makes an agent delete
-    meaning to hit a number. It reports; it never refuses.
+    This inverts what this test proved before every round dispatched: growth
+    used to be reported locally starting at the first rework round. The
+    engine's measuring mechanism is unchanged (proved for `work` elsewhere);
+    what changed is that the plan segment no longer has a local round for it
+    to ever fire on.
     """
     wid = "issue44"
     cli.main(["open", "run-an-issue", "--issue", "44", "--title", "a plan that grows"])
@@ -201,47 +229,48 @@ def test_the_room_reports_how_the_plan_moved_across_its_rounds(workdir, capsys):
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
 
-    art = pathlib.Path(f".agent-work/{wid}/plan.md")
+    # round one: the dispatch. Measured in the child's own journal, silent
+    # in this one -- there is nothing here yet to compare.
+    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
+    child = f"{wid}.plan-1"
+    art = runmod.journal.location(child) / "plan.md"
     art.write_text("one two three four five six seven eight nine ten\n")
-    _fill_plan(wid)
-    cli.main([wid, "submit"])
+    _fill_plan(child)
+    cli.main([child, "submit"])
+    assert _plan_measures(child) == [10]
+    cli.main([child, "close"])
     capsys.readouterr()
 
-    # round one measured, and says nothing -- there is nothing yet to compare
-    assert _plan_measures(wid) == [10]
+    assert _plan_measures(wid) == []
     cli.main([wid])
     assert "prose words" not in capsys.readouterr().out
 
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
 
-    # a longer plan, whose growth is all table and fenced block
-    art.write_text("one two three four five six seven eight nine ten\n"
-                   "| a | b | c | d | e | f |\n"
-                   "```\nnot prose at all, not counted, not once\n```\n"
-                   "    indented code is not prose either\n"
-                   "eleven twelve\n")
-    _fill(runmod.journal.location(wid) / "REWORK.toml", '''
-plan = ".agent-work/%s/plan.md"
+    # the rework round dispatches too -- still measured in a child's own
+    # journal, never this run's
+    fresh = _fresh_mint(runmod.state(wid), "plan")
+    assert fresh["dispatches"] == "cut-a-gate"
+    rework_child = f"{wid}.{fresh['id']}"
+    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
+    rework_art = runmod.journal.location(rework_child) / "plan.md"
+    rework_art.write_text("one two three four five six seven eight nine ten eleven twelve\n")
+    _fill(runmod.journal.location(rework_child) / "REWORK.toml", '''
+plan = "%s"
 findings-addressed = "accepted: thickened gate 1"
-deleted = "nothing; the growth is all table and fence"
+deleted = "nothing; the growth is all prose"
 key-terms = "waived: none"
-''' % wid)
-    cli.main([wid, "submit"])
+''' % rework_art)
+    cli.main([rework_child, "submit"])
+    assert _plan_measures(rework_child) == [12]
+    cli.main([rework_child, "close"])
     capsys.readouterr()
 
-    assert _plan_measures(wid) == [10, 12]
-
-    # the room reports it at the NEXT round, where the conductor is writing:
-    # the artifact on disk is the one just submitted, and now it has a history
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: still thin")
-    capsys.readouterr()
+    # still nothing local to compare -- this run's own room saw nothing
+    assert _plan_measures(wid) == []
     cli.main([wid])
-    out = capsys.readouterr().out
-    assert "12 prose words" in out          # the table, fence and indent are absent
-    assert "+20% on the first round" in out
-    assert "growth is not a defect" in out
-    assert "too long" not in out            # a notice, never a verdict
+    assert "prose words" not in capsys.readouterr().out
 
 
 # -- 5. the outlet: a fourth revise mints a ruling, not a fourth round --------
@@ -257,10 +286,10 @@ key-terms = "none"
 
 
 def _round(wid, findings):
-    """One rework round: fill the fresh REWORK.toml, submit, and have the
-    fresh panel say revise again."""
-    _fill_rework(wid)
-    cli.main([wid, "submit"])
+    """One rework round: dispatch the fresh REWORK.toml round, fill it,
+    submit and close the child, and have the fresh panel say revise
+    again."""
+    _dispatch_rework_round(wid)
     _dispatch_plan_critic(wid, verdict="revise", findings=findings)
 
 
@@ -299,7 +328,7 @@ def test_the_count_reaches_the_outlet_on_the_round_after_the_third(workdir, caps
     capsys.readouterr()
     assert counts == [1, 2, 3]
     # three rounds is still a round -- the revise that follows is the ruling
-    assert runmod.state(wid)["current"]["form"] == "forms/REWORK.toml"
+    assert runmod.state(wid)["current"]["form"] == "skills/planner/forms/REWORK.toml"
     _round(wid, "gap 3")
     capsys.readouterr()
     assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
@@ -346,7 +375,7 @@ def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
     capsys.readouterr()
 
     st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/REWORK.toml"
+    assert st["current"]["form"] == "skills/planner/forms/REWORK.toml"
     assert "empty diff (3)" in st["current"]["prefill"]["findings"]
 
 

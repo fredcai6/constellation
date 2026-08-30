@@ -1,0 +1,20 @@
+# Assembly: cut one round of the plan -- the first cut and every rework round
+# alike. Opened by dispatch from run-an-issue's plan segment: the spec, what
+# has landed, and the horizon arrive as prefill. A single anchored, terminal
+# step: there is nothing here but the cut, so planning never grows an
+# interior of its own. On a rework round the dispatch step names a form
+# override, so the transition below fills REWORK.toml in place of its own
+# PLAN.toml -- the verdict that forces the round is still the parent's to
+# hold, only which form this child fills changes.
+
+assembly = "cut-a-gate"
+conductor = "planner"
+
+[[segment]]
+id = "cut"
+
+[segment.transition]
+anchor = true
+terminal = true
+form = "skills/planner/forms/PLAN.toml"
+filler = "planner"

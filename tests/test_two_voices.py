@@ -75,22 +75,40 @@ settle = "%s"
 
 
 def _fill_plan_form(wid):
-    _fill(f".agent-work/{wid}/PLAN.toml", '''
-plan = ".agent-work/%s/plan.md"
+    loc = journal.location(wid)
+    _fill(loc / "PLAN.toml", '''
+plan = "%s/plan.md"
 design-it-twice = "waived: reversible"
 key-terms = "waived: none"
-''' % wid)
+''' % loc)
+
+
+def _dispatch_and_close_plan(pwid, step_id="plan-1", fill_fn=None):
+    """Open cut-a-gate at the plan segment's dispatch step, fill whichever
+    form its own step names, submit and close it -- give-a-verdict's own
+    shape, one form deep. Every round dispatches, not only the first:
+    `fill_fn` (default `_fill_plan_form`) lets a caller pass
+    `_fill_rework_form` for a revise round, whose dispatch step carries a
+    form override selecting REWORK.toml."""
+    cli.main(["open", "cut-a-gate", "--parent", pwid, "--step", step_id])
+    child_wid = f"{pwid}.{step_id}"
+    (fill_fn or _fill_plan_form)(child_wid)
+    cli.main([child_wid, "submit"])
+    cli.main([child_wid, "close"])
+    return child_wid
 
 
 def _fill_rework_form(wid, findings_addressed="accepted: made gate 1 testable",
                       deleted="the restated background; the gates already carry it"):
-    """A revise round's interior step is REWORK.toml, not PLAN.toml."""
-    _fill(f".agent-work/{wid}/REWORK.toml", '''
-plan = ".agent-work/%s/plan.md"
+    """A revise round's interior step is REWORK.toml, not PLAN.toml. `wid`
+    is the dispatched child's own id -- a revise round dispatches too."""
+    loc = journal.location(wid)
+    _fill(loc / "REWORK.toml", '''
+plan = "%s/plan.md"
 findings-addressed = "%s"
 deleted = "%s"
 key-terms = "waived: none"
-''' % (wid, findings_addressed, deleted))
+''' % (loc, findings_addressed, deleted))
 
 
 def _fill_plan_to_execute(wid, n_gates=1):
@@ -144,8 +162,7 @@ def _drive_to_plan_to_execute(wid="issue99", settle="waived: none"):
     _work_the_board(wid)
     _fill_consolidate(wid, settle)
     cli.main([wid, "submit"])
-    _fill_plan_form(wid)
-    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
     return wid
 
 
@@ -206,7 +223,7 @@ def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdi
     capsys.readouterr()
     prefill = runmod.state(f"{wid}.plan.p1")["prefill"]
     assert prefill["learnings"] == "settled."      # the understanding crossed
-    assert prefill["plan"] == f".agent-work/{wid}/plan.md"   # the artifact still rides
+    assert prefill["plan"] == f".agent-work/{wid}/plan-1/plan.md"   # the artifact still rides
     assert prefill["criteria"].startswith("intent-fit")
 
 
@@ -263,7 +280,9 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
 
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["form"] == "forms/REWORK.toml"            # rework, not a second first draft
+    # rework, not a second first draft -- and it dispatches, like every round
+    assert fresh_plan["dispatches"] == "cut-a-gate"
+    assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
     assert "[p1]" in fresh_plan["prefill"]["findings"]          # attributed
 
@@ -273,9 +292,8 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
     assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"  # the two-voices shape survives
     assert st["current"]["id"] == fresh_plan["id"]              # plan resumes, not the mint form
 
-    # work the fresh round: reworked plan, fresh panel, this time a pass
-    _fill_rework_form(wid)
-    cli.main([wid, "submit"])
+    # work the fresh round: dispatch it, reworked plan, fresh panel, this time a pass
+    _dispatch_and_close_plan(wid, fresh_plan["id"], _fill_rework_form)
     capsys.readouterr()
     st = runmod.state(wid)
     assert st["current"]["id"] == fresh_panel["id"]
@@ -369,7 +387,8 @@ def test_an_escalated_plan_mints_the_outlet_instead_of_finishing(workdir, capsys
 
     st = runmod.state(wid)
     assert "plan" in st["done"]                       # released, like any non-pass
-    assert not any(s.get("dispatches") for s in st["steps"]), "an escalate minted gates"
+    assert not any(s.get("dispatches") == "run-a-gate" for s in st["steps"]), \
+        "an escalate minted gates"
 
     outlet = st["current"]
     assert outlet["form"] == "forms/IMPASSE.toml", (

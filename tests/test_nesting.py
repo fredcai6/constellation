@@ -66,13 +66,33 @@ settle = "waived: none"
 
 
 def _fill_plan(wid):
-    """The plan segment opens with a step to plan in -- the interior's first
-    step -- before its transition cuts the plan into gates."""
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN.toml"), '''
-plan = ".agent-work/%s/plan.md"
+    """Fill PLAN.toml at `wid`'s own work location -- `journal.location`,
+    not string interpolation, so a dotted child id (`issue17.plan-1`, the
+    first round's own dispatch) nests instead of colliding with a literal
+    dot in a directory name. Also what a `replan` mints locally, since that
+    round takes the same step-form the first round does."""
+    loc = journal.location(wid)
+    _fill(loc / "PLAN.toml", '''
+plan = "%s/plan.md"
 design-it-twice = "waived: reversible"
 key-terms = "waived: none"
-''' % wid)
+''' % loc)
+
+
+def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
+    """Open cut-a-gate at the plan segment's dispatch step, fill whichever
+    form its own step names, submit and close it -- give-a-verdict's own
+    shape, one form deep, so unlike `_dispatch_and_close_child` there is no
+    separate review loop to drive. Every round dispatches, not only the
+    first: `step_id` names which fresh mint to open, and `fill_fn` (default
+    `_fill_plan`) lets a caller pass `_fill_rework` for a rework round, whose
+    dispatch step carries a form override selecting REWORK.toml."""
+    cli.main(["open", "cut-a-gate", "--parent", parent_wid, "--step", step_id])
+    child_wid = f"{parent_wid}.{step_id}"
+    (fill_fn or _fill_plan)(child_wid)
+    cli.main([child_wid, "submit"])
+    cli.main([child_wid, "close"])
+    return child_wid
 
 
 def _fill_plan_to_execute(wid):
@@ -176,8 +196,7 @@ def _mint_n_gates(n, wid="issue17"):
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    _fill_plan(wid)
-    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
     blocks = "\n\n".join(
         '[[gates]]\npurpose = "gate %d purpose"\nscope = "gate %d scope"\nproof = "true"'
@@ -233,8 +252,7 @@ def _mint_two_gates(wid="issue17"):
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    _fill_plan(wid)
-    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
     _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
@@ -799,7 +817,8 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
     st = runmod.state("issue17")
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["form"] == "forms/PLAN.toml"
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a replan dispatches too -- every round does
+    assert fresh_plan["form"] == "skills/planner/forms/PLAN.toml"  # no override -- plans from scratch
     assert fresh_plan["prefill"]["findings"] == "the cut was wrong from the start"
 
     fresh_panel = next(s for s in st["steps"] if s.get("source") == "panel")
@@ -810,8 +829,7 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
     # genuinely reachable, not a step that merely looks minted
     assert st["current"]["id"] == fresh_plan["id"]
 
-    _fill_plan("issue17")
-    cli.main(["issue17", "submit"])
+    _dispatch_and_close_plan("issue17", fresh_plan["id"])
     capsys.readouterr()
     assert runmod.state("issue17")["current"]["id"] == fresh_panel["id"]
 
@@ -851,8 +869,7 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    _fill_plan(wid)
-    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
     capsys.readouterr()
 
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable")
@@ -861,7 +878,7 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     st = runmod.state(wid)
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["form"] == "forms/REWORK.toml"  # a revise reworks
+    assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"  # a revise reworks
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
     assert "[p1]" in fresh_plan["prefill"]["findings"]
 
@@ -889,8 +906,7 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeyp
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    _fill_plan(wid)
-    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid, verdict="escalate", findings="gap: wrong artifact entirely")
     capsys.readouterr()
 

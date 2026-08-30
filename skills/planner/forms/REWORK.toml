@@ -1,4 +1,4 @@
-# Step: rework round of plan. Owned by run-an-issue; filled by the conductor.
+# Step: rework round of plan. Owned by the planner skill; filled by the planner.
 # A revise verdict mints this form in place of PLAN.toml; the panel's merged
 # findings arrive as prefill. No design-it-twice field: round one weighed the
 # alternatives, and re-arguing them is accretion.
