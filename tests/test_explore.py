@@ -146,6 +146,13 @@ def _to_rework(explore):
         _spine(critic, "submit")
         _spine(critic, "close")
     assert _current(explore)["form"] == "forms/REWORK.toml"
+    # The critics' own findings ride into that round verbatim -- this caller
+    # submits no `calls` table, so `_blocking_calls` reads `None` and the
+    # carry-everything behaviour is untouched. Same shape
+    # `test_rework.py::test_revise_mints_rework_form_with_findings_as_prefill`
+    # and `test_spec_review.py` already assert; without it this file only ever
+    # checked which form came next.
+    assert "gap: no point" in _current(explore)["prefill"]["findings"]
 
 
 def test_re_explore_goes_back_to_the_board_and_a_fresh_spec_waits(explore):

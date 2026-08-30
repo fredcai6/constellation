@@ -480,7 +480,15 @@ def test_a_gates_rework_mints_the_step_form_again(workdir, capsys):
     cli.main([child, "submit"])
     capsys.readouterr()
 
-    assert runmod.state(child)["current"]["form"] == "skills/implementer/forms/IMPLEMENT.toml"
+    st = runmod.state(child)
+    assert st["current"]["form"] == "skills/implementer/forms/IMPLEMENT.toml"
+    # The findings the displaced round was carrying ride into it, unfiltered:
+    # the ruling step carries no `calls` table, so `_blocking_calls` reads
+    # `None` and this caller's prefill is exactly what it always was. Asserted
+    # on the content, not only on the form -- the neighbouring
+    # `test_a_gates_fourth_revise_mints_the_impasse_form` uses the same shape,
+    # and without it a filter that dropped everything would pass here.
+    assert "untestable (4)" in st["current"]["prefill"]["findings"]
 
 
 def test_the_opening_step_is_not_a_send_back(workdir, capsys):

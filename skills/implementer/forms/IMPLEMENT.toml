@@ -4,19 +4,26 @@
 # never by editing it.
 
 imperative = """
-Make the change the gate spec above describes. Stay inside its scope; anything
-you find outside it is a note, not a detour. When the spec and reality
-disagree, that is a blocked note up, not an improvisation."""
+Make the change the gate spec above describes. You may also make one the spec
+did not name when all three hold: it is in a file this gate already touches,
+it needs no proof of its own, and it is separable -- reverting it alone would
+leave the gate's diff complete. Anything failing one of the three is a note,
+never a detour. When the spec and reality disagree, that is a blocked note up,
+not an improvisation."""
 
 [[field]]
 id = "change"
 kind = "evidence"
-note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort. Name the branch; the commit is made once at the gate's close, not per round."
+note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort. Nothing here touches git: the commit is the issue tier's, made when the parent advances past this gate."
 
 [[field]]
 id = "deviations"
 kind = "evidence"
-note = "Where the work departed from the spec and why — or waived: none."
+note = """
+Every change this round made that the spec did not name -- one line each,
+naming its file -- and where the work departed from the spec and why. Or
+waived: none. The gate-conductor calls each of these at `route` the way it
+calls a review finding, so one left undeclared is one nobody ruled on."""
 
 [[field]]
 id = "proof"

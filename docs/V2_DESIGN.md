@@ -78,10 +78,13 @@ do 2 (the spec-writer's own round, in place rather than a dispatched subagent) s
 cold critic panel and the route sitting on its one transition; there is no `up` outcome
 distinct from the interrogator's own impasse path. The issue-conductor still writes the plan
 itself; `run-an-issue` cuts
-every gate at plan-to-execute; `run-a-gate` runs all six beats above, but its `route` form
-takes one word for the whole round (`pass | revise | rework | close`) rather than the
-per-finding blocking/accepted/beyond/rejected disposition the table's `route` row describes;
-`up` at an impasse walks the run to close;
+every gate at plan-to-execute; `run-a-gate` runs all six beats above, and its `route` form now
+calls every review finding and every declared deviation blocking/accepted/beyond/rejected, a
+`rework` carrying the blocking ones alone into the next implement round. Its one-word
+`resolution` keeps `revise` beside the three words this table names, because the review panel's
+own merged verdict resolves against that same outcome table and an undeclared value refuses;
+`up` is a legal word at `route` now as well as at an impasse, but it still releases the round
+and walks the run to close rather than pausing it;
 `PLAN` carries a design-it-twice field; open and close create no worktree, archive nothing,
 and push nothing. Wave 3b brings the tree to the shape above.
 
