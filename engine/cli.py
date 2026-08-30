@@ -148,10 +148,17 @@ def _runner(tier):
 def _current_form(st):
     asm = runmod.load_assembly(st["assembly"])
     step = st["current"]
-    if step.get("dispatches"):
-        return asm, step, None  # rendered as a command, not a form
+    # [panel-before-dispatch]
+    # Rationale: round one's own design panel (ruling 10) is the first step
+    #   in the tree to carry both `dispatches` and `panel` -- checking
+    #   `dispatches` first silently rendered it as a single-child brief,
+    #   discoverable only once and then stuck, since a second open at the
+    #   same untagged address refuses. `cmd_close`'s own pending-step
+    #   guidance already checks panel first for the identical reason.
     if runmod.panel_outstanding(st, step):
         return asm, step, None  # rendered as N commands; the outcome is mechanical
+    if step.get("dispatches"):
+        return asm, step, None  # rendered as a command, not a form
     return asm, step, forms.load(runmod.resolve_form(asm, step["form"]))
 
 
@@ -594,11 +601,11 @@ def cmd_status(argv):
                             onward_to=_onward(st)))
         return 0
     asm, step, form = _current_form(st)
+    if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
+        print(_panel_status(wid, st, asm, step, runmod.blocks(st)))
+        return 0
     if step.get("dispatches"):
         print(_dispatch_status(wid, st, asm, step, runmod.blocks(st)))
-        return 0
-    if runmod.panel_outstanding(st, step):
-        print(_panel_status(wid, st, asm, step, runmod.blocks(st)))
         return 0
     dest = _response_path(st, step)
     if not dest.exists():
@@ -641,15 +648,15 @@ def cmd_submit(argv):
             f"{wid} has no current step"
             + (f" -- close it: spine {wid} close" if st and st["awaiting_close"] else "")))
     asm, step, form = _current_form(st)
+    if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
+        raise SystemExit(render.refusal(
+            step["id"], "a panel step is not submitted -- the panelists' verdicts "
+            "complete it", escape=f"who is outstanding: spine {wid}"))
     if step.get("dispatches"):
         raise SystemExit(render.refusal(
             step["id"],
             f"a dispatch step is not submitted -- open its child: "
             f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"))
-    if runmod.panel_outstanding(st, step):
-        raise SystemExit(render.refusal(
-            step["id"], "a panel step is not submitted -- the panelists' verdicts "
-            "complete it", escape=f"who is outstanding: spine {wid}"))
     dest = _response_path(st, step)
     if not dest.exists():
         raise SystemExit(render.located(f"no response form yet — run: spine {wid}"))
@@ -1527,7 +1534,20 @@ def _act_on_verdicts(pwid, step_id):
     returns = pst["returns"][step_id]
     verdict = runmod.merged_verdict(returns)
     asm = runmod.load_assembly(pst["assembly"])
-    field = _decided_here(asm, step)
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    t = seg.get("transition", {})
+    # [panel-owner]
+    # Rationale: a panel is not only a transition's now (ruling 10) -- an
+    #   interior step's own design panel authors, it does not decide, and
+    #   the segment it sits in still declares `decides` for its impasse
+    #   ruling. `_decided_here`'s segment fallback exists for that direct
+    #   submit, not for a synthesised panel verdict, so this reads `decides`
+    #   only when `step` really is the transition, never falling back.
+    # Rejected: calling `_decided_here` here as before. Its fallback made an
+    #   interior design panel's merged "pass" get checked against the
+    #   segment's own outcome table (advance | rework | up) -- a value that
+    #   table never declares, so closing the last planner sibling refused.
+    field = t.get("decides") if step.get("form") == t.get("form") else ""
     outcome = _outcome(asm, step, {field: verdict}, pst) if field else None
     if not outcome:
         return

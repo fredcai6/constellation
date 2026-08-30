@@ -112,11 +112,20 @@ def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
     first: `step_id` names which fresh mint to open, and `fill_fn` (default
     `_fill_plan`) lets a caller pass `_fill_rework` for a rework round, whose
     dispatch step carries a form override selecting REWORK.toml."""
-    cli.main(["open", "cut-a-gate", "--parent", parent_wid, "--step", step_id])
-    child_wid = f"{parent_wid}.{step_id}"
-    (fill_fn or _fill_plan)(child_wid)
-    cli.main([child_wid, "submit"])
-    cli.main([child_wid, "close"])
+    panel = next(s for s in runmod.state(parent_wid)["steps"] if s["id"] == step_id).get("panel")
+    if not panel:
+        cli.main(["open", "cut-a-gate", "--parent", parent_wid, "--step", step_id])
+        child_wid = f"{parent_wid}.{step_id}"
+        (fill_fn or _fill_plan)(child_wid)
+        cli.main([child_wid, "submit"])
+        cli.main([child_wid, "close"])
+        return child_wid
+    for n in range(1, len(panel) + 1):
+        cli.main(["open", "give-a-verdict", "--parent", parent_wid, "--step", f"{step_id}.p{n}"])
+        child_wid = f"{parent_wid}.{step_id}.p{n}"
+        (fill_fn or _fill_plan)(child_wid)
+        cli.main([child_wid, "submit"])
+        cli.main([child_wid, "close"])
     return child_wid
 
 
@@ -984,7 +993,7 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     assert "[p1]" in fresh_plan["prefill"]["findings"]
 
     fresh_panel = next(s for s in st["steps"]
-                       if s.get("panel") and s["segment"] == "plan" and s["id"] != "plan")
+                       if s.get("source") == "panel" and s["segment"] == "plan")
     assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"
     original_plan = next(s for s in st["steps"] if s["id"] == "plan")
     assert fresh_panel["panel"] == original_plan["panel"]  # same panel config

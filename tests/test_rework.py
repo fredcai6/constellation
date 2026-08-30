@@ -225,19 +225,32 @@ def test_the_plan_segments_measures_fold_into_the_parent_each_round(workdir, cap
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
 
-    # round one: the dispatch, measured in the child's own journal first.
-    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
-    child = f"{wid}.plan-1"
-    art = runmod.journal.location(child) / "plan.md"
-    art.write_text("one two three four five six seven eight nine ten\n")
-    _fill_plan(child)
+    # round one: design-it-twice (ruling 10) -- three siblings, each
+    # measured in its own child's journal first, each folding its own
+    # measure into the parent at close. Filled identically here: this test
+    # is the rework-specific case (test_round_carry.py is the fuller
+    # account), not a proof of what the room does with three same-round
+    # entries -- an open question ruling 10 did not settle.
+    def _fill_ten_words(w):
+        (runmod.journal.location(w) / "plan.md").write_text(
+            "one two three four five six seven eight nine ten\n")
+        _fill_plan(w)
+    child = f"{wid}.plan-1.p1"
+    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan-1.p1"])
+    _fill_ten_words(child)
     cli.main([child, "submit"])
     assert _plan_measures(child) == [10]
     cli.main([child, "close"])
+    for n in (2, 3):
+        sib = f"{wid}.plan-1.p{n}"
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"plan-1.p{n}"])
+        _fill_ten_words(sib)
+        cli.main([sib, "submit"])
+        cli.main([sib, "close"])
     capsys.readouterr()
 
-    # the return folded it into the parent
-    assert _plan_measures(wid) == [10]
+    # every sibling's return folded its own measure into the parent
+    assert _plan_measures(wid) == [10, 10, 10]
 
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
@@ -265,8 +278,9 @@ key-terms = "waived: none"
     cli.main([rework_child, "close"])
     capsys.readouterr()
 
-    # both rounds are now in the parent's own journal, in order
-    assert _plan_measures(wid) == [10, 12]
+    # both rounds are now in the parent's own journal, in order -- round
+    # one's three siblings, then the rework round's single pass
+    assert _plan_measures(wid) == [10, 10, 10, 12]
 
 
 # -- 5. the outlet: a fourth revise mints a ruling, not a fourth round --------

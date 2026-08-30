@@ -184,6 +184,12 @@ forms; coining a synonym for a term below is a defect.
   picture, rival.
 - **rival** — a design produced against an incumbent under one named constraint, to test
   whether the incumbent holds. Design-it-twice, without the count.
+- **design-it-twice** — ruling 10: a plan segment's first round dispatches the planner and two
+  more, each under a constraint chosen to open a different path; the conductor picks or merges
+  before the critic panel reads any of them. Read once, on round one, from a `panel` declared
+  on the segment itself rather than its transition; a rework round re-argues nothing, so it
+  never reads it. `criteria` is the shared field a verdict panel and this one both carry — a
+  criterion when the sibling judges, a constraint when it authors.
 - **ideas board** — the explore segment's board: a tree of ideas and threads grown and shaped
   across cycles, never drained. An open row is the point; the human's converge releases.
 - **cycle** — one firing of the explore transition: consolidate the board, then the human says

@@ -93,13 +93,18 @@ def test_a_parent_holds_the_measure_its_dispatched_round_submitted(workdir, caps
 def test_two_rounds_produce_a_drift_the_rooms_renders(workdir, capsys):
     wid = _drive_to_first_round()
 
-    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
-    child = f"{wid}.plan-1"
-    art = journal.location(child) / "plan.md"
-    art.write_text("one two three four five six seven eight nine ten\n")
-    _fill_plan(child)
-    cli.main([child, "submit"])
-    cli.main([child, "close"])
+    # round one: design-it-twice (ruling 10) -- three siblings, filled
+    # identically here since this test is about the drift a rework round
+    # produces, not about how the room would reconcile three same-round
+    # entries (an open question ruling 10 did not settle).
+    for n in (1, 2, 3):
+        child = f"{wid}.plan-1.p{n}"
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"plan-1.p{n}"])
+        art = journal.location(child) / "plan.md"
+        art.write_text("one two three four five six seven eight nine ten\n")
+        _fill_plan(child)
+        cli.main([child, "submit"])
+        cli.main([child, "close"])
     capsys.readouterr()
 
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
@@ -125,7 +130,7 @@ key-terms = "waived: none"
     cli.main([rework_child, "close"])
     capsys.readouterr()
 
-    assert _plan_measures(wid) == [10, 12]
+    assert _plan_measures(wid) == [10, 10, 10, 12]
 
     # a fresh panel is outstanding right after the round closes -- that
     # room shows the panel brief, not drift (`_panel_status`, unrelated to
@@ -149,8 +154,20 @@ def test_a_rework_rounds_dispatched_planner_receives_the_prior_horizon(workdir, 
     horizon = ("gate 2 likely covers the CLI flag; gate 3 the config loader, "
                "if gate 2 does not absorb it")
 
-    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
-    child = f"{wid}.plan-1"
+    # round one: design-it-twice (ruling 10) -- three siblings. The carry
+    # this test proves reads the segment's most recent non-panel step's
+    # `done` entry, which is whichever sibling's return landed last
+    # (`_act_on_verdicts`, engine/cli.py) -- p3 here, so its own horizon is
+    # the one that must cross.
+    for n in (1, 2):
+        sib = f"{wid}.plan-1.p{n}"
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"plan-1.p{n}"])
+        (journal.location(sib) / "plan.md").write_text("one two three\n")
+        _fill_plan(sib)
+        cli.main([sib, "submit"])
+        cli.main([sib, "close"])
+    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan-1.p3"])
+    child = f"{wid}.plan-1.p3"
     loc = journal.location(child)
     (loc / "plan.md").write_text("one two three\n")
     _fill(loc / "PLAN.toml", '''
