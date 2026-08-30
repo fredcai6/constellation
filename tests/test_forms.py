@@ -43,7 +43,7 @@ def test_load_open():
 
 def test_load_consolidate():
     form = forms.load(CONSOLIDATE)
-    assert _ids(form) == ["spec", "key-terms", "settle", "obligations", "resolution"]
+    assert _ids(form) == ["spec", "key-terms", "settle", "resolution", "obligations"]
     kinds = _kinds(form)
     assert kinds["spec"] == "artifact"
     assert kinds["key-terms"] == kinds["settle"] == "evidence"

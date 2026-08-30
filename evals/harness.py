@@ -143,6 +143,23 @@ def drive(workdir, prompt, timeout=420, tier="light"):
     # summary -- the least reliable artifact in the run, and the only one
     # these evals used to fail with. Debugging from a self-report is the
     # believe-the-record failure the issue-conductor skill exists to warn against.
+    # [transcript-survives-its-own-close]
+    # Rationale: `d`, captured before the drive, is the run's worktree while
+    #   one exists -- but a drive that reaches a real `close` on a root run
+    #   removes that worktree as part of closing (`_sweep_to_archive`,
+    #   engine/cli.py), so the directory `d` named is gone by the time this
+    #   line runs. Re-resolving here falls back to `workdir` itself exactly
+    #   the way `run_root` already does when no worktree exists -- the first
+    #   directory this file ever offers, and always present. Found by
+    #   `test_rolling_horizon.py`'s own drive actually reaching `closed`;
+    #   no eval before it ever drove a run through its own close, so this
+    #   path was never exercised.
+    # Rejected: writing the transcript into the (now-gone) worktree path
+    #   regardless, catching the error. A silently dropped transcript is the
+    #   one artifact a failing eval's `evidence()` depends on to say what the
+    #   agent actually did -- losing it turns every future failure here back
+    #   into a self-report.
+    d = run_root(workdir) if not d.exists() else d
     log = d / f"transcript-{len(list(d.glob('transcript-*.md'))) + 1}.md"
     log.write_text(f"# prompt\n\n{prompt}{cut}\n\n# stdout\n\n{r.stdout}"
                    f"\n\n# stderr\n\n{r.stderr}\n")
