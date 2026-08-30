@@ -111,6 +111,13 @@ forms; coining a synonym for a term below is a defect.
   and gate specs; the command palette maps it to a concrete runner.
 - **conductor** — the one persistent agent of an assembly; pumps its interior mechanically,
   judges only at transitions.
+- **role** — who fills a step: a step's own `filler` field, the bare `conductor` unwrapped to
+  the assembly's own conductor; a board segment's `board-worker` (or its `-delegated` variant,
+  once the run has a parent); or a panel entry's `worker`. One name for whichever of the three
+  set it — never a fourth word beside them.
+- **posture** — who an agent is at a step and how it carries it: a skill's stance, written at
+  `skills/<role>/SKILL.md`. A brief names it as a path with the instruction to read it before
+  starting; a role with no SKILL.md gets no posture line at all.
 - **proof** — a gate spec's command, run by the engine at submit: it passes once the
   gate's work is done and fails while it is not. Its exit status decides the step; a
   command that passes on an empty diff proves nothing.
@@ -128,6 +135,10 @@ forms; coining a synonym for a term below is a defect.
   order; contested by a blocked note up, never edited.
 - **return** — the child's terminal fields, stamped into the parent's waiting step at close,
   including the child's amend summary.
+- **brief** — one dispatch's whole orders, rendered identically for a gate and a panelist by
+  `render.brief` so the two never drift: role, posture, tier, runner, the open command, how to
+  finish. An excursion's board row is its brief instead — either way, fresh context's whole
+  handoff.
 - **fresh context** — what a reader holds at a boundary: the artifact in front of it and the
   codebase, and nothing from the work that produced the artifact. The default at every step
   boundary, and what a panelist reads from by design, so the form is the whole handoff.
@@ -171,6 +182,9 @@ forms; coining a synonym for a term below is a defect.
   assemblies — measured in words against the target `docs/AGENT_GUIDE.md` sets.
   Derived output is not in it. *The mappable corpus:* every tracked `.py` file the map
   is built from, which is the sense `tools/code_map` uses throughout its own docstrings.
+- **delivery** — the engine actually rendering a word or line into `status`'s output, not
+  merely a form or skill claiming it will. `render.py`'s whole job; a corpus sentence
+  describing a delivery the engine does not make is a promise nothing keeps.
 - **understanding** — a board row type beside `fact` and `decision`: the reading you are
   proceeding on, resolved only by the principal confirming or correcting it. Sent up as a
   mirror — one sentence, no options. Common understanding is the state where you and the
