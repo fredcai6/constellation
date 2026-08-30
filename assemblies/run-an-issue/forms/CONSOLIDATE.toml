@@ -43,6 +43,25 @@ reader of the journal — the board stays behind in the work location, and these
 fields are what join the run's prefill."""
 
 [[field]]
+id = "resolution"
+kind = "decision"
+optional = true
+note = """
+pass | revise. The critic panel's own merged verdict, carried onto this
+transition's outcome table -- not yours to argue, only to record if you want
+the record explicit. It reads `pass` every time you actually see this form: a
+`revise` refills the spec-writer's round before this step is ever reached, so
+it never lands here to answer."""
+
+# [plan-field-last]
+# Rationale: `forms.materialize` writes a `kind = "plan"` field as a bare
+#   `[[id]]` array-of-tables header; any scalar field's `key = ""` written
+#   after that header lands inside the array-of-tables' last block under
+#   TOML's own rule for what a headerless key belongs to, not beside it as a
+#   sibling. `resolution` moved above so the rendered stub keeps it a real
+#   top-level field instead of nesting it inside the last obligation.
+# See: tests/test_reachable_briefs.py
+[[field]]
 id = "obligations"
 kind = "plan"
 mints = "board rows"
@@ -60,14 +79,3 @@ board existed."""
   [[field.item]]
   id = "obligation"
   note = "One spec commitment, verbatim."
-
-[[field]]
-id = "resolution"
-kind = "decision"
-optional = true
-note = """
-pass | revise. The critic panel's own merged verdict, carried onto this
-transition's outcome table -- not yours to argue, only to record if you want
-the record explicit. It reads `pass` every time you actually see this form: a
-`revise` refills the spec-writer's round before this step is ever reached, so
-it never lands here to answer."""

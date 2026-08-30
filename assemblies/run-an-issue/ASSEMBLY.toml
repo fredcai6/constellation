@@ -108,6 +108,12 @@ rework-form = "skills/planner/forms/REWORK.toml"
 impasse-after = 3
 impasse-form = "forms/IMPASSE.toml"
 worker = "planner"
+# design-it-twice's three planner entries below name no model of their own,
+# so without this the brief they render carries no tier and no resolved
+# runner (`_panel_status`'s `panelist.get("model") or seg.get("model", "")`)
+# -- same convention as `understand` and `execute` above, a segment-level
+# default rather than a third, per-panelist one.
+model = "standard"
 decides = "ruling"     # IMPASSE.toml's; PLAN.toml and REWORK.toml have no such field
 
 # design-it-twice (glossary): read only by `skeleton()`, so only round one.
