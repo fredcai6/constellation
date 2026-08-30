@@ -89,6 +89,26 @@ def test_a_malformed_plan_field_refuses_before_anything_is_recorded(workdir, cap
     assert not st["boards"]
 
 
+def _pass_spec(wid="issue17"):
+    """Take the spec-writer's own round through its cold panel, board rows
+    left untouched -- so the transition ahead (consolidate) is reachable to
+    prove what it alone still checks: the board, not the spec."""
+    loc = pathlib.Path(f".agent-work/{wid}")
+    (loc / "spec.md").write_text("1. placeholder commitment.\n")
+    (loc / "SPEC.toml").write_text('spec = "%s/spec.md"\n' % loc)
+    cli.main([wid, "submit"])
+    panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "understand")["panel"]
+    for n in range(1, len(panel) + 1):
+        tag = f"understand.p{n}"
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", tag])
+        panelist = f"{wid}.{tag}"
+        (journal.location(panelist) / "CRITIC.toml").write_text(
+            'findings = "none: waived: clean"\n'
+            'vocabulary = "waived: consistent"\nverdict = "pass"\n')
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
+
+
 def _critic_step(wid="c1"):
     """A run standing on one CRITIC.toml -- the cheapest way to reach a field
     a decision field's note declares, with no panel plumbing in the way."""
@@ -303,6 +323,10 @@ def test_status_names_the_board_it_will_validate(workdir, capsys):
         f'issue = "{_issue_file()}"\nauthority = "T."\n'
         '[[questions]]\nquestion = "q?"\ntype = "fact"\n')
     cli.main(["issue17", "submit"])
+    capsys.readouterr()
+    _pass_spec()
+    capsys.readouterr()
+    cli.main(["issue17"])
     out = capsys.readouterr().out
     assert "UNDERSTAND.toml" in out
     assert "will not pass while a row is open" in out
@@ -318,8 +342,10 @@ def test_every_refusal_states_an_escape_that_works(workdir):
         f'issue = "{_issue_file()}"\nauthority = "T."\n'
         '[[questions]]\nquestion = "q?"\ntype = "fact"\n')
     cli.main(["issue17", "submit"])
+    _pass_spec()
     pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
-        'learnings = "x"\nkey-terms = "waived: none"\nsettle = "waived: none"\n')
+        'spec = ".agent-work/issue17/spec.md"\nkey-terms = "waived: none"\n'
+        'settle = "waived: none"\n')
 
     with pytest.raises(SystemExit) as e:
         cli.main(["issue17", "submit"])

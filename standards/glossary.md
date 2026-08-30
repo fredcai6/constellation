@@ -137,11 +137,19 @@ forms; coining a synonym for a term below is a defect.
 - **command palette** — `constellation.toml`: the host repo's commands, which a gate spec's
   check field reaches by name rather than spelling out, and the model-tier table.
 - **spec** — the statement of the problem a plan answers to, as its critic receives it. One name
-  for a part two assemblies fill differently: run-an-issue's consolidate output,
-  explore-an-idea's SPEC.toml artifact. A fresh-context reader is told it holds a spec and a
-  plan, never which document upstream produced the spec — that name is the assembly's business
-  and nothing the reader can act on. Distinct from **gate spec** below, which is orders for
-  work rather than a statement of a problem; the two never appear in one reading.
+  for a part two assemblies fill differently: run-an-issue's own SPEC.toml artifact, written by
+  the spec-writer and carried forward by consolidate; explore-an-idea's SPEC.toml artifact. Both
+  are standalone — written so a reader with no tracker reach can plan from the document alone,
+  never a delta against an issue only the reader could resolve by holding it too. A fresh-context
+  reader is told it holds a spec and a plan, never which document upstream produced the spec —
+  that name is the assembly's business and nothing the reader can act on. Distinct from
+  **gate spec** below, which is orders for work rather than a statement of a problem; the two
+  never appear in one reading.
+- **spec writer** — the hat the persistent conductor wears to draft the spec, understand's own
+  step-form round (`skills/spec-writer/`), distinct from the interrogator hat it wears to work
+  the board. Judged by a cold critic panel on the segment's transition, the same shape
+  plan-to-execute uses to judge a plan; a revise refills the round, findings as prefill, and
+  there is no rework-form — a second round is another first cut, not a patch.
 - **gate spec** — the purpose, scope, proof and optional model, optional direction a planner
   writes per round of the plan segment — one gate spec per round, the round's own artifact.
   Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only

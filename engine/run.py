@@ -78,19 +78,31 @@ def role_of(assembly, step):
 
 # [hat]
 # Rationale: nothing dispatches a board's worker. Its transition is filled by
-#   the conductor, who works the board in the worker's posture -- the
+#   the conductor, who works the board in `board-worker`'s posture -- the
 #   issue-conductor wears the interrogator's hat -- because a live principal is
 #   reachable only from the top of the run. A run with a parent has no human
 #   in reach, so it wears the delegated variant where one is written; where
-#   none is, the plain posture, which is the parked state (#15).
+#   none is, the plain posture, which is the parked state (#15). Scoped to a
+#   step whose own filler is still the bare `"conductor"` indirection --
+#   understand's own spec-writer round (a board segment's `step-form`, a
+#   second hand distinct from the board's) already names its worker directly
+#   on the step, and this override would otherwise clobber it back to the
+#   board's hat regardless.
+# Rejected: naming the board's own hat `worker`, the field `step-form`
+#   already reads for who fills that round. One segment, one board, one
+#   step-form, but two hands now -- `board-worker` is read nowhere else, so
+#   nothing forces it to agree with `worker`, which is the point: they name
+#   different work.
 # Rejected: a worker child driving its parent's board. A child not handed an
 #   id cannot drive its dispatcher's run, by design, and the board is the
 #   parent's own segment.
 def hat(assembly, step, st):
-    """The posture a step is worked under: the filler's, or on a board
-    segment the worker's -- delegated when the run has a parent."""
+    """The posture a step is worked under: the filler's, or -- on a board
+    segment, while the step's own filler is still bare `"conductor"` --
+    `board-worker`'s. Delegated when the run has a parent."""
     seg = next((s for s in assembly["segment"] if s["id"] == step.get("segment")), {})
-    worker = seg.get("worker", "") if seg.get("interior") == "board" else ""
+    on_board = seg.get("interior") == "board" and step.get("filler", "conductor") == "conductor"
+    worker = seg.get("board-worker", "") if on_board else ""
     if not worker:
         return role_of(assembly, step)
     delegated = f"{worker}-delegated"
@@ -141,11 +153,27 @@ def skeleton(assembly):
     A transition mints a step when it declares a `form`, a `panel`, or both --
     a panel-only step has a conductor standing there to fire it, not a form to
     fill. `form` is therefore omitted from the step, not carried empty.
+
+    A segment may declare `step-form` beside either interior kind: a
+    worklist segment's own round (run-a-gate's work), or a board segment's
+    -- run-an-issue's understand, where the board is seeded separately (see
+    `_mint`, engine/cli.py) and this step is the spec-writer's own round,
+    ordered between the board and the segment's transition by `_ordered`.
     """
     steps = []
     for seg in assembly["segment"]:
         form = seg.get("step-form")
-        if form and seg.get("interior") == "steps":
+        # Rationale: `interior` still names two kinds of contents, board or
+        #   worklist -- this branch no longer cares which, only whether a
+        #   step-form was declared. A board segment's own rows are seeded
+        #   elsewhere (`_mint`); what changes here is only whether its
+        #   step-form also mints an interior step, the way a worklist
+        #   segment's always has.
+        # Rejected: a second branch keyed on `interior == "board"`. Same
+        #   step shape either way -- id, filler, the open/steps defaults --
+        #   so a second copy of it would diverge from this one by accident,
+        #   not by design.
+        if form and seg.get("interior") in ("steps", "board"):
             step = {"id": seg["id"] + "-1", "segment": seg["id"],
                     "filler": seg.get("worker", "conductor"), "anchor": False,
                     "terminal": False, "validates": "", "source": "open"}

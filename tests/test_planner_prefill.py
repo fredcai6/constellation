@@ -65,7 +65,7 @@ def test_a_dispatched_planners_journal_carries_the_parents_prefill_keys(workdir,
     capsys.readouterr()
 
     prefill = runmod.state(f"{wid}.plan-1")["prefill"]
-    assert prefill["learnings"] == "EOF without a trailing newline drops the last record."
+    assert prefill["spec"] == f".agent-work/{wid}/spec.md"
     assert prefill["key-terms"] == "waived: none"
 
 
@@ -99,7 +99,7 @@ def test_a_steps_own_prefill_wins_over_the_runs_on_a_shared_key(workdir, capsys)
 
 def test_a_gate_child_still_receives_its_own_spec_unchanged(workdir, capsys):
     """The execute segment's dispatch is a gate spec, not a planner's cut.
-    The run's own prefill (consolidate's learnings) now rides beneath it
+    The run's own prefill (consolidate's spec) now rides beneath it
     too, since the merge in `_open_child` is unconditional on every
     non-panelist dispatch -- ASSEMBLY.toml's own comment on `carries` says
     this is intended, not a side effect to suppress -- but the gate's own

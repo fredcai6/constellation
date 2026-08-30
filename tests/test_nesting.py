@@ -49,20 +49,34 @@ type = "fact"
 
 
 def _work_the_board(wid):
-    """Resolve the seeded board before the transition that validates it --
-    the engine refuses to leave understand with an unresolved row."""
+    """Resolve the seeded board, then take the spec-writer's own round
+    through its cold panel -- both now stand between the board and
+    consolidate, which validates the board (the engine refuses to leave
+    understand with an unresolved row) but no longer drafts from it. A
+    caller that used to reach consolidate straight off the board reaches it
+    here instead, the spec already passed critique."""
     b = pathlib.Path(f".agent-work/{wid}/UNDERSTAND.toml")
     b.write_text(b.read_text().replace(
         'status = "open"',
         'status = "answered"\nanswer = "EOF without a trailing newline only."'))
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid)
+
+
+def _fill_spec(wid):
+    loc = pathlib.Path(f".agent-work/{wid}")
+    (loc / "spec.md").write_text(
+        "1. Fix the parser to handle EOF with no trailing newline.\n")
+    _fill(loc / "SPEC.toml", 'spec = "%s/spec.md"\n' % loc)
 
 
 def _fill_consolidate(wid):
     _fill(pathlib.Path(f".agent-work/{wid}/CONSOLIDATE.toml"), '''
-learnings = "EOF without a trailing newline drops the last record."
+spec = ".agent-work/%s/spec.md"
 key-terms = "waived: none"
 settle = "waived: none"
-''')
+''' % wid)
 
 
 def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing newline",
@@ -368,7 +382,8 @@ def test_gate_projection_mints_one_dispatch_and_adjudicate_pair_in_order(workdir
 
     st = runmod.state("issue17")
     ids = [s["id"] for s in st["steps"]]
-    assert ids == ["open", "understand", "plan-1", "plan", "g1", "g1-adjudicate", "execute"]
+    assert ids == ["open", "understand-1", "understand", "plan-1", "plan",
+                  "g1", "g1-adjudicate", "execute"]
     assert st["steps"][-1]["terminal"] is True  # the terminal close step still sorts last
 
     g1 = next(s for s in st["steps"] if s["id"] == "g1")
@@ -556,7 +571,7 @@ def test_amend_on_anchor_is_allowed_and_flagged(workdir, capsys):
 
     st = runmod.state("issue21")
     assert "open" not in [s["id"] for s in st["steps"]]
-    assert st["current"]["id"] == "understand"  # the anchor is really gone
+    assert st["current"]["id"] == "understand-1"  # the anchor is really gone
 
 
 # -- close refuses while a step is unfinished --------------------------------
@@ -969,9 +984,10 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     assert "[p1]" in fresh_plan["prefill"]["findings"]
 
     fresh_panel = next(s for s in st["steps"]
-                       if s.get("panel") and s["id"] != "plan")
+                       if s.get("panel") and s["segment"] == "plan" and s["id"] != "plan")
     assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"
-    assert fresh_panel["panel"] == st["steps"][3]["panel"]  # same panel config
+    original_plan = next(s for s in st["steps"] if s["id"] == "plan")
+    assert fresh_panel["panel"] == original_plan["panel"]  # same panel config
     assert st["current"]["id"] == fresh_plan["id"]
 
 
