@@ -33,7 +33,7 @@ def test_open_mints_the_skeleton(workdir, capsys):
     # transition. A worklist starts with one step -- the work is what the
     # segment is for.
     assert [s["id"] for s in st["steps"]] == [
-        "open", "understand", "plan-1", "plan", "execute"]
+        "open", "understand-1", "understand", "plan-1", "plan", "execute"]
     assert st["current"]["id"] == "open"
     assert all(s["anchor"] for s in st["steps"] if not s["id"].endswith("-1"))
 
@@ -71,7 +71,7 @@ def test_status_is_a_room_description(workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     out = capsys.readouterr().out
 
-    assert "issue17 · run-an-issue · open (1 of 5)" in out
+    assert "issue17 · run-an-issue · open (1 of 6)" in out
     assert "issue17: parser drops last record" in out
     # the imperative is rendered, not the raw form
     assert "Confirm what this run is solving" in out
@@ -132,8 +132,8 @@ def test_submit_advances_and_seeds_the_board(workdir, capsys):
 
     st = runmod.state("issue17")
     assert "open" in st["done"]
-    assert st["current"]["id"] == "understand"
-    assert "understand (2 of 5)" in out
+    assert st["current"]["id"] == "understand-1"          # the spec-writer's own round
+    assert "understand (2 of 6)" in out          # the room header names the segment, not the step
 
     # the plan field minted board rows, and the board keeps its guidance
     board = pathlib.Path(".agent-work/issue17/UNDERSTAND.toml")
@@ -152,7 +152,7 @@ def test_the_journal_is_the_only_state(workdir):
     # every fact above is recoverable from the file alone
     kinds = [e["kind"] for e in journal.read("issue17")]
     assert kinds[0] == "run"
-    assert kinds.count("step") == 5
+    assert kinds.count("step") == 6
     assert "submit" in kinds and "board" in kinds
     assert not list(pathlib.Path(".agent-work/issue17").glob("*state*"))
 
@@ -189,6 +189,26 @@ def test_ledger_lists_open_runs(workdir, capsys, monkeypatch):
     assert "issue18" in out and "writer atomicity" in out
 
 
+def _pass_spec(wid):
+    """Take the spec-writer's own round through its cold panel, board rows
+    left untouched -- so the transition ahead (consolidate) is reachable to
+    prove what it alone still checks: the board, not the spec."""
+    loc = pathlib.Path(f".agent-work/{wid}")
+    (loc / "spec.md").write_text("1. placeholder commitment.\n")
+    (loc / "SPEC.toml").write_text('spec = "%s/spec.md"\n' % loc)
+    cli.main([wid, "submit"])
+    panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "understand")["panel"]
+    for n in range(1, len(panel) + 1):
+        tag = f"understand.p{n}"
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", tag])
+        panelist = f"{wid}.{tag}"
+        (journal.location(panelist) / "CRITIC.toml").write_text(
+            'findings = "none: waived: clean"\n'
+            'vocabulary = "waived: consistent"\nverdict = "pass"\n')
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
+
+
 def _board(path, **repl):
     t = path.read_text()
     for old, new in repl.items():
@@ -204,10 +224,12 @@ def test_consolidate_refuses_an_unworked_board(workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
     cli.main(["issue17", "submit"])
+    _pass_spec("issue17")
     capsys.readouterr()
 
     pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
-        'learnings = "x"\nkey-terms = "waived: none"\nsettle = "waived: none"\n')
+        'spec = ".agent-work/issue17/spec.md"\nkey-terms = "waived: none"\n'
+        'settle = "waived: none"\n')
 
     with pytest.raises(SystemExit) as e:
         cli.main(["issue17", "submit"])
@@ -223,8 +245,10 @@ def test_the_board_escape_is_one_step(workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
     cli.main(["issue17", "submit"])
+    _pass_spec("issue17")
     pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
-        'learnings = "x"\nkey-terms = "waived: none"\nsettle = "waived: none"\n')
+        'spec = ".agent-work/issue17/spec.md"\nkey-terms = "waived: none"\n'
+        'settle = "waived: none"\n')
 
     board = pathlib.Path(".agent-work/issue17/UNDERSTAND.toml")
     board.write_text(board.read_text()

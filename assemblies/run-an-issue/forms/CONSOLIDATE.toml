@@ -1,20 +1,30 @@
-# Anchor: understand → plan. Owned by run-an-issue; filled by the conductor.
-# On submit the engine validates the understand board: an open row refuses, a
-# decision answered without the principal's words refuses; the escape is
+# Anchor: understand → plan. Owned by run-an-issue; filled by the conductor,
+# under the interrogator's own hat -- the spec itself is the spec-writer's
+# round, judged cold by the panel above, not summarized again here. Two
+# voices, PLAN_TO_EXECUTE's own shape: the panel rules first, so this form
+# reads `pass` every time it is actually reached -- a revise refills the
+# spec-writer's round before this step is ever reached. On submit the engine
+# still validates the understand board: an open row refuses, a decision
+# answered without the principal's words refuses; the escape is
 # deferred: <reason>, journaled.
 
 imperative = """
-Work the board named above until every row is answered, mooted, or
-deferred with a reason — this step will not pass while a row is open, or
-while a decision is recorded with no words from the principal. Then
-consolidate what a fresh-context planner needs: the spec, not the journey."""
+This step will not pass while a row is open, or while a decision is
+recorded with no words from the principal -- close what is left on the
+board above, every row answered, mooted, or deferred with a reason. The
+spec has already passed critique; record this segment's own bookkeeping
+here: the glossary and what the board's excursions produced. Neither is
+the spec; both stay behind in this run's own record."""
 
 [[field]]
-id = "learnings"
-kind = "evidence"
+id = "spec"
+kind = "artifact"
 note = """
-What is now known that the issue did not state: the shape of the problem, the
-constraints that bind, where the danger is. Necessary context only."""
+The specification that just passed critique, in this run's work location.
+Point at it — never retype it: `carries` puts this field in the run's own
+prefill, which is the only way the plan segment's planner and its critics,
+a different segment entirely, ever see it. The name is standards/glossary.md's
+`spec` — the same one explore-an-idea's own SPEC.toml artifact answers to."""
 
 [[field]]
 id = "key-terms"
@@ -31,3 +41,14 @@ reason given. The row asks; this reports. It is the only path by which a
 per-row brief reaches the planner, the fresh-context panel, and the next
 reader of the journal — the board stays behind in the work location, and these
 fields are what join the run's prefill."""
+
+[[field]]
+id = "resolution"
+kind = "decision"
+optional = true
+note = """
+pass | revise. The critic panel's own merged verdict, carried onto this
+transition's outcome table -- not yours to argue, only to record if you want
+the record explicit. It reads `pass` every time you actually see this form: a
+`revise` refills the spec-writer's round before this step is ever reached, so
+it never lands here to answer."""

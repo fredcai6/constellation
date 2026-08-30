@@ -18,8 +18,20 @@ filler = "conductor"
 id = "understand"
 interior = "board"
 board = "skills/interrogator/forms/UNDERSTAND.toml"
-worker = "interrogator"
+# Excursions dispatch under this tier.
 model = "standard"
+# The hat the conductor wears while working the board in place, and at this
+# segment's own transition -- `hat`, engine/run.py. The spec-writer step
+# below is a second, later round of the same segment, a distinct hand, not
+# a second hat on this one: the spec is standalone -- a reader with no
+# tracker reach can plan from it alone -- so drafting it is not
+# interrogation. No dispatch: unlike the plan segment below, nothing here
+# judges the spec apart from the cold panel on the transition, so ruling 6
+# does not apply -- the spec-writer's own round and the panel that attacks
+# it are already two hands.
+board-worker = "interrogator"
+step-form = "skills/spec-writer/forms/SPEC.toml"
+worker = "spec-writer"
 
 [segment.transition]
 anchor = true
@@ -30,6 +42,38 @@ validates = "board"   # engine refuses an open row or a self-answered decision
 # A panelist's prefill comes from prior steps in its own segment, so without
 # this the critic -- the reader consolidate is written for -- never sees it.
 carries = true
+# Two voices, the same shape as plan-to-execute below: the critic panel
+# reads the spec-writer's round and rules first: pass reaches this form (the
+# interrogator's own record, key-terms and settle -- mechanical once the
+# panel already cleared the spec), revise refills the segment with a fresh
+# spec-writer round before this form is ever reached.
+decides = "resolution"
+
+  [[segment.transition.outcome]]
+  value = "pass"
+  does = "release"     # the panel cleared the spec; this form's own submit is what releases
+
+  [[segment.transition.outcome]]
+  value = "revise"
+  does = "rework"     # another spec-writer round, findings as prefill; no rework-form, so the same step-form again
+
+  [[segment.transition.panel]]
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
+  model = "standard"
+  criteria = "standalone: could a fresh-context reader with no tracker reach plan from this spec alone"
+
+  [[segment.transition.panel]]
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
+  model = "standard"
+  criteria = "commitments: is every obligation the spec makes stated as a numbered, checkable commitment"
+
+  [[segment.transition.panel]]
+  form = "skills/critic/forms/CRITIC.toml"
+  worker = "critic"
+  model = "standard"
+  criteria = "simplicity: what can be deleted"
 
 [[segment]]
 id = "plan"

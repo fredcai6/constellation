@@ -43,8 +43,11 @@ def test_load_open():
 
 def test_load_consolidate():
     form = forms.load(CONSOLIDATE)
-    assert _ids(form) == ["learnings", "key-terms", "settle"]
-    assert set(_kinds(form).values()) == {"evidence"}
+    assert _ids(form) == ["spec", "key-terms", "settle", "resolution"]
+    kinds = _kinds(form)
+    assert kinds["spec"] == "artifact"
+    assert kinds["key-terms"] == kinds["settle"] == "evidence"
+    assert kinds["resolution"] == "decision"
 
 
 def test_load_implement():
@@ -73,8 +76,10 @@ def test_load_defaults_kind_and_note_and_optional():
     # every field carries the documented defaults when absent from the TOML
     form = forms.load(CONSOLIDATE)
     for field in form["fields"]:
-        assert field["kind"] == "evidence"
         assert isinstance(field["note"], str) and field["note"]
+    for fid in ("key-terms", "settle"):  # plain evidence fields; optional left to default
+        field = next(f for f in form["fields"] if f["id"] == fid)
+        assert field["kind"] == "evidence"
         assert field["optional"] is False
 
 
@@ -183,11 +188,11 @@ def test_prose_with_quotes_and_triple_quote_round_trips(tmp_path):
     tricky = 'He said "hello" and used a \\"\\"\\" escape-looking bit,\nplus a literal """ triple quote.\nSecond line here.'
     from engine import tomlw
 
-    filled = text.replace('learnings = """\n"""', "learnings = " + tomlw._multiline(tricky))
+    filled = text.replace('key-terms = """\n"""', "key-terms = " + tomlw._multiline(tricky))
     dest.write_text(filled)
 
     result = forms.parse(dest)
-    assert result["learnings"] == tricky
+    assert result["key-terms"] == tricky
 
 
 def test_blank_slots_omitted_and_waived_kept(tmp_path):
@@ -199,8 +204,9 @@ def test_blank_slots_omitted_and_waived_kept(tmp_path):
     dest.write_text(text)
 
     result = forms.parse(dest)
-    assert "learnings" not in result  # left blank
+    assert "spec" not in result  # left blank
     assert "settle" not in result  # left blank
+    assert "resolution" not in result  # left blank
     assert result["key-terms"] == "waived: none"
 
 

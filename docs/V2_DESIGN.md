@@ -73,8 +73,11 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | **route** | gate-conductor | its own form; `IMPASSE` after three | each finding **blocking / accepted / beyond / rejected**; rework → do with the blocking findings as prefill; pass → close; up → an ask for help, the spec being wrong the usual reason | do, or close |
 | **close** | gate-conductor | `GATE_CLOSE` | the residue; the engine appends the rest — together, the gate report. Nothing is committed here: git is the issue tier's | the parent's execute · review |
 
-Where the tree differs today: understand and consolidate are two segments with no critic
-between them; the issue-conductor writes the spec and the plan itself; `run-an-issue` cuts
+Where the tree differs today: understand is one segment, not two -- do 1 (the board) and
+do 2 (the spec-writer's own round, in place rather than a dispatched subagent) share it, a
+cold critic panel and the route sitting on its one transition; there is no `up` outcome
+distinct from the interrogator's own impasse path. The issue-conductor still writes the plan
+itself; `run-an-issue` cuts
 every gate at plan-to-execute; `run-a-gate` names the implementer as its conductor, has no
 select or route step, and commits at its close; `up` at an impasse walks the run to close;
 `PLAN` carries a design-it-twice field; open and close create no worktree, archive nothing,

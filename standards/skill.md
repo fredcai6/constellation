@@ -24,6 +24,7 @@ it. When a criterion is unclear, ask: does this make the next run more predictab
   | issue-conductor | 1,500 |
   | issue-conductor-delegated | 500 |
   | interrogator | 800 |
+  | spec-writer | 600 |
   | critic | 850 |
   | reviewer | 700 |
   | implementer | 800 |

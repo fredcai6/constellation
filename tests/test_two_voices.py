@@ -1,16 +1,19 @@
 """The two-voices transition: a step carrying both a panel and a form runs
 the panel first, and completes on the form's submit -- never the reverse.
 
-run-an-issue's plan-to-execute is the one transition in the repo shaped this
-way: the critic panel reads the plan, and only a `pass` reaches the mint form
-that cuts gates. Before this, four sites in cli.py guarded on `panel and not
-form`, so a form-carrying transition took the plain form path and the critic
-was never dispatched -- a plan could mint gates without ever being attacked.
-These tests drive the real `run-an-issue` assembly (the first, end to end) and
-the real two-step mechanism `run.py`/`cli.py` provide (the rest, via direct
-journal fixtures, the same way test_verdict_panels.py isolates a revise
-round). test_verdict_panels.py is the check that run-a-gate's panel-only
-review is unchanged by any of this.
+run-an-issue's plan-to-execute was the first transition in the repo shaped
+this way: the critic panel reads the plan, and only a `pass` reaches the mint
+form that cuts gates. Before this, four sites in cli.py guarded on `panel and
+not form`, so a form-carrying transition took the plain form path and the
+critic was never dispatched -- a plan could mint gates without ever being
+attacked. Understand's own consolidate is now shaped the same way -- the
+cold panel reads the spec-writer's round, and only a `pass` reaches
+consolidate's own bookkeeping -- so `_work_the_board` below drives that one
+too, on every fixture in this file. These tests drive the real `run-an-issue`
+assembly (the first, end to end) and the real two-step mechanism
+`run.py`/`cli.py` provide (the rest, via direct journal fixtures, the same
+way test_verdict_panels.py isolates a revise round). test_verdict_panels.py
+is the check that run-a-gate's panel-only review is unchanged by any of this.
 """
 
 import pathlib
@@ -61,17 +64,29 @@ type = "fact"
 
 
 def _work_the_board(wid):
+    """Resolve the seeded board, then take the spec-writer's own round
+    through its cold panel -- both now stand between the board and
+    consolidate."""
     b = pathlib.Path(f".agent-work/{wid}/UNDERSTAND.toml")
     b.write_text(b.read_text().replace(
         'status = "open"', 'status = "answered"\nanswer = "settled."'))
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    _dispatch_panel(wid, "understand", verdict="pass")
+
+
+def _fill_spec(wid):
+    loc = pathlib.Path(f".agent-work/{wid}")
+    (loc / "spec.md").write_text("1. settled.\n")
+    _fill(loc / "SPEC.toml", 'spec = "%s/spec.md"\n' % loc)
 
 
 def _fill_consolidate(wid, settle="waived: none"):
     _fill(f".agent-work/{wid}/CONSOLIDATE.toml", '''
-learnings = "settled."
+spec = ".agent-work/%s/spec.md"
 key-terms = "waived: none"
 settle = "%s"
-''' % settle)
+''' % (wid, settle))
 
 
 def _fill_plan_form(wid):
@@ -236,12 +251,12 @@ def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdi
     wid = _drive_to_plan_to_execute()
     capsys.readouterr()
 
-    assert runmod.state(wid)["prefill"]["learnings"] == "settled."
+    assert runmod.state(wid)["prefill"]["spec"] == f".agent-work/{wid}/spec.md"
 
     cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])
     capsys.readouterr()
     prefill = runmod.state(f"{wid}.plan.p1")["prefill"]
-    assert prefill["learnings"] == "settled."      # the understanding crossed
+    assert prefill["spec"] == f".agent-work/{wid}/spec.md"      # the understanding crossed
     assert prefill["plan"] == f".agent-work/{wid}/plan-1/plan.md"   # the artifact still rides
     assert prefill["criteria"].startswith("intent-fit")
 
@@ -306,8 +321,9 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
     assert "[p1]" in fresh_plan["prefill"]["findings"]          # attributed
 
     fresh_panel = next(s for s in st["steps"]
-                       if s.get("panel") and s["id"] != "plan")
-    assert fresh_panel["panel"] == st["steps"][3]["panel"]      # same panel config
+                       if s.get("panel") and s["segment"] == "plan" and s["id"] != "plan")
+    original_plan = next(s for s in st["steps"] if s["id"] == "plan")
+    assert fresh_panel["panel"] == original_plan["panel"]      # same panel config
     assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"  # the two-voices shape survives
     assert st["current"]["id"] == fresh_plan["id"]              # plan resumes, not the mint form
 

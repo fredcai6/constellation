@@ -56,7 +56,7 @@ def test_a_panels_revise_resolves_through_the_outcome_table_and_reworks(workdir,
     dispatches (#27) the same as any other round, carrying the panel's
     findings -- proof that `_perform` ran against a synthetic step built for
     this call, not the real plan-to-execute step, whose own prefill (the
-    consolidated learnings, the run's own understanding) is not what a
+    consolidated spec, the run's own understanding) is not what a
     rework round should carry forward."""
     wid = _drive_to_plan_to_execute()
     real_prefill = runmod.state(wid)["prefill"]

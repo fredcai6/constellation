@@ -197,6 +197,7 @@ def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(workdir
                            "worker": "reviewer", "criteria": "c"}],
                    anchor=True, source="open")
     journal.append("i1", "submit", step="open", fields={})
+    journal.append("i1", "submit", step="understand-1", fields={})
     journal.append("i1", "submit", step="understand", fields={})
     journal.append("i1", "submit", step="plan-1", fields={})
     capsys.readouterr()
