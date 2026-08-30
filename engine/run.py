@@ -273,6 +273,63 @@ def merged_verdict(returns):
     return "pass"
 
 
+# [deciding-spec]
+# Rationale: which of a segment's two outcome tables a step resolves against
+#   is one rule read from three places -- `state`'s two-voices fold below,
+#   and `_decided_here`/`_outcome` in cli.py. cli.py imports this module and
+#   never the reverse, so the rule lives here and cli.py calls it: the fold
+#   and the router then cannot disagree about which table governs a step,
+#   which is the whole reason the fold consults a table at all.
+# Rejected: state() re-deriving the lookup locally. Two walks over the same
+#   rows drift, and the failure is silent -- a step held open for a form the
+#   router is about to mint past, or folded shut on a round the router meant
+#   a conductor to judge.
+def deciding_spec(assembly, step):
+    """(segment, spec) for `step`: the segment it sits in, and whichever of
+    that segment or its transition declares the outcomes this step resolves
+    against -- the transition when the step carries the transition's own
+    form, the segment otherwise. A panel-only transition matches on both
+    forms being absent, which is the case it has always taken."""
+    seg = next((s for s in assembly["segment"] if s["id"] == step.get("segment")), {})
+    t = seg.get("transition", {})
+    return seg, (t if step.get("form") == t.get("form") else seg)
+
+
+# [declared-does]
+# Rationale: `release` is the documented default a row needs no verb word
+#   for, so "what does this value do" is not `row["does"]` -- it is this,
+#   and every reader of the table needs the same answer.
+def declared_does(spec, value):
+    """The verb string `spec` declares for `value` -- `release` where the row
+    names none, `None` where no row declares the value at all."""
+    row = next((o for o in spec.get("outcome", [])
+                if o["value"].split("<")[0].strip().lower() == value), None)
+    return row.get("does", "release") if row else None
+
+
+# [two-voices-holds]
+# Rationale: a two-voices step stays open for its conductor whenever the
+#   transition's own outcome row for the merged verdict resolves to the
+#   inert `release` -- not only when the word is `pass`. `release` mints
+#   nothing, so folding the step into `done` on it walks the run past a form
+#   nobody was ever stood on; any other verb mints the next round itself,
+#   and the panel finishes the step alone exactly as before.
+# Rejected: comparing the merged word against the literal `pass` here. That
+#   was true of every table in the tree and true by rule of none of them --
+#   a transition whose own `revise` releases (run-a-gate's review) folds
+#   shut on exactly the round its conductor exists to judge.
+def _holds_for_its_form(st, step, returns):
+    """Does this two-voices step stay open for its own form to complete?"""
+    if not st.get("assembly"):
+        return merged_verdict(returns) == "pass"
+    _, spec = deciding_spec(load_assembly(st["assembly"]), step)
+    # `None` -- no row at all -- is the interior case: a design panel (ruling
+    # 10) sits on a step whose own segment declares an impasse ruling, not a
+    # verdict, so no verdict word ever resolves there and the form completes
+    # the step exactly as it always has. Inert either way is what holds.
+    return declared_does(spec, merged_verdict(returns)) in (None, "release")
+
+
 def state(work_id):
     """Fold the journal: the run's identity, its steps, and where it stands."""
     entries = journal.read(work_id)
@@ -309,16 +366,18 @@ def state(work_id):
             # step carrying both a panel and a form is the two-voices
             # transition: the returns are the panel's voice, the form is the
             # conductor's, so a full house only lands in `done` here when the
-            # merged verdict is not `pass` -- exactly like a panel-only step,
-            # which releases on any verdict because it has no form to hold
-            # for. A `pass` instead leaves it open; it completes on submit.
+            # merged verdict's own declared row does something -- exactly like
+            # a panel-only step, which releases on any verdict because it has
+            # no form to hold for. A verdict whose row is the inert `release`
+            # instead leaves it open; it completes on submit.
             step = next((s for s in raw_steps if s["id"] == e["step"]), None)
             expected = len(step["panel"]) if step and step.get("panel") else 1
             returns = st["returns"].setdefault(e["step"], [])
             returns.append(e)
             st["returns_by_child"][e.get("child", "")] = e
             two_voices = bool(step and step.get("panel") and step.get("form"))
-            if len(returns) >= expected and not (two_voices and merged_verdict(returns) == "pass"):
+            if len(returns) >= expected and not (
+                    two_voices and _holds_for_its_form(st, step, returns)):
                 st["done"][e["step"]] = e
         elif kind == "check":
             st["checks"].append({"command": e.get("command"), "exit": e.get("exit"),

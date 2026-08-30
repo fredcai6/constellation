@@ -45,10 +45,10 @@ note = "Names the change introduces that fight the glossary or standards/prose.m
 id = "verdict"
 kind = "decision"
 note = """
-pass | revise. Any blocking finding means revise; revise mints a fresh
-implement step with your findings as prefill. There is no third word for "the
-spec itself is wrong" -- write that as a gap finding like any other, under
-revise. This review is panel-only, so nobody routes it for you on the spot:
-three revises landing on the same objection is what reaches the implementer's
-ruling, and the implementer -- who conducts this gate -- is who takes it to
-the parent from there, never you."""
+pass | revise. Any blocking finding means revise; your findings are the
+prefill of whatever round follows. There is no third word for "the spec
+itself is wrong" -- write that as a gap finding like any other, under revise.
+Your verdict routes nothing on its own: the gate's own conductor stands on a
+form behind you and says where the round goes, three revises landing on the
+same objection reaching its ruling instead, and that conductor is who takes
+it to the parent from there, never you."""

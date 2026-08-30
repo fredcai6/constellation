@@ -1,0 +1,26 @@
+# Transition: work → close. Owned by run-a-gate; filled by whoever conducts
+# the gate. Two voices: the review panel reads the diff and returns first,
+# and this form is where its round is disposed of -- on a revise as much as
+# on a pass, since a round with findings in it is exactly the round somebody
+# has to rule on. The panel's verdict is above in the room; this is the
+# answer to it.
+
+imperative = """
+The review has returned. Read its findings as written -- a revise is not an
+invitation to argue the verdict you were given -- and say where this round
+goes: back into the diff, or out to close. Nothing here re-states the
+findings; they are already the record."""
+
+[[field]]
+id = "resolution"
+kind = "decision"
+note = """
+pass | revise | rework | close. The first two are the panel's own words,
+resolved onto this same table when its verdicts returned -- record one if you
+want the record explicit, but both release the round exactly as `close` does,
+so `revise` typed here does not send anything back. Your own two are the last
+two: `rework` is another implement round, the panel's findings carried into it
+verbatim, and after `impasse-after` of them the ruling form comes instead;
+`close` releases this round and walks the gate to its close, which is the
+answer after a pass and the answer after a revise you have decided not to
+run."""

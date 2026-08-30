@@ -159,16 +159,31 @@ verdict = "%s"
 ''' % (findings, verdict))
 
 
-def _dispatch_review(child_wid, verdict="pass", findings="none: waived: clean"):
-    """Open the review panel's one panelist, fill and close it -- the same
-    nesting mechanics as a gate dispatch, one step down. Returns the step id
-    that fired, since a revise round mints a fresh review step."""
+def _fill_review_round(wid, resolution):
+    """The conductor's own half of the review transition: where the round
+    the panel just judged goes next."""
+    _fill(journal.location(wid) / "REVIEW_ROUND.toml", 'resolution = "%s"\n' % resolution)
+
+
+def _dispatch_review(child_wid, verdict="pass", findings="none: waived: clean",
+                     resolution=None):
+    """Open the review panel's one panelist, fill and close it, then dispose
+    of the round on the transition's own conductor form -- the same nesting
+    mechanics as a gate dispatch, one step down, plus the second voice.
+    Neither of the panel's words acts on its own now: both release, so the
+    step stays open and `resolution` is what mints (or does not). It
+    defaults to the answer the verdict argues for -- `rework` after a
+    revise, `close` after a pass. Returns the step id that fired, since a
+    rework round mints a fresh review step."""
     step_id = runmod.state(child_wid)["current"]["id"]
     cli.main(["open", "give-a-verdict", "--parent", child_wid, "--step", f"{step_id}.p1"])
     panelist = f"{child_wid}.{step_id}.p1"
     _fill_review(panelist, verdict, findings)
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
+    _fill_review_round(child_wid, resolution or
+                       ("rework" if verdict == "revise" else "close"))
+    cli.main([child_wid, "submit"])
     return step_id
 
 
