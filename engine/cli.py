@@ -273,13 +273,17 @@ def _commit_open(wid, worktree):
 #   remembered to add its name here.
 # See: ruling 8, docs/V2_DESIGN.md -- "git is the issue tier's, and the
 #   engine's"; an idea or an excursion produces a spec, not a diff.
-# `_DISPOSE_MINT` joined `_BOARD_MINT` as a second engine-named mint (#56):
-# both sit in every assembly's `_mintable(asm)` whether or not that
-# assembly's own forms use them, so both are subtracted here -- an
-# assembly is issue tier on a real `dispatches` name, never on an engine
-# literal alone.
+# `_DISPOSE_MINT` joined `_BOARD_MINT` as a second engine-named mint (#56),
+# and `_PANEL_MINT` a third (#57): all three sit in every assembly's
+# `_mintable(asm)` whether or not that assembly's own forms use them, so all
+# three are subtracted here -- an assembly is issue tier on a real
+# `dispatches` name, never on an engine literal alone. Adding a mint to
+# `_mintable` without adding it here reads every assembly, run-a-gate
+# included, as issue tier, which is git and a worktree where commitment 7
+# says none belong; `tests/test_archive_close.py::
+# test_a_non_issue_tier_close_never_reaches_git_or_gh` is what says so loudly.
 def _issue_tier(asm):
-    return bool(_mintable(asm) - {_BOARD_MINT, _DISPOSE_MINT})
+    return bool(_mintable(asm) - {_BOARD_MINT, _DISPOSE_MINT, _PANEL_MINT})
 
 
 def cmd_open(argv):
@@ -315,6 +319,34 @@ def cmd_open(argv):
 
 
 _PANEL_TAG = re.compile(r"^(.+)\.(p\d+)$")  # "<step-id>.pN" addresses one panelist
+
+
+# [round-artifact]
+# Rationale: a panelist reads what the round it judges produced, and for
+#   every panel declared on a transition that is the most recent other step
+#   in the panel's own segment. Fields marked record-only stay behind: they
+#   are the producer's account of a previous round, and a reviewer told what
+#   was wrong last time is aimed at those spots and steered off everything
+#   else -- a finding that was not really fixed gets found again, which is
+#   the check working rather than a gap in it. Which fields are record-only
+#   is the producing form's own answer, not the panel step's.
+# Rejected: leaving this inline in `_open_child`. `_mint`'s panelists branch
+#   needs the identical answer -- a panel minted into a segment away from the
+#   work it judges (run-a-gate's `review`) has to carry the artifact across
+#   at the mint, because by dispatch time its own segment holds nothing but
+#   earlier review rounds -- and two walks over the same rows drift.
+def _round_artifact(asm, st, seg_id, step_id):
+    """What this segment's most recent other round produced, record-only
+    fields stripped."""
+    prior = [s for s in st["steps"] if s["segment"] == seg_id and s["id"] != step_id]
+    if not prior:
+        return {}
+    last = prior[-1]
+    form = (forms.load(runmod.resolve_form(asm, last["form"]))
+            if last.get("form") else {})
+    private = {f["id"] for f in form.get("fields", []) if f.get("record-only")}
+    return {k: v for k, v in st["done"].get(last["id"], {}).get("fields", {}).items()
+            if k not in private}
 
 
 def _open_child(assembly, parent, pstep_id, row_id=""):
@@ -358,25 +390,14 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
         assembly = "give-a-verdict"
         seg = next((s for s in pasm["segment"] if s["id"] == pstep["segment"]), {})
         tier = panelist.get("model") or seg.get("model", "")
-        # the artifact under review is whatever the segment's most recent
-        # non-panel step produced -- the latest implement, cycles included
-        prior = [s for s in pst["steps"]
-                if s["segment"] == pstep["segment"] and s["id"] != step_id]
-        artifact = pst["done"].get(prior[-1]["id"], {}) if prior else {}
-        # A panelist gets the artifact and its criteria. Fields marked
-        # record-only stay behind: they are the producer's account of a
-        # previous round, and a reviewer told what was wrong last time is
-        # aimed at those spots and steered off everything else. A finding
-        # that was not really fixed gets found again, which is the check
-        # working rather than a gap in it. Which fields are record-only is
-        # the producing step's form -- the artifact's own shape, not the
-        # panel step's transition form.
-        pform = (forms.load(runmod.resolve_form(pasm, prior[-1]["form"]))
-                 if prior and prior[-1].get("form") else {})
-        private = {f["id"] for f in pform.get("fields", []) if f.get("record-only")}
+        # A panelist gets the artifact and its criteria. The artifact is the
+        # panel step's own prefill where the mint that made the step carried
+        # one across (run-a-gate's `review`, minted a segment away from the
+        # work it reads), and otherwise the segment's own most recent other
+        # round -- the latest implement, cycles included.
         prefill = {**(pst.get("prefill") or {}),
-                   **{k: v for k, v in artifact.get("fields", {}).items()
-                      if k not in private},
+                   **(pstep.get("prefill")
+                      or _round_artifact(pasm, pst, pstep["segment"], step_id)),
                    "criteria": panelist.get("criteria", "")}
         title = f"verdict: {step_id}"
     else:
@@ -821,12 +842,22 @@ def _check_vocabulary(asm, step, form, fields):
 def _mint_transition(wid, seg, prefill=None):
     """One fresh transition step for a segment: a board segment's refill,
     and the impasse's advance. A transition with a form is a step someone
-    fills, so this mints it; one without -- run-a-gate's review -- has
-    nothing to mint, and the run walks on."""
+    fills, so this mints it; one with neither a form nor a `route-form` on
+    its segment has nothing to mint, and the run walks on.
+
+    `route-form` is read here for the same reason it exists at all: a
+    segment whose transition is minted (run-a-gate's `review`) declares no
+    static `form`, so a caller that read `form` alone would mint nothing for
+    it -- and an impasse ruling `advance` would then walk the gate past the
+    round it is ruling on with nothing to dispose of it. What it mints is
+    the form alone, never a panel: the ruling's own note says a fourth
+    fresh-context reader is the loop, not the way out of it.
+    """
     t = seg.get("transition", {})
-    if t.get("form"):
+    form = t.get("form") or seg.get("route-form", "")
+    if form:
         journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
-                       segment=seg["id"], form=t["form"], filler=t.get("filler", "conductor"),
+                       segment=seg["id"], form=form, filler=t.get("filler", "conductor"),
                        prefill=prefill or {}, anchor=t.get("anchor", False),
                        terminal=t.get("terminal", False), validates=t.get("validates", ""),
                        source="mint")
@@ -929,10 +960,18 @@ def _panel_judged_rework(wid, asm, seg, step):
     `(None, "")` where `step` is not that transition -- an impasse ruling's
     own `rework` carries the prefill that caused it and never spends the
     count, which is what makes the outlet a way out rather than a wall.
+
+    The guard is `step.get("panel")` alone, and that is the whole question:
+    is *this deciding step* a two-voices panel transition. `panel` is written
+    onto the step's own journal entry identically however the step came to
+    exist -- by `skeleton()` from a statically declared `[segment.transition]`
+    (consolidate, plan-to-execute, explore-an-idea's spec) or by `_mint`'s
+    panelists branch at run-a-gate's `select` -- so the check survives a
+    transition moving from a declaration to a mint. The one step it must not
+    match is the impasse ruling itself, and that step is a single-conductor
+    decision minted with no `panel` key at all, under every caller.
     """
-    t = seg.get("transition", {})
-    if not (step.get("panel") and step.get("segment") == seg["id"]
-            and step.get("form") == t.get("form")):
+    if not step.get("panel"):
         return None, ""
     st = runmod.state(wid)
     findings = "\n\n".join(
@@ -1148,11 +1187,32 @@ _BOARD_MINT = "board rows"
 _DISPOSE_MINT = "dispositions"
 
 
+# [panel-mint]
+# Rationale: a panel is written once, at the mint that makes the step, and
+#   every consumer sizes off it (`state`'s two-voices fold, `_panel_status`,
+#   `panel_outstanding`) -- so a `select` beat that genuinely chooses who
+#   reads a diff cannot be a field that grows a panel already standing. It
+#   has to be an earlier transition whose submit mints the later one, panel
+#   and conductor form together. That is this third mint kind: engine
+#   vocabulary, like the two above it, because no assembly declares a
+#   segment named `panelists`.
+# Rejected: a `panel = "<segment>"` field beside it, the way `_BOARD_MINT`
+#   takes `board`. `_board_segment`'s own history is the order to follow,
+#   not the endpoint: sole-match resolution shipped first with no target
+#   parameter at all, and the name branch was grafted on non-disruptively
+#   only once run-an-issue actually grew a second board. run-a-gate has
+#   exactly one segment this mint could mean, so a target field here would
+#   be a parameter with one legal value and no reader to disagree with it.
+# See: assemblies/run-a-gate/ASSEMBLY.toml -- the `review` segment's
+#   `route-form`, which is what this mint matches on.
+_PANEL_MINT = "panelists"
+
+
 def _mintable(asm):
     """The `mints` values legal in this assembly: `_BOARD_MINT`,
-    `_DISPOSE_MINT`, plus every name a segment here declares as
-    `dispatches`."""
-    return ({_BOARD_MINT, _DISPOSE_MINT}
+    `_DISPOSE_MINT`, `_PANEL_MINT`, plus every name a segment here declares
+    as `dispatches`."""
+    return ({_BOARD_MINT, _DISPOSE_MINT, _PANEL_MINT}
             | {s["dispatches"] for s in asm["segment"] if s.get("dispatches")})
 
 
@@ -1213,6 +1273,27 @@ def _mint(wid, asm, step, form, fields):
                               for row in boards.rows(path)]
                     _seed_board(runmod.resolve_form(asm, seg["board"]), path, merged)
                     journal.append(wid, "board", segment=seg["id"], path=str(path), rows=merged)
+        elif mints == _PANEL_MINT:
+            # The sole segment declaring a `route-form` is the one this can
+            # mean, so nothing names it. What lands is the two-voices shape a
+            # static transition would have declared: the submitted blocks as
+            # the panel, the segment's own route-form as the conductor's half,
+            # and the round this submit closes carried across as prefill --
+            # the panel sits a segment away from the work it reads, so the
+            # artifact cannot be found from its own segment at dispatch time.
+            # `source = "panel"`, the same word `_mint_segment_round` stamps
+            # on a re-fired panel, so `_summary`'s cycle count keeps meaning
+            # "rounds beyond the first".
+            seg = next((s for s in asm["segment"] if s.get("route-form")), None)
+            if seg:
+                t = seg.get("transition", {})
+                st = runmod.state(wid)
+                journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
+                               segment=seg["id"], form=seg["route-form"], panel=rows,
+                               filler=t.get("filler", "conductor"),
+                               prefill=_round_artifact(asm, st, step["segment"], step["id"]),
+                               anchor=t.get("anchor", False), terminal=False,
+                               validates="", source="panel")
         elif mints:
             seg = next((s for s in asm["segment"] if s.get("dispatches") == mints), None)
             if seg:
@@ -1528,12 +1609,19 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
     if seg.get("dispatches"):
         step["dispatches"] = seg["dispatches"]
     journal.append(wid, "step", **step)
-    fresh_panel = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
-                   "panel": t["panel"], "anchor": False, "terminal": False,
-                   "source": "panel"}
+    # The segment's transition, re-minted for the fresh round: its panel where
+    # it declares one, its form where it declares one, both where it is a
+    # two-voices step. run-a-gate's `work` transition is the first to declare
+    # a form and no panel -- `select` chooses the next round's readers rather
+    # than carrying the last round's forward -- so neither key is assumed.
+    fresh = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
+             "anchor": False, "terminal": False, "source": "panel"}
+    if t.get("panel"):
+        fresh["panel"] = t["panel"]
     if t.get("form"):
-        fresh_panel["form"] = t["form"]  # the two-voices shape survives a fresh round
-    journal.append(wid, "step", **fresh_panel)
+        fresh["form"] = t["form"]  # the two-voices shape survives a fresh round
+    if t.get("panel") or t.get("form"):
+        journal.append(wid, "step", **fresh)
 
 
 # [act-on-verdicts]
@@ -1680,14 +1768,23 @@ def _summary(st):
 #   nothing on its own terminal form -- run-a-gate's GATE_CLOSE has no
 #   `decides` field -- while an earlier step (its own impasse ruling) did;
 #   the terminal step is the wrong place to stop looking.
+# Rejected: walking `st["steps"]` backwards, which is what this did while a
+#   run's beats and its segment list ran in the same order. run-a-gate's
+#   loop crosses back -- work, review, work again -- so the last *step* is
+#   an earlier *answer* than a decision made in the segment above it, and a
+#   gate that ruled `up` at its impasse returned the previous round's
+#   `rework` instead. `st["done"]` is built in journal order, which is when
+#   each answer actually landed.
 def _last_decision(st, asm):
     """The value of the last `decides` field this run itself answered, or
     the empty string when it never declared one."""
-    for s in reversed(st["steps"]):
-        if s["id"] not in st["done"]:
+    steps = {s["id"]: s for s in st["steps"]}
+    for sid in reversed(list(st["done"])):
+        step = steps.get(sid)
+        if step is None:
             continue
-        field = _decided_here(asm, s)
-        value = (st["done"][s["id"]].get("fields") or {}).get(field, "") if field else ""
+        field = _decided_here(asm, step)
+        value = (st["done"][sid].get("fields") or {}).get(field, "") if field else ""
         if value:
             return value
     return ""

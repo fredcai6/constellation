@@ -19,7 +19,8 @@ import pytest
 from engine import cli, journal, rail, render, run as runmod
 from gitremote import init_checkout
 from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_plan, \
-    _dispatch_and_close_plan, _dispatch_plan_critic, _fill, _work_the_board
+    _dispatch_and_close_plan, _dispatch_plan_critic, _fill, _select_panel, \
+    _work_the_board
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -256,6 +257,7 @@ def test_review_panel_brief_on_a_nested_gate_names_the_parents_worktree_and_bran
     child_wid = f"{wid}.{step_id}"
     _fill_implement(child_wid, step_id)
     cli.main([child_wid, "submit"])
+    _select_panel(child_wid)               # mints the review step and its panel
     capsys.readouterr()
 
     cli.main([child_wid])  # now standing on the review panel

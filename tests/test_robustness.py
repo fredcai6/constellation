@@ -271,17 +271,20 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
     pathlib.Path(f".agent-work/issue17/g1/IMPLEMENT.toml").write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([child, "submit"])
-    # drive the review panel for real: one panelist, a pass verdict
-    cli.main(["open", "give-a-verdict", "--parent", child, "--step", "review.p1"])
-    panelist = f"{child}.review.p1"
-    pathlib.Path(f".agent-work/issue17/g1/review/p1/REVIEW.toml").write_text(
+    # select the panel, then drive it for real: one panelist, a pass verdict
+    from test_nesting import _select_panel
+    _select_panel(child)
+    review = runmod.state(child)["current"]["id"]
+    cli.main(["open", "give-a-verdict", "--parent", child, "--step", f"{review}.p1"])
+    panelist = f"{child}.{review}.p1"
+    pathlib.Path(f".agent-work/issue17/g1/{review}/p1/REVIEW.toml").write_text(
         'verify = "read it"\nfindings = "none: waived: clean"\n'
         'vocabulary = "waived: consistent"\nverdict = "pass"\n')
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
     # a pass releases nothing on its own now: the round is disposed of on the
-    # transition's own conductor form, which is what walks the gate to close
-    pathlib.Path(f".agent-work/issue17/g1/REVIEW_ROUND.toml").write_text(
+    # review step's own conductor form, which is what walks the gate to close
+    pathlib.Path(f".agent-work/issue17/g1/ROUTE.toml").write_text(
         'resolution = "close"\n')
     cli.main([child, "submit"])
     pathlib.Path(f".agent-work/issue17/g1/GATE_CLOSE.toml").write_text(

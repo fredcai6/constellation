@@ -16,7 +16,7 @@ import subprocess
 
 import pytest
 
-from engine import cli, journal, render
+from engine import cli, journal, render, run as runmod
 from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_child, _fill, _fill_gate_close, _fill_implement,
@@ -102,12 +102,15 @@ def test_a_closed_child_still_says_where_it_returned(workdir, capsys):
 def test_a_panelist_returns_to_the_gate_not_the_run(workdir, capsys):
     """The nested case: a verdict's parent is the gate that dispatched it,
     two levels down, and the step it names is the panel step."""
+    from test_nesting import _select_panel
     _mint_first_gate()
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     _fill_implement("issue17.g1", "g1")
     cli.main(["issue17.g1", "submit"])
-    cli.main(["open", "give-a-verdict", "--parent", "issue17.g1", "--step", "review.p1"])
-    panelist = "issue17.g1.review.p1"
+    _select_panel("issue17.g1")            # mints the review step and its panel
+    review = runmod.state("issue17.g1")["current"]["id"]
+    cli.main(["open", "give-a-verdict", "--parent", "issue17.g1", "--step", f"{review}.p1"])
+    panelist = f"issue17.g1.{review}.p1"
     _fill(journal.location(panelist) / "REVIEW.toml",
           'verify = "ran it"\nfindings = "none: waived: clean"\n'
           'vocabulary = "waived: consistent"\nverdict = "pass"\n')
@@ -116,7 +119,7 @@ def test_a_panelist_returns_to_the_gate_not_the_run(workdir, capsys):
 
     cli.main([panelist, "close"])
     out = capsys.readouterr().out
-    assert "returned to issue17.g1, at its step review." in out
+    assert f"returned to issue17.g1, at its step {review}." in out
 
 
 # -- 2. awaiting close says what closing will do -----------------------------

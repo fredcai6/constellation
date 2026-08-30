@@ -43,10 +43,13 @@ def test_trace_folds_children_into_one_timeline(workdir, capsys):
     out = _trace(capsys)
 
     runs = {l.split()[1] for l in out.splitlines() if l.startswith("  2")}
-    assert {"issue17", "issue17.g1", "issue17.g1.review.p1"} <= runs, runs
+    # the review step's id is minted per round now, so the panelist's run id
+    # is matched by shape rather than spelled out
+    panelist = next((r for r in runs if re.fullmatch(r"issue17\.g1\.review-\w+\.p1", r)), None)
+    assert {"issue17", "issue17.g1"} <= runs and panelist, runs
     assert "3 runs" not in out or True  # header counts every journal found
     assert "dispatched by issue17 at g1" in out
-    assert "dispatched by issue17.g1 at review" in out
+    assert "dispatched by issue17.g1 at review-" in out
 
 
 def test_a_childs_close_precedes_the_return_it_causes(workdir, capsys):
@@ -66,7 +69,8 @@ def test_a_childs_close_precedes_the_return_it_causes(workdir, capsys):
                        and "issue17.g1" in l)
     assert gate_closed < parent_return, "\n".join(lines)
 
-    panelist_closed = at(lambda l: "issue17.g1.review.p1" in l and " closed" in l)
+    panelist_closed = at(lambda l: re.search(r"issue17\.g1\.review-\w+\.p1", l)
+                         and " closed" in l)
     gate_return = at(lambda l: l.split()[1] == "issue17.g1" and " return " in l)
     assert panelist_closed < gate_return, "\n".join(lines)
 

@@ -69,11 +69,13 @@ def _mint_gate_pair(workdir, wid, gid, purpose, scope, proof, model=""):
 
 
 def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
-    """The loop closes from what the room prints: submit, dispatch the
-    review panel the room names, act on its verdict, close. No engine or
-    skill knowledge in the prompt -- only the work id and the outcome to
-    reach, so the same agent walks from the implementer's form to the
-    gate-conductor's without ever being told either name."""
+    """The loop closes from what the room prints: submit, name the lenses
+    that read the diff, dispatch the panel that mints, act on its verdict,
+    close. Six beats now, not five -- `select` sits between implement and
+    review -- and no engine or skill knowledge in the prompt, only the work
+    id and the outcome to reach, so the same agent walks from the
+    implementer's form to the gate-conductor's without ever being told
+    either name."""
     harness.spine(workdir, "open", "run-a-gate", "--id", "g1")
     harness.prefill(workdir, "g1",
                     purpose="Create a file named result.txt containing exactly the text OK.",
@@ -90,8 +92,19 @@ def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
     st = harness.state(workdir, "g1")
     assert st["closed"], (
         f"the gate never closed on its own orders.{harness.evidence(workdir, 'g1', r)}")
-    assert {"work-1", "review", "close"} <= st["done"].keys(), (
+    assert {"work-1", "select", "close"} <= st["done"].keys(), (
         f"a step along the way was skipped: {sorted(st['done'])}"
+        f"{harness.evidence(workdir, 'g1', r)}")
+    # the review the agent selected: minted at `select`, so its id is not a
+    # name this assertion can spell -- what is checked is that a panel it
+    # chose actually read the diff and returned
+    reviews = [s for s in st["steps"] if s["segment"] == "review" and s.get("panel")]
+    assert reviews and all(s["id"] in st["done"] for s in reviews), (
+        f"no review round was selected, fired and disposed of: "
+        f"{[(s['id'], s.get('form')) for s in st['steps']]}"
+        f"{harness.evidence(workdir, 'g1', r)}")
+    assert st["returns"].get(reviews[-1]["id"]), (
+        f"the last review step never took a verdict back"
         f"{harness.evidence(workdir, 'g1', r)}")
     # root-verified: the engine's own check ran the real command and passed
     proof_checks = [c for c in st["checks"] if "result.txt" in (c.get("command") or "")]
@@ -120,16 +133,23 @@ def test_a_reviewer_returns_a_grounded_verdict(workdir):
         'change = "Renamed parse_line to parseLine for style consistency. No '
         'validation logic was added."\n'
         'deviations = "waived: none"\n')
-    harness.spine(workdir, "g2", "submit")  # proof "true" fires the review anchor
-    harness.spine(workdir, "open", "give-a-verdict", "--parent", "g2", "--step", "review.p1")
+    harness.spine(workdir, "g2", "submit")  # proof "true"; the gate stands on select
+    (pathlib.Path(workdir) / ".agent-work/g2/SELECT.toml").write_text(
+        'omitted = "waived: none"\n\n[[panelists]]\n'
+        'worker = "reviewer"\nmodel = "standard"\n'
+        'criteria = "spec-fit: does the work fill the specification, whole and only"\n')
+    harness.spine(workdir, "g2", "submit")  # mints the review step and its panel
+    review = harness.state(workdir, "g2")["current"]["id"]
+    harness.spine(workdir, "open", "give-a-verdict", "--parent", "g2", "--step",
+                  f"{review}.p1")
 
     r = harness.drive(workdir, (
         "You are an agent working in this directory. Your work id is "
-        "g2.review.p1. Run `spine g2.review.p1` to see your orders and "
+        f"g2.{review}.p1. Run `spine g2.{review}.p1` to see your orders and "
         "criteria. Do exactly what it tells you, all the way through to "
         "close."), timeout=180)
 
-    child = harness.state(workdir, "g2.review.p1")
+    child = harness.state(workdir, f"g2.{review}.p1")
     assert child["closed"], (
         f"the verdict never closed -- it did not return."
         f"{harness.evidence(workdir, 'g2', r)}")
@@ -139,8 +159,8 @@ def test_a_reviewer_returns_a_grounded_verdict(workdir):
 
     # the verdict actually returned to the gate that dispatched it
     parent = harness.state(workdir, "g2")
-    assert "review" in parent["done"], "the verdict never landed back on the gate"
-    ret = parent["returns"]["review"][0]
+    ret = (parent["returns"].get(review) or [None])[0]
+    assert ret, "the verdict never landed back on the gate"
     assert ret["fields"].get("verdict", "").strip().lower().startswith("revise")
 
 

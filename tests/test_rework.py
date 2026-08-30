@@ -20,7 +20,7 @@ from test_nesting import (
     _dispatch_and_close_plan,
     _dispatch_plan_critic,
     _dispatch_review,
-    _fill_review_round,
+    _fill_route,
     _fill,
     _fill_consolidate,
     _fill_gate_transition_replan,
@@ -447,13 +447,12 @@ def test_a_gates_fourth_revise_mints_the_impasse_form(workdir, capsys):
     assert runmod.rework_rounds(st, asm, "work") == 3
 
 
-def test_a_gates_advance_mints_its_transition_and_the_form_closes_the_round(workdir, capsys):
-    """`advance` mints the segment's own transition alone, over the live
-    revise. That transition carries a conductor form now, so what the ruling
-    stands the implementer on is one more disposal of the round -- no panel
-    to argue with, and `close` there walks the gate to GATE_CLOSE. Before
-    review carried a form, `_mint_transition` had nothing to mint and the run
-    walked on by itself."""
+def test_a_gates_advance_mints_its_transition_and_the_round_is_disposed_of(workdir, capsys):
+    """`advance` mints one transition step, over the live revise, and never a
+    fresh panel. It names `review` rather than the ruling segment's own
+    `select`, because select would put a fourth reader on the diff -- the
+    loop, not the way out of it. What the conductor is stood on is the route
+    form alone, and `close` there walks the gate to GATE_CLOSE."""
     child = _drive_gate_to_impasse()
     capsys.readouterr()
     before = len(runmod.state(child)["steps"])
@@ -464,10 +463,10 @@ def test_a_gates_advance_mints_its_transition_and_the_form_closes_the_round(work
 
     st = runmod.state(child)
     assert len(st["steps"]) == before + 1, "advance minted more than its transition"
-    assert st["current"]["form"] == "forms/REVIEW_ROUND.toml"
+    assert st["current"]["form"] == "forms/ROUTE.toml"
     assert not st["current"].get("panel"), "advance minted a fresh panel to argue with"
 
-    _fill_review_round(child, "close")
+    _fill_route(child, "close")
     cli.main([child, "submit"])
     capsys.readouterr()
     assert runmod.state(child)["current"]["form"] == "forms/GATE_CLOSE.toml"

@@ -123,7 +123,7 @@ def test_every_form_a_run_can_reach_loads():
         spec = tomllib.load(open(a, "rb"))
         spec["dir"] = a.parent
         for seg in spec["segment"]:
-            refs = [seg.get("step-form"), seg.get("board"),
+            refs = [seg.get("step-form"), seg.get("board"), seg.get("route-form"),
                     seg.get("transition", {}).get("form")]
             refs += [p["form"] for p in seg.get("transition", {}).get("panel", [])]
             for ref in filter(None, refs):
@@ -364,14 +364,19 @@ def _direct_taught(asm, seg, spec, fid):
     """The vocabulary a real, submittable form of this assembly's own teaches
     for `fid` -- `None` where none of `spec`'s (or its segment's, as a
     fallback) `form`/`step-form`/`rework-form`/`impasse-form`/
-    `adjudication-form` keys reach a field of that name. A panel-only
-    transition's own keys are all empty, so it always resolves to `None`
-    here -- its decided field is never a form any submit in this assembly
-    carries; `_panel_taught` below is its own, separate teacher."""
+    `adjudication-form`/`route-form` keys reach a field of that name. A
+    panel-only transition's own keys are all empty, so it always resolves to
+    `None` here -- its decided field is never a form any submit in this
+    assembly carries; `_panel_taught` below is its own, separate teacher.
+
+    `route-form` is the minted case: run-a-gate's `review` names the form its
+    conductor half stands on there rather than on its transition, because
+    `select` is what mints the step and a static `form` key would have `open`
+    mint it instead. The form is as real and as submittable as any other."""
     return next(
         (forms.vocabulary(fl["note"])
          for key in ("form", "step-form", "rework-form", "impasse-form",
-                    "adjudication-form")
+                    "adjudication-form", "route-form")
          for src in (spec.get(key), seg.get(key)) if src
          for fl in forms.load(runmod.resolve_form(asm, src))["fields"]
          if fl["id"] == fid), None)
