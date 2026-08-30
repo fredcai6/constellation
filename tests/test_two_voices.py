@@ -108,11 +108,20 @@ def _dispatch_and_close_plan(pwid, step_id="plan-1", fill_fn=None):
     `fill_fn` (default `_fill_plan_form`) lets a caller pass
     `_fill_rework_form` for a revise round, whose dispatch step carries a
     form override selecting REWORK.toml."""
-    cli.main(["open", "cut-a-gate", "--parent", pwid, "--step", step_id])
-    child_wid = f"{pwid}.{step_id}"
-    (fill_fn or _fill_plan_form)(child_wid)
-    cli.main([child_wid, "submit"])
-    cli.main([child_wid, "close"])
+    panel = next(s for s in runmod.state(pwid)["steps"] if s["id"] == step_id).get("panel")
+    if not panel:
+        cli.main(["open", "cut-a-gate", "--parent", pwid, "--step", step_id])
+        child_wid = f"{pwid}.{step_id}"
+        (fill_fn or _fill_plan_form)(child_wid)
+        cli.main([child_wid, "submit"])
+        cli.main([child_wid, "close"])
+        return child_wid
+    for n in range(1, len(panel) + 1):
+        cli.main(["open", "give-a-verdict", "--parent", pwid, "--step", f"{step_id}.p{n}"])
+        child_wid = f"{pwid}.{step_id}.p{n}"
+        (fill_fn or _fill_plan_form)(child_wid)
+        cli.main([child_wid, "submit"])
+        cli.main([child_wid, "close"])
     return child_wid
 
 
@@ -257,7 +266,11 @@ def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdi
     capsys.readouterr()
     prefill = runmod.state(f"{wid}.plan.p1")["prefill"]
     assert prefill["spec"] == f".agent-work/{wid}/spec.md"      # the understanding crossed
-    assert prefill["plan"] == f".agent-work/{wid}/plan-1/plan.md"   # the artifact still rides
+    # the artifact still rides -- the segment's own most recent non-panel
+    # step is `plan-1` whichever way it was filled, and the fields that
+    # land in `done` are whichever design-panel sibling's return closed
+    # last (`_act_on_verdicts`, engine/cli.py) -- p3, dispatched third
+    assert prefill["plan"] == f".agent-work/{wid}/plan-1/p3/plan.md"
     assert prefill["criteria"].startswith("intent-fit")
 
 
@@ -321,7 +334,7 @@ def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refir
     assert "[p1]" in fresh_plan["prefill"]["findings"]          # attributed
 
     fresh_panel = next(s for s in st["steps"]
-                       if s.get("panel") and s["segment"] == "plan" and s["id"] != "plan")
+                       if s.get("source") == "panel" and s["segment"] == "plan")
     original_plan = next(s for s in st["steps"] if s["id"] == "plan")
     assert fresh_panel["panel"] == original_plan["panel"]      # same panel config
     assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"  # the two-voices shape survives

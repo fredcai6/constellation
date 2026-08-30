@@ -132,18 +132,16 @@ def test_the_critics_read_the_horizon_the_implementer_never_sees(workdir, capsys
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
-    child = f"{wid}.plan-1"
-    _fill(journal.location(child) / "PLAN.toml", '''
+    def _fill_with_horizon(w):
+        _fill(journal.location(w) / "PLAN.toml", '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
 horizon = "next: a regression test gate, once this one lands"
 key-terms = "waived: none"
-''' % journal.location(child))
-    cli.main([child, "submit"])
-    cli.main([child, "close"])
+''' % journal.location(w))
+    _dispatch_and_close_plan(wid, fill_fn=_fill_with_horizon)  # design-it-twice: three siblings
     capsys.readouterr()
 
     cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])

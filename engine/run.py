@@ -189,6 +189,15 @@ def skeleton(assembly):
                 step["dispatches"] = seg["dispatches"]
             else:
                 step["form"] = form
+            # [interior-panel]
+            # Rationale: a panel is not only a transition's -- design-it-twice
+            #   (ruling 10) declares one on the segment itself, read here so
+            #   round one's interior step carries it too. `_mint_segment_round`
+            #   mints every later round and does not read `segment.panel`, so a
+            #   rework round stays single-planner; re-arguing a settled
+            #   alternative belongs to round one only.
+            if seg.get("panel"):
+                step["panel"] = seg["panel"]
             steps.append(step)
         t = seg.get("transition", {})
         panel = t.get("panel")
