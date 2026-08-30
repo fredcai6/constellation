@@ -65,18 +65,29 @@ settle = "waived: none"
 ''')
 
 
-def _fill_plan(wid):
+def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing newline",
+               scope="src/parser.c only", proof="true", model="", direction=""):
     """Fill PLAN.toml at `wid`'s own work location -- `journal.location`,
     not string interpolation, so a dotted child id (`issue17.plan-1`, the
     first round's own dispatch) nests instead of colliding with a literal
     dot in a directory name. Also what a `replan` mints locally, since that
-    round takes the same step-form the first round does."""
+    round takes the same step-form the first round does. The gate spec
+    (purpose/scope/proof, optional model/direction) is the round's own
+    artifact now -- plan-to-execute projects it, it does not retype it."""
     loc = journal.location(wid)
+    extra = ""
+    if model:
+        extra += 'model = "%s"\n' % model
+    if direction:
+        extra += 'direction = "%s"\n' % direction
     _fill(loc / "PLAN.toml", '''
 plan = "%s/plan.md"
-design-it-twice = "waived: reversible"
+purpose = "%s"
+scope = "%s"
+proof = "%s"
+%shorizon = "waived: none yet"
 key-terms = "waived: none"
-''' % loc)
+''' % (loc, purpose, scope, proof, extra))
 
 
 def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
@@ -96,19 +107,11 @@ def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
 
 
 def _fill_plan_to_execute(wid):
+    """Nothing to author here now (#27): the round the panel just passed
+    already cut the gate, and submitting this projects it. Only the plan
+    artifact pointer is this form's own to fill."""
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"), '''
 plan = ".agent-work/%s/plan.md"
-
-[[gates]]
-purpose = "fix the parser to handle EOF without a trailing newline"
-scope = "src/parser.c only"
-proof = "true"
-
-[[gates]]
-purpose = "add a regression test for the EOF case"
-scope = "tests/parser directory"
-proof = "true"
-model = "light"
 ''' % wid)
 
 
@@ -188,22 +191,34 @@ plan-holds = "remint"
 
 
 def _mint_n_gates(n, wid="issue17"):
-    """Like `_mint_two_gates`, but with `n` bare gate blocks -- purpose/scope
-    only, no id, so every gate's id is derived by position."""
+    """`g1` from a real plan round and a real critic pass; `g2..gN` (when
+    `n` > 1) seeded directly as journal entries in the shape `_mint_gates`
+    itself produces -- the same move
+    `test_drop_pairs_by_shared_child_not_by_id_suffix` already makes for its
+    own "odd-one" pair. The plan segment mints one gate per round now, so
+    getting several pending at once for a drop/remint/replan test is no
+    longer something one submit can do; those tests are about what happens
+    to gates once they exist, not about how they got there."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(wid)
     cli.main([wid, "submit"])
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    _dispatch_and_close_plan(wid)
+    _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
+        w, purpose="gate 1 purpose", scope="gate 1 scope", proof="true"))
     _dispatch_plan_critic(wid)
-    blocks = "\n\n".join(
-        '[[gates]]\npurpose = "gate %d purpose"\nscope = "gate %d scope"\nproof = "true"'
-        % (i, i) for i in range(1, n + 1))
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
-          'plan = ".agent-work/%s/plan.md"\n\n%s\n' % (wid, blocks))
+    _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
+    for i in range(2, n + 1):
+        gid, child = f"g{i}", f"{wid}.g{i}"
+        journal.append(wid, "step", id=gid, segment="execute", dispatches="run-a-gate",
+                       prefill={"purpose": "gate %d purpose" % i, "scope": "gate %d scope" % i,
+                                "proof": "true"},
+                       child=child, anchor=False, terminal=False, source="mint")
+        journal.append(wid, "step", id=f"{gid}-adjudicate", segment="execute",
+                       form="forms/GATE_TRANSITION.toml", filler="conductor", child=child,
+                       anchor=False, terminal=False, validates="", source="mint")
 
 
 def _fill_close(wid):
@@ -244,8 +259,11 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean"):
     return step_id
 
 
-def _mint_two_gates(wid="issue17"):
-    """Open a run-an-issue and drive it to the freshly minted g1 dispatch step."""
+def _mint_first_gate(wid="issue17"):
+    """Open a run-an-issue and drive it, through one real plan round and a
+    real critic pass, to the freshly projected g1 dispatch step. One gate
+    per plan round now (#27) -- a second real gate takes a second round, via
+    `_replan_to_next_gate`."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     _fill_open(wid)
     cli.main([wid, "submit"])
@@ -253,6 +271,26 @@ def _mint_two_gates(wid="issue17"):
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
+    _dispatch_plan_critic(wid)
+    _fill_plan_to_execute(wid)
+    cli.main([wid, "submit"])
+
+
+def _replan_to_next_gate(wid, step_id, purpose="a second gate", scope="scope 2",
+                               proof="true", model=""):
+    """Adjudicate `step_id` as `replan` (accepted, and there is more to do)
+    and drive the fresh plan round it opens through to its own projected
+    gate -- the real route to a second gate now that one plan round cuts
+    exactly one."""
+    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+findings = "landed clean; more of the issue remains"
+plan-holds = "replan"
+''')
+    cli.main([wid, "submit"])
+    fresh_plan = next(s for s in runmod.state(wid)["steps"]
+                      if s["segment"] == "plan" and s.get("source") == "mint")
+    _dispatch_and_close_plan(wid, fresh_plan["id"], fill_fn=lambda w: _fill_plan(
+        w, purpose=purpose, scope=scope, proof=proof, model=model))
     _dispatch_plan_critic(wid)
     _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
@@ -286,14 +324,18 @@ def _dispatch_and_close_child(parent_wid, step_id, cycles=0):
 # -- 1. gates plan field mints dispatch + adjudication pairs -----------------
 
 
-def test_gates_field_mints_dispatch_and_adjudicate_pairs_in_order(workdir, capsys):
-    _mint_two_gates()
+def test_gate_projection_mints_one_dispatch_and_adjudicate_pair_in_order(workdir, capsys):
+    """The plan-to-execute projection (#27, `tests/test_gate_projection.py`
+    covers it end to end) still lands through `_mint_gates`, so the pairing
+    shape it produces -- ids in order, the dispatch/adjudicate pair, `id`
+    stripped from the prefill -- is pinned here on the one gate a round
+    actually cuts."""
+    _mint_first_gate()
     capsys.readouterr()
 
     st = runmod.state("issue17")
     ids = [s["id"] for s in st["steps"]]
-    assert ids == ["open", "understand", "plan-1", "plan", "g1", "g1-adjudicate",
-                    "g2", "g2-adjudicate", "execute"]
+    assert ids == ["open", "understand", "plan-1", "plan", "g1", "g1-adjudicate", "execute"]
     assert st["steps"][-1]["terminal"] is True  # the terminal close step still sorts last
 
     g1 = next(s for s in st["steps"] if s["id"] == "g1")
@@ -301,12 +343,26 @@ def test_gates_field_mints_dispatch_and_adjudicate_pairs_in_order(workdir, capsy
     assert g1["source"] == "mint" and g1["child"] == "issue17.g1"
     assert g1["prefill"]["purpose"].startswith("fix the parser")
     assert "id" not in g1["prefill"]
+    assert "horizon" not in g1["prefill"]  # the horizon stays with the plan round
 
     g1adj = next(s for s in st["steps"] if s["id"] == "g1-adjudicate")
     assert g1adj["form"] == "forms/GATE_TRANSITION.toml"
     assert g1adj["filler"] == "conductor"
 
-    g2 = next(s for s in st["steps"] if s["id"] == "g2")
+
+def test_a_second_real_gate_carries_its_own_model_override(workdir, capsys):
+    """A gate's `model` override still rides the projected prefill -- proven
+    on a genuine second round now that one round cuts one gate. Its default
+    id collides with "g1" (still done, still on record) the same way a
+    remint's does, so it takes a suffix rather than landing on "g2"."""
+    _mint_first_gate()
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+    _replan_to_next_gate("issue17", "g1-adjudicate", model="light")
+    capsys.readouterr()
+
+    g2 = next(s for s in runmod.state("issue17")["steps"]
+              if s.get("dispatches") == "run-a-gate" and s["id"] != "g1")
     assert g2["prefill"]["model"] == "light"
 
 
@@ -314,7 +370,7 @@ def test_gates_field_mints_dispatch_and_adjudicate_pairs_in_order(workdir, capsy
 
 
 def test_open_child_records_prefill_and_nests_location(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     capsys.readouterr()
@@ -334,24 +390,25 @@ def test_open_child_records_prefill_and_nests_location(workdir, capsys):
 
 
 def test_dispatch_status_renders_runner_and_open_command(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     cli.main(["issue17"])
     out = capsys.readouterr().out
     assert "claude-sonnet-5" in out  # standard tier, resolved from constellation.toml
     assert "spine open run-a-gate --parent issue17 --step g1" in out
 
-    # a gate's own model override rides the prefill and resolves too
+    # a second gate's own model override rides the prefill and resolves too
     _dispatch_and_close_child("issue17", "g1")
     cli.main(["issue17"])  # materializes the now-current g1-adjudicate form
     capsys.readouterr()
-    _fill_gate_transition("issue17")
-    cli.main(["issue17", "submit"])
+    _replan_to_next_gate("issue17", "g1-adjudicate", model="light")
     capsys.readouterr()
+    g2 = next(s for s in runmod.state("issue17")["steps"]
+             if s.get("dispatches") == "run-a-gate" and s["id"] != "g1")
     cli.main(["issue17"])
     out = capsys.readouterr().out
     assert "claude-haiku-4-5-20251001" in out
-    assert "spine open run-a-gate --parent issue17 --step g2" in out
+    assert f"spine open run-a-gate --parent issue17 --step {g2['id']}" in out
 
 
 # -- 4/5. child close returns to the parent, completes the dispatch step, --
@@ -359,7 +416,7 @@ def test_dispatch_status_renders_runner_and_open_command(workdir, capsys):
 
 
 def test_child_close_completes_dispatch_step_and_carries_mechanical_summary(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
 
     child_wid = _dispatch_and_close_child("issue17", "g1", cycles=2)
@@ -485,7 +542,7 @@ def test_close_refuses_while_a_step_is_unfinished(workdir, capsys):
 
 
 def test_advance_performs_no_amends(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -498,11 +555,13 @@ def test_advance_performs_no_amends(workdir, capsys):
     # advance now commits the gate (issue19.g3) -- here the implement round
     # only touched `.agent-work`, gitignored, so the engine's own commit
     # attempt stages nothing and journals its no-op note rather than an
-    # amend; either way, advance itself never amends anything
+    # amend; either way, advance itself never amends anything, and it mints
+    # nothing further -- the one gate this round cut was the only one, so
+    # the run walks straight on to its own terminal close step
     new_entries = journal.read("issue17")[before:]
     assert new_entries[0]["kind"] == "submit"
     assert not any(e["kind"] == "amend" for e in new_entries)
-    assert runmod.state("issue17")["current"]["id"] == "g2"
+    assert runmod.state("issue17")["current"]["form"] == "forms/CLOSE.toml"
 
 
 def test_drop_closes_only_the_named_gate_and_never_the_deciding_step(workdir, capsys):
@@ -611,7 +670,7 @@ def test_drop_on_a_gate_not_pending_refuses_and_names_pending(workdir, capsys):
 
 
 def test_remint_with_empty_spec_refuses(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -626,7 +685,7 @@ def test_remint_with_empty_spec_refuses(workdir, capsys):
 
 
 def test_remint_mints_a_gate_that_is_reachable_not_already_done(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -662,7 +721,7 @@ def test_drop_closes_a_remint_minted_pair_too(workdir, capsys):
     sites, plan-minted gates and a remint. This drives the remint route: a
     pair minted mid-run, never part of the original plan cut, dropped like
     any other."""
-    _mint_two_gates()
+    _mint_n_gates(2)
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -698,7 +757,7 @@ def test_drop_pairs_by_shared_child_not_by_id_suffix(workdir, capsys):
     the two steps sharing a `child` are journaled directly, with ids that
     share no prefix at all: suffix parsing cannot pair them, `child`
     grouping can."""
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -729,7 +788,7 @@ def test_reminting_twice_derives_distinct_ids_from_the_same_default(workdir, cap
     ("g1", position 1 within their own block) and both collide with the
     original g1 -- this is what the suffix mechanism must actually resolve,
     not merely tolerate once."""
-    _mint_two_gates()
+    _mint_n_gates(2)
     capsys.readouterr()
 
     _dispatch_and_close_child("issue17", "g1")
@@ -829,7 +888,8 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
     # genuinely reachable, not a step that merely looks minted
     assert st["current"]["id"] == fresh_plan["id"]
 
-    _dispatch_and_close_plan("issue17", fresh_plan["id"])
+    _dispatch_and_close_plan("issue17", fresh_plan["id"], fill_fn=lambda w: _fill_plan(
+        w, purpose="redo the cut correctly", scope="src/ only", proof="true"))
     capsys.readouterr()
     assert runmod.state("issue17")["current"]["id"] == fresh_panel["id"]
 
@@ -839,14 +899,7 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
     st = runmod.state("issue17")
     assert st["current"]["id"] == fresh_panel["id"]  # resolved, waiting on its own form now
 
-    _fill(pathlib.Path(".agent-work/issue17/PLAN_TO_EXECUTE.toml"), '''
-plan = ".agent-work/issue17/plan.md"
-
-[[gates]]
-purpose = "redo the cut correctly"
-scope = "src/ only"
-proof = "true"
-''')
+    _fill_plan_to_execute("issue17")
     cli.main(["issue17", "submit"])
     capsys.readouterr()
 

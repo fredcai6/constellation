@@ -19,7 +19,7 @@ import pytest
 from engine import cli, forms, journal, run as runmod
 from gitremote import init_checkout
 from test_nesting import (
-    _dispatch_and_close_child, _fill_gate_transition, _mint_two_gates,
+    _dispatch_and_close_child, _fill_gate_transition, _mint_first_gate,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -62,7 +62,7 @@ def _dispatch_and_close_child_with_diff(parent_wid, step_id, filename="src.txt",
 
 def test_advance_commits_the_gate_naming_purpose_and_carrying_the_workid_trailer(
         workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     worktree = workdir / ".worktrees" / "issue17"
     before = _git(worktree, "rev-parse", "HEAD").stdout.strip()
@@ -91,7 +91,7 @@ def test_advance_commits_the_gate_naming_purpose_and_carrying_the_workid_trailer
 
 def test_advance_with_nothing_staged_is_a_journaled_no_op_never_a_refusal_or_empty_commit(
         workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     worktree = workdir / ".worktrees" / "issue17"
     before = _git(worktree, "rev-parse", "HEAD").stdout.strip()

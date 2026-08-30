@@ -17,7 +17,7 @@ import pytest
 
 from engine import cli, journal, render, run as runmod
 from gitremote import init_checkout
-from test_nesting import _mint_two_gates
+from test_nesting import _mint_first_gate
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -210,7 +210,7 @@ def test_push_runs_from_the_toplevel_checkout_so_a_relative_remote_resolves(work
 
 
 def test_open_child_inherits_the_parent_tree_and_makes_no_worktree_of_its_own(workdir):
-    _mint_two_gates("issue17")
+    _mint_first_gate("issue17")
     before = _git(workdir, "worktree", "list").stdout
 
     st = runmod.state("issue17")

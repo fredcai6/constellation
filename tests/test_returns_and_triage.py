@@ -17,7 +17,7 @@ from engine import cli, journal, render, run as runmod
 from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_child, _dispatch_review, _fill_gate_close,
-    _fill_gate_transition, _fill_implement, _mint_two_gates,
+    _fill_gate_transition, _fill_implement, _mint_first_gate,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -111,11 +111,13 @@ def test_room_omits_the_triage_block_when_none_noted(workdir, capsys):
 def test_close_toml_room_shows_the_runs_own_triage_notes(workdir, capsys):
     """The literal case the gate spec names: the conductor filling
     run-an-issue's CLOSE.toml works from the record, not memory."""
-    _mint_two_gates()
-    for step in ("g1", "g2"):
-        _dispatch_and_close_child("issue17", step)
-        _fill_gate_transition("issue17")
-        cli.main(["issue17", "submit"])
+    _mint_first_gate()
+    _dispatch_and_close_child("issue17", "g1")
+    from test_nesting import _replan_to_next_gate
+    _replan_to_next_gate("issue17", "g1-adjudicate")  # sequential: cuts "g2"
+    _dispatch_and_close_child("issue17", "g2")
+    _fill_gate_transition("issue17")
+    cli.main(["issue17", "submit"])
     cli.main(["issue17", "note", "triage", "consider extracting the loader"])
     capsys.readouterr()
 
@@ -142,7 +144,7 @@ def _dispatch_and_close_child_noting_triage(parent_wid, step_id, note_text):
 
 
 def test_returns_block_renders_checks_cycles_amends_triage_as_lines(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     _dispatch_and_close_child_noting_triage("issue17", "g1", "split the validator")
     capsys.readouterr()
@@ -159,7 +161,7 @@ def test_returns_block_renders_checks_cycles_amends_triage_as_lines(workdir, cap
 
 
 def test_returns_block_renders_cycles_when_rework_happened(workdir, capsys):
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1", cycles=2)
     capsys.readouterr()

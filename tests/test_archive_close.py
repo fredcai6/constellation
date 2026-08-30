@@ -24,7 +24,7 @@ from engine import cli, journal, run as runmod
 from gitremote import init_checkout, read_archived, stub_gh
 from test_nesting import (
     _dispatch_and_close_child, _dispatch_review, _fill_close, _fill_gate_close,
-    _fill_gate_transition, _fill_implement, _mint_two_gates,
+    _fill_gate_transition, _fill_implement, _mint_first_gate, _replan_to_next_gate,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -44,13 +44,17 @@ def workdir(tmp_path, monkeypatch):
 
 
 def _drive_issue_to_awaiting_close(wid="issue17"):
-    """Two gates, both advanced -- `execute`'s terminal (CLOSE.toml) is only
-    reachable once every dispatched gate has returned and been adjudicated."""
-    _mint_two_gates(wid)
-    for step in ("g1", "g2"):
-        _dispatch_and_close_child(wid, step)
-        _fill_gate_transition(wid)
-        cli.main([wid, "submit"])
+    """Two gates, the first replanned into the second and that one advanced
+    -- `execute`'s terminal (CLOSE.toml) is only reachable once every
+    dispatched gate has returned and been adjudicated. One plan round cuts
+    one gate now, so a second gate takes a real second round (`replan`),
+    not a second block in the same cut."""
+    _mint_first_gate(wid)
+    _dispatch_and_close_child(wid, "g1")
+    _replan_to_next_gate(wid, "g1-adjudicate")  # sequential: this round cuts "g2"
+    _dispatch_and_close_child(wid, "g2")
+    _fill_gate_transition(wid)
+    cli.main([wid, "submit"])
     _fill_close(wid)
     cli.main([wid, "submit"])
 

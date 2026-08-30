@@ -1,23 +1,60 @@
 # Step: rework round of plan. Owned by the planner skill; filled by the planner.
 # A revise verdict mints this form in place of PLAN.toml; the panel's merged
-# findings arrive as prefill. No design-it-twice field: round one weighed the
-# alternatives, and re-arguing them is accretion.
+# findings arrive as prefill.
 
 imperative = """
-Work the findings into the plan. Delete the restated. Move accepted detail into
-the gate's latitude. Replace a twice-patched proof in kind. The room prints how
-the artifact has moved across its rounds; read it as a question, never a budget.
-A round that grew because its gates gained proofs is not the round that grew
-because a settled argument came back. Say which this was, in `deleted`."""
+Work the findings into the plan and the gate spec both. Delete the restated.
+Move accepted detail into the gate's latitude. Replace a twice-patched proof
+in kind. A round that grew because its gates gained proofs is not the round
+that grew because a settled argument came back. Say which this was, in
+`deleted`."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
-The plan document, in the work location: the approach, the gates it cuts into
-(purpose, scope, proof — the plan-to-execute transition copies these), and the
-risks that would change it. Implementation detail below gate grain is a
-defect — that is the gate's latitude."""
+The plan document, in this run's work location (.agent-work/<work-id>/): the
+approach and the risks that would change it. This gate's purpose, scope and
+proof are the fields below, not restated here -- implementation detail below
+gate grain is a defect, that is the gate's latitude."""
+
+[[field]]
+id = "purpose"
+note = "What this gate accomplishes, and why the plan needs it."
+
+[[field]]
+id = "scope"
+note = "Where the change lives, and what is out of bounds."
+
+[[field]]
+id = "proof"
+note = """
+The command that passes once this gate's work is done and fails while it is
+not. A command that passes on an empty diff proves nothing, and so does one
+that covers less than `scope` promised -- one check per commitment. Write the
+exact string to run, never a description of it: this field rides into the
+dispatched child as its own `proof`, shell-executed there, so prose becomes a
+command and fails only after the work is done. Reference the command palette
+(constellation.toml) rather than hardcoding where it applies."""
+
+[[field]]
+id = "model"
+optional = true
+note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+
+[[field]]
+id = "direction"
+optional = true
+note = "What this gate is expected to teach the next plan round, when you know it."
+
+[[field]]
+id = "horizon"
+kind = "evidence"
+note = """
+The gates likely to follow this one, coarsely, and the conditions that would
+change them. Provisional by construction: read by the critics alongside the
+gate above, but never attacked at gate grain, and never carried into the
+implementer's own prefill -- the gate ahead is this one alone."""
 
 [[field]]
 id = "findings-addressed"
@@ -37,10 +74,9 @@ id = "deleted"
 kind = "evidence"
 record-only = true
 note = """
-What came out of the plan this round, and why each cut was safe, and — against
-the movement the room printed — which of this round's growth was the work
-getting more checkable and which was argument returning. Answer the number;
-do not restate it. Cutting meaning to make it smaller is the failure this
+What came out of the plan this round, and why each cut was safe, and which of
+this round's growth was the work getting more checkable and which was
+argument returning. Cutting meaning to make it smaller is the failure this
 field exists to catch, not the behaviour it asks for.
 For the record and the conductor, never the next critic — it stays out of a
 panelist's prefill."""

@@ -71,6 +71,10 @@ decides = "ruling"     # IMPASSE.toml's; PLAN.toml and REWORK.toml have no such 
 anchor = true
 form = "forms/PLAN_TO_EXECUTE.toml"
 filler = "conductor"
+# The round that just passed critique already cut the gate whole; submitting
+# this form projects it into `execute` below rather than asking the
+# conductor to retype what the panel already read (#27).
+projects = "run-a-gate"
 
   # One criterion per panelist. Three fresh-context readers disagreeing is a
   # panel; one reader holding three criteria is a reviewer with a checklist,
@@ -95,10 +99,13 @@ filler = "conductor"
   model = "standard"
   criteria = "simplicity: what can be deleted"
 
-# The plan-to-execute transition mints this interior: a dispatch step and a
-# GATE_TRANSITION step per gate. `adjudication-form` is this segment's own
-# declaration of what a gate is adjudicated against -- read by `_mint_gates`
-# the way `step-form` and `rework-form` already are.
+# The plan-to-execute transition's `projects` mints this interior: one
+# dispatch step and one GATE_TRANSITION step, projected from the plan round
+# that just passed critique -- never authored here. `adjudication-form` is
+# this segment's own declaration of what a gate is adjudicated against --
+# read by `_mint_gates` the way `step-form` and `rework-form` already are.
+# A `remint` still authors a fresh gate directly at adjudication time, an
+# unrelated case this segment's own outcome table still owns.
 [[segment]]
 id = "execute"
 interior = "steps"

@@ -20,7 +20,7 @@ from engine import cli, journal, render
 from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_child, _fill, _fill_gate_close, _fill_implement,
-    _mint_two_gates,
+    _mint_first_gate,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -38,7 +38,7 @@ def workdir(tmp_path, monkeypatch):
 def _gate_ready_to_close(parent="issue17", step="g1"):
     """A child dispatched from a real gates mint, worked and reviewed, one
     move short of close -- the moment before the return is stamped."""
-    _mint_two_gates(parent)
+    _mint_first_gate(parent)
     cli.main(["open", "run-a-gate", "--parent", parent, "--step", step])
     child = f"{parent}.{step}"
     _fill_implement(child, step)
@@ -102,7 +102,7 @@ def test_a_closed_child_still_says_where_it_returned(workdir, capsys):
 def test_a_panelist_returns_to_the_gate_not_the_run(workdir, capsys):
     """The nested case: a verdict's parent is the gate that dispatched it,
     two levels down, and the step it names is the panel step."""
-    _mint_two_gates()
+    _mint_first_gate()
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     _fill_implement("issue17.g1", "g1")
     cli.main(["issue17.g1", "submit"])
@@ -135,12 +135,14 @@ def test_a_root_run_awaiting_close_claims_no_dispatcher(workdir, capsys):
     """A root run has nobody upstream. The old text said returns go "to
     whoever dispatched this run" on every run alike, which was untrue for
     exactly the runs a human opens by hand."""
-    _mint_two_gates()
-    for step in ("g1", "g2"):
-        _dispatch_and_close_child("issue17", step)
-        _fill(journal.location("issue17") / "GATE_TRANSITION.toml",
-              'findings = "waived: nothing"\nplan-holds = "advance"\n')
-        cli.main(["issue17", "submit"])
+    _mint_first_gate()
+    _dispatch_and_close_child("issue17", "g1")
+    from test_nesting import _replan_to_next_gate
+    _replan_to_next_gate("issue17", "g1-adjudicate")  # sequential: cuts "g2"
+    _dispatch_and_close_child("issue17", "g2")
+    _fill(journal.location("issue17") / "GATE_TRANSITION.toml",
+          'findings = "waived: nothing"\nplan-holds = "advance"\n')
+    cli.main(["issue17", "submit"])
     from test_nesting import _fill_close
     _fill_close("issue17")
     cli.main(["issue17", "submit"])
@@ -175,7 +177,7 @@ def test_a_missing_parent_offers_no_command_to_run(workdir, capsys):
 def test_the_parents_returns_block_names_the_child(workdir, capsys):
     """With several gates in flight, which one came back is the first thing
     the conductor needs, and the engine has held it all along."""
-    _mint_two_gates()
+    _mint_first_gate()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
 

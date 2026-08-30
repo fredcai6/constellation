@@ -78,7 +78,10 @@ def _fill_plan_form(wid):
     loc = journal.location(wid)
     _fill(loc / "PLAN.toml", '''
 plan = "%s/plan.md"
-design-it-twice = "waived: reversible"
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
+horizon = "waived: none yet"
 key-terms = "waived: none"
 ''' % loc)
 
@@ -105,21 +108,21 @@ def _fill_rework_form(wid, findings_addressed="accepted: made gate 1 testable",
     loc = journal.location(wid)
     _fill(loc / "REWORK.toml", '''
 plan = "%s/plan.md"
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
+horizon = "waived: none yet"
 findings-addressed = "%s"
 deleted = "%s"
 key-terms = "waived: none"
 ''' % (loc, findings_addressed, deleted))
 
 
-def _fill_plan_to_execute(wid, n_gates=1):
-    gates = "\n".join('''
-[[gates]]
-purpose = "gate %d"
-scope = "src/ only"
-proof = "true"
-''' % i for i in range(1, n_gates + 1))
+def _fill_plan_to_execute(wid):
+    """Nothing to author here now (#27): the round the panel just passed
+    already cut the gate, and submitting this projects it."""
     _fill(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml",
-         'plan = ".agent-work/%s/plan.md"\n%s' % (wid, gates))
+         'plan = ".agent-work/%s/plan.md"\n' % wid)
 
 
 def _fill_verdict(wid, verdict, findings="none: waived: clean"):
@@ -326,7 +329,7 @@ def test_pass_opens_plan_to_execute_for_the_conductor(workdir, capsys):
 
     cli.main(["i1"])
     out = capsys.readouterr().out
-    assert "Cut it into gates" in out                # PLAN_TO_EXECUTE's own imperative
+    assert "nothing to author here" in out            # PLAN_TO_EXECUTE's own imperative
     assert "spine open give-a-verdict" not in out     # not the panel view anymore
 
 

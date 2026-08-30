@@ -730,6 +730,7 @@ def cmd_submit(argv):
         journal.append(wid, "prefill",
                        fields={**(st.get("prefill") or {}), **fields})
     _mint(wid, asm, step, form, fields)
+    _mint_projected_gate(wid, asm, step, st)
     if outcome:
         _perform(wid, asm, *outcome, fields, step)
     print(f"submitted {step['id']}\n")
@@ -1062,7 +1063,7 @@ def _mint(wid, asm, step, form, fields):
                 _mint_gates(wid, seg, rows)
 
 
-def _mint_gates(wid, seg, gates):
+def _mint_gates(wid, seg, gates, start=1):
     """Each gate block becomes a dispatch step and, right after it, the
     adjudication step that will hold its returns -- the pair the execute
     segment's worklist is made of. The adjudication form is the dispatching
@@ -1073,9 +1074,14 @@ def _mint_gates(wid, seg, gates):
     Ids are journal-aware: numbering by position was safe only while closing
     a gate freed its id. A remint no longer closes, so a derived id still
     live in the journal (its gate ran and stands) collides -- `done` is
-    keyed by step id, and a duplicate would silently complete both."""
+    keyed by step id, and a duplicate would silently complete both. `start`
+    is a caller's choice, not derived here: a remint wants position 1 again
+    (redoing that gate's own slot, the collision-then-suffix is the point --
+    see `test_remint_mints_a_gate_that_is_reachable_not_already_done`), while
+    a plan round's own projection wants the next number in the sequence, not
+    a fresh collision every round."""
     existing = {s["id"] for s in runmod.state(wid)["steps"]}
-    for i, gate in enumerate(gates, start=1):
+    for i, gate in enumerate(gates, start=start):
         gid = _unique_id(gate.get("id") or f"g{i}", existing)
         existing.add(gid)
         existing.add(f"{gid}-adjudicate")
@@ -1087,6 +1093,50 @@ def _mint_gates(wid, seg, gates):
         journal.append(wid, "step", id=f"{gid}-adjudicate", segment=seg["id"],
                        form=seg["adjudication-form"], filler="conductor", child=child,
                        anchor=False, terminal=False, validates="", source="mint")
+
+
+# [gate-projection]
+# Rationale: #27 -- a gate spec used to be authored at plan-to-execute, after
+#   the critic panel had already released, so no critic had ever read the
+#   spec it judged; #7's four unrunnable specs are what that produced. The
+#   plan round the panel just passed already carries the gate whole --
+#   `_GATE_FIELDS` below -- so the transition projects it forward rather
+#   than asking the conductor to retype what the panel already read. `plan`,
+#   `horizon` and `key-terms` stay behind: the child executing one gate has
+#   no use for the round's own account of itself or the shape of what comes
+#   after it.
+# Rejected: a `kind = "plan"` field on the transition's own form, the
+#   conductor filling it by hand the way `gates` used to. That reproduces
+#   the transcription bug one step later -- a second typing is a second
+#   chance to drift from what the panel actually judged.
+_GATE_FIELDS = ("purpose", "scope", "proof", "model", "direction")
+
+
+def _mint_projected_gate(wid, asm, step, st):
+    """A transition step whose own segment declares `projects` mints one
+    gate into the segment `projects` names, on submit -- built from this
+    segment's own most recent interior return, never from anything typed on
+    the transition's own form. A no-op off that step, or where the segment
+    it names is not one this assembly's own `_mint_gates` can reach."""
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    t = seg.get("transition", {})
+    if step.get("form") != t.get("form") or not t.get("projects"):
+        return
+    target = next((s for s in asm["segment"] if s.get("dispatches") == t["projects"]), None)
+    prior = [s for s in st["steps"] if s["segment"] == step["segment"] and s["id"] != step["id"]]
+    if not target or not prior:
+        return
+    source = st["done"].get(prior[-1]["id"], {}).get("fields", {})
+    gate = {k: source[k] for k in _GATE_FIELDS if k in source}
+    if gate:
+        # Sequential, not position-1 every round: unlike a remint (still
+        # redoing one gate's own slot, so colliding into a suffix is the
+        # point), each plan round cuts the issue's next gate, and numbering
+        # it g1, g2, g3... reads the same way the run does.
+        cut_so_far = sum(1 for s in st["steps"]
+                         if s.get("segment") == target["id"]
+                         and s.get("dispatches") == target["dispatches"])
+        _mint_gates(wid, target, [gate], start=cut_so_far + 1)
 
 
 def _unique_id(base, existing):
@@ -1372,7 +1422,22 @@ def _act_on_verdicts(pwid, step_id):
                                 "arrival": "escalate" if escalated else "rework-rounds"},
                        anchor=False, terminal=False, validates="", source="mint")
     elif not escalated:
-        _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings},
+        # The round just judged is the segment's own most recent non-panel
+        # step -- the same lookup a panelist's own prefill uses (`_open_child`)
+        # to find the artifact it is reviewing. Its `horizon`, when it wrote
+        # one, rides forward into the next round's prefill beside `findings`:
+        # `skills/planner/SKILL.md` promises the coarse sketch behind the
+        # gate arrives as prefill, and a fresh round otherwise never sees
+        # what the round before it sketched. Carried under the producing
+        # form's own key via `**carried`, the same way a panelist's own
+        # artifact fields already ride (`_open_child`) -- not a name this
+        # engine chose, so `test_promises.py`'s mint sweep does not hold
+        # this call to it the way it holds `findings` (a literal key, right
+        # there in the dict) to every rework-form and step-form in the tree.
+        prior = [s for s in pst["steps"] if s["segment"] == step["segment"] and s["id"] != step_id]
+        produced = pst["done"].get(prior[-1]["id"], {}).get("fields", {}) if prior else {}
+        carried = {"horizon": produced["horizon"]} if produced.get("horizon") else {}
+        _mint_segment_round(pwid, asm, step["segment"], prefill={"findings": findings, **carried},
                             form=seg.get("rework-form", ""))
 
 
@@ -1500,6 +1565,33 @@ def _sweep_to_archive(wid, top, dest, worktree):
     _git(top, "worktree", "remove", "--force", str(worktree))
 
 
+# [fold-measures]
+# Rationale: `_measure_artifacts` writes into the submitting run's own
+#   journal, and `render.drift` reads two points from that same run's own
+#   state -- true while a segment's rounds were forms on one worklist, false
+#   the moment a round became a dispatch: a fresh child every round means
+#   neither the child (one round, then gone) nor the parent (never wrote the
+#   entry itself) ever holds two. Folding the closing child's own measures
+#   into the parent, under the parent's dispatching step, is what lets
+#   `render.drift` see a sequence again -- attributed to that step's own
+#   segment, not the child's, since the child's segment name (`cut`) means
+#   nothing in the parent's assembly and would never match `st["current"]`.
+def _fold_measures(cst, pwid, pstep_id):
+    """A closing child's own `measure` entries, re-homed onto the parent
+    step that dispatched it. A no-op when the parent step cannot be found
+    (its journal predates this, or was hand-edited) or the child recorded
+    nothing -- an artifact too short to measure leaves nothing to fold."""
+    if not cst["measures"]:
+        return
+    pst = runmod.state(pwid)
+    pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
+    if not pstep:
+        return
+    for m in cst["measures"]:
+        journal.append(pwid, "measure", segment=pstep["segment"], step=pstep_id,
+                       field=m.get("field"), path=m.get("path"), words=m.get("words"))
+
+
 def cmd_close(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -1547,6 +1639,7 @@ def cmd_close(argv):
     journal.append(wid, "closed", fields=fields, summary=summary, decision=decision)
     if st.get("parent") and st.get("parent_step"):
         if journal.exists(st["parent"]):
+            _fold_measures(st, st["parent"], st["parent_step"])
             journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
                            row=st.get("row", ""), fields=fields, summary=summary,
                            decision=decision)

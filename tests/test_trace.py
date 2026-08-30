@@ -14,7 +14,7 @@ import pytest
 
 from engine import cli, journal
 from gitremote import init_checkout
-from test_nesting import _dispatch_and_close_child, _fill, _mint_two_gates
+from test_nesting import _dispatch_and_close_child, _fill, _mint_first_gate
 from test_rework import _drive_gate_to_impasse
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -38,7 +38,7 @@ def _trace(capsys, wid="issue17"):
 def test_trace_folds_children_into_one_timeline(workdir, capsys):
     """The whole point: one view across the run, its gate, and the gate's
     own review panelist -- three journals, three levels."""
-    _mint_two_gates()
+    _mint_first_gate()
     _dispatch_and_close_child("issue17", "g1")
     out = _trace(capsys)
 
@@ -54,7 +54,7 @@ def test_a_childs_close_precedes_the_return_it_causes(workdir, capsys):
     lands in the same second. Parent-first ordering put the `return` above
     the `closed` that caused it -- a trace that inverts cause and effect at
     the one seam it exists to debug is worse than no trace."""
-    _mint_two_gates()
+    _mint_first_gate()
     _dispatch_and_close_child("issue17", "g1")
     lines = [l for l in _trace(capsys).splitlines() if l.startswith("  2")]
 
@@ -74,7 +74,7 @@ def test_a_childs_close_precedes_the_return_it_causes(workdir, capsys):
 def test_within_one_run_file_order_survives_the_tiebreak(workdir, capsys):
     """The tiebreak reorders across runs only. A single run's own entries
     stay in the order they were appended, whatever the stamps say."""
-    _mint_two_gates()
+    _mint_first_gate()
     lines = [l for l in _trace(capsys).splitlines() if l.startswith("  2")]
     own = [l for l in lines if l.split()[1] == "issue17"]
     kinds = [l.split()[2] for l in own]
@@ -85,7 +85,7 @@ def test_within_one_run_file_order_survives_the_tiebreak(workdir, capsys):
 def test_trace_renders_the_checks_a_submit_ran(workdir, capsys):
     """The output a trace is most often opened to find. It rides on the
     submit entry, so rendering only the step id would drop it."""
-    _mint_two_gates()
+    _mint_first_gate()
     _dispatch_and_close_child("issue17", "g1")
     out = _trace(capsys)
     assert "[exit 0]" in out, out
@@ -128,7 +128,7 @@ def test_trace_is_not_offered_in_a_rooms_legal_moves(workdir, capsys):
     """Deliberate. A run's agents read from fresh context on purpose -- history is exactly
     what a room description withholds -- so `trace` is a verb for whoever is
     debugging the engine from outside a run, and lives in USAGE only."""
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
     cli.main(["issue17"])
     # A word boundary, not a bare substring: the room now names the run's own

@@ -17,7 +17,7 @@ from gitremote import init_checkout, read_archived, stub_gh
 from test_nesting import (
     _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _fill, _fill_close,
     _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
-    _mint_two_gates, _work_the_board,
+    _mint_first_gate, _work_the_board,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -40,7 +40,7 @@ def _fill_implement(wid, change, deviations):
 def test_gate_close_summary_carries_the_last_implement_round(workdir):
     """A revise round rewrites the diff, so the round that landed is the one
     the parent should read -- not the round the panel sent back."""
-    _mint_two_gates()
+    _mint_first_gate()
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     wid = "issue17.g1"
 

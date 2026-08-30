@@ -28,7 +28,7 @@ from test_nesting import (
     _dispatch_plan_critic,
     _fill_consolidate,
     _fill_open,
-    _mint_two_gates,
+    _mint_first_gate,
     _work_the_board,
 )
 
@@ -107,7 +107,7 @@ def test_a_gate_child_still_receives_its_own_spec_unchanged(workdir, capsys):
     fix and must hold unchanged after it: the step's own keys win on
     collision, and a gate spec duplicates nothing the run-level prefill
     holds."""
-    _mint_two_gates()
+    _mint_first_gate()
     capsys.readouterr()
 
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
