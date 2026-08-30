@@ -432,3 +432,20 @@ def panel_outstanding(st, step):
     `done` by then and can no longer be `st["current"]`."""
     panel = step.get("panel")
     return bool(panel) and len(st["returns"].get(step["id"], [])) < len(panel)
+
+
+# [paused-marker]
+# Rationale: a paused run's own marker is recognized by the positive `paused`
+#   key `_pause_gate` (engine/cli.py) writes -- never by the absence of
+#   `form`, `panel` and `dispatches`, which `_amend_add --transition` already
+#   mints today with no pause behind it at all. The key's own value is the
+#   segment the parent's answer resumes, read back by `_resume_paused_child`
+#   rather than re-derived, so the two ends of one pause cannot disagree
+#   about where it resumes.
+# Rejected: folding this into `state()` as a top-level flag. The fold stays
+#   exactly what it was; a marker step is a step like any other; only whether
+#   one is standing there changes.
+def paused(step):
+    """True for the marker step `_pause_gate` minted in place of the round it
+    decided at -- the run stands on it until the parent it asked answers."""
+    return bool(step.get("paused"))

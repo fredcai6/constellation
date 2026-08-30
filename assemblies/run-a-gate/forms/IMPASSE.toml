@@ -22,9 +22,10 @@ advance | rework | up. `advance` closes the gate on the diff as it stands, over
 a live revise — the review's findings remain the record that says you did, and
 your parent adjudicates them. `rework` is another implement round, and is the
 answer only when you can name what it changes that the last three did not. `up`
-refills nothing and lets this gate close, so your ruling returns to the run that
-dispatched you -- the right move when the spec, not the diff, is what is
-wrong."""
+pauses this gate rather than closing it: your ruling stands as an ask at the
+run that dispatched you, and this gate resumes -- with whatever it answers, as
+this gate's own next round -- once it does. The right move when the spec, not
+the diff, is what is wrong."""
 
 [[field]]
 id = "why"

@@ -157,6 +157,8 @@ def _current_form(st):
     #   guidance already checks panel first for the identical reason.
     if runmod.panel_outstanding(st, step):
         return asm, step, None  # rendered as N commands; the outcome is mechanical
+    if runmod.paused(step):
+        return asm, step, None  # a marker step: no form of its own to fall through to
     if step.get("dispatches"):
         return asm, step, None  # rendered as a command, not a form
     return asm, step, forms.load(runmod.resolve_form(asm, step["form"]))
@@ -563,6 +565,34 @@ def _panel_status(wid, st, asm, step, blocked):
     return "\n".join(lines)
 
 
+# [paused-status]
+# Rationale: a paused run's own marker has no form, no panel, no dispatch --
+#   the three shapes `_current_form` already renders -- so it needs a fourth
+#   room of its own rather than falling through to any of them. Named apart
+#   from `_dispatch_status`/`_panel_status` for the same reason those two are
+#   apart from each other: each kind of step says one true thing about
+#   itself, and a shared room would have to say the true thing for all three
+#   or none.
+def _paused_status(wid, st, asm, blocked):
+    """What a paused run says about itself: nothing to fill here, the ask its
+    own `up` sent is standing at the parent instead, and the answer arrives
+    as this run's own next round rather than anything typed on this step."""
+    parent = st.get("parent")
+    lines = render.preamble(st, blocked, runmod.position(st, asm))
+    if parent:
+        lines.append(render.located(
+            "  paused -- this gate ruled up. The ask it sent is standing at "
+            f"its parent, not here: spine {parent}\n"
+            "  nothing to fill on this run until the parent answers -- the "
+            "answer arrives as this gate's own next round."))
+    else:
+        lines.append("  paused, with no parent left to carry the ask it sent "
+                     "-- see the blocked note above.")
+    lines.append("")
+    lines.append(render.legal_moves(wid))
+    return "\n".join(lines)
+
+
 def _onward(st):
     """Where this run's returns land -- read off its own opening entry, which
     has held the answer since `open` wrote it.
@@ -625,6 +655,9 @@ def cmd_status(argv):
     if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
         print(_panel_status(wid, st, asm, step, runmod.blocks(st)))
         return 0
+    if runmod.paused(step):
+        print(_paused_status(wid, st, asm, runmod.blocks(st)))
+        return 0
     if step.get("dispatches"):
         print(_dispatch_status(wid, st, asm, step, runmod.blocks(st)))
         return 0
@@ -673,6 +706,11 @@ def cmd_submit(argv):
         raise SystemExit(render.refusal(
             step["id"], "a panel step is not submitted -- the panelists' verdicts "
             "complete it", escape=f"who is outstanding: spine {wid}"))
+    if runmod.paused(step):
+        raise SystemExit(render.refusal(
+            step["id"], "paused -- the ask it sent is standing at its parent, not here",
+            escape=(f"see it: spine {st.get('parent')}" if st.get("parent")
+                   else "no parent left to see it at -- see the blocked note above")))
     if step.get("dispatches"):
         raise SystemExit(render.refusal(
             step["id"],
@@ -764,6 +802,7 @@ def cmd_submit(argv):
                        fields={**(st.get("prefill") or {}), **fields})
     _mint(wid, asm, step, form, fields)
     _mint_projected_gate(wid, asm, step, st)
+    _resume_paused_child(wid, step, fields)
     if outcome:
         _perform(wid, asm, *outcome, fields, step)
     print(f"submitted {step['id']}\n")
@@ -1099,6 +1138,8 @@ def _perform(wid, asm, seg, does, fields, step):
             _mint_segment_round(wid, asm, tseg["id"],
                                 prefill=step.get("prefill") or {} if judged is None else judged,
                                 form=tseg.get("rework-form", ""))
+        elif word == "pause":
+            _pause_gate(wid, tseg, reason, fields)
         elif word == "remint":
             _mint_gates(wid, seg, fields.get(target) or [])
         elif word == "close":
@@ -1116,6 +1157,63 @@ def _perform(wid, asm, seg, does, fields, step):
             _commit_gate(wid, asm, step)
         elif word == "settle":
             _settle_execution(wid, asm)
+
+
+# [pause-gate]
+# Rationale: `up` used to `release` -- mint nothing, so the run walked past
+#   whatever decided it straight to its own terminal step. The gate spec is
+#   what's wrong here, not the diff, and the only hand that can fix a spec is
+#   whoever wrote it: the parent that dispatched this run. Pausing carries
+#   the ask up as a step the parent's own `state()` already stands on --
+#   `_ordered`'s existing grouping-by-segment does the placing, once the
+#   reorder below moves it before the pair the parent already holds live --
+#   rather than a return the parent would have to go open this child to
+#   read. Nothing here touches `state()`'s own fold: the ask is an ordinary
+#   step, the marker is an ordinary step, and both are recognized by the
+#   plain keys they carry.
+# Rejected: closing this run and returning through the ordinary `cmd_close`
+#   path the way an advance does. That return only reaches the parent once
+#   this run itself closes, and a run closed on `up` is a run gone quiet --
+#   not one standing on a live ask the parent can see without opening it.
+def _pause_gate(wid, tseg, reason, fields):
+    """`up`'s own verb: an ask minted into the parent standing on the step
+    that dispatched this run, reordered before the still-live pair so it is
+    what the parent's own `state()` stands on next; a marker minted here, in
+    the segment the parent's answer will resume."""
+    st = runmod.state(wid)
+    pwid, pstep_id = st.get("parent"), st.get("parent_step")
+    if not pwid or not journal.exists(pwid):
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail="blocked",
+                       about="", text="ruled up with no parent to ask -- nothing above this run")
+        return
+    pst = runmod.state(pwid)
+    pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
+    if pstep is None:
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail="blocked",
+                       about="", text=f"parent {pwid} no longer holds {pstep_id} -- "
+                                      "nothing to stand the ask on")
+        return
+    orders = st.get("prefill") or {}
+    ask = {"gate": wid, "attempted": orders.get("scope") or orders.get("purpose", ""),
+           "ask": reason}
+    calls = fields.get("calls")
+    if isinstance(calls, list) and calls:
+        ask["findings"] = "\n\n".join(
+            f"[{r.get('call', '')}] {r.get('finding', '')}"
+            for r in calls if isinstance(r, dict))
+    elif fields.get("why"):
+        ask["findings"] = fields["why"]
+    ask_id = f"{pstep['segment']}-a{secrets.token_hex(2)}"
+    journal.append(pwid, "step", id=ask_id, segment=pstep["segment"],
+                   form="skills/gate-conductor/forms/ASK.toml", filler="conductor",
+                   prefill=ask, resumes=wid, anchor=False, terminal=False,
+                   validates="", source="mint")
+    journal.append(pwid, "amend", action="reorder", segment=pstep["segment"], step=ask_id,
+                   before=pstep_id, reason=reason, anchor=False)
+    marker_id = f"{tseg['id']}-a{secrets.token_hex(2)}"
+    journal.append(wid, "step", id=marker_id, segment=tseg["id"], paused=tseg["id"],
+                   filler="conductor", anchor=False, terminal=False, validates="",
+                   source="mint")
 
 
 # [gate-commit]
@@ -1436,6 +1534,47 @@ def _mint_projected_gate(wid, asm, step, st):
                          if s.get("segment") == target["id"]
                          and s.get("dispatches") == target["dispatches"])
         _mint_gates(wid, target, [gate], start=cut_so_far + 1)
+
+
+# [resume-paused-child]
+# Rationale: a paused child's resume is not a submitted outcome -- the ask
+#   form declares no `decides` field on purpose (see `_pause_gate`), since
+#   the parent segment's own outcome table would try to resolve the answer
+#   against values it never means (run-an-issue's `execute` segment,
+#   `advance | remint | drop <gate-id> | replan`). This hook is the other
+#   half: unconditional and decides-free, called beside `_mint_projected_gate`
+#   on every submit, firing off the positive `resumes` key the pause verb
+#   wrote rather than off anything the ask form's own fields declare.
+# Rejected: routing the answer through `_outcome`/`_perform` the ordinary
+#   way. That is exactly the collision named above -- the same submit would
+#   have to satisfy two unrelated vocabularies on one field.
+# See: `journal.py:119` -- `journal.append`'s own `mkdir(parents=True,
+#   exist_ok=True)`, which is why this checks `journal.exists` before writing
+#   anywhere in the child rather than after.
+def _resume_paused_child(pwid, step, fields):
+    """Fires only when the step just submitted is an ask `_pause_gate` wrote
+    -- named by its own positive `resumes` key, naming the child to write
+    into. A no-op on every ordinary submit, ask included until it carries
+    that key."""
+    child = step.get("resumes")
+    if not child:
+        return
+    if not journal.exists(child):
+        journal.append(pwid, "note", id=f"n{secrets.token_hex(2)}",
+                       kind_detail="observation", about="resume",
+                       text=f"{child}'s journal is gone -- the answer was recorded here, "
+                            "but there is no child left to resume")
+        return
+    cst = runmod.state(child)
+    marker = cst["current"] if cst else None
+    if not marker or not runmod.paused(marker):
+        return  # already resolved some other way, or the marker moved
+    tseg_id = marker["paused"]
+    casm = runmod.load_assembly(cst["assembly"])
+    journal.append(child, "amend", action="close", segment=marker["segment"],
+                   step=marker["id"], reason="resumed by the parent's answer",
+                   anchor=marker.get("anchor", False))
+    _mint_segment_round(child, casm, tseg_id, prefill=fields)
 
 
 def _unique_id(base, existing):
@@ -1921,6 +2060,10 @@ def cmd_close(argv):
         # offering the wrong escape is worse than offering none.
         if runmod.panel_outstanding(st, step):
             how = f"its panelists complete it: spine {wid}"
+        elif runmod.paused(step):
+            how = (f"its ask is standing at its parent, not here: spine {st.get('parent')}"
+                  if st.get("parent") else
+                  "its ask has no parent left to stand on -- see the blocked note above")
         elif step.get("dispatches"):
             how = f"open its child: spine open {step['dispatches']} --parent {wid} " \
                   f"--step {step['id']}"

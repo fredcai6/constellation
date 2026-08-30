@@ -71,10 +71,10 @@ def test_run_a_gates_review_declares_resolution_disjoint_from_ruling():
 
     # `up` is a real declared value here now, not only on `work`'s own impasse
     # table -- an undeclared one refuses, so this is what makes the word
-    # legal at route at all. It resolves to `release` like the rest, which is
-    # the whole of what this gate builds: the pause behind it is not here yet.
+    # legal at route at all. It targets `work` explicitly, the same as
+    # `rework` above: review is not the segment the resumed round lands in.
     seg, does = cli._outcome(asm, step, {"resolution": "up"}, {"steps": []})
-    assert seg["id"] == "review" and does == "release"
+    assert seg["id"] == "review" and does == "pause work"
 
 
 def _route_with_calls(wid, resolution, *calls):
