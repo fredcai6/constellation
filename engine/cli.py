@@ -369,7 +369,15 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
         title = f"verdict: {step_id}"
     else:
         tier = _tier(pstep, pasm)
-        prefill = pstep.get("prefill") or {}
+        # The run's own prefill (`carries`, e.g. consolidate's spec) is what
+        # every later dispatch was promised -- ASSEMBLY.toml says so in
+        # place. Before this a non-panelist child saw only its own step's
+        # prefill, so a first-round dispatch minted with none (the plan
+        # segment's `plan-1`, which carries nothing of its own) opened blind
+        # to the spec it exists to plan from. The step's own keys still win
+        # on collision, so a gate child's spec -- which duplicates nothing
+        # the run-level prefill holds -- is unaffected.
+        prefill = {**(pst.get("prefill") or {}), **(pstep.get("prefill") or {})}
         title = prefill.get("purpose", pstep_id)
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
@@ -388,6 +396,12 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
         # `reviewer` filler no matter which worker the panel entry names.
         if tag and panelist.get("worker"):
             step = {**step, "filler": panelist["worker"]}
+        # A rework round's dispatch step carries a form override the same
+        # way a panelist's entry does -- `_mint_segment_round` sets it to the
+        # segment's rework-form so this child fills REWORK.toml instead of
+        # the step-form its assembly declares by default.
+        if not tag and pstep.get("form"):
+            step = {**step, "form": pstep["form"]}
         journal.append(wid, "step", **step)
     print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
     return cmd_status([wid])
@@ -1250,6 +1264,19 @@ def _amend_reorder(wid, st, step_id, reason, before):
     return cmd_status([wid])
 
 
+# [rework-round-is-a-dispatch]
+# Rationale: a segment that declares `dispatches` (the plan segment)
+#   dispatches every round, not only the one `skeleton()` seeds -- ruling 6
+#   bars the conductor from drafting what it judges on a rework round exactly
+#   as it does on the first. The mint mirrors `skeleton()`'s own branch:
+#   `dispatches` in place of `form`, with the caller's `form` (the
+#   rework-form) carried as an override for `_open_child` to apply, since the
+#   dispatched assembly's own transition still names its step-form by
+#   default.
+# Rejected: a second dispatched assembly just for rework. `cut-a-gate`
+#   already reads whichever form its dispatch step names; teaching it a
+#   second shape to reach the same form would be a second thing to keep in
+#   sync with the planner's skill for no behaviour gained.
 def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
     """Mint one fresh round of a segment: its step-form (or the form the
     caller names -- a revise passes the segment's rework form) as a fresh
@@ -1265,10 +1292,19 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
     """
     seg = next(s for s in asm["segment"] if s["id"] == seg_id)
     t = seg.get("transition", {})
-    journal.append(wid, "step", id=f"{seg_id}-a{secrets.token_hex(2)}", segment=seg_id,
-                   form=form or seg["step-form"], filler=seg.get("worker", "conductor"),
-                   prefill=prefill or {}, anchor=False, terminal=False, validates="",
-                   source="mint")
+    step = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
+            "filler": seg.get("worker", "conductor"), "prefill": prefill or {},
+            "anchor": False, "terminal": False, "validates": "", "source": "mint"}
+    # `form` is set either way -- a replan's dispatch carries its own
+    # step-form even though that names the child assembly's own default and
+    # so overrides nothing. `rework_rounds` (run.py) reads this field on
+    # every mint regardless of `dispatches`, and a step that omitted it
+    # whenever the value was the non-override default silently broke the
+    # replan-resets-the-count case the moment a replan started dispatching.
+    step["form"] = form or seg["step-form"]
+    if seg.get("dispatches"):
+        step["dispatches"] = seg["dispatches"]
+    journal.append(wid, "step", **step)
     fresh_panel = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
                    "panel": t["panel"], "anchor": False, "terminal": False,
                    "source": "panel"}

@@ -15,7 +15,7 @@ import pytest
 from engine import cli, journal, run as runmod
 from gitremote import init_checkout, read_archived, stub_gh
 from test_nesting import (
-    _dispatch_plan_critic, _dispatch_review, _fill, _fill_close,
+    _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _fill, _fill_close,
     _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
     _mint_two_gates, _work_the_board,
 )
@@ -83,8 +83,7 @@ def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, mo
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    _fill_plan(wid)
-    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid, verdict="escalate", findings="gap: wrong artifact entirely")
     _fill(journal.location(wid) / "IMPASSE.toml",
           'ruling = "up"\nwhy = "the critics read the plan against the wrong issue"\n')

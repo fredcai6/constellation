@@ -1,4 +1,4 @@
-# Step: plan. Owned by run-an-issue; filled by the conductor.
+# Step: plan. Owned by the planner skill; filled by the planner.
 # The consolidate's learnings and key terms arrive as prefill. A revise
 # mints REWORK.toml for the next round, so this form is always a first cut --
 # including the second time it is minted: a `replan` outcome closes the

@@ -146,9 +146,22 @@ def skeleton(assembly):
     for seg in assembly["segment"]:
         form = seg.get("step-form")
         if form and seg.get("interior") == "steps":
-            steps.append({"id": seg["id"] + "-1", "segment": seg["id"], "form": form,
-                          "filler": seg.get("worker", "conductor"), "anchor": False,
-                          "terminal": False, "validates": "", "source": "open"})
+            step = {"id": seg["id"] + "-1", "segment": seg["id"],
+                    "filler": seg.get("worker", "conductor"), "anchor": False,
+                    "terminal": False, "validates": "", "source": "open"}
+            # [plan-round-is-a-dispatch]
+            # Rationale: a segment can declare a `dispatches` target beside its
+            #   own step-form -- run-an-issue's plan segment is the first. The
+            #   round this seeds is the first cut, and the conductor that will
+            #   judge it cannot also be the hand that drafted it, so it opens as
+            #   a fresh child's step, not a form on this run's own worklist. A
+            #   later rework round is minted by `_mint_segment_round` instead,
+            #   which knows only forms -- so only round one takes this branch.
+            if seg.get("dispatches"):
+                step["dispatches"] = seg["dispatches"]
+            else:
+                step["form"] = form
+            steps.append(step)
         t = seg.get("transition", {})
         panel = t.get("panel")
         if not t.get("form") and not panel:

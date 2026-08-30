@@ -20,7 +20,7 @@ import pytest
 from engine import cli, render, run as runmod
 from gitremote import init_checkout
 from test_nesting import (
-    _dispatch_and_close_child, _fill_consolidate,
+    _dispatch_and_close_child, _dispatch_and_close_plan, _fill_consolidate,
     _fill_gate_transition, _fill_implement, _fill_open, _fill_plan,
     _fill_plan_to_execute, _dispatch_plan_critic, _work_the_board,
 )
@@ -84,7 +84,7 @@ def test_every_room_in_a_whole_issue_speaks_and_offers_a_move(workdir, capsys):
     wid = "issue17"
     check(wid); _fill_open(wid); cli.main([wid, "submit"])
     check(wid); _work_the_board(wid); _fill_consolidate(wid); cli.main([wid, "submit"])
-    check(wid); _fill_plan(wid); cli.main([wid, "submit"])
+    check(wid); _dispatch_and_close_plan(wid)
     check(wid)                      # the plan's critic panel -- a brief step
     _dispatch_plan_critic(wid)
     check(wid)                      # two voices: the form half, panel passed
