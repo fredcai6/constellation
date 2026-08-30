@@ -490,8 +490,8 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
     assert verbs_checked, "no outcome named a verb -- this test swept nothing"
 
 
-SKILL_BUDGETS = {"issue-conductor": 1500, "implementer": 800, "critic": 850, "reviewer": 700,
-                 "spec-writer": 600}
+SKILL_BUDGETS = {"issue-conductor": 1500, "implementer": 800, "gate-conductor": 800,
+                 "critic": 850, "reviewer": 700, "spec-writer": 600}
 
 
 def test_budgeted_skills_exist_inside_budget():
@@ -672,3 +672,23 @@ def test_every_role_an_assembly_names_has_a_skill_behind_it():
         for role in named - {""}:
             assert role in roles_on_disk, (
                 f"{a.parent.name} names role {role!r}, which has no skills/{role}/")
+
+
+def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc():
+    """Four claims went false the moment `run-a-gate`'s `conductor` field
+    became `gate-conductor`, and prose has no proof behind it: two skill
+    files an agent reads live mid-run said the implementer conducts a gate,
+    and `docs/V2_DESIGN.md` said the assembly on disk still names the
+    implementer. Each is pinned the way this file already pins a known-false
+    substring -- the retired phrase, paired with the field that retired it --
+    so an edit reintroducing one fails here rather than misdirecting an agent
+    a run later. This is not a scanner for arbitrary claims about arbitrary
+    roles: it is four named strings and the one field they all depend on."""
+    gate = tomllib.load(open(ROOT / "assemblies" / "run-a-gate" / "ASSEMBLY.toml", "rb"))
+    assert gate["conductor"] == "gate-conductor"
+    implementer = (ROOT / "skills" / "implementer" / "SKILL.md").read_text()
+    assert "you conduct this gate" not in implementer
+    issue_conductor = (ROOT / "skills" / "issue-conductor" / "SKILL.md").read_text()
+    assert "the implementer's to conduct" not in issue_conductor
+    assert "names the implementer as its conductor" not in V2_DESIGN
+    assert "the assembly on disk names the implementer" not in V2_DESIGN

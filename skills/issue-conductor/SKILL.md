@@ -47,6 +47,6 @@ Where this does not apply: this is the live-principal posture. A run under a
 frozen launch order with no reachable principal is issue-conductor-delegated's
 job, not this one — its gaps go up to the epic-conductor, not sideways to a human
 who is not present. And once a gate is dispatched, its implement–review
-cycles are the implementer's to conduct: do not open a gate's interior to
+cycles are the gate-conductor's to conduct: do not open a gate's interior to
 re-litigate a diff the panel already judged. Your adjudication acts on the
 plan and on what the gate returned, never on the work itself.

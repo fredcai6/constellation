@@ -1,7 +1,7 @@
 """The close summary carries the implement step's own words.
 
-GATE_CLOSE.toml tells the implementer that the change and deviations return
-mechanically, so a parent adjudicating a gate reads what the diff was without
+GATE_CLOSE.toml tells whoever closes the gate that the change and deviations
+return mechanically, so a parent adjudicating a gate reads what the diff was without
 opening the child's journal. `_summary` finds them by shape -- the last
 submitted step whose fields carry `change` -- rather than by assembly, form
 path or segment id, so a run that fills no such form closes with both keys

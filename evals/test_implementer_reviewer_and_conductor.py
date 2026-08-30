@@ -1,9 +1,13 @@
 """Issue 10 added self-location (a rendered brief a dispatched child can
 actually run) and the first two skills (implementer, reviewer). These evals
-drive each of the three roles that make a gate move -- an implementer closing
-a gate from its orders alone, a reviewer grounding a verdict in a spec it was
-just handed, and a conductor dispatching a child and adjudicating what comes
-back -- and assert on the journal, never on transcript prose.
+drive each of the three roles that make a gate move -- one agent carrying a
+gate from its orders alone all the way to close, a reviewer grounding a
+verdict in a spec it was just handed, and a conductor dispatching a child and
+adjudicating what comes back -- and assert on the journal, never on transcript
+prose. The first of those stands on the implementer's form and then on the
+gate-conductor's, in one continuous context, because its prompt names no role
+at all: what carries the loop is the dispatch `spine` prints, not any skill's
+claim about who conducts.
 
 Issue 7 added a fourth, on the same implementer: whether the intent layer
 gets authored while the code is being written. That one asserts on the
@@ -65,10 +69,11 @@ def _mint_gate_pair(workdir, wid, gid, purpose, scope, proof, model=""):
 
 
 def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
-    """The implementer skill says "you conduct this gate -- nobody else
-    pumps it between open and close": submit, dispatch the review panel the
-    room names, act on its verdict, close. No engine or skill knowledge in
-    the prompt -- only the work id and the outcome to reach."""
+    """The loop closes from what the room prints: submit, dispatch the
+    review panel the room names, act on its verdict, close. No engine or
+    skill knowledge in the prompt -- only the work id and the outcome to
+    reach, so the same agent walks from the implementer's form to the
+    gate-conductor's without ever being told either name."""
     harness.spine(workdir, "open", "run-a-gate", "--id", "g1")
     harness.prefill(workdir, "g1",
                     purpose="Create a file named result.txt containing exactly the text OK.",

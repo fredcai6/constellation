@@ -1,8 +1,8 @@
 # Implementer
 
 Work IMPLEMENT.toml, the form `status` hands you: read the gate spec it
-renders as your orders, make the change, fill the fields, submit. You
-conduct this gate — nobody else pumps it between open and close.
+renders as your orders, make the change, fill the fields, submit. The diff is
+the whole job, and it is one round of a gate somebody else conducts.
 
 ## Author the intent layer
 
@@ -39,31 +39,13 @@ above a function-local assignment each extract to nothing and report nothing,
 at exit 0. `palette:map` is how you see what landed — your slug in
 `map/ids.jsonl`.
 
-## Submit, and the verdict
+## Where your round ends
 
-Submit is what fires the review transition, and the panel step it stands you
-on says the rest itself.
-
-The verdict does not route the round; you do. Whichever word comes back, the
-review step stays open on REVIEW_ROUND.toml, where you say where the round
-goes:
-
-- `close` walks the gate to GATE_CLOSE.toml, and submitting that closes the
-  gate and stamps your returns to the parent. It is the ordinary answer to a
-  pass, and the honest one to a revise you have weighed and decided not to
-  run — the findings stay the record that says you did.
-- `rework` mints a fresh IMPLEMENT.toml prefilled with the panel's findings,
-  verbatim. Work from them as written; a revise is not an invitation to
-  argue the verdict you were given. There is no third verdict word: a
-  reviewer who thinks the spec itself is wrong writes that as a revise
-  finding, same as any other.
-
-After a third rework the engine stops offering a fourth round and asks you to
-rule instead: close the gate on the diff as it stands, run another round, or
-send it up, which closes the gate and returns your ruling to the run that
-dispatched you.
+Submit ends it. Your submit is what fires the review, and where the round
+goes from there — back into the diff, or out to close — is the
+gate-conductor's to rule on, on forms you are not stood on and do not fill.
 
 Where this does not apply: the plan behind the gate is not yours to remake.
-If the gate itself looks like the wrong move, that ruling's `up` says so —
-this skill covers building what the spec says, not deciding whether it
-should be built.
+If the gate itself looks like the wrong move, that is a blocked note up —
+this skill covers building what the spec says, not deciding whether it should
+be built.
