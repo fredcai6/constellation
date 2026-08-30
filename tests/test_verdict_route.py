@@ -28,7 +28,8 @@ import pathlib
 from engine import cli, run as runmod
 from test_two_voices import CRITIC
 from test_verdict_panels import (  # noqa: F401
-    _fill_review, _fill_route, _open_gate, _open_panelist, _review_step, workdir,
+    _fill, _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
+    _review_step, _select, workdir,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -67,6 +68,23 @@ def test_run_a_gates_review_declares_resolution_disjoint_from_ruling():
 
     seg, does = cli._outcome(asm, step, {"resolution": "close"}, {"steps": []})
     assert seg["id"] == "review" and does == "release"
+
+    # `up` is a real declared value here now, not only on `work`'s own impasse
+    # table -- an undeclared one refuses, so this is what makes the word
+    # legal at route at all. It resolves to `release` like the rest, which is
+    # the whole of what this gate builds: the pause behind it is not here yet.
+    seg, does = cli._outcome(asm, step, {"resolution": "up"}, {"steps": []})
+    assert seg["id"] == "review" and does == "release"
+
+
+def _route_with_calls(wid, resolution, *calls):
+    """The conductor's own half of the review step with a ruling on every
+    finding: one `[[calls]]` block per (what was raised, what it was called)
+    pair. `_fill_route` is the same submit with no table at all, which is
+    what every other caller of the `rework` verb looks like."""
+    blocks = "".join('\n[[calls]]\nfinding = "%s"\ncall = "%s"\n' % c for c in calls)
+    _fill(runmod.journal.location(wid) / "ROUTE.toml",
+          'resolution = "%s"\n' % resolution + blocks)
 
 
 # -- end to end: both verdicts hold for the form, the form routes ---------
@@ -131,8 +149,42 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
     st = runmod.state("g1")
     fresh = next(s for s in st["steps"] if s["segment"] == "work" and s.get("source") == "mint")
     assert fresh["form"] == "skills/implementer/forms/IMPLEMENT.toml"
+    # No `calls` table on that submit, so the round carries every finding the
+    # panel returned -- the behaviour every other caller of the same verb
+    # still gets, pinned here beside the filtered round below.
     assert "gap: the bound is still off" in fresh["prefill"]["findings"]
     assert st["current"]["id"] == fresh["id"]
+
+    # -- and now a mixed round, ruled on finding by finding ------------------
+    #
+    # One round is not enough to tell carry-everything from carry-blocking:
+    # with a single finding, both answers are the same string. So the second
+    # round returns three things to rule on -- a gap, a `beyond`, and the
+    # implementer's own declared deviation -- and exactly one is called
+    # blocking.
+    _fill_implement("g1")
+    cli.main(["g1", "submit"])
+    second_review = _select("g1")
+    panelist = _open_panelist("g1", second_review)
+    _fill_review(panelist, "revise",
+                 findings=(r"gap: the bound is off by one still\n\n"
+                           r"beyond: the whole parser wants rewriting"))
+    cli.main([panelist, "submit"])
+    cli.main([panelist, "close"])
+    capsys.readouterr()
+
+    _route_with_calls(
+        "g1", "rework",
+        ("gap: the bound is off by one still", "blocking"),
+        ("beyond: the whole parser wants rewriting", "beyond"),
+        ("renamed two locals in the file the gate already touches", "accepted"))
+    cli.main(["g1", "submit"])
+    capsys.readouterr()
+
+    carried = runmod.state("g1")["current"]["prefill"]["findings"]
+    assert carried == "gap: the bound is off by one still"
+    assert "parser wants rewriting" not in carried      # called beyond, not work here
+    assert "renamed two locals" not in carried          # a deviation, accepted
 
 
 # -- the generalization is a strict superset: nobody else's fold moved -----

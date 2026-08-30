@@ -34,10 +34,3 @@ judgement is yours and nobody else in the run is positioned to make it.
 Select fires again on every rework round. Choose for the round in front of
 you, not the round that just failed: a panel inherited unchanged is the
 foregone pair this beat exists to replace.
-
-## What is not here
-
-The four-way disposition of a finding — blocking, accepted, beyond, rejected
-— is designed and not built. `route` still takes one word for the whole
-round: `pass`, `revise`, `rework`, `close`. If you reach for the per-finding
-table, it is missing, not written somewhere else.

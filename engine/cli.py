@@ -934,6 +934,41 @@ def _outcome(asm, step, fields, st):
     return seg, does
 
 
+# [blocking-calls]
+# Rationale: the deciding form's own per-finding `calls` is what makes a
+#   rework round's prefill the *blocking* findings rather than all of them --
+#   docs/V2_DESIGN.md's route row, "rework -> do with the blocking findings
+#   as prefill". A finding the conductor accepted, sent to triage as beyond,
+#   or rejected is a record, not an order for the next round, and handing it
+#   forward verbatim is how a round gets worked on something already ruled
+#   settled. Read off the submitted fields alone, never off a form or
+#   assembly name: run-an-issue's consolidate and plan-to-execute,
+#   explore-an-idea's spec, and run-a-gate's own `work`-segment impasse
+#   ruling all reach the same `rework` verb submitting no such table, and
+#   `None` here is exactly what leaves their carry-everything behaviour
+#   untouched.
+# Rejected: filtering the panel's own concatenated findings text by matching
+#   each call against it. A call is prose a conductor wrote about a finding,
+#   not a handle on it; substring-matching it back onto the panelists' blob
+#   guesses, and the round it guesses wrong for is the one nobody re-reads.
+#   Taking the conductor's own quoted block instead is why ROUTE.toml's
+#   `finding` item says to quote rather than number.
+def _blocking_calls(fields):
+    """The `blocking`-called blocks of a submitted `calls` table, verbatim and
+    in the order the conductor ruled them -- `None` where the submit carried
+    no such table at all, which is every caller but run-a-gate's route form.
+
+    `None` and `""` are different answers: no table means carry what the panel
+    returned, an all-non-blocking table means carry nothing.
+    """
+    rows = (fields or {}).get("calls")
+    if not isinstance(rows, list):
+        return None
+    return "\n\n".join(
+        str(r.get("finding", "")).strip() for r in rows
+        if isinstance(r, dict) and forms.leading_word(r.get("call", "")) == "blocking")
+
+
 # [panel-judged-rework]
 # Rationale: a rework decided at a transition its own panel returned to is
 #   the same act whichever voice decided it -- the merged verdict resolving
@@ -948,12 +983,16 @@ def _outcome(asm, step, fields, st):
 # Rejected: duplicating the check on the ordinary submit path. Two counts
 #   that happen to agree is the shape that drifts, and the fourth round is
 #   exactly the round nobody re-tests by hand.
-def _panel_judged_rework(wid, asm, seg, step):
+# See: `_blocking_calls` -- `fields` is the deciding submit's own, defaulted
+#   so a caller with no table to filter by reads as one.
+def _panel_judged_rework(wid, asm, seg, step, fields=None):
     """(prefill, outlet) for a rework decided at `seg`'s own panel-bearing
     transition: the panel's findings concatenated, never summarised, and
-    attributed to the panelist that raised them -- plus any `horizon` the
-    round just judged wrote, which `skills/planner/SKILL.md` promises the
-    next round arrives holding. `outlet` is the segment's impasse form once
+    attributed to the panelist that raised them -- or, where the deciding
+    submit carried a per-finding `calls` table, the blocking-called blocks of
+    that table alone (`_blocking_calls`) -- plus any `horizon` the round just
+    judged wrote, which `skills/planner/SKILL.md` promises the next round
+    arrives holding. `outlet` is the segment's impasse form once
     `impasse-after` rounds have already landed on this artifact, so a
     conductor rules on the loop rather than the run finishing around it.
 
@@ -977,6 +1016,9 @@ def _panel_judged_rework(wid, asm, seg, step):
     findings = "\n\n".join(
         f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
         for r in st["returns"].get(step["id"], []))
+    called = _blocking_calls(fields)
+    if called is not None:
+        findings = called
     # The round just judged is the segment's own most recent non-panel step --
     # the same lookup a panelist's own prefill uses (`_open_child`) to find
     # the artifact it is reviewing. Carried under the producing form's own
@@ -1000,9 +1042,12 @@ def _panel_judged_rework(wid, asm, seg, step):
 #   says so), and `rework` refills through the segment's rework-form -- or
 #   its step-form where none is declared, run-a-gate's work -- carrying
 #   forward the deciding step's own prefill (what caused the impasse) rather
-#   than the ruling fields just submitted (the verdict on it). `up` needs
-#   neither: `release`, the field's own default, mints nothing, and the run
-#   walks to its terminal step. Gate adjudication added two more the same
+#   than the ruling fields just submitted (the verdict on it). The submitted
+#   fields still reach `_panel_judged_rework`, but only so a conductor's own
+#   per-finding `calls` can narrow the panel's findings to the blocking ones
+#   (`_blocking_calls`); an impasse ruling carries no such table and is
+#   unaffected. `up` needs neither: `release`, the field's own default, mints
+#   nothing, and the run walks to its terminal step. Gate adjudication added two more the same
 #   way: `remint` mints a fresh dispatch/adjudication pair from the plan
 #   field the deciding step's own form carries, and `close` closes the
 #   not-done step this step's segment holds whose id matches the decided
@@ -1044,7 +1089,7 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "transition":
             _mint_transition(wid, tseg)
         elif word == "rework":
-            judged, outlet = _panel_judged_rework(wid, asm, tseg, step)
+            judged, outlet = _panel_judged_rework(wid, asm, tseg, step, fields)
             if outlet:
                 journal.append(wid, "step", id=f"{tseg['id']}-a{secrets.token_hex(2)}",
                                segment=tseg["id"], form=outlet, filler="conductor",

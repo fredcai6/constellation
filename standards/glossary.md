@@ -132,6 +132,11 @@ forms; coining a synonym for a term below is a defect.
   a wave from the epic's findings and adjudicates at its transition.
 - **finding** — something real that was observed and recorded, and is not yet work. A reviewer's
   finding classed `beyond`, and an epic's unfiled finding, are the same thing at two scopes.
+- **call** — one route-step ruling on a single review finding or declared deviation, read once
+  against this gate's own diff: `blocking | accepted | beyond | rejected`. Distinct from the
+  issue tier's **disposition** (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges
+  one finding or deviation once; a disposition judges one spec commitment across the run's
+  whole life.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The

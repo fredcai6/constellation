@@ -9,20 +9,66 @@
 imperative = """
 The review has returned. Read its findings as written -- a revise is not an
 invitation to argue the verdict you were given -- and say where this round
-goes: back into the diff, or out to close. Nothing here re-states the
-findings; they are already the record."""
+goes: back into the diff, or out to close. Then call every finding it
+returned and every deviation the implementer declared, one by one; a `rework`
+carries the ones you call blocking and nothing else."""
 
 [[field]]
 id = "resolution"
 kind = "decision"
 note = """
-pass | revise | rework | close. The first two are the panel's own words,
+pass | revise | rework | close | up. The first two are the panel's own words,
 resolved onto this same table when its verdicts returned -- record one if you
 want the record explicit, but both release the round exactly as `close` does,
-so `revise` typed here does not send anything back. Your own two are the last
-two: `rework` is another implement round back in `work`, the panel's findings
-carried into it verbatim -- and it takes you through `select` again, so the
-lenses that read the next round are chosen fresh rather than inherited; after
-`impasse-after` of them the ruling form comes instead. `close` releases this
-round and walks the gate to its close, which is the answer after a pass and
-the answer after a revise you have decided not to run."""
+so `revise` typed here does not send anything back. Your own three are the
+last three: `rework` is another implement round back in `work`, carrying the
+findings you call `blocking` below and nothing else -- and it takes you
+through `select` again, so the lenses that read the next round are chosen
+fresh rather than inherited; after `impasse-after` of them the ruling form
+comes instead. `close` releases this round and walks the gate to its close,
+which is the answer after a pass and the answer after a revise you have
+decided not to run. `up` is the round you cannot rule on from here, the spec
+being wrong the usual reason: it releases exactly as `close` does today and
+becomes the record the parent reads, so say the ask in `calls` below where it
+belongs to a finding."""
+
+# `calls` is written last, after the scalar `resolution`, because a plan
+# field renders as a bare `[[calls]]` header and every scalar declared after
+# it would nest inside that array's last block instead of standing as its own
+# field (tests/test_reachable_briefs.py holds the whole tree to this). The
+# reading order is the other one: rule the findings, then say where the round
+# goes.
+[[field]]
+id = "calls"
+kind = "plan"
+optional = true
+note = """
+One block per finding the review returned and per deviation the implementer
+declared -- every one of them gets a call, and this form is the only place
+any of them is ruled on.
+
+`blocking` -- the spec is not filled while this stands. These and only these
+ride into a `rework` as the fresh implement round's own findings, so a
+blocking call is that round's orders. `accepted` -- true, and the round
+stands anyway; a declared deviation you are keeping is the ordinary case,
+recorded here rather than worked. `beyond` -- real, and outside this gate's
+spec; it leaves as a triage candidate for the plan to weigh, never as work
+here. `rejected` -- not true of this diff, or not this gate's to answer, and
+the one call that owes a reason: fold it in after a colon, the way `rejected:
+the path it names is covered at line 40` reads.
+
+Quote what you are calling as it was written rather than numbering it: on a
+`rework` the blocking blocks are literally what the next round arrives
+holding, so a call naming `F1` hands that round the string `F1`. Leave the
+field out only where the review returned no findings and the implementer
+declared no deviations."""
+
+  [[field.item]]
+  id = "finding"
+  note = """
+The review finding as the reviewer wrote it, or the deviation as the
+implementer declared it -- quoted, never summarised."""
+
+  [[field.item]]
+  id = "call"
+  note = "blocking | accepted | beyond | rejected: <reason>"

@@ -91,6 +91,15 @@ decides = "resolution"     # both voices answer it: the panel's merged verdict, 
   value = "close"
   does = "release"     # mints nothing; the run walks past review to GATE_CLOSE
 
+  [[segment.outcome]]
+  value = "up"
+  does = "release"     # the same no-op `work`'s own `up` spells: the round the
+                       # conductor cannot rule on from here releases and rides
+                       # up as the record. Declared so the word is legal at
+                       # route at all -- an undeclared value refuses, so
+                       # without this row a gate could only send its ask up by
+                       # closing and calling it something else.
+
 [segment.transition]
 id = "review"
 anchor = true
@@ -108,8 +117,10 @@ anchor = true
 # mechanical refill never stood anyone on a form to rule on them. There is
 # still no third verdict word -- a root objection is a revise finding -- and
 # `rework` is what carries one back into `work`, only three of those in a row
-# reaching that segment's own impasse-form, whose `up` is the way out this
-# transition itself does not carry.
+# reaching that segment's own impasse-form. `up` is on this table too now, so
+# the way out no longer runs through that form alone -- it still releases
+# rather than pausing, which is the part the impasse form's own `up` also
+# leaves to be built.
 
 [[segment]]
 id = "close"
