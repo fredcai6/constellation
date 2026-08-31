@@ -481,22 +481,29 @@ def escape_for(vocab, verb="fill"):
 FILL_OR_NULL = escape_for(())
 
 
-# [quoting-is-not-located]
+# [the-escape-is-located-the-why-is-not]
 # Rationale: `located` rewrites the bare word `spine` into an absolute path so
 #   a command the engine prints can be run where the agent is standing. That
-#   is right for every string the engine authored and wrong for the one thing
-#   a refusal often has to quote back -- the agent's own answer. In this repo
-#   `spine` is a word agents write, and the rewrite was observed editing one:
+#   is right for every string the engine authored and wrong for the two parts
+#   of a refusal that quote back what the engine was given -- the subject it
+#   names and the reason it gives. In this repo `spine` is a word agents
+#   write, and the rewrite was observed editing one:
 #   `change: working: rewrite the /home/tommy/.../spine module and its tests`.
-#   A caller with agent text to quote writes `{q}` into `why` and passes the
-#   text as `quoting`; it is substituted after `located` has run, so it is
-#   never a candidate for rewriting.
+#   So the split is by role and is structural: the escape is the engine's own
+#   command and is always located; `field_id` and `why` are where the agent's
+#   own text lands and are never located.
+# Rejected: an opt-in for callers with agent text to protect (this was a
+#   `quoting=` parameter, briefly). It fixed the site it was written for and
+#   left four more that nobody remembered to convert -- `_check_id`'s work id,
+#   `_amend_add`'s segment, and `_outcome`'s two -- which is #81, and is the
+#   same fix-the-site-not-the-class failure the defect itself came from. An
+#   opt-in a caller can forget is not a guarantee.
 # Rejected: narrowing the regex instead. The rewrite is correct everywhere it
 #   is applied to engine-authored strings, and the shapes it must keep
 #   matching include a bare trailing `spine` with no arguments ("open runs:
 #   spine") -- there is no lexical rule separating that from prose. The
 #   defect is which text is routed through it, not how it matches.
-def refusal(field_id, why, escape=FILL_OR_NULL, *, quoting=None):
+def refusal(field_id, why, escape=FILL_OR_NULL):
     """A refusal names what failed and how to get past it -- no lecture.
 
     The escape is a parameter because it is not always the same one. A board
@@ -506,11 +513,12 @@ def refusal(field_id, why, escape=FILL_OR_NULL, *, quoting=None):
     this engine print an escape that does not work, which is worse than
     printing none.
 
-    `quoting` is agent-supplied text, substituted for `{q}` in `why` after
-    the engine's own text has been located -- see [quoting-is-not-located].
+    It is also the only part located, which is what keeps an agent's own
+    words intact -- see [the-escape-is-located-the-why-is-not]. A `why` that
+    wants to print a command belongs in the escape, which is where a reader
+    looks for one anyway.
     """
-    out = located(f"{field_id}: {why}" + (f"\n  {escape}" if escape else ""))
-    return out.replace("{q}", quoting) if quoting is not None else out
+    return f"{field_id}: {why}" + (f"\n  {located(escape)}" if escape else "")
 
 
 def _event(e):

@@ -683,18 +683,37 @@ def test_an_unknown_palette_entry_refuses_and_names_the_entries(workdir):
     assert "test" in said, "the refusal does not name the entries that exist"
 
 
-def test_a_refusal_does_not_rewrite_the_agents_own_prose(workdir):
+REPO_ROOT = str(pathlib.Path(__file__).resolve().parent.parent)
+
+
+def test_a_refusal_locates_its_escape_and_never_its_why(workdir):
     """`located` rewrites the word `spine` into an absolute path so a printed
     command is runnable. Routed over an agent's own answer it edits the
     record instead -- observed as `change: working: rewrite the
     /home/tommy/.../spine module and its tests`. In this repo `spine` is a
-    word agents write."""
-    said = render.refusal("change", "{q} is not a value this step can act on",
-                          escape="one of: advance | rework",
-                          quoting="'rewrite the spine module'")
+    word agents write.
 
-    assert "rewrite the spine module" in said, "the agent's prose was rewritten"
-    assert str(pathlib.Path(__file__).resolve().parent.parent) not in said
+    The division is structural rather than remembered: the escape is the
+    engine's own command and is always located; `why` is where a refusal
+    quotes back what it was given and is never located. A caller cannot
+    forget to opt in, because there is nothing to opt in to."""
+    said = render.refusal("change", "'rewrite the spine module' is not a value",
+                          escape="then: spine issue17 submit")
+
+    assert "'rewrite the spine module' is not a value" in said, \
+        "the agent's own prose was rewritten"
+    assert f"then: {REPO_ROOT}/spine issue17 submit" in said, \
+        "the escape must still be a runnable command"
+
+
+def test_the_field_id_a_refusal_names_is_not_rewritten_either(workdir):
+    """A refusal's subject is often agent-supplied too -- a board row id, a
+    step id, a `--segment` argument. It is quoted back for the same reason
+    and must survive for the same reason."""
+    said = render.refusal("spine", "no board row by that id", escape="the board: spine w1")
+
+    assert said.startswith("spine: "), "the field id was rewritten"
+    assert f"the board: {REPO_ROOT}/spine w1" in said
 
 
 def test_located_still_rewrites_a_command_the_engine_prints():
@@ -704,6 +723,46 @@ def test_located_still_rewrites_a_command_the_engine_prints():
     assert render.located("spine issue17 submit").startswith(
         str(pathlib.Path(__file__).resolve().parent.parent))
     assert render.located("  open runs: spine").endswith("spine")
+
+
+def test_no_refusal_in_the_engine_rewrites_what_the_agent_typed(workdir, capsys):
+    """#33 was fixed at the site it was measured at, and the class went
+    unswept -- five refusals still interpolated agent text into `why`. These
+    are those five, driven rather than grepped, because a grep-shaped test
+    rots the moment someone writes the sixth."""
+    _open()
+    capsys.readouterr()
+
+    # a work id the agent passed
+    with pytest.raises(SystemExit) as e:
+        cli.main(["open", "run-an-issue", "--id", "../spine", "--title", "t"])
+    assert "'../spine'" in str(e.value) and REPO_ROOT not in str(e.value)
+
+    # a `--segment` the agent passed
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "amend", "add", "--segment", "spine",
+                  "--form", "x.toml", "--reason", "r"])
+    assert "'spine'" in str(e.value) and REPO_ROOT not in str(e.value)
+
+    # a step id the agent passed
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "amend", "close", "spine", "--reason", "r"])
+    assert "spine" in str(e.value) and REPO_ROOT not in str(e.value)
+
+
+def test_an_undeclared_outcome_quotes_the_agents_word_unrewritten(workdir, capsys):
+    """`_outcome`'s two refusals -- an undeclared value, and a placeholder
+    whose argument names no pending step -- both quote back what the agent
+    wrote. Neither went through the #33 fix."""
+    _critic_step()
+    _fill_critic("c1", "spine forward")
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["c1", "submit"])
+    said = str(e.value)
+    assert "spine forward" in said or "'spine'" in said
+    assert REPO_ROOT not in said, "the agent's own word was rewritten"
 
 
 def test_a_value_the_step_cannot_act_on_still_names_what_was_rejected(workdir):

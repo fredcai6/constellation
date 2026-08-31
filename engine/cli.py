@@ -119,9 +119,8 @@ def _check_artifact(wid, form, fields):
             pathlib.Path(root / value).read_text()
         except OSError:
             raise SystemExit(render.refusal(
-                fid, "{q} is not a readable path -- an artifact field's "
-                "value is a file's location, not its content",
-                quoting=repr(value)))
+                fid, f"{value!r} is not a readable path -- an artifact field's "
+                "value is a file's location, not its content"))
 
 
 def _measure_artifacts(wid, step, form, fields):
@@ -823,9 +822,10 @@ def cmd_submit(argv):
                    else "no parent left to see it at -- see the blocked note above")))
     if step.get("dispatches"):
         raise SystemExit(render.refusal(
-            step["id"],
-            f"a dispatch step is not submitted -- open its child: "
-            f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"))
+            step["id"], "a dispatch step is not submitted -- it completes when "
+            "its child closes",
+            escape=f"open its child: spine open {step['dispatches']} "
+                   f"--parent {wid} --step {step['id']}"))
     # A second submit while the first one's proof is still running would start
     # a second runner against the same step, and two runners can both reach
     # exit 0. Refused while the process is alive; once it is gone with no
@@ -1016,9 +1016,8 @@ def _check_vocabulary(asm, step, form, fields):
         word = forms.leading_word(value)
         if word not in [alt.split("<")[0].strip().lower() for alt in vocab]:
             raise SystemExit(render.refusal(
-                f["id"], "{q} is not a value this step can act on",
-                escape="one of: " + " | ".join(vocab),
-                quoting=repr(word) if word else "'empty'"))
+                f["id"], f"{word or 'empty'!r} is not a value this step can act on",
+                escape="one of: " + " | ".join(vocab)))
 
 
 def _mint_transition(wid, seg, prefill=None):
