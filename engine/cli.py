@@ -651,23 +651,33 @@ def _board_state(path):
 
 
 # [returned-verdict]
-# Rationale: a panel that ruled anything but pass is the reason the room the
-#   reader is standing in exists -- the outlet a looped revise minted, or the
-#   fresh round a plain one did. The verdict itself was engine-side only:
-#   findings arrived as prefill and the word the panel merged on never did,
-#   so the reader had to infer it.
-# Rejected: naming every returned panel, pass included. A pass is the room
-#   arriving normally; saying so is noise on every step after it.
-def _returned_verdict(st):
-    """The most recently returned panel's merged verdict, when it is not
-    `pass`. Read from the last panel step that has a full house of returns,
-    so a re-fired panel still waiting on its own critics reports the round
-    that actually ruled, not silence."""
+# Rationale: a panel that ruled anything but the quiet word is the reason
+#   the room the reader is standing in exists -- the outlet a looped revise
+#   minted, or the fresh round a plain one did. The verdict itself was
+#   engine-side only: findings arrived as prefill and the word the panel
+#   merged on never did, so the reader had to infer it.
+# Rejected: naming every returned panel, the quiet word included. A quiet
+#   verdict is the room arriving normally; saying so is noise on every step
+#   after it. Rejected also: a bare equality check against the literal word
+#   `pass` left in place, #46's whole complaint -- rename the reviewer's
+#   passing value in its forms and that check would silently stop
+#   suppressing it. `declared_does` is the same reader `_holds_for_its_form`
+#   and `_act_on_verdicts` already use: `release` (or an undeclared word --
+#   the interior design panel's own case, which carries no verdict field at
+#   all and so never resolves here either way) is the quiet class, and the
+#   outcome table says which word that is, not this function.
+def _returned_verdict(st, asm):
+    """The most recently returned panel's merged verdict, when its declared
+    act is not `release`. Read from the last panel step that has a full
+    house of returns, so a re-fired panel still waiting on its own critics
+    reports the round that actually ruled, not silence."""
     for s in reversed(st["steps"]):
         rs = st["returns"].get(s["id"]) or []
         if s.get("panel") and rs and not runmod.panel_outstanding(st, s):
             verdict = runmod.merged_verdict(rs)
-            return "" if verdict == "pass" else verdict
+            _, spec = runmod.deciding_spec(asm, s)
+            quiet = runmod.declared_does(spec, verdict) in (None, "release")
+            return "" if quiet else verdict
     return ""
 
 
@@ -714,7 +724,7 @@ def cmd_status(argv):
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     print(render.status(st, form, dest, prefill=prefill,
                         returns=returns, returns_from=step.get("child", ""),
-                        verdict=_returned_verdict(st),
+                        verdict=_returned_verdict(st, asm),
                         blocked=runmod.blocks(st),
                         position=runmod.position(st, asm), board=board,
                         in_hand=forms.in_hand(dest) if dest.exists() else None,

@@ -22,7 +22,6 @@ Drives the real `run-a-gate` assembly, not a fixture -- `test_verdict_panels.py`
 already does, and its fixtures are reused here rather than re-declared.
 """
 
-import inspect
 import pathlib
 
 from engine import cli, run as runmod
@@ -259,24 +258,51 @@ def test_an_interior_design_panel_still_completes_on_its_own_form():
 # -- the vocabulary comparison itself is gone from the routing branches -----
 
 
-def test_only_the_display_line_still_compares_the_word_verdict():
-    """Pinned, not silently tolerated: exactly one line in `engine/cli.py`
-    still writes `verdict ==` or `verdict !=`, and it is `_returned_verdict`
-    (line ~578) deciding whether a status render *shows* the merged word to
-    a reader -- not where a run goes. That comparison is current and
-    intended, named here on purpose so a future reader does not mistake the
-    survivor for a leftover of the branch this gate removed: the gate spec
-    for #56 explicitly leaves `_returned_verdict` alone, since rewriting it
-    to satisfy a bare grep would spend clarity to move a number and answer
-    a question about display, not about routing. Asserting the count (one),
-    not the absence (zero), is what pins it as deliberate."""
+def test_no_line_in_cli_compares_the_word_verdict():
+    """#46's own completion condition, checked literally: `_returned_verdict`
+    was the one surviving site that still wrote `verdict == "pass"` -- the
+    room's own suppression, not a routing branch, but still the engine
+    holding the reviewer's word. It now reads the same outcome table
+    `_holds_for_its_form` and `_act_on_verdicts` already read (`declared_does`
+    resolving to `release`, or an undeclared word, is the quiet class), so
+    the grep this issue names returns nothing rather than one deliberate
+    survivor."""
     src = (REPO / "engine" / "cli.py").read_text()
     hits = [(n, line) for n, line in enumerate(src.splitlines(), start=1)
            if "verdict ==" in line or "verdict !=" in line]
-    assert len(hits) == 1, f"expected exactly one surviving comparison, found: {hits}"
-    n, line = hits[0]
-    assert 'verdict == "pass"' in line
+    assert hits == [], f"expected no surviving comparison, found: {hits}"
 
-    fn_lines = inspect.getsource(cli._returned_verdict).splitlines()
-    assert any('verdict == "pass"' in l for l in fn_lines), \
-        "the surviving comparison is not inside _returned_verdict"
+
+def test_renaming_the_passing_value_in_the_outcome_table_needs_no_engine_edit(monkeypatch):
+    """The check #46 itself asks for: change the reviewer's declared
+    vocabulary and the room's suppression follows it, with no edit to
+    `engine/cli.py`. `_returned_verdict` no longer compares the merged word
+    against the literal `pass` -- it asks the same outcome table
+    `_holds_for_its_form` and `_act_on_verdicts` already read, so a renamed
+    `value` row is exactly as quiet as the original one was.
+
+    `merged_verdict` (engine/run.py) still folds a panel's returns to the
+    fixed pair `pass`/`revise` regardless of what a critic's own form calls
+    them -- CRITIC.toml's `verdict` field note is where that pair is named,
+    a second site outside this issue's one-line, cli.py-scoped completion
+    check, found here but not fixed: #46 asks only that `engine/cli.py` hold
+    no verdict word, and that function does not. Monkeypatching
+    `merged_verdict` to answer the renamed word is the honest stand-in for
+    the rest of a full vocabulary rename this issue does not reach; what
+    this test actually exercises is the half `_returned_verdict` touches --
+    the outcome table's own declared value, read fresh rather than compared
+    against a word this function remembers."""
+    step = {"id": "plan", "segment": "plan", "form": "forms/PLAN_TO_EXECUTE.toml",
+            "panel": [{"form": CRITIC}]}
+    st = {"assembly": "run-an-issue", "steps": [step],
+          "returns": {"plan": [{"fields": {"verdict": "clear"}}]}}
+
+    asm = runmod.load_assembly("run-an-issue")
+    seg = next(s for s in asm["segment"] if s["id"] == "plan")
+    row = next(o for o in seg["transition"]["outcome"] if o["value"] == "pass")
+    row["value"] = "clear"  # the reviewer's passing value, renamed in the assembly alone
+
+    monkeypatch.setattr(runmod, "merged_verdict", lambda returns: "clear")
+    assert cli._returned_verdict(st, asm) == "", (
+        "renaming the outcome table's passing value should still leave the "
+        "room quiet, with no edit to engine/cli.py")
