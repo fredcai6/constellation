@@ -337,7 +337,7 @@ def state(work_id):
         return None
     st = {"id": work_id, "steps": [], "done": {}, "boards": {}, "notes": [],
           "returns": {}, "returns_by_child": {}, "row_returns": {}, "amends": [],
-          "checks": [], "measures": [], "closed": False}
+          "checks": [], "measures": [], "in_flight": {}, "closed": False}
     raw_steps = []
     for e in entries:
         kind = e.get("kind")
@@ -352,6 +352,14 @@ def state(work_id):
         elif kind == "submit":
             st["done"][e["step"]] = e
             st["checks"].extend(e.get("checks") or [])
+            st["in_flight"].pop(e["step"], None)
+        elif kind == "check-started":
+            # The caller was handed back while this step's proof was still
+            # running. It completes no step: the process running the check
+            # appends the submit itself, and only on exit 0 -- so a step is
+            # in flight exactly while its own started entry is the last word
+            # about it, which is what popping on a result below means.
+            st["in_flight"][e["step"]] = e
         elif kind == "return" and e.get("row"):
             # An excursion's return: it answers a board row, so it lands
             # under the row and completes no step.
@@ -382,6 +390,7 @@ def state(work_id):
         elif kind == "check":
             st["checks"].append({"command": e.get("command"), "exit": e.get("exit"),
                                  "output": e.get("output")})
+            st["in_flight"].pop(e.get("step"), None)
         elif kind == "board":
             st["boards"][e["segment"]] = e.get("path", "")
         elif kind == "note":
@@ -396,6 +405,10 @@ def state(work_id):
         elif kind == "closed":
             st["closed"] = True
 
+    # A started entry can land *after* the submit its own check produced: the
+    # caller gives up on the wait in the same instant the runner journals. A
+    # done step is done however its two entries were ordered.
+    st["in_flight"] = {k: v for k, v in st["in_flight"].items() if k not in st["done"]}
     seg_order = [s["id"] for s in load_assembly(st["assembly"])["segment"]] if st.get("assembly") else []
     st["steps"] = _ordered(raw_steps, seg_order)
     st["current"] = next((s for s in st["steps"] if s["id"] not in st["done"]), None)
@@ -449,3 +462,11 @@ def paused(step):
     """True for the marker step `_pause_gate` minted in place of the round it
     decided at -- the run stands on it until the parent it asked answers."""
     return bool(step.get("paused"))
+
+
+def in_flight(st, step):
+    """The `check-started` entry for this step while its proof is still the
+    last word about it, or None. Derived from entries like everything else
+    here -- a started check is not new state, it is another appender the
+    journal already declares legitimate."""
+    return st.get("in_flight", {}).get((step or {}).get("id"))

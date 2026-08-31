@@ -28,4 +28,9 @@ calls a review finding, so one left undeclared is one nobody ruled on."""
 [[field]]
 id = "proof"
 kind = "check"
-note = "The gate spec's proof command; the engine runs it at submit and appends the output. Never part of the response template."
+note = """
+The gate spec's proof command; the engine runs it at submit and appends the
+output. Never part of the response template. A proof that outruns the gate
+spec's `budget` (600 seconds where the spec declares none) is refused; one
+still running after 90 seconds hands your turn back and journals the submit
+itself when it passes, so `spine <work-id>` is where you find out."""

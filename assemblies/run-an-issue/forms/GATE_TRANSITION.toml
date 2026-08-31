@@ -83,6 +83,13 @@ work is done. Reference the command palette (constellation.toml) rather than
 hardcoding where it applies."""
 
   [[field.item]]
+  id = "budget"
+  optional = true
+  note = """
+Whole seconds the proof may run before the engine calls it broken rather than
+slow. Omit for 600. Declare one when the proof is long because it is right."""
+
+  [[field.item]]
   id = "model"
   optional = true
   note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
