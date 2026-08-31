@@ -40,6 +40,15 @@ command and fails only after the work is done. Reference the command palette
 (constellation.toml) rather than hardcoding where it applies."""
 
 [[field]]
+id = "budget"
+optional = true
+note = """
+Whole seconds the proof may run before the engine calls it broken rather than
+slow. Omit for 600. Declare one when the proof is long because it is
+right -- a full suite, a real build -- so a check that outruns it is news
+rather than the normal case."""
+
+[[field]]
 id = "model"
 optional = true
 note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."

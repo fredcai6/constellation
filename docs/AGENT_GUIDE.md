@@ -59,7 +59,7 @@ correct is not sufficient, which is what `standards/issue.md` says from the othe
 
 Two budgets bound every addition: engine code at **≤ 2,500 lines**, measured by
 `palette:lines`, which counts lines of code and prints comments and docstrings beside that
-number rather than in it (currently 2,053); and corpus — the authored artifacts an agent must
+number rather than in it (currently 2,275); and corpus — the authored artifacts an agent must
 read before it can work (`skills/`, `standards/`, `assemblies/`, this file) — at **≤ 20,000
 words** (currently ~21,000). Corpus has no palette instrument the way engine lines do:
 ~21,000 is alphabetic word-tokens (`tr`-split on non-letters) counted across every file under

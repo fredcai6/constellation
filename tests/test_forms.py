@@ -79,7 +79,8 @@ def test_load_gate_transition():
     assert kinds["gate-spec"] == "plan"
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True
-    assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof", "model"]
+    assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof",
+                                                 "budget", "model"]
 
 
 def test_load_defaults_kind_and_note_and_optional():

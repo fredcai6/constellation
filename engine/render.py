@@ -539,6 +539,11 @@ def _event(e):
                 + (f"  {v.strip().split(chr(10))[0][:40]}" if v else ""))
     if k == "check":
         return f"exit {e.get('exit')}  {e.get('command','')}"
+    if k == "check-started":
+        # No exit status to say: the caller was handed back while this was
+        # still running, and whatever it did lands as its own later entry.
+        return (f"{e.get('step','')}  in flight (pid {e.get('pid')})  "
+                + "  ".join(c.get("command", "") for c in e.get("commands") or []))
     if k == "note":
         return f"{e.get('kind_detail','')}  {e.get('text','') or e.get('about','')}"
     if k == "amend":

@@ -47,6 +47,42 @@ Install is a copy, so the installed tree keeps the same shape — if that ever
 requires rewriting paths inside files, the shapes have diverged and the fix
 is the layout, never an installer.
 
+## A check runs in a process of its own, always
+
+`submit` never runs a proof itself. It spawns `engine/checks.py` detached and
+waits the **handback** (90 seconds) for it. Inside the window the caller reads
+the runner's exit status and behaves exactly as the old foreground check did;
+past it the caller journals `check-started` and returns, and the runner
+appends the outcome when it has one.
+
+One process holds the exit status, and that is the whole argument for the
+guarantee a failing proof records no submit: the runner writes the `submit`
+entry only on exit 0, and the caller — which never holds a result — has
+nothing it could write. It also removes the interleaving question. Running
+the proof in the caller and detaching it at the handback would put a result
+in two processes at once, and choosing which of them journals would need an
+atomic claim between them; one writer needs none.
+
+`start_new_session=True` is insurance rather than the mechanism. #72 measured
+a plain child outliving a dispatched agent's turn by 25 seconds and finishing
+its work; what was lost was the caller, not the check. The session flag is
+what survives a harness that kills the caller's whole process group, which
+this one does not do and a stricter one would.
+
+The runner is reached as `python -m engine.checks` with this tree's root on
+`PYTHONPATH`, computed from `__file__` like every other root lookup here.
+Install is a copy, so that resolves the same way in the repo and in an
+installed tree, with no path rewritten.
+
+An orphan — a `check-started` whose process is gone and whose result never
+landed — is rendered as work to redo rather than a proof still in flight, and
+`spine <wid> submit` runs it again. There is no reaper: nothing sweeps stale
+entries, because nothing has to. A started entry records no submit, so an
+abandoned one costs the record nothing, and the room tells the truth about it
+from the pid alone. What that pid cannot tell apart is a recycled number: a
+gone runner whose pid has been reused reads as alive and the re-run is
+refused until it is not.
+
 ## Renaming a form while runs are open
 
 A journal is append-only and its `step` entries name form paths, so a form's

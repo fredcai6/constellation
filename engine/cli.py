@@ -16,6 +16,7 @@ import sys
 import tomllib
 
 from engine import boards
+from engine import checks as checkrun
 from engine import forms
 from engine import journal
 from engine import render
@@ -37,7 +38,7 @@ spine open <assembly> --parent <id> --row <row-id>     open an excursion from
 spine                               every open run
 spine <work-id> trace               this run and its children, as one timeline"""
 
-CHECK_TIMEOUT = 600  # a check that never returns wedges the agent's turn
+GIT_TIMEOUT = 600  # a wedged git or gh reads through as a failed call, not a hang
 
 
 def _check_id(wid):
@@ -238,7 +239,7 @@ def _git(cwd, *args):
     failure, so the caller has one shape to check rather than two."""
     try:
         return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
-                              text=True, timeout=CHECK_TIMEOUT)
+                              text=True, timeout=GIT_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as e:
         return subprocess.CompletedProcess(args, 1, "", str(e))
 
@@ -251,7 +252,7 @@ def _gh(cwd, *args):
     pull request against whatever `origin` happens to point at."""
     try:
         return subprocess.run(["gh", *args], cwd=str(cwd), capture_output=True,
-                              text=True, timeout=CHECK_TIMEOUT)
+                              text=True, timeout=GIT_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as e:
         return subprocess.CompletedProcess(args, 1, "", str(e))
 
@@ -652,6 +653,42 @@ def _paused_status(wid, st, asm, blocked):
     return "\n".join(lines)
 
 
+# [in-flight-room]
+# Rationale: apart from `_paused_status` and the two dispatch rooms for the
+#   reason those are apart from each other -- each kind of step says one true
+#   thing about itself. What this one says is that the step is not done, its
+#   proof is running, and since when. An orphan says the opposite thing and
+#   has to be told apart here rather than rendered as a proof that will never
+#   land: a check whose process is gone and whose result never arrived is
+#   work to redo, not work to wait for.
+def _in_flight_status(wid, st, asm, entry, blocked):
+    """What a run whose proof is still running says about itself."""
+    running = checkrun.alive(entry.get("pid"))
+    lines = render.preamble(st, blocked, runmod.position(st, asm))
+    for c in entry.get("commands") or []:
+        lines.append(f"  {c.get('field', 'check')}: {c.get('command', '')}")
+    lines.append("")
+    if running:
+        lines.append(render.located(
+            f"  proof in flight since {entry.get('at', '')} (pid {entry.get('pid')}), "
+            f"budget {entry.get('budget')}s -- this step is not done and nothing "
+            "was recorded for it. The engine journals the submit itself when the "
+            f"proof passes, and refuses here when it fails.\n"
+            f"  see where it landed: spine {wid}\n"
+            f"  what it is printing: {entry.get('log', '')}"))
+    else:
+        lines.append(render.located(
+            f"  proof started {entry.get('at', '')} (pid {entry.get('pid')}) and its "
+            "process is gone with no result -- the check was killed or the machine "
+            "went away. Nothing was recorded for this step, so nothing has to be "
+            "undone.\n"
+            f"  run it again: spine {wid} submit\n"
+            f"  what it printed: {entry.get('log', '')}"))
+    lines.append("")
+    lines.append(render.legal_moves(wid))
+    return "\n".join(lines)
+
+
 def _onward(st):
     """Where this run's returns land -- read off its own opening entry, which
     has held the answer since `open` wrote it.
@@ -730,6 +767,10 @@ def cmd_status(argv):
     if step.get("dispatches"):
         print(_dispatch_status(wid, st, asm, step, runmod.blocks(st)))
         return 0
+    started = runmod.in_flight(st, step)
+    if started:
+        print(_in_flight_status(wid, st, asm, started, runmod.blocks(st)))
+        return 0
     dest = _response_path(st, step)
     if not dest.exists():
         forms.materialize(form, dest, work_id=wid,
@@ -785,6 +826,16 @@ def cmd_submit(argv):
             step["id"],
             f"a dispatch step is not submitted -- open its child: "
             f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"))
+    # A second submit while the first one's proof is still running would start
+    # a second runner against the same step, and two runners can both reach
+    # exit 0. Refused while the process is alive; once it is gone with no
+    # result, submitting again is exactly the re-run the room offers.
+    started = runmod.in_flight(st, step)
+    if started and checkrun.alive(started.get("pid")):
+        raise SystemExit(render.refusal(
+            step["id"], f"its proof has been running since {started.get('at', '')} "
+            f"(pid {started.get('pid')}) -- the engine journals the submit itself "
+            "when it passes", escape=f"where it stands: spine {wid}"))
     dest = _response_path(st, step)
     if not dest.exists():
         raise SystemExit(render.located(f"no response form yet — run: spine {wid}"))
@@ -797,7 +848,7 @@ def cmd_submit(argv):
             raise SystemExit(render.refusal(pathlib.Path(board).name,
                                             "\n  ".join(problems), escape=""))
 
-    checks, fields = {}, {}
+    fields = {}
     for f in form["fields"]:
         fid, kind = f["id"], f.get("kind", "evidence")
         if kind == "check":
@@ -820,45 +871,68 @@ def cmd_submit(argv):
                 escape=render.escape_for(vocab, verb="finish")))
         fields[fid] = filled[fid]
 
+    # Everything the engine can refuse on is settled before the check starts,
+    # and so before anything is journaled. A check is the one part of a submit
+    # that can outlive its caller, and a refusal raised after the caller has
+    # been handed back is one nobody is standing there to read. `_outcome` is
+    # called here as that guard and its answer thrown away; whichever process
+    # completes the submit computes it again.
+    _check_plan(asm, form, fields)
+    _check_vocabulary(asm, step, form, fields)
+    _check_artifact(wid, form, fields)
+    _outcome(asm, step, fields, st)
+
     # A check both resolves and runs against this run's own tree -- not
     # against whatever directory the invoking shell happens to be standing
     # in, which a worktree can silently disagree with.
     check_root = journal.root_for(wid)
-    for f in form["fields"]:
-        if f.get("kind") != "check":
-            continue
-        # A check's command comes from the orders: the step's own prefill when
-        # it has one, else the run's -- a dispatched child carries its spec at
-        # the run level, and its first step is minted before that spec exists.
-        orders = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
-        cmd = _resolve_command(orders.get(f["id"], ""), check_root)
-        if not cmd:
-            continue
-        try:
-            r = subprocess.run(cmd, shell=True, capture_output=True, text=True,
-                               timeout=CHECK_TIMEOUT, cwd=str(check_root))
-        except subprocess.TimeoutExpired:
-            journal.append(wid, "check", step=step["id"], command=cmd,
-                           exit=-1, output=f"no result after {CHECK_TIMEOUT}s")
-            raise SystemExit(render.refusal(
-                f["id"], f"`{cmd}` did not finish in {CHECK_TIMEOUT}s -- fix the "
-                f"command, or drop this step: spine {wid} amend close {step['id']} "
-                "--reason ..."))
-        checks[f["id"]] = {"command": cmd, "exit": r.returncode,
-                           "output": (r.stdout + r.stderr)[-4000:]}
-        if r.returncode != 0:
-            journal.append(wid, "check", step=step["id"], **checks[f["id"]])
-            raise SystemExit(render.located(
-                f"{f['id']}: `{cmd}` exited {r.returncode}\n"
-                f"  a check is run by the engine, not filled in -- make it pass,\n"
-                f"  or drop this step: spine {wid} amend close {step['id']} --reason ..."))
+    # A check's command comes from the orders: the step's own prefill when it
+    # has one, else the run's -- a dispatched child carries its spec at the
+    # run level, and its first step is minted before that spec exists. The
+    # budget rides in beside it, from the same orders.
+    orders = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
+    commands = [(f["id"], _resolve_command(orders.get(f["id"], ""), check_root))
+                for f in form["fields"] if f.get("kind") == "check"]
+    commands = [(fid, cmd) for fid, cmd in commands if cmd]
+    if not commands:
+        complete_submit(wid, step["id"], fields, [])
+    elif checkrun.hand_in(wid, step, fields, commands, check_root,
+                          checkrun.budget_for(orders)) == "in-flight":
+        return cmd_status([wid])  # the room says the proof is still running
+    print(f"submitted {step['id']}\n")
+    return cmd_status([wid])
 
-    _check_plan(asm, form, fields)
-    _check_vocabulary(asm, step, form, fields)
-    _check_artifact(wid, form, fields)
+
+# [complete-submit]
+# Rationale: a submit is not one journal entry -- it mints the next step,
+#   folds a `carries` transition's fields into the run's prefill, and performs
+#   whatever outcome the decision field selected. All of that has to happen
+#   where the check's exit status is held, or a proof that passes after its
+#   caller has gone lands a submit and leaves the run standing on a step
+#   nothing minted. So the tail is one function and both processes call it.
+# Rejected: letting the detached runner append the `submit` entry alone and
+#   having the next `spine <wid>` mint from it. That makes the fold finish an
+#   act it did not perform, and every verb would then have to be ready to
+#   complete a submit it was not asked to make.
+def complete_submit(wid, step_id, fields, ran):
+    """Journal the submit and everything it sets off.
+
+    Called by whichever process holds the check's exit status: the detached
+    runner where the step has a check, `cmd_submit` itself where it has none.
+    The step is re-derived from the journal rather than passed in, because the
+    two callers are different processes and the journal is all they share --
+    and a step that is no longer current is the one interleaving that must
+    never write a submit.
+    """
+    st = runmod.state(wid)
+    if st is None or not st.get("current") or st["current"]["id"] != step_id:
+        raise SystemExit(render.refusal(
+            step_id, "is no longer this run's current step -- something else "
+            "advanced it while its check ran; nothing was recorded"))
+    asm, step, form = _current_form(st)
     outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
-                   checks=list(checks.values()) or None)
+                   checks=ran or None)
     _measure_artifacts(wid, step, form, fields)
 
     # A transition marked `carries` folds its fields into the run's own
@@ -875,8 +949,6 @@ def cmd_submit(argv):
     _resume_paused_child(wid, step, fields)
     if outcome:
         _perform(wid, asm, *outcome, fields, step)
-    print(f"submitted {step['id']}\n")
-    return cmd_status([wid])
 
 
 def _check_plan(asm, form, fields):
@@ -1577,7 +1649,7 @@ def _mint_gates(wid, seg, gates, start=1):
 #   conductor filling it by hand the way `gates` used to. That reproduces
 #   the transcription bug one step later -- a second typing is a second
 #   chance to drift from what the panel actually judged.
-_GATE_FIELDS = ("purpose", "scope", "proof", "model", "direction")
+_GATE_FIELDS = ("purpose", "scope", "proof", "budget", "model", "direction")
 
 
 def _mint_projected_gate(wid, asm, step, st):

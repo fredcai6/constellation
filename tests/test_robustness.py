@@ -10,7 +10,7 @@ import tomllib
 
 import pytest
 
-from engine import cli, forms, journal, render, run as runmod, tomlw
+from engine import checks, cli, forms, journal, render, run as runmod, tomlw
 from gitremote import init_checkout
 
 
@@ -245,8 +245,13 @@ def test_a_work_id_cannot_escape_the_work_tree(workdir):
 
 def test_a_hanging_check_refuses_instead_of_wedging_the_turn(workdir, monkeypatch):
     """A check command that never returns used to block forever, burning the
-    agent's turn with no way out."""
-    monkeypatch.setattr(cli, "CHECK_TIMEOUT", 1)
+    agent's turn with no way out.
+
+    The number it hangs against is now the budget rather than the one
+    `CHECK_TIMEOUT` held: past the handback the check is handed back and the
+    step stays open, and only the budget says the command is broken. So this
+    is the same test against the number that still refuses."""
+    monkeypatch.setattr(checks, "BUDGET", 1)
     pathlib.Path("constellation.toml").write_text('[models]\nstandard = "x"\n')
     cli.main(["open", "run-a-gate", "--id", "g1"])
     journal.append("g1", "prefill", fields={"proof": "sleep 30"})
