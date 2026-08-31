@@ -56,9 +56,17 @@ def workdir(tmp_path):
 # See: engine/cli.py `_seed_board`, assemblies/run-an-issue/forms/OPEN.toml
 def seed_open(workdir, wid, seeds):
     """Fill the minted OPEN.toml the way a conductor does, one block per seed."""
-    p = harness.run_root(workdir) / ".agent-work" / wid / "OPEN.toml"
+    loc = harness.run_root(workdir) / ".agent-work" / wid
+    p = loc / "OPEN.toml"
     head, mark, block = p.read_text().partition("[[questions]]")
-    head = head.replace('issue = ""', 'issue = "issue-43"')
+    # `issue` is `kind = "artifact"`: #45's `_check_artifact` (engine/cli.py)
+    # refuses a value that is not a readable path, so the seed has to point
+    # at a real file, not a bare label -- the same shape a conductor's own
+    # write would take.
+    (loc / "issue.md").write_text(
+        "issue 43: whether the excursion column on the understand board is "
+        "reachable by a driven model.\n")
+    head = head.replace('issue = ""', f'issue = "{loc}/issue.md"')
     # The authority has to be true of the room the drive actually runs in.
     # "your principal is the human at the keyboard" is what a root run
     # normally records, and it is a lie here -- a driven model has nobody to

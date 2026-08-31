@@ -29,6 +29,7 @@ from test_nesting import (
     _fill_plan,
     _mint_n_gates,
     _work_the_board,
+    _write_plan_artifact,
 )
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
@@ -127,9 +128,10 @@ def test_a_replan_restarts_the_rework_count(workdir, capsys):
     _dispatch_rework_round(wid)
     _dispatch_plan_critic(wid, verdict="pass")
     capsys.readouterr()
+    _write_plan_artifact(runmod.journal.location(wid) / "plan.md")
     _fill(runmod.journal.location(wid) / "PLAN_TO_EXECUTE.toml", '''
-plan = "the plan doc"
-''')
+plan = "%s/plan.md"
+''' % runmod.journal.location(wid))
     cli.main([wid, "submit"])
     capsys.readouterr()
     _dispatch_and_close_child(wid, "g1")
@@ -171,8 +173,10 @@ def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdi
     fresh = _fresh_mint(runmod.state(wid), "plan")
     child = f"{wid}.{fresh['id']}"
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
-    _fill(runmod.journal.location(child) / "REWORK.toml", '''
-plan = ".agent-work/%s/plan.md"
+    child_loc = runmod.journal.location(child)
+    _write_plan_artifact(child_loc / "plan.md")
+    _fill(child_loc / "REWORK.toml", '''
+plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
@@ -180,7 +184,7 @@ horizon = "waived: none yet"
 findings-addressed = "accepted: rewrote gate 1's done as a runnable command"
 deleted = "the restated approach section; the gates already carry it"
 key-terms = "waived: none"
-''' % child)
+''' % child_loc)
     cli.main([child, "submit"])
     cli.main([child, "close"])
     capsys.readouterr()
@@ -194,7 +198,7 @@ key-terms = "waived: none"
     prefill = runmod.state(f"{wid}.{panel_id}.p1")["prefill"]
     assert "findings-addressed" not in prefill  # the producer's ledger stays behind
     assert "deleted" not in prefill
-    assert prefill["plan"] == f".agent-work/{child}/plan.md"  # the artifact still rides
+    assert prefill["plan"] == f"{child_loc}/plan.md"  # the artifact still rides
     assert prefill["key-terms"] == "waived: none"
     assert prefill["criteria"].startswith("intent-fit")
 
@@ -290,8 +294,10 @@ key-terms = "waived: none"
 
 
 def _fill_rework(wid):
-    _fill(runmod.journal.location(wid) / "REWORK.toml", '''
-plan = "the plan doc"
+    loc = runmod.journal.location(wid)
+    _write_plan_artifact(loc / "plan.md")
+    _fill(loc / "REWORK.toml", '''
+plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
@@ -299,7 +305,7 @@ horizon = "waived: none yet"
 findings-addressed = "waived: first pass"
 deleted = "waived: nothing"
 key-terms = "none"
-''')
+''' % loc)
 
 
 def _round(wid, findings):

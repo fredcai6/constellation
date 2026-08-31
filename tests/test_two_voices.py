@@ -22,6 +22,7 @@ import pytest
 
 from engine import cli, forms, journal, run as runmod
 from gitremote import init_checkout
+from test_nesting import _write_plan_artifact
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -91,6 +92,7 @@ settle = "%s"
 
 def _fill_plan_form(wid):
     loc = journal.location(wid)
+    _write_plan_artifact(loc / "plan.md")
     _fill(loc / "PLAN.toml", '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
@@ -130,6 +132,7 @@ def _fill_rework_form(wid, findings_addressed="accepted: made gate 1 testable",
     """A revise round's interior step is REWORK.toml, not PLAN.toml. `wid`
     is the dispatched child's own id -- a revise round dispatches too."""
     loc = journal.location(wid)
+    _write_plan_artifact(loc / "plan.md")
     _fill(loc / "REWORK.toml", '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
@@ -145,6 +148,7 @@ key-terms = "waived: none"
 def _fill_plan_to_execute(wid):
     """Nothing to author here now (#27): the round the panel just passed
     already cut the gate, and submitting this projects it."""
+    _write_plan_artifact(f".agent-work/{wid}/plan.md")
     _fill(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml",
          'plan = ".agent-work/%s/plan.md"\n' % wid)
 

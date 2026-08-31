@@ -93,6 +93,36 @@ def _prose_words(path):
     return len(" ".join(out).split())
 
 
+def _check_artifact(wid, form, fields):
+    """A `kind = "artifact"` field's value must be a path `_measure_artifacts`
+    can read -- that is the contract the kind states, and `_prose_words`'s
+    `except OSError: return 0` otherwise turns silently into nothing. Checked
+    before anything is journaled, the same as `_check_vocabulary`: past that
+    point the submit is durable, and a value the engine cannot read would
+    advance the run with a silent zero where a measurement belongs, instead
+    of failing where the mistake was actually made.
+
+    A null answer is not refused: `waived:` and `unknown:` are legitimate
+    non-answers on any field, and an `artifact` field carries no vocabulary
+    of its own (`forms.enforced_vocabulary` only fires on `kind = "decision"`)
+    to forbid them the way a decision field's does."""
+    root = journal.root_for(wid)
+    for f in form.get("fields", []):
+        fid = f["id"]
+        if f.get("kind") != "artifact" or fid not in fields:
+            continue
+        value = fields[fid]
+        if not isinstance(value, str) or forms.leading_word(value) in ("waived", "unknown"):
+            continue
+        try:
+            pathlib.Path(root / value).read_text()
+        except OSError:
+            raise SystemExit(render.refusal(
+                fid, "{q} is not a readable path -- an artifact field's "
+                "value is a file's location, not its content",
+                quoting=repr(value)))
+
+
 def _measure_artifacts(wid, step, form, fields):
     """Record each artifact field's prose length, so a later round can say how
     the artifact moved. Recorded, never enforced -- the engine has no opinion
@@ -815,6 +845,7 @@ def cmd_submit(argv):
 
     _check_plan(asm, form, fields)
     _check_vocabulary(asm, step, form, fields)
+    _check_artifact(wid, form, fields)
     outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=list(checks.values()) or None)

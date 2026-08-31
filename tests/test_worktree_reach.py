@@ -20,7 +20,7 @@ from engine import cli, journal, rail, render, run as runmod
 from gitremote import init_checkout
 from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_plan, \
     _dispatch_and_close_plan, _dispatch_plan_critic, _fill, _select_panel, \
-    _work_the_board
+    _work_the_board, _write_plan_artifact
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
@@ -52,6 +52,7 @@ def _open_one_gate(wid, issue, proof):
     _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
         w, purpose="gate purpose", scope="gate scope", proof=proof))
     _dispatch_plan_critic(wid)
+    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
          'plan = ".agent-work/%s/plan.md"\n' % wid)
     cli.main([wid, "submit"])
@@ -192,6 +193,7 @@ def test_a_gate_dispatched_from_a_cwd_that_is_not_the_parents_worktree_still_nes
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
+    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
          f'plan = ".agent-work/{wid}/plan.md"\n')
     cli.main([wid, "submit"])
@@ -223,6 +225,7 @@ def test_dispatch_brief_names_the_worktree_and_branch_for_a_root_run(workdir, ca
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
+    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
          f'plan = ".agent-work/{wid}/plan.md"\n')
     cli.main([wid, "submit"])
@@ -249,6 +252,7 @@ def test_review_panel_brief_on_a_nested_gate_names_the_parents_worktree_and_bran
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
+    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
          f'plan = ".agent-work/{wid}/plan.md"\n')
     cli.main([wid, "submit"])

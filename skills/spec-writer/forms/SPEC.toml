@@ -9,16 +9,17 @@ imperative = """
 Read the understand board whole -- every row, its answer, its settle -- and
 crystallize a specification standalone from both: a reader with no tracker
 reach and no board must be able to plan from it alone. Fix every high-level
-ambiguity the board settled; leave the how to the plan that cuts from this."""
+ambiguity the board settled; leave the how to the plan that cuts from this.
+Restate what the issue asked and what the board settled — point at neither.
+State every obligation this run makes as its own numbered commitment: a plan
+round cuts gates against these, and each stays checkable only if it is named
+and countable, not folded into prose. Consolidate's own key-terms and settle
+fields are not yours to fill or restate — this artifact is the whole of your
+return."""
 
 [[field]]
 id = "spec"
 kind = "artifact"
 note = """
-The specification, in the work location (.agent-work/<work-id>/). Restate
-what the issue asked and what the board settled — point at neither. State
-every obligation this run makes as its own numbered commitment: a plan round
-cuts gates against these, and each stays checkable only if it is named and
-countable, not folded into prose. Consolidate's own key-terms and settle
-fields are not yours to fill or restate — this artifact is the whole of your
-return."""
+The specification, in the work location (.agent-work/<work-id>/). Point at
+it — never retype it: the imperative above says what it must contain."""

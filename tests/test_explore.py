@@ -28,6 +28,16 @@ def _fill(wid, name, text):
     pathlib.Path(f".agent-work/{wid.replace('.', '/')}/{name}").write_text(text)
 
 
+def _write_spec_md(wid):
+    """The real file `spec = "SPEC.md"` must point at: #45's
+    `_check_artifact` refuses a value that is not a readable path.
+    `journal.root_for` resolves an id with no worktree of its own to the
+    top-level cwd, so a bare filename like this fixture's own `SPEC.md`
+    lands there, not under the work location -- same as the engine sees
+    it."""
+    pathlib.Path("SPEC.md").write_text("1. the spec.\n")
+
+
 def _current(wid):
     return runmod.state(wid)["current"]
 
@@ -135,6 +145,7 @@ def test_shelve_skips_spec_loudly(explore):
 def _to_rework(explore):
     _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "converge"\n')
     _spine(explore, "submit")
+    _write_spec_md(explore)
     _fill(explore, "SPEC.toml", 'spec = "SPEC.md"\nrivals = "waived: none"\nkey-terms = "waived: none"\n')
     _spine(explore, "submit")
     panel = _current(explore)["id"]
@@ -157,6 +168,7 @@ def _to_rework(explore):
 
 def test_re_explore_goes_back_to_the_board_and_a_fresh_spec_waits(explore):
     _to_rework(explore)
+    _write_spec_md(explore)
     _fill(explore, "REWORK.toml", 'spec = "SPEC.md"\ndispositions = "F1 re-explore"\nnext = "re-explore"\n')
     _spine(explore, "submit")
     st = runmod.state(explore)
@@ -171,6 +183,7 @@ def test_re_explore_goes_back_to_the_board_and_a_fresh_spec_waits(explore):
 
 def test_resubmit_releases_to_the_panel(explore):
     _to_rework(explore)
+    _write_spec_md(explore)
     _fill(explore, "REWORK.toml", 'spec = "SPEC.md"\ndispositions = "F1 edit"\nnext = "resubmit"\n')
     _spine(explore, "submit")
     assert _current(explore).get("panel"), "resubmit did not land on the panel"
