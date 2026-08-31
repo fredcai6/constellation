@@ -133,6 +133,7 @@ def test_the_critics_read_the_horizon_the_implementer_never_sees(workdir, capsys
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     def _fill_with_horizon(w):
+        (journal.location(w) / "plan.md").write_text("the plan document.\n")
         _fill(journal.location(w) / "PLAN.toml", '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
@@ -184,15 +185,16 @@ def test_artifact_field_pointing_at_a_real_path_is_measured(workdir, capsys):
     assert plan_measure["words"] == 42
 
 
-def test_an_artifact_field_holding_prose_inline_measures_zero_not_a_crash(workdir, capsys):
-    """The failure mode #45 named, still possible if an agent ignores the
-    note and writes the plan straight into the field: `_prose_words` cannot
-    open a path that is actually a paragraph, so it reports zero rather than
-    raising -- and the engine only journals a `measure` entry when the count
-    is truthy, so nothing lands at all. Silent, not loud, which is exactly
-    what made the bug easy to miss; this pins the behaviour so a future
-    change to `_prose_words` cannot make it loud by accident without a test
-    noticing the shape changed."""
+def test_an_artifact_field_holding_prose_inline_is_refused_not_measured_zero(workdir, capsys):
+    """#45's fix, the contract half: an agent that ignores the note and
+    writes the plan straight into the field no longer measures zero in
+    silence. `_check_artifact` (engine/cli.py) refuses the submit before
+    anything is journaled -- the same point `_check_vocabulary` refuses at --
+    naming the field and offering the escape every unanswered field gets
+    (fill it with a real path, or answer waived:/unknown:). Before this
+    check existed, this exact submit went through and journaled nothing;
+    see the git history of this test for that shape, which is what made the
+    bug invisible."""
     wid = "issue23"
     cli.main(["open", "run-an-issue", "--issue", "23", "--title", "t"])
     _fill_open(wid)
@@ -211,8 +213,45 @@ proof = "true"
 horizon = "waived: none yet"
 key-terms = "waived: none"
 ''')
-    cli.main([child, "submit"])
+    with pytest.raises(SystemExit) as e:
+        cli.main([child, "submit"])
+    assert "plan" in str(e.value)
+    assert "not a readable path" in str(e.value)
     capsys.readouterr()
 
+    measures = [e for e in journal.read(child) if e.get("kind") == "measure"]
+    assert not any(m["field"] == "plan" for m in measures)
+    assert not any(e.get("kind") == "submit" for e in journal.read(child))
+
+
+def test_an_artifact_field_answered_waived_is_not_refused(workdir, capsys):
+    """The null escape every field gets must still work on an `artifact`
+    field: `waived:`/`unknown:` are not paths, and `_check_artifact` must
+    stand down for them exactly as `_check_vocabulary` already does on a
+    `decision` field's own vocabulary -- this is the one field kind that
+    could plausibly be tempted to refuse a null too, since its whole point
+    is that the value must resolve to a file."""
+    wid = "issue24"
+    cli.main(["open", "run-an-issue", "--issue", "24", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+
+    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
+    child = f"{wid}.plan-1"
+    _fill(journal.location(child) / "PLAN.toml", '''
+plan = "waived: no plan document for this trivial gate"
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
+horizon = "waived: none yet"
+key-terms = "waived: none"
+''')
+    cli.main([child, "submit"])  # must not raise
+    capsys.readouterr()
+
+    assert any(e.get("kind") == "submit" for e in journal.read(child))
     measures = [e for e in journal.read(child) if e.get("kind") == "measure"]
     assert not any(m["field"] == "plan" for m in measures)

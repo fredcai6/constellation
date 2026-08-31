@@ -31,6 +31,19 @@ def _fill(path, text):
     path.write_text(text)
 
 
+def _write_plan_artifact(path, text="1. approach: adjust the loop bound.\n"
+                                    "2. risk: none identified once tested.\n"):
+    """The real file an artifact-kind `plan` field must point at (#45):
+    `_check_artifact` (engine/cli.py) now refuses a submit whose value does
+    not resolve to a readable path, so every fixture that answers one has to
+    back it with content -- never overwriting a path a caller already
+    seeded with content of its own, since some tests plant an exact word
+    count there before filling the form."""
+    path = pathlib.Path(path)
+    if not path.exists():
+        path.write_text(text)
+
+
 def _fill_open(wid):
     # the `issue` field names a file in the work location, so write one
     issue = pathlib.Path(f".agent-work/{wid}/issue.md")
@@ -94,6 +107,7 @@ def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing new
         extra += 'model = "%s"\n' % model
     if direction:
         extra += 'direction = "%s"\n' % direction
+    _write_plan_artifact(loc / "plan.md")
     _fill(loc / "PLAN.toml", '''
 plan = "%s/plan.md"
 purpose = "%s"
@@ -133,6 +147,7 @@ def _fill_plan_to_execute(wid):
     """Nothing to author here now (#27): the round the panel just passed
     already cut the gate, and submitting this projects it. Only the plan
     artifact pointer is this form's own to fill."""
+    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
     _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"), '''
 plan = ".agent-work/%s/plan.md"
 ''' % wid)
@@ -300,6 +315,7 @@ def _fill_plan_rework(wid, purpose="fix the parser to handle EOF without a trail
     the form override `_mint_segment_round` carries on the fresh interior
     step."""
     loc = journal.location(wid)
+    _write_plan_artifact(loc / "plan.md")
     _fill(loc / "REWORK.toml", '''
 plan = "%s/plan.md"
 purpose = "%s"

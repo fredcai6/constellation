@@ -46,6 +46,7 @@ from test_nesting import (
     _fill_open,
     _fill_plan,
     _work_the_board,
+    _write_plan_artifact,
 )
 from test_rework import _fresh_mint
 
@@ -168,6 +169,7 @@ def test_a_rework_round_dispatches_a_single_planner(workdir, capsys):
 
     child = f"{wid}.{fresh['id']}"
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
+    _write_plan_artifact(journal.location(child) / "plan.md")
     _fill(journal.location(child) / "REWORK.toml", '''
 plan = "%s/plan.md"
 purpose = "fix the parser"

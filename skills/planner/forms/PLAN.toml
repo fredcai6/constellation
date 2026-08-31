@@ -12,16 +12,19 @@ override and a direction for what it should teach. A fresh-context critic
 must be able to attack it from the spec and the plan alone, and a
 fresh-context implementer must be able to execute it from the gate spec
 alone. Sketch the horizon behind it -- coarsely, and only as far as you can
-actually commit to before the ground shifts."""
+actually commit to before the ground shifts. The plan document itself
+carries the approach and the risks that would change it; this gate's
+purpose, scope and proof are the fields below, not restated there --
+implementation detail below gate grain is a defect, that is the gate's
+latitude."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
-The plan document, in this run's work location (.agent-work/<work-id>/): the
-approach and the risks that would change it. This gate's purpose, scope and
-proof are the fields below, not restated here -- implementation detail below
-gate grain is a defect, that is the gate's latitude."""
+The plan document, in this run's work location (.agent-work/<work-id>/).
+Point at it — never retype it: the imperative above says what belongs in
+it and what stays here instead."""
 
 [[field]]
 id = "purpose"
