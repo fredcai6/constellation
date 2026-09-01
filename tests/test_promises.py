@@ -765,3 +765,53 @@ def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc(
     assert "the implementer's to conduct" not in issue_conductor
     assert "names the implementer as its conductor" not in V2_DESIGN
     assert "the assembly on disk names the implementer" not in V2_DESIGN
+
+
+# [up-mints-nothing-property]
+# Rationale: four rounds in a row (issue84's plan, rounds 4, 6, 7, 8) each
+#   found one new site claiming a settled `up` adds nothing to the run,
+#   terminates it outright, or advances it straight to its own last step --
+#   `assemblies/`+`skills/` first, then a row's own trailing comment -- and
+#   each was closed in place with a new file name, a new regex alternative,
+#   or a new bespoke file-scoped grep. Round 9 found a fifth site in
+#   `engine/cli.py` itself, outside every one of those sweeps' own declared
+#   directories, which is what showed the *unit* was wrong: the property
+#   this test checks was never actually a claim about corpus
+#   (`assemblies/`, `skills/`) vs. non-corpus text. Rooted at the repository
+#   instead, with the same two exclusions the gate spec names:
+#   `docs/V2_DESIGN.md` (its own line naming a decision the run's answerer
+#   may make after being asked, not a claim about what ruling `up` itself
+#   does) and `.agent-work/` (this run's own working directory, whose
+#   journals and plans are records of what was thought at the time and are
+#   never retroactively corrected -- confirmed to hold the largest number
+#   of matches in the whole tree for exactly this reason). The four phrases
+#   themselves are built from fragments below, joined through a name rather
+#   than literal `+`, so CPython's own constant folding (which collapses
+#   `"a" + "b"` into one string at compile time) does not hand the compiled
+#   `.pyc` a single embedded constant spelling the whole phrase -- that
+#   folding is exactly what made an earlier draft of this same fragment
+#   technique a hit on its own bytecode.
+def test_no_text_in_the_repository_claims_up_mints_nothing_or_ends_the_run():
+    _j = ""  # a name, not a literal -- see the rationale above
+    fragments = [
+        "refill" + _j + "s nothing",
+        "end" + _j + "s the run",
+        "walk" + _j + "s? to its close",
+        "walk" + _j + "s? to its terminal step",
+    ]
+    pattern = re.compile("|".join(fragments))
+    hits = []
+    for path in ROOT.rglob("*"):
+        if not path.is_file():
+            continue
+        parts = path.relative_to(ROOT).parts
+        if (".git" in parts or ".agent-work" in parts or "__pycache__" in parts
+                or path.name == "V2_DESIGN.md"):
+            continue  # __pycache__: compiled artifacts, never authored corpus
+        try:
+            text = path.read_text()
+        except (UnicodeDecodeError, OSError):
+            continue  # not a text file this property could ever be stated in
+        if pattern.search(text):
+            hits.append(str(path.relative_to(ROOT)))
+    assert not hits, f"stale claims about what `up` does survive at: {hits}"

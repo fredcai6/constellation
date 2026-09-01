@@ -21,10 +21,11 @@ note = """
 advance | rework | up. `advance` takes the artifact to its transition as it
 stands, over a live objection — the findings remain the record that says you
 did. `rework` runs another round, and is the answer only when you can name
-what that round changes that the last three did not. `up` refills nothing
-and lets the run walk to its close, so this ruling and its reason become the
-record your principal reads -- the right move when the artifact itself is
-what is wrong, not merely short of a fix."""
+what that round changes that the last three did not. `up` pauses this
+segment rather than closing the run: your ruling and its reason stand as an
+ask one tier up, and this segment resumes -- with whatever the ask answers,
+as this round's own next orders -- once it does. The right move when the
+artifact itself is what is wrong, not merely short of a fix."""
 
 [[field]]
 id = "why"

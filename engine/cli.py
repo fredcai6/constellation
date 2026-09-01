@@ -1227,9 +1227,14 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 #   fields still reach `_panel_judged_rework`, but only so a conductor's own
 #   per-finding `calls` can narrow the panel's findings to the blocking ones
 #   (`_blocking_calls`); an impasse ruling carries no such table and is
-#   unaffected. `up` needs neither: `release`, the field's own default, mints
-#   nothing, and the run walks to its terminal step. Gate adjudication added two more the same
-#   way: `remint` mints a fresh dispatch/adjudication pair from the plan
+#   unaffected. `up` is not a third verb either: every row that still
+#   declares it as a value (`work`/`review` in `run-a-gate`, `understand`'s
+#   and `plan`'s own impasse in `run-an-issue`) spells it `pause` (or
+#   `pause <target>`), the same case below the bare `up` CLI verb
+#   (`cmd_up`) also reaches -- see `[pause-gate]` for why both
+#   spellings are kept, ruled rather than left to accumulate (issue84.g2).
+#   Gate adjudication added two more the same way: `remint` mints a fresh
+#   dispatch/adjudication pair from the plan
 #   field the deciding step's own form carries, and `close` closes the
 #   not-done step this step's segment holds whose id matches the decided
 #   field's own argument, and every step paired with it by `child`.
@@ -1322,11 +1327,12 @@ def _perform(wid, asm, seg, does, fields, step):
 #   downstream decisions -- where the ask is minted, and whether the parent
 #   also needs a reorder -- rather than three branches each repeating the
 #   same two consequences. When nothing is reachable the ask mints into
-#   `wid`'s own journal instead, in `tseg`'s segment, ahead of the marker by
-#   append order alone: `resumes=wid` already names the run the answer
-#   resumes, and when nothing is reachable that run is this one, so no
-#   reorder is needed to put it ahead of anything -- the amend-close the
-#   caller already did (see `cmd_up`) retired whatever stood ahead of it.
+#   `wid`'s own journal instead, in `tseg`'s segment: `resumes=wid` already
+#   names the run the answer resumes, and when nothing is reachable that
+#   run is this one -- the amend-close the caller already did (see
+#   `cmd_up`) retired whatever this ruling was made at, though not
+#   necessarily every sibling already sitting in the same segment (see
+#   issue84.g2's own addition below).
 # Rejected: closing this run and returning through the ordinary `cmd_close`
 #   path the way an advance does. That return only reaches the parent once
 #   this run itself closes, and a run closed on `up` is a run gone quiet --
@@ -1336,13 +1342,55 @@ def _perform(wid, asm, seg, does, fields, step):
 #   twice, and the second telling is the only one anybody standing at the
 #   run can act on -- the note would be dead weight from the moment this
 #   landed.
+#
+# issue84.g2 added three more fixes here, all because they live in this
+# same function. First, the ask's own prefill used to key the paused unit
+# under `"gate"` and describe it in prose as one -- true only of the
+# reachable-parent path above, and wrong once an issue run itself, not only
+# a gate under it, could self-mint the same ask. `"paused"` names the unit
+# generically, whatever tier it runs at, and `attempted` falls back through
+# the dispatched orders' own `scope`/`purpose`, then the run's own `title`,
+# then `wid` itself, so a root run opened with none of the three still
+# renders something a principal can read rather than an empty string.
+#
+# Second, a sibling-ordering defect that turns out not to be self-mint-only
+# at all: a step-form segment's own transition (`select`, `understand`'s
+# own consolidate) mints untouched, at `open`, alongside that segment's
+# round-one interior step (`skeleton()`), and ruling `up` before that round
+# ever submits leaves the transition sitting there not-done -- in `wid`'s
+# own journal, in `tseg`'s segment, regardless of whether the ask above
+# landed there too or went to a reachable parent instead, because the
+# marker below always lands in `wid`'s own journal. At plain append order
+# the untouched sibling would still precede the marker (and, self-minted,
+# the ask) in `_ordered`'s own within-segment order, so `wid`'s own
+# `state()["current"]` would resolve to the stale sibling -- driven live
+# against a *reachable-parent* gate ruled `up` from its own first round:
+# the parent correctly stood on the ask, but the child's own `cmd_status`
+# showed `select`, not `paused`. Reordering the marker (and, self-minted,
+# the ask) ahead of the sibling is the one fix both shapes need.
+#
+# Third, that reorder held only through the pause moment: `_resume_paused_
+# child`'s own `_mint_segment_round` call is sibling-blind, plain-appending
+# the fresh round behind whatever already stood in the segment -- so once
+# the marker closes, the sibling it only ever leapfrogged (never itself
+# reordered) resurfaces ahead of the fresh round the same way. The marker
+# now carries the sibling's id forward (`sibling`, `""` when none was
+# found) so `_resume_paused_child` can reorder the fresh round ahead of it
+# too, once it knows one exists.
+# Rejected: closing the untouched sibling outright, the way `cmd_up`
+#   already closes whatever `current` stood on. It is not what was ruled
+#   on -- ruling `up` from `work-1` says nothing about `select` -- and
+#   closing it would strand the ordinary round `select` exists to receive
+#   once the paused segment resumes and completes.
 def _pause_gate(wid, tseg, reason, fields):
     """`up`'s own verb: an ask minted where a conductor can see it -- the
     parent standing on the step that dispatched this run, reordered before
     the still-live pair so it is what the parent's own `state()` stands on
-    next, or -- nothing reachable there -- this run's own journal, ordered
-    ahead of the marker by append order alone. A marker minted here either
-    way, in the segment the answer resumes."""
+    next, or -- nothing reachable there -- this run's own journal, reordered
+    ahead of any untouched sibling transition instead (see `[pause-gate]`).
+    A marker minted here either way, in the segment the answer resumes,
+    reordered ahead of the same sibling regardless of which path the ask
+    took -- the marker is what every path's own `state()` must find."""
     st = runmod.state(wid)
     pwid, pstep_id = st.get("parent"), st.get("parent_step")
     pstep = None
@@ -1351,7 +1399,9 @@ def _pause_gate(wid, tseg, reason, fields):
         pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
     ask_wid, ask_seg = (pwid, pstep["segment"]) if pstep else (wid, tseg["id"])
     orders = st.get("prefill") or {}
-    ask = {"gate": wid, "attempted": orders.get("scope") or orders.get("purpose", ""),
+    ask = {"paused": wid,
+           "attempted": (orders.get("scope") or orders.get("purpose")
+                        or st.get("title") or wid),
            "ask": reason}
     calls = fields.get("calls")
     if isinstance(calls, list) and calls:
@@ -1368,10 +1418,24 @@ def _pause_gate(wid, tseg, reason, fields):
     if pstep:
         journal.append(pwid, "amend", action="reorder", segment=pstep["segment"],
                        step=ask_id, before=pstep_id, reason=reason, anchor=False)
+    # The untouched open-minted sibling `tseg`'s own segment may already
+    # hold (`select`, `understand`'s own consolidate) -- present whether or
+    # not the ask above landed in this same journal, since the marker below
+    # always does. Left alone it would precede the marker (and, on the
+    # self-mint path, the ask too) in `_ordered`'s own within-segment order.
+    sibling = next((s["id"] for s in st["steps"]
+                    if s["segment"] == tseg["id"] and s["id"] not in st["done"]
+                    and not s.get("terminal")), None)
+    if sibling and not pstep:
+        journal.append(wid, "amend", action="reorder", segment=tseg["id"],
+                       step=ask_id, before=sibling, reason=reason, anchor=False)
     marker_id = f"{tseg['id']}-a{secrets.token_hex(2)}"
     journal.append(wid, "step", id=marker_id, segment=tseg["id"], paused=tseg["id"],
-                   filler="conductor", anchor=False, terminal=False, validates="",
-                   source="mint")
+                   sibling=sibling or "", filler="conductor", anchor=False,
+                   terminal=False, validates="", source="mint")
+    if sibling:
+        journal.append(wid, "amend", action="reorder", segment=tseg["id"],
+                       step=marker_id, before=sibling, reason=reason, anchor=False)
 
 
 # [gate-commit]
@@ -1709,6 +1773,25 @@ def _mint_projected_gate(wid, asm, step, st):
 # See: `journal.py:119` -- `journal.append`'s own `mkdir(parents=True,
 #   exist_ok=True)`, which is why this checks `journal.exists` before writing
 #   anywhere in the child rather than after.
+#
+# issue84.g2's own review found the fix above only held through the pause
+# moment: `_mint_segment_round` below is sibling-blind, plain-appending the
+# fresh interior step and its fresh transition, so once the marker closes
+# the untouched sibling `_pause_gate` only ever leapfrogged -- never itself
+# reordered -- resurfaces ahead of the fresh round in `_ordered`'s own
+# within-segment order. Driven live: a conductor answering the ask was
+# handed `select`'s or `understand`'s own stale prompt instead of the fresh
+# round's. Fixed by carrying the sibling forward on the marker itself
+# (`_pause_gate`'s own `sibling` key, `""` when none was found) and
+# reordering every step this mint just appended to the segment ahead of it,
+# in mint order, mirroring the same move against the newly-live pair
+# instead of the ask.
+# Rejected: reordering only the fresh interior step. `_mint_segment_round`
+#   also mints a fresh transition (`select`, or the two-voices panel step a
+#   board segment's understand re-mints) whenever the segment declares one,
+#   and leaving that one behind the sibling reproduces the exact defect one
+#   step later -- `current` would resolve correctly to the interior step
+#   this round, then wrongly to the sibling the moment that step submits.
 def _resume_paused_child(pwid, step, fields):
     """Fires only when the step just submitted is an ask `_pause_gate` wrote
     -- named by its own positive `resumes` key, naming the child to write
@@ -1728,11 +1811,22 @@ def _resume_paused_child(pwid, step, fields):
     if not marker or not runmod.paused(marker):
         return  # already resolved some other way, or the marker moved
     tseg_id = marker["paused"]
+    sibling = marker.get("sibling", "")
+    before_ids = {s["id"] for s in cst["steps"] if s["segment"] == tseg_id}
     casm = runmod.load_assembly(cst["assembly"])
     journal.append(child, "amend", action="close", segment=marker["segment"],
                    step=marker["id"], reason="resumed by the parent's answer",
                    anchor=marker.get("anchor", False))
     _mint_segment_round(child, casm, tseg_id, prefill=fields)
+    if sibling:
+        fresh = [s["id"] for s in runmod.state(child)["steps"]
+                if s["segment"] == tseg_id and s["id"] not in before_ids]
+        for fid in fresh:
+            journal.append(child, "amend", action="reorder", segment=tseg_id,
+                           step=fid, before=sibling,
+                           reason="the resumed round stands ahead of the sibling "
+                                  "the pause already leapfrogged, not behind it again",
+                           anchor=False)
 
 
 def _unique_id(base, existing):
