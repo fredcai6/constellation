@@ -255,3 +255,270 @@ def test_resuming_a_child_whose_journal_is_gone_notes_rather_than_fabricates_one
     assert not journal.exists(child), "a phantom journal was fabricated for a gone child"
     notes = [e for e in journal.read("issue3") if e.get("kind") == "note"]
     assert any(child in n.get("text", "") for n in notes), "no note recorded the missing child"
+
+
+# ============================================================================
+# `up` the bare command (issue84.g1): `spine <wid> up "<reason>"`, dispatched
+# beside `status`/`submit`/`note`/`amend`/`close`/`trace` -- as opposed to
+# `up` the outcome *value*, which the tests above still drive through
+# ROUTE.toml / IMPASSE.toml exactly as before. Both resolve to the same
+# `_pause_gate`; what differs is how the target segment is found (a
+# backward scan over the assembly's own declared order, `_up_target`, for
+# the bare verb; a hand-named `tseg` in ASSEMBLY.toml's `does = "pause"` /
+# `"pause work"` rows for the outcome value) and who does the amend-close
+# of `state(wid)["current"]` (`cmd_up` itself; the outcome path needs none,
+# since the deciding submit that reached `does = "pause"` is already
+# journaled by the time `_perform` runs it).
+# ============================================================================
+
+
+def test_bare_up_at_the_route_position_resolves_to_work_and_pauses_in_one_call(
+        workdir, capsys):
+    """Standing on ROUTE.toml -- the two-voices step in `review`, panel
+    already passed, conductor's own form not yet submitted -- `up` the bare
+    command pauses without that form ever being filled: no ROUTE.toml
+    submit happens on this path at all. `review` itself declares no
+    step-form (anchor-only, `route-form` only), so the backward scan steps
+    past it to `work`, the segment `run-a-gate` declares immediately
+    before it."""
+    _seed_two_gates("issue10")
+    child = "issue10.g1"
+    cli.main(["open", "run-a-gate", "--parent", "issue10", "--step", "g1"])
+    _fill_implement(child)
+    cli.main([child, "submit"])
+    review = _select(child)
+    panelist = _open_panelist(child, review)
+    _fill_review(panelist, "pass")
+    cli.main([panelist, "submit"])
+    cli.main([panelist, "close"])
+    capsys.readouterr()
+
+    # standing on ROUTE.toml, not yet submitted -- the route step is what
+    # `_current_form` resolves to but this call never touches its form
+    pre = runmod.state(child)["current"]
+    assert pre["form"] == "forms/ROUTE.toml" and pre["segment"] == "review"
+    route_path = journal.location(child) / "ROUTE.toml"
+    assert not route_path.exists() or "resolution" not in route_path.read_text()
+
+    cli.main([child, "up", "the spec never says what src/ means here"])
+    capsys.readouterr()
+
+    cst = runmod.state(child)
+    marker = cst["current"]
+    assert runmod.paused(marker) and marker["paused"] == "work"
+    assert marker["segment"] == "work"
+    # ROUTE.toml was never submitted to get here
+    assert pre["id"] not in cst["done"]
+
+    pst = runmod.state("issue10")
+    ask = pst["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
+    assert ask["resumes"] == child
+    assert ask["prefill"]["ask"] == "the spec never says what src/ means here"
+    assert "g1" not in pst["done"] and "g1-adjudicate" not in pst["done"]
+
+    # -- one full resume round trip: the answer becomes a fresh IMPLEMENT
+    # round in `work`, and the drive to a real close still lands the return
+    # on the live dispatch/adjudicate pair, `g2` untouched throughout -----
+    answer = "narrow src/ to src/parser.c only"
+    _fill(journal.location("issue10") / "ASK.toml", 'answer = "%s"\n' % answer)
+    cli.main(["issue10", "submit"])
+    capsys.readouterr()
+
+    cst = runmod.state(child)
+    assert not runmod.paused(cst["current"])
+    assert cst["current"]["segment"] == "work"
+    assert cst["current"]["form"] == "skills/implementer/forms/IMPLEMENT.toml"
+    assert cst["current"]["prefill"] == {"answer": answer}
+
+    _drive_to_close(child)
+    capsys.readouterr()
+
+    pst = runmod.state("issue10")
+    assert "g1" in pst["done"]
+    assert pst["current"]["id"] == "g1-adjudicate"
+    assert "g2" not in pst["done"] and "g2-adjudicate" not in pst["done"]
+
+
+def test_bare_up_against_run_an_issues_execute_segment_resolves_to_plan(workdir, capsys):
+    """`_seed_two_gates`'s parent stands current on `g1`, the dispatch step
+    in `execute` -- a segment with no `step-form` of its own. The backward
+    scan steps past it to `plan` (declares `step-form`), skipping
+    `execution-state` along the way for the same reason -- no `step-form`
+    there either. This parent has no parent of its own, so the ask
+    self-mints into its own journal rather than crashing for lack of
+    anywhere else to stand."""
+    _seed_two_gates("issue11")
+    pst = runmod.state("issue11")
+    assert pst["current"]["id"] == "g1" and pst["current"]["segment"] == "execute"
+
+    cli.main(["issue11", "up", "the plan never says how g1 and g2 divide the file"])
+    capsys.readouterr()
+
+    pst = runmod.state("issue11")
+    marker = next(s for s in pst["steps"] if runmod.paused(s))
+    assert marker["paused"] == "plan" and marker["segment"] == "plan"
+    ask = pst["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
+    assert ask["resumes"] == "issue11"  # self-mint: no parent above this run
+    assert ask["prefill"]["ask"] == "the plan never says how g1 and g2 divide the file"
+    # the amend-close retired the dispatch step it was ruled at -- g1 itself,
+    # not the sibling pair, which stays exactly as `_seed_two_gates` left it
+    assert not any(s["id"] == "g1" for s in pst["steps"])
+    assert any(s["id"] == "g2" for s in pst["steps"])
+    assert any(s["id"] == "g2-adjudicate" for s in pst["steps"])
+
+
+def _seed_bare_understand(wid):
+    """A fresh `run-an-issue` run, journaled directly rather than through
+    `cmd_open`, standing on `understand`'s own step-form round -- the shape
+    `skeleton()` mints at `open` for that segment, minus the board `_mint`
+    seeds alongside it (unneeded here: nothing in this test submits
+    anything, only rules `up` against the standing step)."""
+    journal.append(wid, "run", title="t", assembly="run-an-issue")
+    journal.append(wid, "step", id="understand-1", segment="understand",
+                   form="skills/spec-writer/forms/SPEC.toml", filler="spec-writer",
+                   anchor=False, terminal=False, validates="", source="open")
+
+
+def test_bare_up_against_understand_matches_at_the_first_position_no_walk(workdir, capsys):
+    """`understand` is `interior = "board"`, not `"steps"` -- exactly the
+    shape a stopping rule that also checked `interior == "steps"` would
+    refuse over, wrongly continuing back to `open` (which has no
+    `step-form` at all) and refusing there instead. Checking `step-form`
+    alone matches `understand` at the very first position the scan checks,
+    with no backward walk needed."""
+    _seed_bare_understand("issue12")
+    pre = runmod.state("issue12")["current"]
+    assert pre["id"] == "understand-1" and pre["segment"] == "understand"
+
+    cli.main(["issue12", "up", "the spec can't settle what 'done' means here"])
+    capsys.readouterr()
+
+    pst = runmod.state("issue12")
+    marker = next(s for s in pst["steps"] if runmod.paused(s))
+    assert marker["paused"] == "understand" and marker["segment"] == "understand"
+    ask = pst["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
+    assert ask["resumes"] == "issue12"
+    assert "understand-1" not in [s["id"] for s in pst["steps"]]  # amend-closed
+
+
+def test_bare_up_with_no_parent_at_all_mints_a_readable_ask_not_a_silent_note(
+        workdir, capsys):
+    """A root run ruling `up` -- (1) of the three previously-silent
+    branches. `_pause_gate`'s reachable-parent check finds no `parent` on
+    the run at all, so the ask self-mints into this run's own journal
+    instead of only a `note` nobody but a trace command would read.
+
+    Ruled from `select` rather than straight off `open`: `work`'s own
+    transition (`select`) mints alongside `work-1` at open (`skeleton()`),
+    so pausing before `work-1` is even submitted would leave that live
+    sibling sitting ahead of the newly-minted ask in journal-append order
+    within the same segment -- an ordering artifact this test does not
+    exist to exercise. Submitting the implement round first retires
+    `work-1` the ordinary way, leaving `select` as the segment's one live
+    step for `up` to retire in turn."""
+    cli.main(["open", "run-a-gate", "--id", "g20"])
+    _fill_implement("g20")
+    cli.main(["g20", "submit"])
+    capsys.readouterr()
+    pre = runmod.state("g20")["current"]
+    assert pre["id"] == "select" and pre["segment"] == "work"  # a root run, no parent
+
+    cli.main(["g20", "up", "the purpose itself is unclear from here"])
+    capsys.readouterr()
+
+    st = runmod.state("g20")
+    assert st["open"] and not st["awaiting_close"], "the run was left standing on a lost cause"
+    ask = st["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
+    assert ask["resumes"] == "g20"
+    assert ask["prefill"]["ask"] == "the purpose itself is unclear from here"
+    notes = [e for e in journal.read("g20") if e.get("kind") == "note"]
+    assert notes == [], "the old silent note is gone, not merely joined by the ask"
+
+
+def test_bare_up_with_parents_journal_gone_mints_a_readable_ask_not_a_silent_note(
+        workdir, capsys):
+    """(2) of the three: the parent named at open existed once, but its
+    journal is gone by the time `up` is ruled. Only the parent's own
+    `journal.toml` is removed, not its whole directory -- the child nests
+    inside the parent's own work location (`_open_child`'s own doctrine),
+    so `shutil.rmtree`ing the parent's directory would collaterally take
+    the child down with it, which is the other (already-covered) test."""
+    _seed_two_gates("issue13")
+    child = "issue13.g1"
+    cli.main(["open", "run-a-gate", "--parent", "issue13", "--step", "g1"])
+    _fill_implement(child)
+    cli.main([child, "submit"])  # retires work-1 so `select` is the segment's one live step
+    capsys.readouterr()
+    (journal.location("issue13") / "journal.toml").unlink()
+    assert not journal.exists("issue13")
+    assert journal.exists(child)
+
+    cli.main([child, "up", "the parent that dispatched this is gone"])
+    capsys.readouterr()
+
+    st = runmod.state(child)
+    assert st["open"] and not st["awaiting_close"]
+    ask = st["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
+    assert ask["resumes"] == child
+    assert ask["prefill"]["ask"] == "the parent that dispatched this is gone"
+    notes = [e for e in journal.read(child) if e.get("kind") == "note"]
+    assert notes == []
+
+
+def test_bare_up_with_parent_no_longer_holding_the_dispatch_step_mints_a_readable_ask(
+        workdir, capsys):
+    """(3) of the three: the parent's journal is fine, but it no longer
+    holds the step that dispatched this run -- amended away in the
+    meantime, the same as a reorder past it would leave it."""
+    _seed_two_gates("issue14")
+    child = "issue14.g1"
+    cli.main(["open", "run-a-gate", "--parent", "issue14", "--step", "g1"])
+    _fill_implement(child)
+    cli.main([child, "submit"])  # retires work-1 so `select` is the segment's one live step
+    cli.main(["issue14", "amend", "close", "g1", "--reason", "reassigned to a human"])
+    capsys.readouterr()
+    pst = runmod.state("issue14")
+    assert not any(s["id"] == "g1" for s in pst["steps"])
+
+    cli.main([child, "up", "the dispatch step I was opened against is gone"])
+    capsys.readouterr()
+
+    st = runmod.state(child)
+    assert st["open"] and not st["awaiting_close"]
+    ask = st["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
+    assert ask["resumes"] == child
+    assert ask["prefill"]["ask"] == "the dispatch step I was opened against is gone"
+    notes = [e for e in journal.read(child) if e.get("kind") == "note"]
+    assert notes == []
+
+
+def test_bare_up_refuses_when_no_segment_at_or_before_current_has_a_step_form(
+        workdir, capsys):
+    """Ruled at `open`, before `understand` (the first segment carrying a
+    step-form) ever mints -- no segment at or before `open` qualifies, so
+    the verb refuses by name rather than pausing nowhere. Nothing is
+    journaled: a refusal here must not strand the run on a marker with no
+    segment behind it to answer into."""
+    journal.append("issue15", "run", title="t", assembly="run-an-issue")
+    journal.append("issue15", "step", id="open", segment="open", form="forms/OPEN.toml",
+                   filler="conductor", anchor=True, terminal=False, validates="",
+                   source="open")
+    before = journal.read("issue15")
+
+    with pytest.raises(SystemExit) as exc:
+        cli.main(["issue15", "up", "too early to say anything yet"])
+    msg = str(exc.value)
+    assert "open" in msg
+    assert journal.location("issue15") is not None  # still a real run, not wedged open
+
+    after = journal.read("issue15")
+    assert after == before, "a refusal must journal nothing that could strand the run"
+
+    st = runmod.state("issue15")
+    assert st["current"]["id"] == "open"  # exactly where it stood before the refusal
