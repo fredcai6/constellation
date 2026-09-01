@@ -8,6 +8,8 @@ ledger (`findings-addressed`, `deleted`) stays out of the next panelist's
 prefill. Drives the real assemblies end to end, like test_nesting.py.
 """
 
+import pathlib
+
 import pytest
 
 from engine import cli, run as runmod
@@ -24,6 +26,7 @@ from test_nesting import (
     _fill_implement,
     _fill_open,
     _fill_plan,
+    _fill_spec,
     _mint_n_gates,
     _work_the_board,
     _write_plan_artifact,
@@ -541,3 +544,75 @@ def test_a_gates_impasse_step_is_filled_by_its_conductor(workdir, capsys):
 
     assert runmod.state(child)["current"]["form"] == "forms/IMPASSE.toml"
     assert _dispatched_role(child) == ("gate-conductor", "gate-conductor")
+
+
+# -- 7. the same outlet on `understand`, whose round is local, not dispatched -
+
+# [understand-impasse]
+# Rationale: `understand`'s revise is judged by the transition's own panel
+#   the same way `plan`'s plan-to-execute panel is, so the driver below
+#   reuses `_dispatch_plan_critic` unchanged. What differs is the round
+#   itself: `understand` declares no `dispatches`, so a revise refills the
+#   segment's step-form (SPEC.toml) as a local step, filled directly at
+#   `.agent-work/<wid>/SPEC.toml` -- never a dispatched child the way a plan
+#   round, or a gate's implement round, are.
+# See: `_drive_to_impasse` and `_drive_gate_to_impasse` above, the same
+#   shape for `plan`'s dispatched round and `work`'s undispatched one.
+
+
+def _drive_understand_to_revise(wid="issue84", findings="gap: assumes a trailing newline exists"):
+    """Open a real run-an-issue and drive it through the board and the first
+    spec-writer round to the consolidate panel, then have the critic say
+    revise -- the send-back `understand`'s rework loop counts."""
+    cli.main(["open", "run-an-issue", "--issue", "84", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    b = pathlib.Path(f".agent-work/{wid}/UNDERSTAND.toml")
+    b.write_text(b.read_text().replace(
+        'status = "open"',
+        'status = "answered"\nanswer = "EOF without a trailing newline only."'))
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings)
+    return wid
+
+
+def _understand_round(wid, findings):
+    """One more spec-writer round: no rework-form, so the revise refills the
+    same step-form (SPEC.toml) as a fresh local step -- then the fresh panel
+    says revise again."""
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings)
+
+
+def _drive_understand_to_impasse(wid="issue84"):
+    """Three more spec-writer rounds after the first revise, then the fourth
+    revise -- the one `understand`'s own `impasse-after` turns into a
+    ruling."""
+    _drive_understand_to_revise(wid)
+    for n in (1, 2, 3):
+        _understand_round(wid, f"gap: still assumes a trailing newline ({n})")
+    return wid
+
+
+def test_understands_fourth_revise_mints_the_impasse_form_not_another_spec_round(workdir, capsys):
+    """Pins the fix: before it, `understand`'s transition decided on
+    `resolution` alone, an outcome table of `pass | revise` with no third
+    word, so a spec the panel kept sending back had no exit but a passing
+    panel. `understand` now declares `impasse-after`, `impasse-form` and its
+    own `decides = "ruling"`, the same shape `plan` already has, so a fourth
+    revise mints the impasse form instead of a fifth spec-writer round."""
+    wid = _drive_understand_to_impasse()
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "forms/IMPASSE.toml", (
+        f"the fourth revise minted {st['current']['form']!r} -- the segment "
+        "declares impasse-after = 3, so this round is the ruling")
+    assert "trailing newline (3)" in st["current"]["prefill"]["findings"]
+    # no fourth panel: another fresh-context reader is the loop, not the way out
+    assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
+                   for s in st["steps"]), "the impasse minted a panel"
+    asm = runmod.load_assembly("run-an-issue")
+    assert runmod.rework_rounds(st, asm, "understand") == 3

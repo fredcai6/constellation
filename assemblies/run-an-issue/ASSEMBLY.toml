@@ -32,6 +32,27 @@ model = "standard"
 board-worker = "interrogator"
 step-form = "skills/spec-writer/forms/SPEC.toml"
 worker = "spec-writer"
+# This segment has no rework-form, so every revise is another pass at the
+# same spec-writer round. After this many, a further revise mints the
+# impasse form instead: the loop itself becomes the thing the conductor
+# rules on. Counted since the last step-form mint, same as `plan` below --
+# `forms/IMPASSE.toml` is shared with it, worded at the artifact each
+# segment produces rather than at "plan" by name.
+impasse-after = 3
+impasse-form = "forms/IMPASSE.toml"
+decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no such field
+
+  [[segment.outcome]]
+  value = "advance"
+  does = "transition"     # mints CONSOLIDATE alone, over the live revise
+
+  [[segment.outcome]]
+  value = "rework"
+  does = "rework"     # another spec-writer round, findings as prefill
+
+  [[segment.outcome]]
+  value = "up"
+  does = "release"     # mints nothing; the run walks to its terminal step
 
 [segment.transition]
 anchor = true
@@ -46,7 +67,10 @@ carries = true
 # reads the spec-writer's round and rules first: pass reaches this form (the
 # interrogator's own record, key-terms and settle -- mechanical once the
 # panel already cleared the spec), revise refills the segment with a fresh
-# spec-writer round before this form is ever reached.
+# spec-writer round before this form is ever reached, three of those
+# reaching the segment's own impasse form above. Named apart from `ruling`
+# above so the two outcome tables stay disjoint: a word in one is never a
+# legal answer read from the other.
 decides = "resolution"
 
   [[segment.transition.outcome]]

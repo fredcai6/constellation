@@ -1,27 +1,30 @@
 # Step: impasse. Owned by run-an-issue; filled by the conductor. Minted once
-# the segment has been sent back `impasse-after` times: three reviews landing
-# on the same plan means the plan, not the round, is what keeps failing.
+# a segment has been sent back `impasse-after` times: three reviews landing
+# on the same artifact means the artifact, not the round, is what keeps
+# failing. Shared by `understand` (the spec-writer's spec) and `plan` (the
+# planner's plan) rather than forked into two near-duplicates named after
+# each artifact -- both segments read it worded at "the artifact" instead.
 # `arrival` in the orders reads `rework-rounds` here always -- the panel's
 # verdict is `pass | revise`, so a root objection arrives as a revise finding
 # like any other, and only a repeated one reaches you here. It carries no
 # panel: a fourth fresh-context reader is the loop, not the way out.
 
 imperative = """
-Three reviews have sent this plan back. Rule on the loop, not on the findings:
-three reviews finding the same kind of thing means the artifact is not the one
-under repair. Say which way this run goes, and why."""
+Three reviews have sent this artifact back. Rule on the loop, not on the
+findings: three reviews finding the same kind of thing means the artifact is
+not the one under repair. Say which way this run goes, and why."""
 
 [[field]]
 id = "ruling"
 kind = "decision"
 note = """
-advance | rework | up. `advance` takes the plan to its transition as it stands,
-over a live objection — the findings remain the record that says you did.
-`rework` runs another round, and is the answer only when you can name what
-that round changes that the last three did not. `up` refills nothing and lets
-the run walk to its close, so this ruling and its reason become the record
-your principal reads -- the right move when the plan itself is what is wrong,
-not merely short of a fix."""
+advance | rework | up. `advance` takes the artifact to its transition as it
+stands, over a live objection — the findings remain the record that says you
+did. `rework` runs another round, and is the answer only when you can name
+what that round changes that the last three did not. `up` refills nothing
+and lets the run walk to its close, so this ruling and its reason become the
+record your principal reads -- the right move when the artifact itself is
+what is wrong, not merely short of a fix."""
 
 [[field]]
 id = "why"
