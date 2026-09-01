@@ -1313,28 +1313,43 @@ def _perform(wid, asm, seg, does, fields, step):
 #   read. Nothing here touches `state()`'s own fold: the ask is an ordinary
 #   step, the marker is an ordinary step, and both are recognized by the
 #   plain keys they carry.
+#
+#   issue84.g1 folded three once-separate silent-return branches -- no
+#   parent at all, the parent's journal gone, the parent no longer holding
+#   the dispatching step -- into one fact from the asker's own side: is
+#   there anywhere else to stand this ask. A single `pstep` lookup below is
+#   `None` for any of the three reasons, and that one value drives both
+#   downstream decisions -- where the ask is minted, and whether the parent
+#   also needs a reorder -- rather than three branches each repeating the
+#   same two consequences. When nothing is reachable the ask mints into
+#   `wid`'s own journal instead, in `tseg`'s segment, ahead of the marker by
+#   append order alone: `resumes=wid` already names the run the answer
+#   resumes, and when nothing is reachable that run is this one, so no
+#   reorder is needed to put it ahead of anything -- the amend-close the
+#   caller already did (see `cmd_up`) retired whatever stood ahead of it.
 # Rejected: closing this run and returning through the ordinary `cmd_close`
 #   path the way an advance does. That return only reaches the parent once
 #   this run itself closes, and a run closed on `up` is a run gone quiet --
 #   not one standing on a live ask the parent can see without opening it.
+# Rejected: keeping the three silent notes (issue84.g1) and minting an ask
+#   alongside them. A note and an ask about the same event is one fact told
+#   twice, and the second telling is the only one anybody standing at the
+#   run can act on -- the note would be dead weight from the moment this
+#   landed.
 def _pause_gate(wid, tseg, reason, fields):
-    """`up`'s own verb: an ask minted into the parent standing on the step
-    that dispatched this run, reordered before the still-live pair so it is
-    what the parent's own `state()` stands on next; a marker minted here, in
-    the segment the parent's answer will resume."""
+    """`up`'s own verb: an ask minted where a conductor can see it -- the
+    parent standing on the step that dispatched this run, reordered before
+    the still-live pair so it is what the parent's own `state()` stands on
+    next, or -- nothing reachable there -- this run's own journal, ordered
+    ahead of the marker by append order alone. A marker minted here either
+    way, in the segment the answer resumes."""
     st = runmod.state(wid)
     pwid, pstep_id = st.get("parent"), st.get("parent_step")
-    if not pwid or not journal.exists(pwid):
-        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail="blocked",
-                       about="", text="ruled up with no parent to ask -- nothing above this run")
-        return
-    pst = runmod.state(pwid)
-    pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
-    if pstep is None:
-        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}", kind_detail="blocked",
-                       about="", text=f"parent {pwid} no longer holds {pstep_id} -- "
-                                      "nothing to stand the ask on")
-        return
+    pstep = None
+    if pwid and journal.exists(pwid):
+        pst = runmod.state(pwid)
+        pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
+    ask_wid, ask_seg = (pwid, pstep["segment"]) if pstep else (wid, tseg["id"])
     orders = st.get("prefill") or {}
     ask = {"gate": wid, "attempted": orders.get("scope") or orders.get("purpose", ""),
            "ask": reason}
@@ -1345,13 +1360,14 @@ def _pause_gate(wid, tseg, reason, fields):
             for r in calls if isinstance(r, dict))
     elif fields.get("why"):
         ask["findings"] = fields["why"]
-    ask_id = f"{pstep['segment']}-a{secrets.token_hex(2)}"
-    journal.append(pwid, "step", id=ask_id, segment=pstep["segment"],
+    ask_id = f"{ask_seg}-a{secrets.token_hex(2)}"
+    journal.append(ask_wid, "step", id=ask_id, segment=ask_seg,
                    form="skills/gate-conductor/forms/ASK.toml", filler="conductor",
                    prefill=ask, resumes=wid, anchor=False, terminal=False,
                    validates="", source="mint")
-    journal.append(pwid, "amend", action="reorder", segment=pstep["segment"], step=ask_id,
-                   before=pstep_id, reason=reason, anchor=False)
+    if pstep:
+        journal.append(pwid, "amend", action="reorder", segment=pstep["segment"],
+                       step=ask_id, before=pstep_id, reason=reason, anchor=False)
     marker_id = f"{tseg['id']}-a{secrets.token_hex(2)}"
     journal.append(wid, "step", id=marker_id, segment=tseg["id"], paused=tseg["id"],
                    filler="conductor", anchor=False, terminal=False, validates="",
@@ -1762,6 +1778,76 @@ def _seed_board(template, dest, rows):
         body += tomlw.table(table.group(1), row) + "\n"
     dest.write_text(f"{head.rstrip()}\n\n# --- the columns, and what they mean ---\n"
                     f"{quoted}\n\n# --- the board ---\n\n{body}")
+
+
+# [up-target]
+# Rationale: a bare `up` names no per-assembly target -- unlike `run-a-gate`'s
+#   own two `does = "pause"` / `does = "pause work"` rows, which hand
+#   `_pause_gate` a `tseg` a human already picked when the assembly was
+#   written -- so it has to find one itself, from the one thing every
+#   assembly declares regardless of shape: its own segment order. Backward
+#   from the current step's own segment, itself included, stopping at the
+#   first segment declaring a `step-form` -- the same predicate `skeleton()`
+#   (engine/run.py) already uses to decide whether a segment mints an
+#   interior step at all, so every segment this can land on is one
+#   `skeleton()` already treats as legitimate. `interior` is deliberately
+#   not part of the test: a segment with `interior = "board"` and a
+#   `step-form` (run-an-issue's `understand`) is exactly as resumable as one
+#   with `interior = "steps"` -- its own live `rework` outcome already
+#   proves that today -- so checking `interior` too would refuse over a
+#   segment nothing else in the tree treats as unusual.
+# Rejected: also requiring `interior in ("steps", "board")`. All three
+#   critics on this gate's own plan flagged that as wrong for the identical
+#   reason `skeleton()`'s own rejected-alternative comment already gives:
+#   it would skip `understand` for its board interior and wrongly continue
+#   toward `open`, which has no `step-form` at all, ending in a refusal over
+#   a segment that is not actually the problem.
+def _up_target(asm, seg_id):
+    """The segment a bare `up` pauses at: `seg_id` itself, or the nearest
+    one before it in declared order that carries a `step-form` -- `None` if
+    none do, all the way back to `open`."""
+    order = asm["segment"]
+    idx = next((i for i, s in enumerate(order) if s["id"] == seg_id), None)
+    if idx is None:
+        return None
+    return next((s for s in reversed(order[:idx + 1]) if s.get("step-form")), None)
+
+
+# [bare-up]
+# Rationale: the amend-close runs before `_pause_gate` is ever called, and
+#   before `_up_target` failing to resolve is even distinguished from it
+#   resolving -- a refusal must leave nothing journaled that would strand
+#   the run, so the target is found first and the close happens only once
+#   there is somewhere for the ask to land. `state(wid)["current"]` is
+#   closed here, not inside `_pause_gate`, because `_pause_gate` is also
+#   called directly by `run-a-gate`'s own hand-named `does = "pause"` /
+#   `"pause work"` rows (`_perform`), and those already run behind a
+#   decided submit that `_perform`'s own docstring says never needs closing
+#   -- the deciding submit is already journaled. A bare `up` has no such
+#   submit: it is ruled instead of one, so the step it was ruled at is the
+#   one thing here that still needs retiring.
+def cmd_up(argv):
+    if len(argv) < 2:
+        raise SystemExit('spine <work-id> up "<reason the run cannot answer itself>"')
+    wid, reason = argv[0], " ".join(argv[1:])
+    st = runmod.state(wid)
+    if st is None:
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+    if not st["open"] or st["awaiting_close"]:
+        raise SystemExit(render.located(f"{wid} has no current step to rule up"))
+    cur = st["current"]
+    asm = runmod.load_assembly(st["assembly"])
+    tseg = _up_target(asm, cur["segment"])
+    if tseg is None:
+        raise SystemExit(render.refusal(
+            cur["id"], f"nothing at or before {cur['segment']!r} declares a step-form "
+            "-- there is no round for an answer to resume",
+            escape=f"drop it instead: spine {wid} amend close {cur['id']} --reason ..."))
+    journal.append(wid, "amend", action="close", segment=cur["segment"], step=cur["id"],
+                   reason=reason, anchor=cur.get("anchor", False))
+    _pause_gate(wid, tseg, reason, {})
+    print(f"paused {wid}\n")
+    return cmd_status([wid])
 
 
 NOTE_KINDS = ("blocked", "resumed", "observation", "decision", "triage")
@@ -2360,7 +2446,7 @@ def main(argv=None):
         return 0
     verb = argv[1] if len(argv) > 1 else "status"
     verbs = {"status": cmd_status, "submit": cmd_submit, "note": cmd_note,
-             "amend": cmd_amend, "close": cmd_close, "trace": cmd_trace}
+             "amend": cmd_amend, "close": cmd_close, "trace": cmd_trace, "up": cmd_up}
     if verb not in verbs:
         # `spine <id> sumbit` used to render the room and exit 0: only the exact
         # word is acted on, so a near-miss must not look like a hit.
