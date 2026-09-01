@@ -40,7 +40,7 @@ id = "budget"
 optional = true
 note = """
 Same as PLAN.toml's `budget`: declare one only when the proof is long because
-it is right."""
+it is right. Whole seconds, a bare integer -- not a paragraph of rationale."""
 
 [[field]]
 id = "model"

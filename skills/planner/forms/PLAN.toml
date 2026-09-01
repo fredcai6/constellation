@@ -50,7 +50,7 @@ optional = true
 note = """
 Declare one when the proof is long because it is right -- a full suite, a
 real build -- so a check that outruns it is news rather than the normal
-case."""
+case. Whole seconds, a bare integer -- not a paragraph of rationale."""
 
 [[field]]
 id = "model"
