@@ -76,22 +76,30 @@ after = []       # optional — row ids this one waits on
 status = "open"  # open | answered | moot | up | deferred: <reason>
 answer = ""      # fact: the answer and what grounded it — never memory.
                  # decision, understanding: the principal's words, verbatim.
-                 # moot: the answer that mooted it.  up: where it went.
+                 # moot: the answer that mooted it.  up: in flight to the
+                 # principal, not yet answered.
 artifact = ""    # optional — the view, the repro, or the file in the work
                  # location that grounds the answer: grounding evidence of
                  # every kind except an excursion. The child run and its
                  # returns live in excursion.
 
-# A decision goes to the principal one question at a time, carrying ~3 options
-# with pros and cons and a recommendation. An understanding goes up as a
-# mirror — the reading in one sentence, no options — and the principal
-# confirms or corrects it. Effort scales with criticality: an obvious row in
-# a clustered sitting may carry the recommendation alone. Never surface board
-# mechanics — row ids, cluster names, what comes next — to the principal.
-# Ask plainly, one complete question per beat.
-recommend = ""
+# Everything below is offered material: the conductor's pre-ask draft, not
+# the principal's word. It never belongs at the row's top level, next to
+# `answer` — that keeps `answer` the row's one and only binding text,
+# unambiguous by structure rather than by whoever typed the row remembering
+# the convention. A decision goes to the principal one question at a time,
+# carrying `offered.recommend` plus ~3 `offered.option` entries with pros and
+# cons. An understanding goes up as a mirror — `offered.recommend` holds the
+# reading in one sentence, no options — and the principal confirms or
+# corrects it into `answer`. Effort scales with criticality: an obvious row
+# in a clustered sitting may carry the recommendation alone. Never surface
+# board mechanics — row ids, cluster names, what comes next — to the
+# principal. Ask plainly, one complete question per beat.
 
-  [[question.option]]
-  choice = ""
-  pros = ""
-  cons = ""
+  [question.offered]
+  recommend = ""
+
+    [[question.offered.option]]
+    choice = ""
+    pros = ""
+    cons = ""
