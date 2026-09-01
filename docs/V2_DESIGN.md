@@ -76,22 +76,21 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 Where the tree differs today: understand is one segment, not two -- do 1 (the board) and
 do 2 (the spec-writer's own round, in place rather than a dispatched subagent) share it, a
 cold critic panel and the route sitting on its one transition; there is no `up` outcome
-distinct from the interrogator's own impasse path. The issue-conductor still writes the plan
-itself; `run-an-issue` cuts
-every gate at plan-to-execute; `run-a-gate` runs all six beats above, and its `route` form now
-calls every review finding and every declared deviation blocking/accepted/beyond/rejected, a
-`rework` carrying the blocking ones alone into the next implement round. Its one-word
-`resolution` keeps `revise` beside the three words this table names, because the review panel's
-own merged verdict resolves against that same outcome table and an undeclared value refuses;
-`up` is a legal word at `route` now as well as at an impasse, and at this tier both now pause
-the gate rather than releasing it -- an ask standing at the run that dispatched it until that
-run answers, run-a-gate's own two sites alone; `run-an-issue`'s own `up`, at the plan segment's
-impasse, still releases and walks the run to its own close, an inconsistency left named rather
-than hidden until that site is done too.
-`PLAN` carries a design-it-twice field; open and close create no worktree, archive nothing,
-and push nothing. Wave 3b brings the tree to the shape above.
+distinct from the interrogator's own impasse path. `run-a-gate` runs all six beats above, and
+its `route` form now calls every review finding and every declared deviation
+blocking/accepted/beyond/rejected, a `rework` carrying the blocking ones alone into the next
+implement round. Its one-word `resolution` keeps `revise` beside the three words this table
+names, because the review panel's own merged verdict resolves against that same outcome table
+and an undeclared value refuses; `up` is a legal word at `route` now as well as at an impasse,
+and at this tier both now pause the gate rather than releasing it -- an ask standing at the run
+that dispatched it until that run answers, run-a-gate's own two sites alone; `run-an-issue`'s
+own `up`, at the plan segment's impasse, still releases and walks the run to its own close, an
+inconsistency left named rather than hidden until that site is done too. Wave 3b brings the
+tree to the shape above.
 
 ## Why now — measurements
+
+*v1 measurements, taken before it was deleted — archival record, not a live count.*
 
 - The v1 engine is 4,515 lines with 85 refusal sites. With its MCP wrapper (2,749), lifecycle
   (1,243), generator (1,089), and validator (758), the machinery totals ~10,000 lines.
@@ -303,9 +302,11 @@ and it is the last thing that should go. The bar is an aspiration, not a wall �
 earns it:
 **anything the engine can derive, it derives.** A rule stated in a form for an agent to apply
 against data the engine already holds is mechanical work the secretary exists to remove, and a
-budget that argues for leaving it to the agent is arguing the wrong way (`docs/DERIVED_IS_CODE.md`) — and it is one number: a green engine achieved by relocating lines into another
-component counts as a miss. That sentence is a rule against relocation, not a rule that every
-tool in the repo spends the engine's lines. A tool with no seam into a run — nothing in
+budget that argues for leaving it to the agent is arguing the wrong way (`docs/DERIVED_IS_CODE.md`) — and it is one number: the rule is against gaming, not against reorganizing. Moving
+engine work out of `engine/` into a decoupled tool to duck the cap counts as a miss. Splitting a
+module within `engine/` does not: `palette:lines` counts the engine spine whole, so moving lines
+between files inside it changes nothing the instrument reads, and the cap is never a reason to
+leave one module carrying several unrelated concerns. A tool with no seam into a run — nothing in
 `engine/` imports it, nothing on a run's path calls it, invoked by hand from the palette — is
 outside the cap, because moving nothing out of the engine cannot buy the engine anything.
 `tools/code_map`, run by `palette:map` at closeout, is the standing case.
@@ -631,8 +632,9 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 
 v1's ~10,000 is a raw `wc -l`, taken before the instrument counted code; the two rows above
 are not measured the same way, so read v1 against v2 as an order of magnitude rather than a
-ratio. The live corpus and engine numbers, and what counts against each, are owned by
-`docs/AGENT_GUIDE.md` — not repeated here.
+ratio. v1 is deleted, so its column is the archival record as measured then, not a figure a
+later audit can retake. The live corpus and engine numbers, and what counts against each, are
+owned by `docs/AGENT_GUIDE.md` — not repeated here.
 
 The corpus target counts artifacts someone authored and an agent must read before it can
 work. Derived output is not corpus: the code map is regenerated from the source at closeout,

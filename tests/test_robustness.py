@@ -11,15 +11,6 @@ import tomllib
 import pytest
 
 from engine import checks, cli, forms, journal, render, run as runmod, tomlw
-from gitremote import init_checkout
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _open(wid="issue17"):
@@ -45,15 +36,15 @@ def _step():
     return {"segment": "s", "form": "SYNTHETIC.toml"}
 
 
-def tmp_form(workdir, body):
+def tmp_form(bare_workdir, body):
     """A form on disk, for a shape the corpus does not have and should not
     gain just to be tested against."""
-    path = workdir / "SYNTHETIC.toml"
+    path = bare_workdir / "SYNTHETIC.toml"
     path.write_text(body)
     return str(path)
 
 
-def test_a_torn_journal_reads_as_the_work_before_the_tear(workdir, capsys):
+def test_a_torn_journal_reads_as_the_work_before_the_tear(bare_workdir, capsys):
     """An append interrupted mid-block -- Ctrl-C, OOM, full disk -- must not
     brick every verb on the run. State is a fold over this file, so a raising
     read would make the run unusable until someone hand-repaired TOML."""
@@ -70,7 +61,7 @@ def test_a_torn_journal_reads_as_the_work_before_the_tear(workdir, capsys):
     cli.main(["issue17", "note", "observation", "still usable"])
 
 
-def test_a_malformed_plan_field_refuses_before_anything_is_recorded(workdir, capsys):
+def test_a_malformed_plan_field_refuses_before_anything_is_recorded(bare_workdir, capsys):
     """A plan field of the wrong shape used to journal the submit and then die
     minting, leaving a run that looked advanced with no work in it."""
     _open()
@@ -127,7 +118,7 @@ def _fill_critic(wid, verdict):
         f'verdict = "{verdict}"\n')
 
 
-def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(workdir, capsys):
+def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(bare_workdir, capsys):
     """A decision field used to take anything its note did not list: the
     submit landed, the step was released, and the act downstream matched no
     branch and performed nothing. The refusal names the field and quotes the
@@ -154,7 +145,7 @@ def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(workdir, capsy
     assert landed == "Pass, nothing here would change what gets built"
 
 
-def test_a_near_miss_verb_refuses_instead_of_rendering_the_room(workdir, capsys):
+def test_a_near_miss_verb_refuses_instead_of_rendering_the_room(bare_workdir, capsys):
     """`spine <id> sumbit` fell through to `status`: it rendered the room and
     exited 0, so a typo read as a successful hand-in."""
     _open()
@@ -171,7 +162,7 @@ def test_a_near_miss_verb_refuses_instead_of_rendering_the_room(workdir, capsys)
     assert "issue17" in capsys.readouterr().out
 
 
-def test_an_unhandled_mints_value_refuses_instead_of_minting_nothing(workdir, capsys,
+def test_an_unhandled_mints_value_refuses_instead_of_minting_nothing(bare_workdir, capsys,
                                                                      monkeypatch):
     """`_mint` accepts `_BOARD_MINT` ("board rows") plus whatever `_mintable`
     derives from the assembly's own `dispatches` segments -- no engine-held
@@ -205,7 +196,7 @@ def test_an_unhandled_mints_value_refuses_instead_of_minting_nothing(workdir, ca
     assert st["current"]["id"] == "open" and not st["boards"]
 
 
-def test_amended_step_ids_do_not_collide(workdir):
+def test_amended_step_ids_do_not_collide(bare_workdir):
     """Ids were counted from what exists, so two sessions amending at once
     minted the same id -- and `done` is keyed by id, so one submit would
     complete every step sharing it, silently dropping the rest."""
@@ -217,7 +208,7 @@ def test_amended_step_ids_do_not_collide(workdir):
     assert len(ids) == len(set(ids)) == 6
 
 
-def test_note_ids_do_not_collide_and_resumed_clears_its_block(workdir, capsys):
+def test_note_ids_do_not_collide_and_resumed_clears_its_block(bare_workdir, capsys):
     """`note resumed <id>` is the command the engine prints in its own output;
     it recorded the target under the wrong key and never cleared anything."""
     _open()
@@ -234,16 +225,16 @@ def test_note_ids_do_not_collide_and_resumed_clears_its_block(workdir, capsys):
     assert "BLOCKED" not in capsys.readouterr().out
 
 
-def test_a_work_id_cannot_escape_the_work_tree(workdir):
+def test_a_work_id_cannot_escape_the_work_tree(bare_workdir):
     # an omitted --id legitimately mints one, so "" is not in this list
     for bad in ["../../escape", "a/b", "..", "a..b", "/abs/path", "x/../../y"]:
         with pytest.raises(SystemExit):
             cli.main(["open", "run-an-issue", "--id", bad, "--title", "t"])
-    assert not list(workdir.glob("escape*"))
-    assert not (workdir.parent / "escape").exists()
+    assert not list(bare_workdir.glob("escape*"))
+    assert not (bare_workdir.parent / "escape").exists()
 
 
-def test_a_hanging_check_refuses_instead_of_wedging_the_turn(workdir, monkeypatch):
+def test_a_hanging_check_refuses_instead_of_wedging_the_turn(bare_workdir, monkeypatch):
     """A check command that never returns used to block forever, burning the
     agent's turn with no way out.
 
@@ -265,7 +256,7 @@ def test_a_hanging_check_refuses_instead_of_wedging_the_turn(workdir, monkeypatc
     assert "amend close" in msg  # the refusal states the way out
 
 
-def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
+def test_closing_to_a_missing_parent_does_not_fabricate_one(bare_workdir, capsys):
     """The return used to create the parent's journal from nothing: a run with
     no opening, no title, no assembly, sitting in the ledger."""
     _open("issue17")
@@ -307,7 +298,7 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(workdir, capsys):
     assert runmod.blocks(runmod.state(child))     # the undelivered return is a block
 
 
-def test_the_off_path_never_shows_a_traceback(workdir):
+def test_the_off_path_never_shows_a_traceback(bare_workdir):
     """A fresh agent meets these by mistyping. Each must answer with the way
     forward, not a Python line number."""
     for argv, want in [
@@ -320,7 +311,7 @@ def test_the_off_path_never_shows_a_traceback(workdir):
         assert want in str(e.value)
 
 
-def test_a_near_miss_note_kind_refuses_instead_of_no_opping(workdir):
+def test_a_near_miss_note_kind_refuses_instead_of_no_opping(bare_workdir):
     """`note block ...` printed success and did nothing -- only the exact word
     is ever acted on, so a near miss must not look like a hit."""
     _open()
@@ -329,7 +320,7 @@ def test_a_near_miss_note_kind_refuses_instead_of_no_opping(workdir):
     assert "blocked" in str(e.value)
 
 
-def test_status_names_the_board_it_will_validate(workdir, capsys):
+def test_status_names_the_board_it_will_validate(bare_workdir, capsys):
     """The board was invisible in status while the imperative claimed it was
     already worked -- the room description lying about the room."""
     _open()
@@ -346,7 +337,7 @@ def test_status_names_the_board_it_will_validate(workdir, capsys):
     assert "will not pass while a row is open" in out
 
 
-def test_every_refusal_states_an_escape_that_works(workdir):
+def test_every_refusal_states_an_escape_that_works(bare_workdir):
     """A refusal used to append one hardcoded suffix -- correct for a form
     field, wrong for a board row (which takes deferred:, not waived:), and
     nonsensical for a lookup. Printing an escape that does not work is worse
@@ -373,7 +364,7 @@ def test_every_refusal_states_an_escape_that_works(workdir):
 
 
 def test_a_refusal_on_a_vocabulary_field_offers_its_values_not_an_escape_it_refuses(
-        workdir, capsys):
+        bare_workdir, capsys):
     """The escape above is the other half of the same promise. `waived:` and
     `unknown:` are refused on a decision field whose note declares values -- a
     waived verdict falls through `merged_verdict` to a `pass` -- but the
@@ -409,7 +400,7 @@ def test_a_refusal_on_a_vocabulary_field_offers_its_values_not_an_escape_it_refu
     assert runmod.state("c1")["done"]["verdict"]["fields"]["verdict"] == "pass"
 
 
-def test_a_crash_is_never_a_refusal(workdir):
+def test_a_crash_is_never_a_refusal(bare_workdir):
     """Two paths raised bare Python errors: nothing journaled, no way forward.
     Worse than an illegitimate refusal."""
     _open()
@@ -423,7 +414,7 @@ def test_a_crash_is_never_a_refusal(workdir):
     assert "nothing was recorded" in str(e.value)
 
 
-def test_an_amended_anchor_is_flagged_where_it_will_be_read(workdir):
+def test_an_amended_anchor_is_flagged_where_it_will_be_read(bare_workdir):
     """The design's freeze is visibility, not refusal: amending an anchor is
     allowed and must be loud in the record the tier above reads."""
     _open()
@@ -435,7 +426,7 @@ def test_an_amended_anchor_is_flagged_where_it_will_be_read(workdir):
     assert "issue already states it" in lines[0]
 
 
-def test_a_field_in_hand_is_not_mistaken_for_an_answer(workdir, capsys):
+def test_a_field_in_hand_is_not_mistaken_for_an_answer(bare_workdir, capsys):
     """`working: <what is left>` is the status an agent sets while a field is
     still in hand. Submitting it would record work-in-progress as an answer,
     and the next reader could not tell the difference."""
@@ -462,7 +453,7 @@ def test_a_field_in_hand_is_not_mistaken_for_an_answer(workdir, capsys):
     assert "work-1" in runmod.state("g1")["done"]
 
 
-def test_a_pipe_in_ordinary_prose_does_not_become_an_enum_the_engine_enforces(workdir):
+def test_a_pipe_in_ordinary_prose_does_not_become_an_enum_the_engine_enforces(bare_workdir):
     """Enforcement follows `kind = "decision"`, never the punctuation alone.
 
     The first cut of this derived the enum from the note and nothing else, so
@@ -473,7 +464,7 @@ def test_a_pipe_in_ordinary_prose_does_not_become_an_enum_the_engine_enforces(wo
     would drift from it; what the note cannot do is decide *whether* the engine
     acts on the field. A form author picks that on purpose.
     """
-    src = tmp_form(workdir, """
+    src = tmp_form(bare_workdir, """
 imperative = "Fill it."
 
 [[field]]
@@ -532,7 +523,7 @@ def test_a_control_character_round_trips_inside_prose():
     assert tomllib.loads(written)["entry"][0]["text"] == raw
 
 
-def test_a_form_field_carrying_an_escape_sequence_folds(workdir, capsys):
+def test_a_form_field_carrying_an_escape_sequence_folds(bare_workdir, capsys):
     """End to end, the way it was hit: the agent writes the escape into its
     response form, the engine journals it, and the submit must fold. The
     defect was silent -- the step stayed current, which invited the retry
@@ -551,7 +542,7 @@ def test_a_form_field_carrying_an_escape_sequence_folds(workdir, capsys):
     assert "\bword\b" in submits[-1]["fields"]["authority"]
 
 
-def test_a_read_that_discards_an_entry_says_so(workdir, capsys):
+def test_a_read_that_discards_an_entry_says_so(bare_workdir, capsys):
     """The recovery above is right to keep the work, and wrong to keep it
     quietly. A dropped entry is lost state; the agent that wrote it is the
     one person who can put it back, and it is told nothing today."""
@@ -586,7 +577,7 @@ def _rename_current_form(wid="issue17"):
     return path
 
 
-def test_a_missing_form_refuses_and_names_it(workdir, capsys):
+def test_a_missing_form_refuses_and_names_it(bare_workdir, capsys):
     """The engine is a secretary and never crashes. A form it cannot resolve
     is a refusal that names the form -- a traceback is neither a refusal nor
     a hand-in."""
@@ -601,7 +592,7 @@ def test_a_missing_form_refuses_and_names_it(workdir, capsys):
     assert missing.name in str(e.value), "the refusal does not name the form"
 
 
-def test_a_run_standing_on_a_missing_form_can_still_be_unwedged(workdir, capsys):
+def test_a_run_standing_on_a_missing_form_can_still_be_unwedged(bare_workdir, capsys):
     """The escape the refusal offers has to work -- that is what
     `test_promises` asks of every refusal, and it is the whole difference
     between a wedged run and a recoverable one."""
@@ -637,7 +628,7 @@ def _debris(path=".agent-work/bogus/journal.toml"):
     return p
 
 
-def test_one_malformed_journal_does_not_take_down_the_ledger(workdir, capsys):
+def test_one_malformed_journal_does_not_take_down_the_ledger(bare_workdir, capsys):
     """The ledger is how an agent finds its own run. A single unreadable
     journal beside it must not be able to hide every other run in the tree."""
     _open()
@@ -649,7 +640,7 @@ def test_one_malformed_journal_does_not_take_down_the_ledger(workdir, capsys):
     assert "issue17" in out, "a real run was hidden by unreadable debris"
 
 
-def test_a_journal_the_ledger_cannot_fold_is_named(workdir, capsys):
+def test_a_journal_the_ledger_cannot_fold_is_named(bare_workdir, capsys):
     """Skipping it quietly would leave an agent looking for a run the ledger
     will never show. The secretary says which journal it could not read."""
     _open()
@@ -667,7 +658,7 @@ def test_a_journal_the_ledger_cannot_fold_is_named(workdir, capsys):
 # 0 -- is fixed and guarded in test_promises. These two stand.
 
 
-def test_an_unknown_palette_entry_refuses_and_names_the_entries(workdir):
+def test_an_unknown_palette_entry_refuses_and_names_the_entries(bare_workdir):
     """`tests/test_robustness` already requires that every refusal states an
     escape that works; this one raised a bare SystemExit through neither
     `refusal` nor `located`, so it named no way forward. The whole
@@ -686,7 +677,7 @@ def test_an_unknown_palette_entry_refuses_and_names_the_entries(workdir):
 REPO_ROOT = str(pathlib.Path(__file__).resolve().parent.parent)
 
 
-def test_a_refusal_locates_its_escape_and_never_its_why(workdir):
+def test_a_refusal_locates_its_escape_and_never_its_why(bare_workdir):
     """`located` rewrites the word `spine` into an absolute path so a printed
     command is runnable. Routed over an agent's own answer it edits the
     record instead -- observed as `change: working: rewrite the
@@ -706,7 +697,7 @@ def test_a_refusal_locates_its_escape_and_never_its_why(workdir):
         "the escape must still be a runnable command"
 
 
-def test_the_field_id_a_refusal_names_is_not_rewritten_either(workdir):
+def test_the_field_id_a_refusal_names_is_not_rewritten_either(bare_workdir):
     """A refusal's subject is often agent-supplied too -- a board row id, a
     step id, a `--segment` argument. It is quoted back for the same reason
     and must survive for the same reason."""
@@ -725,7 +716,7 @@ def test_located_still_rewrites_a_command_the_engine_prints():
     assert render.located("  open runs: spine").endswith("spine")
 
 
-def test_no_refusal_in_the_engine_rewrites_what_the_agent_typed(workdir, capsys):
+def test_no_refusal_in_the_engine_rewrites_what_the_agent_typed(bare_workdir, capsys):
     """#33 was fixed at the site it was measured at, and the class went
     unswept -- five refusals still interpolated agent text into `why`. These
     are those five, driven rather than grepped, because a grep-shaped test
@@ -750,7 +741,7 @@ def test_no_refusal_in_the_engine_rewrites_what_the_agent_typed(workdir, capsys)
     assert "spine" in str(e.value) and REPO_ROOT not in str(e.value)
 
 
-def test_an_undeclared_outcome_quotes_the_agents_word_unrewritten(workdir, capsys):
+def test_an_undeclared_outcome_quotes_the_agents_word_unrewritten(bare_workdir, capsys):
     """`_outcome`'s two refusals -- an undeclared value, and a placeholder
     whose argument names no pending step -- both quote back what the agent
     wrote. Neither went through the #33 fix."""
@@ -765,7 +756,7 @@ def test_an_undeclared_outcome_quotes_the_agents_word_unrewritten(workdir, capsy
     assert REPO_ROOT not in said, "the agent's own word was rewritten"
 
 
-def test_a_value_the_step_cannot_act_on_still_names_what_was_rejected(workdir):
+def test_a_value_the_step_cannot_act_on_still_names_what_was_rejected(bare_workdir):
     """Protecting the agent's prose must not cost the refusal its subject:
     two agents reading it should still know which word was refused."""
     form = {"fields": [{"id": "ruling", "kind": "decision",
@@ -796,7 +787,7 @@ def _gate_with_proof(proof, wid="g1"):
     return wid
 
 
-def test_a_failing_check_refuses_and_records_what_it_ran(workdir, capsys):
+def test_a_failing_check_refuses_and_records_what_it_ran(bare_workdir, capsys):
     """A check is run by the engine, not filled in, so a failure is not the
     agent's answer to correct -- the refusal has to say that and name a way
     out. The record of what actually ran is what the next reader needs."""
@@ -815,7 +806,7 @@ def test_a_failing_check_refuses_and_records_what_it_ran(workdir, capsys):
 
 
 def test_trace_renders_a_run_that_had_a_failed_check_a_note_and_an_amend(
-        workdir, capsys):
+        bare_workdir, capsys):
     """`trace` is the debugging verb: its output on a run that went wrong is
     the case it exists for, and the three branches that render exactly that
     had never been run. A standalone `check` entry is written only on
@@ -837,7 +828,7 @@ def test_trace_renders_a_run_that_had_a_failed_check_a_note_and_an_amend(
 
 
 def test_a_journal_torn_in_two_places_reads_as_the_work_that_survives(
-        workdir, capsys):
+        bare_workdir, capsys):
     """Recovery was tested past exactly one tear. The loop back past a second
     bad block is the arm that had never run -- and a file torn twice is what
     a second submit after a first failure actually produces."""
@@ -853,7 +844,7 @@ def test_a_journal_torn_in_two_places_reads_as_the_work_that_survives(
     assert "issue17" in capsys.readouterr().out
 
 
-def test_a_journal_destroyed_entirely_reads_as_no_history(workdir, capsys):
+def test_a_journal_destroyed_entirely_reads_as_no_history(bare_workdir, capsys):
     """Total loss: nothing in the file parses, so there is no prefix to
     recover. It must read as empty rather than raise -- a raising read bricks
     the verbs that would repair the run.

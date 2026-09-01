@@ -6,23 +6,14 @@ notices.
 """
 
 import pathlib
-
-import pytest
 import tomllib
 
+import pytest
+
 from engine import cli, journal, run as runmod
-from gitremote import init_checkout
 
 
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    init_checkout(tmp_path)
-    return tmp_path
-
-
-def test_open_mints_the_skeleton(workdir, capsys):
+def test_open_mints_the_skeleton(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     capsys.readouterr()
 
@@ -45,7 +36,7 @@ def test_open_mints_the_skeleton(workdir, capsys):
     assert plan["panel"][0]["worker"] == "critic"
 
 
-def test_run_a_gate_skeleton_mints_select_and_no_review_step(workdir, capsys):
+def test_run_a_gate_skeleton_mints_select_and_no_review_step(bare_workdir, capsys):
     # run-a-gate's review transition used to declare a panel, and a static
     # panel is a panel nobody chose: `select` exists so the readers of a diff
     # are named after the diff is in. So `work`'s own transition is `select`
@@ -66,7 +57,7 @@ def test_run_a_gate_skeleton_mints_select_and_no_review_step(workdir, capsys):
     assert "panel" not in close
 
 
-def test_status_is_a_room_description(workdir, capsys):
+def test_status_is_a_room_description(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     out = capsys.readouterr().out
 
@@ -80,7 +71,7 @@ def test_status_is_a_room_description(workdir, capsys):
     assert ".agent-work/issue17/OPEN.toml" in out
 
 
-def test_response_form_is_materialized_and_parses(workdir, capsys):
+def test_response_form_is_materialized_and_parses(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     capsys.readouterr()
     dest = pathlib.Path(".agent-work/issue17/OPEN.toml")
@@ -88,7 +79,7 @@ def test_response_form_is_materialized_and_parses(workdir, capsys):
     tomllib.load(open(dest, "rb"))  # always valid TOML, even blank
 
 
-def test_refusal_names_the_field_and_the_way_out(workdir, capsys):
+def test_refusal_names_the_field_and_the_way_out(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     capsys.readouterr()
     with pytest.raises(SystemExit) as e:
@@ -121,7 +112,7 @@ move = "ask"
 ''')
 
 
-def test_submit_advances_and_seeds_the_board(workdir, capsys):
+def test_submit_advances_and_seeds_the_board(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     capsys.readouterr()
     _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
@@ -143,7 +134,7 @@ def test_submit_advances_and_seeds_the_board(workdir, capsys):
     assert "never self-answer" in board.read_text()  # the interrogator's guidance survives
 
 
-def test_the_journal_is_the_only_state(workdir):
+def test_the_journal_is_the_only_state(bare_workdir):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
     cli.main(["issue17", "submit"])
@@ -156,7 +147,7 @@ def test_the_journal_is_the_only_state(workdir):
     assert not list(pathlib.Path(".agent-work/issue17").glob("*state*"))
 
 
-def test_note_blocked_surfaces_first(workdir, capsys):
+def test_note_blocked_surfaces_first(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     cli.main(["issue17", "note", "blocked", "needs a ruling on scope"])
     capsys.readouterr()
@@ -166,7 +157,7 @@ def test_note_blocked_surfaces_first(workdir, capsys):
     assert out.index("BLOCKED") < out.index("your response form")
 
 
-def test_ledger_lists_open_runs(workdir, capsys, monkeypatch):
+def test_ledger_lists_open_runs(bare_workdir, capsys, monkeypatch):
     """Each root run works inside its own worktree (ruling 8): opening
     issue18 moves the process into `.worktrees/issue18`, a directory that
     does not nest under issue17's own -- top-level resolution (see
@@ -176,11 +167,11 @@ def test_ledger_lists_open_runs(workdir, capsys, monkeypatch):
     together, not just each from inside its own tree."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser eof"])
     capsys.readouterr()
-    monkeypatch.chdir(workdir)  # back to the top level, not issue17's own worktree
+    monkeypatch.chdir(bare_workdir)  # back to the top level, not issue17's own worktree
 
     cli.main(["open", "run-an-issue", "--issue", "18", "--title", "writer atomicity"])
     capsys.readouterr()
-    monkeypatch.chdir(workdir)  # back to the top level, not issue18's own worktree
+    monkeypatch.chdir(bare_workdir)  # back to the top level, not issue18's own worktree
 
     cli.main([])
     out = capsys.readouterr().out
@@ -215,7 +206,7 @@ def _board(path, **repl):
     path.write_text(t)
 
 
-def test_consolidate_refuses_an_unworked_board(workdir, capsys):
+def test_consolidate_refuses_an_unworked_board(bare_workdir, capsys):
     """The assembly declares validates = "board" and CONSOLIDATE.toml tells the
     agent the engine checks it. This proves the engine actually does -- the
     wiring was missing once, and a form that lies about the engine is the
@@ -238,7 +229,7 @@ def test_consolidate_refuses_an_unworked_board(workdir, capsys):
     assert runmod.state("issue17")["current"]["id"] == "understand"  # did not advance
 
 
-def test_the_board_escape_is_one_step(workdir, capsys):
+def test_the_board_escape_is_one_step(bare_workdir, capsys):
     """deferred: <reason> passes in a single edit -- the corollary that makes
     this check legal at all."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])

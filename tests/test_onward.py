@@ -14,25 +14,11 @@ the return unblocked.
 import pathlib
 import subprocess
 
-import pytest
-
 from engine import cli, journal, render, run as runmod
-from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_child, _fill, _fill_gate_close, _fill_implement,
     _mint_first_gate,
 )
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _gate_ready_to_close(parent="issue17", step="g1"):

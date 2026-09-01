@@ -20,15 +20,6 @@ import time
 import pytest
 
 from engine import checks, cli, journal, run as runmod
-from gitremote import init_checkout
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _gate(proof, wid="g1", **spec):
@@ -62,7 +53,7 @@ def _await(wid, kind, seconds=20):
 
 
 def test_a_proof_that_finishes_inside_the_handback_submits_exactly_as_before(
-        workdir, capsys):
+        bare_workdir, capsys):
     """The overwhelming majority of steps. The check runs, passes, and the
     submit lands with it inline, in one journal entry and one turn."""
     _gate("true")
@@ -80,7 +71,7 @@ def test_a_proof_that_finishes_inside_the_handback_submits_exactly_as_before(
 
 
 def test_a_proof_that_fails_inside_the_handback_refuses_and_records_no_submit(
-        workdir):
+        bare_workdir):
     """The guarantee the whole design is arranged around, on the path that
     always had it: a failing proof records the check and no submit."""
     _gate("exit 3")
@@ -100,7 +91,7 @@ def test_a_proof_that_fails_inside_the_handback_refuses_and_records_no_submit(
 
 
 def test_a_proof_past_the_handback_returns_control_and_journals_no_submit(
-        workdir, capsys, monkeypatch):
+        bare_workdir, capsys, monkeypatch):
     """The whole point. The caller gets its turn back while the proof is still
     running, and what is recorded at that moment is that the check started --
     never the submit, which nobody yet has an exit status for."""
@@ -128,7 +119,7 @@ def test_a_proof_past_the_handback_returns_control_and_journals_no_submit(
 
 
 def test_the_detached_proof_appends_its_own_submit_when_it_passes(
-        workdir, capsys, monkeypatch):
+        bare_workdir, capsys, monkeypatch):
     """The caller left with nothing journaled but a start. The submit that
     lands afterwards is the runner's, and it advances the run."""
     monkeypatch.setattr(checks, "HANDBACK", 1)
@@ -151,7 +142,7 @@ def test_the_detached_proof_appends_its_own_submit_when_it_passes(
 
 
 def test_the_detached_proof_appends_a_check_and_no_submit_when_it_fails(
-        workdir, monkeypatch):
+        bare_workdir, monkeypatch):
     """The guarantee, on the path that could have broken it: the runner holds
     the exit status, so it is the only process that can write a submit -- and
     it writes one only on exit 0."""
@@ -168,7 +159,7 @@ def test_the_detached_proof_appends_a_check_and_no_submit_when_it_fails(
     assert not st["in_flight"]                    # and no longer in flight
 
 
-def test_a_second_submit_while_the_proof_is_running_refuses(workdir, monkeypatch):
+def test_a_second_submit_while_the_proof_is_running_refuses(bare_workdir, monkeypatch):
     """Two runners against one step can both reach exit 0, and that is the one
     interleaving that would journal the submit twice."""
     monkeypatch.setattr(checks, "HANDBACK", 1)
@@ -183,7 +174,7 @@ def test_a_second_submit_while_the_proof_is_running_refuses(workdir, monkeypatch
 
 
 def test_a_started_check_whose_process_is_gone_reads_as_work_to_redo(
-        workdir, capsys):
+        bare_workdir, capsys):
     """The orphan: killed mid-run, or the machine went away. Rendering it as a
     proof still in flight would leave the run waiting forever on nothing."""
     _gate("true")
@@ -207,7 +198,7 @@ def test_a_started_check_whose_process_is_gone_reads_as_work_to_redo(
 
 
 def test_a_proof_that_outruns_its_budget_refuses_and_names_the_budget(
-        workdir, monkeypatch):
+        bare_workdir, monkeypatch):
     """#36: "fix the command, or drop this step" are both wrong for a check
     that is slow because it is correct. The refusal separates the two readings
     and names the declaration that buys the time."""
@@ -225,7 +216,7 @@ def test_a_proof_that_outruns_its_budget_refuses_and_names_the_budget(
     assert [x for x in journal.read("g1") if x.get("kind") == "check"][-1]["exit"] == -1
 
 
-def test_a_gate_spec_declaring_its_own_budget_is_run_under_it(workdir, monkeypatch):
+def test_a_gate_spec_declaring_its_own_budget_is_run_under_it(bare_workdir, monkeypatch):
     """The budget is the gate spec's to declare, so a spec that says its proof
     is long must not be held to the engine's default -- and one that says it is
     short must be stopped there."""
@@ -241,7 +232,7 @@ def test_a_gate_spec_declaring_its_own_budget_is_run_under_it(workdir, monkeypat
     assert payload["budget"] == 1
 
 
-def test_a_budget_that_is_not_seconds_refuses_before_anything_runs(workdir):
+def test_a_budget_that_is_not_seconds_refuses_before_anything_runs(bare_workdir):
     """A spec that meant fifteen minutes and typed `15m` has declared
     something. Running it under the default instead makes the declaration
     decoration."""

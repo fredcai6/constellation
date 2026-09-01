@@ -8,28 +8,13 @@ path or segment id, so a run that fills no such form closes with both keys
 empty rather than with no keys at all.
 """
 
-import pathlib
-
-import pytest
-
 from engine import cli, journal, run as runmod
-from gitremote import init_checkout, read_archived, stub_gh
+from gitremote import read_archived, stub_gh
 from test_nesting import (
     _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _drive_plan_to_impasse,
     _fill, _fill_close, _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
     _mint_first_gate, _work_the_board,
 )
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _fill_implement(wid, change, deviations):

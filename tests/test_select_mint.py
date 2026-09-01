@@ -14,27 +14,14 @@ looked fixed on paper twice, and it fails against the broken version rather
 than asserting on the helper that holds it.
 """
 
-import pathlib
 import tomllib
 
-import pytest
-
 from engine import cli, forms, journal, run as runmod
-from gitremote import init_checkout
+from conftest import REPO
 from test_nesting import _fill, _fill_implement, _select_panel
 from test_verdict_panels import _fill_review
 
-REPO = pathlib.Path(__file__).resolve().parent.parent
 GATE = REPO / "assemblies" / "run-a-gate" / "ASSEMBLY.toml"
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _open_and_implement(gid="g1"):

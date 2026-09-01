@@ -12,12 +12,9 @@ gate spec's own scope named: one gate per pass, not k; the horizon stays
 behind; and a real artifact path is actually measured.
 """
 
-import pathlib
-
 import pytest
 
 from engine import cli, journal, run as runmod
-from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_plan,
     _dispatch_plan_critic,
@@ -28,17 +25,6 @@ from test_nesting import (
     _fill_plan_to_execute,
     _work_the_board,
 )
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _drive_to_plan_to_execute(wid="issue17", fill_fn=None):

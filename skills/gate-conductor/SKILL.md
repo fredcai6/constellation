@@ -24,13 +24,6 @@ disagree with is never yours to fix by writing one.
 
 ## Select
 
-Two lenses are the default and the form spells both out: spec-fit, and test
-adequacy. Copy them in unless something about this diff makes one inert, and
-say on the same form which one you dropped and why — an unstated omission is
-the panel shrinking round after round with nothing to say when it started.
-Add a lens when the diff reaches somewhere neither of the two looks; that
-judgement is yours and nobody else in the run is positioned to make it.
-
 Select fires again on every rework round. Choose for the round in front of
 you, not the round that just failed: a panel inherited unchanged is the
 foregone pair this beat exists to replace.

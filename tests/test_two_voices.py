@@ -21,20 +21,8 @@ import pathlib
 import pytest
 
 from engine import cli, forms, journal, run as runmod
-from gitremote import init_checkout
+from conftest import REPO
 from test_nesting import _write_plan_artifact
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
-
 
 CRITIC = "skills/critic/forms/CRITIC.toml"
 CONSOLIDATE = REPO / "assemblies/run-an-issue/forms/CONSOLIDATE.toml"

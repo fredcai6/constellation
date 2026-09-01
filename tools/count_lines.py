@@ -1,6 +1,8 @@
-"""The machinery cap's instrument: how many lines of code a tree holds.
+"""The machinery cap's instrument: how many lines of code a tree holds. The
+same module also holds the corpus budget's instrument, `--words`:
 
     python3 -m tools.count_lines engine spine
+    python3 -m tools.count_lines --words skills standards assemblies docs/AGENT_GUIDE.md
 
 A cap on machinery should count machinery. `wc -l` counts blank lines,
 comments and docstrings too, so the number it returns moves when someone
@@ -17,6 +19,7 @@ what is committed, and cannot drift with `engine/__pycache__/*.pyc`.
 """
 
 import io
+import re
 import subprocess
 import sys
 import tokenize
@@ -90,7 +93,118 @@ def tracked(paths):
     return out.stdout.split()
 
 
+# A run of letters is a word-token: `tr -sc 'A-Za-z' '\n' | grep -c .`
+# squeezed to newlines and counted, which this matches without a subprocess.
+WORD = re.compile(r"[A-Za-z]+")
+
+# Only TOML is scanned for `#` comments; other corpus files (`.md`) have no
+# comment syntax of their own and are counted whole.
+TOML_QUOTES = ('"""', "'''", '"', "'")
+
+
+def split_toml_comments(source):
+    """`(body, comments)`: `source` with every `#` comment pulled into its
+    own string, quote state tracked so a `#` inside a TOML string -- basic,
+    literal, or triple of either -- is not mistaken for one. Mirrors what
+    `tokenize.COMMENT` does for `code_lines` above: a trailing `# note` is a
+    comment exactly like a line that is nothing else, because both are the
+    same token in TOML as they are in Python.
+    """
+    body, comments = [], []
+    i, n, state = 0, len(source), None
+    while i < n:
+        if state is None:
+            for q in TOML_QUOTES:
+                if source.startswith(q, i):
+                    state = q
+                    body.append(q)
+                    i += len(q)
+                    break
+            else:
+                ch = source[i]
+                if ch == "#":
+                    end = source.find("\n", i)
+                    end = n if end == -1 else end
+                    comments.append(source[i:end])
+                    i = end
+                else:
+                    body.append(ch)
+                    i += 1
+            continue
+        if source.startswith(state, i):
+            body.append(state)
+            i += len(state)
+            state = None
+            continue
+        # A basic string (single- or triple-quoted `"`) allows `\` escapes;
+        # a literal one (`'`) does not, so a backslash there is just a char.
+        if state[0] == '"' and source[i] == "\\" and i + 1 < n:
+            body.append(source[i:i + 2])
+            i += 2
+            continue
+        if len(state) == 1 and source[i] == "\n":
+            state = None  # an unterminated single-line string; stop guessing
+        body.append(source[i])
+        i += 1
+    return "".join(body), "".join(comments)
+
+
+def is_toml(path):
+    return path.endswith(".toml")
+
+
+def measure_words(path):
+    """`(words, comment_words)` for one file: alphabetic word-tokens outside
+    any TOML `#` comment, and the same tokens found inside one. Non-TOML
+    files have no comment syntax here, so every token is a word and the
+    comment count is zero."""
+    source = open(path, encoding="utf-8").read()
+    body, comments = split_toml_comments(source) if is_toml(path) else (source, "")
+    return len(WORD.findall(body)), len(WORD.findall(comments))
+
+
+def raw_word_count(files):
+    """Plain `wc -w` over `files`, kept alongside the tokenizer's headline so
+    the two methods' divergence is a live number rather than a claim frozen
+    in prose."""
+    out = subprocess.run(["wc", "-w", *files], capture_output=True, text=True,
+                         check=True)
+    # The last line is the total when more than one file is given, and the
+    # only line when one is: either way, the leading field is the count.
+    return int(out.stdout.strip().splitlines()[-1].split()[0])
+
+
+def main_words(paths):
+    files = tracked(paths)
+    if not files:
+        print(f"no tracked files under {' '.join(paths)}")
+        return 1
+    width = max(len(f) for f in files)
+    total_words = total_comments = 0
+    for f in files:
+        words, comment_words = measure_words(f)
+        total_words += words
+        total_comments += comment_words
+        print(f"  {f:<{width}}  {words:>5}  {comment_words:>5} comments")
+    print(f"  {'':<{width}}  {'-' * 5}")
+    # Assembly `#` comments are maintainer rationale for why the engine mints
+    # as it does; a conductor never reads them, because the engine hands it
+    # rendered forms, never raw TOML -- so they are excluded from the
+    # headline count the same way `code_lines` excludes them above, and
+    # printed beside it rather than folded in, for the same reason prose is
+    # beside code: the corpus budget's headroom should not be spendable by
+    # moving words into a column nobody reads. Nothing exits non-zero here
+    # either -- see the note on `main`.
+    print(f"  {'words':<{width}}  {total_words:>5}")
+    print(f"  {'comments':<{width}}  {total_comments:>5}  TOML `#` comments")
+    print(f"  {'raw':<{width}}  {raw_word_count(files):>5}  what `wc -w` returns")
+    return 0
+
+
 def main(argv):
+    if argv[:1] == ["--words"]:
+        return main_words(argv[1:] or ["skills", "standards", "assemblies",
+                                        "docs/AGENT_GUIDE.md"])
     paths = argv or ["engine", "spine"]
     files = tracked(paths)
     if not files:

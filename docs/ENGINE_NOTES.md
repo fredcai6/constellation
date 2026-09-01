@@ -138,4 +138,6 @@ The three ways out, none chosen yet, all cutover decisions:
    signal to re-read Layer 2.
 
 Whichever wins, the test is the handoff's: repo shape and installed shape must
-not diverge, because that divergence is what grew v1's installer to 3,219 lines.
+not diverge, because that divergence is what grew v1's installer to 3,219 lines
+— v1 is deleted, so that figure is archival record, not a line count this tree
+carries.

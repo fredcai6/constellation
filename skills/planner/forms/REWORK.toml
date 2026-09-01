@@ -31,22 +31,16 @@ note = "Where the change lives, and what is out of bounds."
 [[field]]
 id = "proof"
 note = """
-The command that passes once this gate's work is done and fails while it is
-not. A command that passes on an empty diff proves nothing, and so does one
-that covers less than `scope` promised -- one check per commitment. Write the
-exact string to run, never a description of it: this field rides into the
-dispatched child as its own `proof`, shell-executed there, so prose becomes a
-command and fails only after the work is done. Reference the command palette
-(constellation.toml) rather than hardcoding where it applies."""
+Same as PLAN.toml's `proof`: the exact command to run, never a description,
+referencing the command palette (constellation.toml) -- one that proves
+nothing on an empty diff or a diff short of `scope`."""
 
 [[field]]
 id = "budget"
 optional = true
 note = """
-Whole seconds the proof may run before the engine calls it broken rather than
-slow. Omit for 600. Declare one when the proof is long because it is
-right -- a full suite, a real build -- so a check that outruns it is news
-rather than the normal case."""
+Same as PLAN.toml's `budget`: declare one only when the proof is long because
+it is right."""
 
 [[field]]
 id = "model"

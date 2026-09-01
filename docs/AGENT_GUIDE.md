@@ -59,39 +59,31 @@ correct is not sufficient, which is what `standards/issue.md` says from the othe
 
 Two budgets bound every addition: engine code at **≤ 2,500 lines**, measured by
 `palette:lines`, which counts lines of code and prints comments and docstrings beside that
-number rather than in it (currently 2,275); and corpus — the authored artifacts an agent must
-read before it can work (`skills/`, `standards/`, `assemblies/`, this file) — at **≤ 20,000
-words** (currently ~21,000). Corpus has no palette instrument the way engine lines do:
-~21,000 is alphabetic word-tokens (`tr`-split on non-letters) counted across every file under
-`skills/`, `standards/`, `assemblies/` plus this one; plain `wc -w` over the same files reads
-about 1,100 words higher because it counts bare TOML punctuation (`=`, `[[`, a quoted id) as
-its own word each. Either method crosses the line; the method is stated here because the
-number is a measurement, not a rerun. No test enforces either budget. Both are alert
-thresholds, not walls: crossing one is not a refusal, it is a prompt to stop and ask what the
-repo does not need anymore, and whether a consolidation pass is due. Never trim an artifact
-just to bring a number down — that spends real guidance to shrink an integer, which is not a
-win. A green engine achieved by relocating lines into another component still counts as a
-miss: the cap tracks what the engine costs, not what `palette:lines` sees. `tools/` is outside
+number rather than in it; and corpus at **≤ 20,000 words**, measured by `palette:words`,
+which counts the same way but excludes TOML comments. Corpus is not what any single agent
+reads — the heaviest single step, `issue-conductor`'s biggest, reads about 3,166 words, and
+summing every form a full `issue-conductor` run fills plus the whole glossary comes to about
+8,590; the heaviest skill, `planner`, is 1,353 words, `reviewer` 520. What the corpus number
+tracks instead is total maintenance and coherence surface: `skills/`, `standards/`,
+`assemblies/`, and this file — everything someone doing a repo-wide pass must hold at once.
+No test enforces either budget. Both are alert thresholds, not walls: crossing one is not a
+refusal, it is a prompt to stop and ask what the repo does not need anymore, and whether a
+consolidation pass is due. Never trim an artifact just to bring a number down — that spends
+real guidance to shrink an integer, which is not a win. Moving engine work into `tools/` to
+duck the cap is gaming and still counts as a miss; reorganizing within `engine/` is not —
+`palette:lines` counts `engine spine` wholesale, so it reads the same either way — and the cap
+is never a reason to leave a module carrying several unrelated concerns. `tools/` is outside
 both caps by ruling.
 
-The corpus crossed 20,000 words this run, by deliberate ruling at open rather than by
-accident, so the question above gets a real answer rather than a skipped one: nothing found on
-inspection earns removal yet. `standards/glossary.md` is the single largest file (~3,200
-words), but its growth is the intended mechanism rather than drift — new terms enter it
-through the key-terms field precisely so a meaning is written down once instead of
-reconstructed per reader, and every entry it carries still names something the tree
-distinguishes. The pairs that look like padding at a glance — `run-an-issue` and `run-a-gate`
-each carrying their own similarly-sized `IMPASSE.toml`, `OPEN.toml`, `CLOSE.toml` — read that
-length because they answer the same question at two different tiers in deliberately different
-words (a plan a fourth round keeps failing, versus a diff one does);
-`assemblies/run-a-gate/ASSEMBLY.toml`'s own comments are why they stay two files instead of a
-shared include. A spot check for orphaned corpus — grepping every form file's own name across
-the rest of `skills/` and `assemblies/` — turned up exactly one file with no in-corpus reference,
-`skills/gate-conductor/forms/ASK.toml`; it is live, reached by a hardcoded path in
-`engine/cli.py` and exercised by `tests/test_pause_gate.py`, not dead weight the grep simply
-couldn't see. Nothing inspected here is failing to earn its keep; the next consolidation pass,
-when the corpus has grown further and one is due, belongs to whoever next revisits this
-bookkeeping.
+`standards/glossary.md` is the single largest file in corpus. Its growth is the intended
+mechanism rather than drift — new terms enter it through the key-terms field precisely so a
+meaning is written down once instead of reconstructed per reader. Pairs that can look like
+padding at a glance — `run-an-issue` and `run-a-gate` each carrying their own `IMPASSE.toml`,
+and `run-an-issue/forms/CLOSE.toml` beside `run-a-gate/forms/GATE_CLOSE.toml` — read that
+length because each answers the same question at two different tiers in deliberately
+different words (a plan a fourth round keeps failing, versus a diff one does). `run-a-gate`
+has no `OPEN.toml` at all: its `ASSEMBLY.toml` states there is nothing to fill at open, so
+gate-tier open carries no form and no words.
 
 ## How work happens
 
