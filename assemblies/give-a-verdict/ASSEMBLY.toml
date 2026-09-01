@@ -8,6 +8,15 @@ conductor = "reviewer"
 
 [[segment]]
 id = "verdict"
+# [verdict-step-form]
+# Rationale: `_up_target`'s backward scan (engine/cli.py) resolves a bare
+#   `up` only at a segment declaring `step-form` -- without this, a
+#   panelist mid-verdict had nowhere at or before its own segment to
+#   resume, and `up` refused outright. `verdict` declares no `interior`,
+#   so `skeleton()`'s own gate (`seg.get("interior") in ("steps",
+#   "board")`) stays false and this changes nothing about what `open`
+#   mints -- only `_up_target`'s scan sees it.
+step-form = "skills/reviewer/forms/REVIEW.toml"
 
 [segment.transition]
 anchor = true

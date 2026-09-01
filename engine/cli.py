@@ -1382,7 +1382,7 @@ def _perform(wid, asm, seg, does, fields, step):
 #   on -- ruling `up` from `work-1` says nothing about `select` -- and
 #   closing it would strand the ordinary round `select` exists to receive
 #   once the paused segment resumes and completes.
-def _pause_gate(wid, tseg, reason, fields):
+def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     """`up`'s own verb: an ask minted where a conductor can see it -- the
     parent standing on the step that dispatched this run, reordered before
     the still-live pair so it is what the parent's own `state()` stands on
@@ -1429,10 +1429,21 @@ def _pause_gate(wid, tseg, reason, fields):
     if sibling and not pstep:
         journal.append(wid, "amend", action="reorder", segment=tseg["id"],
                        step=ask_id, before=sibling, reason=reason, anchor=False)
+    # [marker-carries-resume-form]
+    # Rationale: `resume_form`/`resume_filler` are stashed onto the marker
+    #   itself, not derived again at resume time -- the marker is already
+    #   the one journal entry every resume path (`_resume_paused_child`)
+    #   reads to find its way back, and what a panelist's own step was
+    #   overridden to at open (`_open_child`'s panel branch) is otherwise
+    #   nowhere else durable to read it back from. Empty on the impasse's
+    #   own `does = "pause"` rows (`_perform`), reproducing today's
+    #   behaviour there exactly -- only `cmd_up`'s same-segment case ever
+    #   supplies either.
     marker_id = f"{tseg['id']}-a{secrets.token_hex(2)}"
     journal.append(wid, "step", id=marker_id, segment=tseg["id"], paused=tseg["id"],
                    sibling=sibling or "", filler="conductor", anchor=False,
-                   terminal=False, validates="", source="mint")
+                   terminal=False, validates="", source="mint",
+                   resume_form=resume_form, resume_filler=resume_filler)
     if sibling:
         journal.append(wid, "amend", action="reorder", segment=tseg["id"],
                        step=marker_id, before=sibling, reason=reason, anchor=False)
@@ -1817,7 +1828,15 @@ def _resume_paused_child(pwid, step, fields):
     journal.append(child, "amend", action="close", segment=marker["segment"],
                    step=marker["id"], reason="resumed by the parent's answer",
                    anchor=marker.get("anchor", False))
-    _mint_segment_round(child, casm, tseg_id, prefill=fields)
+    # A panelist's own step was overridden at open (`_open_child`'s panel
+    # branch) to its panel entry's form/worker -- e.g. a critic's
+    # CRITIC.toml, not give-a-verdict's bare default. `_pause_gate` stashed
+    # that override on the marker as `resume_form`/`resume_filler`, since
+    # nothing else durable carries it back to here; empty on every ordinary
+    # (non-panelist, or cross-segment) resume, reproducing today's behaviour.
+    _mint_segment_round(child, casm, tseg_id, prefill=fields,
+                        form=marker.get("resume_form", ""),
+                        filler=marker.get("resume_filler", ""))
     if sibling:
         fresh = [s["id"] for s in runmod.state(child)["steps"]
                 if s["segment"] == tseg_id and s["id"] not in before_ids]
@@ -1939,7 +1958,18 @@ def cmd_up(argv):
             escape=f"drop it instead: spine {wid} amend close {cur['id']} --reason ..."))
     journal.append(wid, "amend", action="close", segment=cur["segment"], step=cur["id"],
                    reason=reason, anchor=cur.get("anchor", False))
-    _pause_gate(wid, tseg, reason, {})
+    # A panelist ruling `up` mid-verdict resumes into its own panel-entry
+    # form/worker, not give-a-verdict's bare default -- read straight off
+    # `cur`, which `_open_child`'s panel branch already overrode at open.
+    # Only when the target IS the current step's own segment: every
+    # cross-segment case (`review` bubbling up to `work`) resumes at a
+    # segment `cur` never stood on, so its form/filler say nothing true
+    # about what should resume there -- neither is supplied, reproducing
+    # today's behaviour exactly.
+    resume_form, resume_filler = "", ""
+    if tseg["id"] == cur["segment"]:
+        resume_form, resume_filler = cur.get("form", ""), cur.get("filler", "")
+    _pause_gate(wid, tseg, reason, {}, resume_form=resume_form, resume_filler=resume_filler)
     print(f"paused {wid}\n")
     return cmd_status([wid])
 
@@ -2096,7 +2126,7 @@ def _amend_reorder(wid, st, step_id, reason, before):
 #   already reads whichever form its dispatch step names; teaching it a
 #   second shape to reach the same form would be a second thing to keep in
 #   sync with the planner's skill for no behaviour gained.
-def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
+def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler=""):
     """Mint one fresh round of a segment: its step-form (or the form the
     caller names -- a revise passes the segment's rework form) as a fresh
     interior step, plus its transition's panel -- both read from the
@@ -2111,30 +2141,70 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form=""):
     """
     seg = next(s for s in asm["segment"] if s["id"] == seg_id)
     t = seg.get("transition", {})
-    step = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
-            "filler": seg.get("worker", "conductor"), "prefill": prefill or {},
-            "anchor": False, "terminal": False, "validates": "", "source": "mint"}
-    # `form` is set either way -- a replan's dispatch carries its own
-    # step-form even though that names the child assembly's own default and
-    # so overrides nothing. `rework_rounds` (run.py) reads this field on
-    # every mint regardless of `dispatches`, and a step that omitted it
-    # whenever the value was the non-override default silently broke the
-    # replan-resets-the-count case the moment a replan started dispatching.
-    step["form"] = form or seg["step-form"]
-    if seg.get("dispatches"):
-        step["dispatches"] = seg["dispatches"]
-    journal.append(wid, "step", **step)
+    # [verdict-shaped-segment-round]
+    # Rationale: mirrors `skeleton()`'s own gate (engine/run.py:176) exactly
+    #   -- a segment with no real interior (give-a-verdict's `verdict`) is
+    #   already one `open` never mints an interior step for, so a resume
+    #   must not mint one either. Before this, a resumed panelist got TWO
+    #   fresh steps (an interior round nothing declared plus the transition
+    #   round) instead of one, driven live and confirmed against the proof.
+    # Rejected: gating on `form` the way `skeleton()`'s local variable does.
+    #   Every caller into this function already guarantees a step-form or a
+    #   form override, so `interior` alone is the live half of that test
+    #   here.
+    has_interior = seg.get("interior") in ("steps", "board")
+    if has_interior:
+        step = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
+                "filler": seg.get("worker", "conductor"), "prefill": prefill or {},
+                "anchor": False, "terminal": False, "validates": "", "source": "mint"}
+        # `form` is set either way -- a replan's dispatch carries its own
+        # step-form even though that names the child assembly's own default
+        # and so overrides nothing. `rework_rounds` (run.py) reads this
+        # field on every mint regardless of `dispatches`, and a step that
+        # omitted it whenever the value was the non-override default
+        # silently broke the replan-resets-the-count case the moment a
+        # replan started dispatching.
+        step["form"] = form or seg["step-form"]
+        if seg.get("dispatches"):
+            step["dispatches"] = seg["dispatches"]
+        journal.append(wid, "step", **step)
     # The segment's transition, re-minted for the fresh round: its panel where
     # it declares one, its form where it declares one, both where it is a
     # two-voices step. run-a-gate's `work` transition is the first to declare
     # a form and no panel -- `select` chooses the next round's readers rather
     # than carrying the last round's forward -- so neither key is assumed.
+    # `anchor`/`terminal` are read off the transition itself rather than
+    # hardcoded False: no existing step-form segment's transition declares
+    # `terminal = true`, so this is a pure extension for every one of them,
+    # and it is what lets `verdict`'s own resumed round keep being the
+    # segment's one terminal step -- without it `cmd_close` found no
+    # terminal step and the panelist's actual ruling never reached its
+    # parent.
     fresh = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
-             "anchor": False, "terminal": False, "source": "panel"}
+             "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
+             "source": "panel"}
     if t.get("panel"):
         fresh["panel"] = t["panel"]
     if t.get("form"):
         fresh["form"] = t["form"]  # the two-voices shape survives a fresh round
+    # [fresh-round-is-the-only-round]
+    # Rationale: when the segment has no real interior, this transition
+    #   round is the ONLY round minted -- so it is what the resuming
+    #   panelist actually fills, and `form`/`filler`/`prefill` all have to
+    #   spend themselves here instead of on an interior step that will not
+    #   exist. A segment WITH a real interior is completely unaffected: it
+    #   keeps spending `form` on the interior round above (the existing
+    #   rework-form-override path), and `filler`/`prefill` are never read
+    #   here for it. Confirmed against the proof: without `prefill` landing
+    #   here too, a resumed panelist's answer to its own `up` never reached
+    #   the round it was answering for.
+    if not has_interior:
+        if form:
+            fresh["form"] = form
+        if filler:
+            fresh["filler"] = filler
+        if prefill:
+            fresh["prefill"] = prefill
     if t.get("panel") or t.get("form"):
         journal.append(wid, "step", **fresh)
 
