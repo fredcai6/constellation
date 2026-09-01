@@ -20,9 +20,9 @@ it. When a criterion is unclear, ask: does this make the next run more predictab
   | Skill | Words |
   |---|---|
   | explorer | 2,500 |
-  | epic-conductor | 1,500 |
+  | epic-conductor† | 1,500 |
   | issue-conductor | 1,500 |
-  | issue-conductor-delegated | 500 |
+  | issue-conductor-delegated† | 500 |
   | interrogator | 800 |
   | spec-writer | 600 |
   | critic | 850 |
@@ -30,10 +30,12 @@ it. When a criterion is unclear, ask: does this make the next run more predictab
   | implementer | 800 |
   | gate-conductor | 800 |
   | excursion | 1,050 |
-  | triage | 600 |
-  | how-to-talk | 500 |
+  | triage† | 600 |
   | standards | 1,500 |
   | assemblies | 2,000 |
+
+  † Pre-declared for a skill on the roadmap (`docs/V2_DESIGN.md`) but not yet
+  built — no `skills/` directory exists for it today.
 - **Leading words.** Open by telling the agent what to *do*, not by narrating background.
 - **Completion is checkable.** "Done" is a state two agents cannot disagree on.
 - **The no-op test.** Strip a sentence: if the run would go identically without it, it is

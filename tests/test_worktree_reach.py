@@ -14,24 +14,10 @@ archive move cannot find it.
 
 import pathlib
 
-import pytest
-
 from engine import cli, journal, rail, render, run as runmod
-from gitremote import init_checkout
 from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_plan, \
     _dispatch_and_close_plan, _dispatch_plan_critic, _fill, _select_panel, \
     _work_the_board, _write_plan_artifact
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _open_one_gate(wid, issue, proof):

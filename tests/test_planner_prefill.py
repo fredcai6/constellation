@@ -16,12 +16,7 @@ override so a rework round reaches REWORK.toml rather than PLAN.toml
 spec, unaffected by the run-level prefill riding beneath it.
 """
 
-import pathlib
-
-import pytest
-
 from engine import cli, journal, run as runmod
-from gitremote import init_checkout
 
 from test_nesting import (
     _dispatch_and_close_plan,
@@ -31,18 +26,6 @@ from test_nesting import (
     _mint_first_gate,
     _work_the_board,
 )
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
-
 
 # -- 1. a dispatched planner's journal carries the parent's prefill keys -----
 

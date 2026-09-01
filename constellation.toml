@@ -4,7 +4,10 @@
 # `palette:test tests/x.py` -- so a spec names the job, not the command.
 
 [commands]
-# `test` is the fast suite -- seconds, run constantly, no model calls.
+# `test` is the fast suite -- no model calls, but not free: it drives real
+# git and journal I/O per test, so it runs closer to two minutes than
+# seconds (414 tests, ~93s measured). Run it constantly anyway -- the cost
+# is I/O, not a model.
 test = "python3 -m pytest -q"
 # `validate` is what a run's own gates should check, and what to run before
 # anything ships: the fast suite plus the agent evals, which drive a real
@@ -25,6 +28,14 @@ validate-gate-loop = "python3 -m pytest -q && python3 -m pytest 'evals/test_impl
 # by 896 lines depending on whether the suite had been run. Takes any paths, so the
 # same rule can measure a tree that is outside the cap.
 lines = "python3 -m tools.count_lines engine spine"
+# `words` is the corpus budget's instrument (docs/AGENT_GUIDE.md owns the cap). It
+# counts alphabetic word-tokens over the skills, standards and assemblies an agent
+# must read plus this guide. TOML `#` comments are maintainer rationale a conductor
+# never reads -- the engine hands it rendered forms, never raw TOML -- so they print
+# beside the headline count, same column discipline as `lines` above, never inside
+# it. Also prints plain `wc -w` over the same files, so the tokenizer-vs-`wc`
+# divergence stays a measurement instead of a number frozen in prose.
+words = "python3 -m tools.count_lines --words skills standards assemblies docs/AGENT_GUIDE.md"
 # `map` is the closeout call: the derived code map, built into .code-map/ and map/,
 # both gitignored. Never committed -- a stale committed map is the failure #7 names.
 # `--render-only` narrows the page tree to one package; the walk behind it stays

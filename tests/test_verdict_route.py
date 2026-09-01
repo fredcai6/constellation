@@ -22,16 +22,13 @@ Drives the real `run-a-gate` assembly, not a fixture -- `test_verdict_panels.py`
 already does, and its fixtures are reused here rather than re-declared.
 """
 
-import pathlib
-
 from engine import cli, run as runmod
+from conftest import REPO
 from test_two_voices import CRITIC
-from test_verdict_panels import (  # noqa: F401
+from test_verdict_panels import (
     _fill, _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
-    _review_step, _select, workdir,
+    _review_step, _select,
 )
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
 
 
 # -- the wiring: `_decided_here` picks the transition's own `resolution` ---

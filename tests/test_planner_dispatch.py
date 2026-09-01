@@ -20,18 +20,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
-from gitremote import init_checkout
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
+from conftest import REPO
 
 
 def test_the_plan_segment_declares_a_dispatch_to_cut_a_gate():

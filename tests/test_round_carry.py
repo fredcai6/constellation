@@ -22,12 +22,7 @@ Drives the real assemblies end to end, like test_nesting.py -- no
 fixtures standing in for the crossing under test.
 """
 
-import pathlib
-
-import pytest
-
 from engine import cli, journal, run as runmod
-from gitremote import init_checkout
 
 from test_nesting import (
     _dispatch_plan_critic,
@@ -38,17 +33,6 @@ from test_nesting import (
     _work_the_board,
 )
 from test_rework import _fresh_mint, _plan_measures
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _drive_to_first_round(wid="issue44", title="a plan that grows"):

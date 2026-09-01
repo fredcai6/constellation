@@ -14,15 +14,10 @@ that prose review never reads. Scoping the second check to prose alone would
 miss exactly that branch -- `engine/` is checked like any other root.
 """
 
-import pathlib
-
 from engine import cli, journal, run as runmod
+from conftest import REPO
 from test_nesting import _write_plan_artifact
-from test_two_voices import (  # noqa: F401
-    CRITIC, _dispatch_and_close_plan, _dispatch_panel, _drive_to_plan_to_execute, workdir,
-)
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
+from test_two_voices import CRITIC, _dispatch_and_close_plan, _dispatch_panel, _drive_to_plan_to_execute
 
 
 # -- 1. the merged verdict resolves through the declared outcome table ------

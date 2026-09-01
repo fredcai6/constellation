@@ -20,26 +20,10 @@ fixtures rather than a shortcut -- the behaviour under test is what the
 engine does at a real adjudication, not a unit in isolation.
 """
 
-import pathlib
-
-import pytest
-
 from engine import boards, journal, run as runmod
 from engine import cli
-from gitremote import init_checkout
 from test_execution_state import _execution_state_path, _mint_first_gate_with_obligation
 from test_nesting import _dispatch_and_close_child, _fill, _fill_gate_transition
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _fill_gate_transition_with_disposition(wid, obligation="o1", disposition="satisfied"):

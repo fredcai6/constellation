@@ -11,20 +11,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
-from gitremote import init_checkout, read_archived, stub_gh
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    # the command palette (models, check commands) is host-repo config;
-    # tests run in an isolated tmp cwd, so it travels with them
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
+from gitremote import read_archived, stub_gh
 
 
 def _fill(path, text):

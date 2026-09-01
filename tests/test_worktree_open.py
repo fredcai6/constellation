@@ -16,23 +16,12 @@ import subprocess
 import pytest
 
 from engine import cli, journal, render, run as runmod
-from gitremote import init_checkout
+from conftest import REPO
 from test_nesting import _mint_first_gate
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
 
 
 def _git(cwd, *args):
     return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True)
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 # -- the happy path: a pushed worktree, worked from inside it ---------------

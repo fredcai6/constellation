@@ -23,26 +23,12 @@ is what the engine does at a real `advance`, not a unit in isolation.
 
 import pathlib
 
-import pytest
-
 from engine import boards, journal, run as runmod
 from engine import cli
-from gitremote import init_checkout
 from test_nesting import (
     _dispatch_and_close_child, _dispatch_and_close_plan, _dispatch_plan_critic,
     _fill, _fill_gate_transition, _fill_open, _fill_plan_to_execute, _work_the_board,
 )
-
-REPO = pathlib.Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture
-def workdir(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
-    init_checkout(tmp_path)
-    return tmp_path
 
 
 def _fill_consolidate_with_obligation(wid, obligation="Fix the parser to handle EOF "
