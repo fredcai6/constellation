@@ -448,3 +448,84 @@ def test_dropping_review_is_loud_in_the_parents_adjudication_view(workdir):
     line = render.amends(cli._summary(st)["amends"])[0]
     assert line.startswith("ANCHOR ")          # flagged where the parent reads it
     assert f"close {review}" in line and "in a hurry" in line
+
+
+# -- a dispatched panelist can rule up mid-verdict, and resumes correctly ---
+
+
+def test_a_dispatched_reviewer_asks_mid_verdict_resumes_once_and_the_verdict_survives(
+        workdir, capsys):
+    cli.main(["open", "run-a-gate", "--id", "gpx"])
+    _fill_implement("gpx")
+    cli.main(["gpx", "submit"])
+    review = _select("gpx")
+    panelist = _open_panelist("gpx", review)
+    capsys.readouterr()
+
+    cli.main([panelist, "up", "the diff touches a file the spec never named -- in scope?"])
+    capsys.readouterr()
+
+    gate_state = runmod.state("gpx")
+    review_step = next(s for s in gate_state["steps"] if s["id"] == review)
+    assert runmod.panel_outstanding(gate_state, review_step)
+    assert not gate_state["returns"].get(review, [])
+    ask = next(s for s in gate_state["steps"]
+               if s.get("form") == "skills/gate-conductor/forms/ASK.toml")
+    assert ask["segment"] == review_step["segment"]
+
+    panelist_state = runmod.state(panelist)
+    assert panelist_state["open"], "up must pause the reviewer's own run, not close it"
+
+    (journal.location("gpx") / "ASK.toml").write_text(
+        'answer = "yes -- the touched file is in scope, note it in the diff summary"\n')
+    cli.main(["gpx", "submit"])
+    capsys.readouterr()
+
+    resumed = runmod.state(panelist)
+    not_done = [s for s in resumed["steps"] if s["id"] not in resumed["done"]]
+    assert len(not_done) == 1, (
+        f"resume must mint exactly one fresh round, not {len(not_done)}: {not_done}")
+    assert not_done[0]["form"] == "skills/reviewer/forms/REVIEW.toml"
+    assert not_done[0]["terminal"], "the resumed round must be the segment's terminal step"
+
+    _fill_review(panelist, "revise",
+                 findings="gap: the touched file needs its own line in the diff summary")
+    cli.main([panelist, "submit"])
+    cli.main([panelist, "close"])
+
+    gate_state = runmod.state("gpx")
+    ret = gate_state["returns_by_child"].get(panelist)
+    assert ret, "no return reached the parent"
+    assert ret["fields"]["verdict"] == "revise", (
+        "the panelist's actual ruling must reach the parent, not fall through empty: "
+        f"{ret['fields']}")
+
+
+def test_a_critic_panelist_asks_mid_verdict_and_resumes_into_its_own_form(workdir, capsys):
+    journal.append("gcz", "run", title="t", assembly="run-a-gate")
+    journal.append("gcz", "step", id="review", segment="work",
+                   panel=[{"form": "skills/critic/forms/CRITIC.toml", "worker": "critic",
+                           "criteria": "testability"}])
+    capsys.readouterr()
+
+    panelist = _open_panelist("gcz", "review")
+    st = runmod.state(panelist)
+    assert st["current"]["form"] == "skills/critic/forms/CRITIC.toml"
+    assert st["current"]["filler"] == "critic"
+
+    cli.main([panelist, "up", "is this in scope for the plan under review?"])
+    capsys.readouterr()
+
+    (journal.location("gcz") / "ASK.toml").write_text('answer = "yes, it is in scope"\n')
+    cli.main(["gcz", "submit"])
+    capsys.readouterr()
+
+    resumed = runmod.state(panelist)
+    not_done = [s for s in resumed["steps"] if s["id"] not in resumed["done"]]
+    assert len(not_done) == 1, (
+        f"resume must mint exactly one fresh round, not {len(not_done)}: {not_done}")
+    assert not_done[0]["form"] == "skills/critic/forms/CRITIC.toml", (
+        "a critic-role panelist must resume into its own panel-entry form, "
+        f"not {not_done[0].get('form')}")
+    assert not_done[0]["filler"] == "critic"
+    assert not_done[0]["terminal"]
