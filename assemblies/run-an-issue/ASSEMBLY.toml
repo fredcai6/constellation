@@ -52,7 +52,7 @@ decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no s
 
   [[segment.outcome]]
   value = "up"
-  does = "release"     # mints nothing; the run walks to its terminal step
+  does = "pause"     # mints an ask into the parent and a marker here; see [pause-gate]
 
 [segment.transition]
 anchor = true
@@ -166,7 +166,7 @@ decides = "ruling"     # IMPASSE.toml's; PLAN.toml and REWORK.toml have no such 
 
   [[segment.outcome]]
   value = "up"
-  does = "release"     # mints nothing; the run walks to its terminal step
+  does = "pause"     # mints an ask into the parent and a marker here; see [pause-gate]
 
 [segment.transition]
 anchor = true

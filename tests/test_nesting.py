@@ -1057,12 +1057,18 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeyp
     _drive_plan_to_impasse(wid)
     capsys.readouterr()
 
-    # the outlet four revises minted: rule `up`, which is the move that ends
-    # the run and makes the ruling the record
-    assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
-    _fill(journal.location(wid) / "IMPASSE.toml",
-          'ruling = "up"\nwhy = "the critics read the plan against the wrong issue"\n')
-    cli.main([wid, "submit"])
+    # the outlet four revises minted: `up`, ruled here, now pauses this
+    # segment rather than releasing it to close (commitment 3, issue84.g2),
+    # and this test's own subject is the close summary once the run *does*
+    # reach `forms/CLOSE.toml`, not the impasse ruling itself -- so the
+    # impasse step is amend-closed directly rather than routed through a
+    # round trip this test does not exist to drive.
+    impasse = runmod.state(wid)["current"]
+    assert impasse["form"] == "forms/IMPASSE.toml"
+    journal.append(wid, "amend", action="close", segment=impasse["segment"],
+                   step=impasse["id"],
+                   reason="the critics read the plan against the wrong issue",
+                   anchor=impasse.get("anchor", False))
     _fill_close(wid)
     cli.main([wid, "submit"])
     stub_gh(monkeypatch)

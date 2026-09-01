@@ -70,9 +70,18 @@ def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, mo
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
     _drive_plan_to_impasse(wid)
-    _fill(journal.location(wid) / "IMPASSE.toml",
-          'ruling = "up"\nwhy = "the critics read the plan against the wrong issue"\n')
-    cli.main([wid, "submit"])
+    # `up`, ruled here, now pauses this segment rather than releasing it to
+    # close (commitment 3, issue84.g2) -- this test's own subject is the
+    # close summary once the run *does* reach `forms/CLOSE.toml`, not the
+    # impasse ruling itself, so the impasse step is amend-closed directly
+    # rather than routed through a round trip this test does not exist to
+    # drive.
+    impasse = runmod.state(wid)["current"]
+    assert impasse["form"] == "forms/IMPASSE.toml"
+    journal.append(wid, "amend", action="close", segment=impasse["segment"],
+                   step=impasse["id"],
+                   reason="the critics read the plan against the wrong issue",
+                   anchor=impasse.get("anchor", False))
     _fill_close(wid)
     cli.main([wid, "submit"])
 

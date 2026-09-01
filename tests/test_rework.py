@@ -391,23 +391,59 @@ def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
     assert "empty diff (3)" in st["current"]["prefill"]["findings"]
 
 
-def test_up_mints_nothing_and_the_run_walks_to_its_close(workdir, capsys):
-    """Refilling nothing is what `up` does: the run reaches its terminal form
-    and the ruling becomes the record whoever dispatched it reads."""
+def test_up_pauses_the_plan_impasse_rather_than_releasing(workdir, capsys):
+    """commitment 3's ruling (issue84.g2): `up` is kept as a conductor's
+    shorthand at this impasse, repointed from `release` to `pause` -- so
+    ruling it here now stands an ask one tier up (self-minted: `_drive_to_
+    impasse`'s own run-an-issue has no parent) and the run stays open,
+    rather than walking to its terminal form the way a bare `release` did."""
     wid = _drive_to_impasse()
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
+    why = "the plan may be solving the wrong problem"
     _fill(runmod.journal.location(wid) / "IMPASSE.toml",
-          'ruling = "up"\nwhy = "the plan may be solving the wrong problem"\n')
+          'ruling = "up"\nwhy = "%s"\n' % why)
     cli.main([wid, "submit"])
     capsys.readouterr()
 
     st = runmod.state(wid)
-    assert len(st["steps"]) == before, "up minted a step"
-    assert st["current"]["form"] == "forms/CLOSE.toml"
-    ruling = st["done"][[s["id"] for s in st["steps"]
-                         if s.get("form") == "forms/IMPASSE.toml"][0]]["fields"]
+    assert st["open"] and not st["awaiting_close"], "up must pause the run, not close it"
+    assert len(st["steps"]) == before + 2, "up must mint an ask and a marker"
+    ask = st["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml", (
+        f"up must mint an ask, not release -- current is {ask!r}")
+    assert ask["resumes"] == wid
+    assert ask["prefill"].get("findings") == why
+    ruling_step = next(s for s in st["steps"] if s.get("form") == "forms/IMPASSE.toml")
+    ruling = st["done"][ruling_step["id"]]["fields"]
     assert ruling["ruling"] == "up" and "wrong problem" in ruling["why"]
+
+
+def test_up_pauses_the_understand_impasse_rather_than_releasing(workdir, capsys):
+    """The same ruling (commitment 3), at `understand`'s own impasse --
+    shares `forms/IMPASSE.toml` with `plan` above, and now shares the
+    outcome verb too: named separately from the test above, the way
+    `test_understands_fourth_revise_mints_the_impasse_form_not_another_
+    spec_round` already stands apart from `plan`'s own impasse tests,
+    since the two segments dispatch their rounds differently even though
+    the ruling itself is one policy."""
+    wid = _drive_understand_to_impasse()
+    before = len(runmod.state(wid)["steps"])
+    capsys.readouterr()
+    why = "the spec may be answering the wrong question"
+    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+          'ruling = "up"\nwhy = "%s"\n' % why)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    assert st["open"] and not st["awaiting_close"], "up must pause the run, not close it"
+    assert len(st["steps"]) == before + 2, "up must mint an ask and a marker"
+    ask = st["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml", (
+        f"up must mint an ask, not release -- current is {ask!r}")
+    assert ask["resumes"] == wid
+    assert ask["prefill"].get("findings") == why
 
 
 # -- 6. the same outlet on run-a-gate, which has no rework form ---------------

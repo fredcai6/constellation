@@ -1,23 +1,27 @@
 # Step: ask. Owned by the gate-conductor skill, filled by whoever conducts
-# the run that dispatched the paused gate -- an issue-conductor today, any
+# whatever paused -- an issue-conductor reading a gate's own ask today, any
 # future host tomorrow, since a skill-owned ref resolves the same from any
-# parent. Minted where a gate ruled `up`: the gate spec, not the diff, is
-# what a conductor down there could not answer, and this step is that
-# question standing where the parent already looks -- ahead of the gate's
-# own still-live dispatch and adjudication, not behind them.
+# parent -- or, where nothing paused reaches, the same conductor answering
+# itself. Minted where `up` was ruled: the orders driving the paused unit,
+# not its diff or its round, are what could not be answered from where it
+# stands, and this step is that question standing where whoever holds it
+# already looks -- ahead of its still-live dispatch and adjudication where
+# one exists, not behind them; standing alone where it does not.
 
 imperative = """
-A gate below paused rather than closing. Read what it was attempted, what it
-says failed, and what it could not answer from where it stands -- then say
-what it should do next. Your answer is the whole of its next round's own
-orders, read the way a gate spec is: nothing about the gate's own diff is
-yours to fix here, the spec driving it is."""
+Something below paused rather than closing or continuing on its own -- a
+gate's own ruling, a segment ruling `up` on itself, whichever `attempted`
+below names. Read what it was attempted, what it says failed, and what it
+could not answer from where it stands -- then say what it should do next.
+Your answer is the whole of its next round's own orders, read the way a gate
+spec is: nothing about its own diff or round is yours to fix here, the
+orders driving it are."""
 
 [[field]]
 id = "answer"
 kind = "evidence"
 note = """
-What this gate should do next -- the purpose restated, the scope narrowed or
-widened, or the missing decision made. Write it as orders to the fresh-context
-round that opens holding only this answer, not as a reply to the ask above:
-this is carried forward whole as that round's own prefill."""
+What the paused unit should do next -- the purpose restated, the scope
+narrowed or widened, or the missing decision made. Write it as orders to the
+fresh-context round that opens holding only this answer, not as a reply to
+the ask above: this is carried forward whole as that round's own prefill."""

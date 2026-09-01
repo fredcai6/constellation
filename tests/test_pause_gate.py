@@ -19,6 +19,7 @@ import pytest
 
 from engine import cli, journal, run as runmod
 
+from test_nesting import _fill_open
 from test_verdict_panels import _fill_implement, _fill_review, _fill_route, _open_panelist, _select
 from test_verdict_route import _route_with_calls
 
@@ -90,7 +91,7 @@ def test_up_stands_the_ask_at_the_parent_and_resumes_to_a_real_close(workdir, ca
     ask = pst["current"]
     assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
     assert ask["resumes"] == child
-    assert ask["prefill"]["gate"] == child
+    assert ask["prefill"]["paused"] == child
 
     # the sibling pair is exactly as it was -- pause touches nothing it has
     # no business touching
@@ -515,10 +516,175 @@ def test_bare_up_refuses_when_no_segment_at_or_before_current_has_a_step_form(
         cli.main(["issue15", "up", "too early to say anything yet"])
     msg = str(exc.value)
     assert "open" in msg
+    assert "declares a step-form" in msg  # the actual refusal text `cmd_up` raises
     assert journal.location("issue15") is not None  # still a real run, not wedged open
 
     after = journal.read("issue15")
     assert after == before, "a refusal must journal nothing that could strand the run"
 
-    st = runmod.state("issue15")
-    assert st["current"]["id"] == "open"  # exactly where it stood before the refusal
+
+# ============================================================================
+# The self-mint ordering defect (issue84.g2): a step-form segment's own
+# transition mints alongside its round-one interior step (`skeleton()`) --
+# `run-a-gate`'s `work-1`/`select`, `run-an-issue`'s `understand-1`/its own
+# consolidate. Ruling a bare `up` before that round-one step ever submits
+# leaves the transition sitting there untouched, and at plain append order
+# it would still precede the freshly self-minted ask in `_ordered`'s own
+# within-segment order -- `state()["current"]` would resolve to the stale
+# sibling, not the ask. `_pause_gate` now reorders the ask (and its marker)
+# ahead of it. Every other test above rules `up` after that round-one step
+# has already submitted (or from a synthetic single-step journal with no
+# sibling at all), so none of them exercise this -- these two do.
+# ============================================================================
+
+
+def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdir, capsys):
+    """Drives the sibling-ordering fix end to end, through a real resume --
+    not only the pause moment. A first draft of this fix (issue84.g2's own
+    review found) reordered the ask and its marker ahead of `select`, but
+    `_resume_paused_child`'s own `_mint_segment_round` call plain-appends
+    the fresh round behind whatever already stands in the segment, so once
+    the marker closes the untouched `select` -- only ever leapfrogged, never
+    itself reordered -- resurfaced ahead of the fresh round the same way.
+    This test fails against that first draft and passes against the fix
+    that also carries `select`'s id forward on the marker (`sibling`) so
+    the fresh round gets reordered ahead of it too."""
+    child_open = ["open", "run-a-gate", "--id", "gzp"]
+    cli.main(child_open)
+    capsys.readouterr()
+    pre = runmod.state("gzp")
+    assert pre["current"]["id"] == "work-1"
+    assert any(s["id"] == "select" for s in pre["steps"]), "select never minted at open"
+
+    cli.main(["gzp", "up", "the purpose itself is unclear before any round lands"])
+    capsys.readouterr()
+
+    st = runmod.state("gzp")
+    cur = st["current"]
+    assert cur["form"] == "skills/gate-conductor/forms/ASK.toml", (
+        "self-mint landed behind its own untouched sibling -- current is %r" % (cur,))
+    # `select` is still there, not-done, waiting for the resumed round -- the
+    # fix reorders past it, and never closes or drops it
+    select = next(s for s in st["steps"] if s["id"] == "select")
+    assert "select" not in st["done"]
+    assert select["segment"] == "work"
+
+    # -- the actual resume: answer the ask, and the fresh round must be
+    # what `current` resolves to next, not the untouched `select` it was
+    # reordered ahead of at the pause moment ------------------------------
+    _fill(journal.location("gzp") / "ASK.toml", 'answer = "narrow the purpose"\n')
+    cli.main(["gzp", "submit"])
+    capsys.readouterr()
+
+    resumed = runmod.state("gzp")["current"]
+    assert resumed["form"] == "skills/implementer/forms/IMPLEMENT.toml", (
+        "resume landed behind the stale sibling instead of the fresh round -- "
+        "current is %r" % (resumed,))
+    assert resumed["id"] != "work-1"
+
+
+def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_an_issue(workdir, capsys):
+    """Same shape as the `run-a-gate` test above, for `understand`'s own
+    consolidate sibling, driven through a real resume."""
+    cli.main(["open", "run-an-issue", "--id", "iss1"])
+    _fill_open("iss1")
+    cli.main(["iss1", "submit"])
+    capsys.readouterr()
+    pre = runmod.state("iss1")
+    assert pre["current"]["id"] == "understand-1"
+    consolidate = next(s for s in pre["steps"] if s["segment"] == "understand"
+                       and s["id"] != "understand-1")
+    assert consolidate["id"] not in pre["done"], "consolidate never minted untouched at open"
+
+    cli.main(["iss1", "up", "the spec can't settle what 'done' means before any round lands"])
+    capsys.readouterr()
+
+    st = runmod.state("iss1")
+    cur = st["current"]
+    assert cur["form"] == "skills/gate-conductor/forms/ASK.toml", (
+        "self-mint landed behind its own untouched sibling -- current is %r" % (cur,))
+    assert consolidate["id"] not in st["done"]
+
+    _fill(journal.location("iss1") / "ASK.toml", 'answer = "define done as EOF handling"\n')
+    cli.main(["iss1", "submit"])
+    capsys.readouterr()
+
+    resumed = runmod.state("iss1")["current"]
+    assert resumed["form"] == "skills/spec-writer/forms/SPEC.toml", (
+        "resume landed behind the stale consolidate sibling instead of the "
+        "fresh spec round -- current is %r" % (resumed,))
+    assert resumed["id"] != "understand-1"
+
+
+def test_bare_up_at_work_1_with_a_reachable_parent_also_outranks_the_sibling(
+        workdir, capsys):
+    """The sibling-ordering defect is not self-mint-only: the marker
+    `_pause_gate` mints always lands in the *child's own* journal, whether
+    or not the ask itself goes to a reachable parent. Ruled at a dispatched
+    gate's own `work-1`, before `select` is ever touched, the child's own
+    `select` sibling would otherwise still precede the marker -- so the
+    child's own `cmd_status` would show `select`'s ordinary prompt instead
+    of `paused`, even though the parent correctly stands on the ask.
+    Driven end to end, through the parent answering and the child resuming."""
+    _seed_two_gates("issue20")
+    child = "issue20.g1"
+    cli.main(["open", "run-a-gate", "--parent", "issue20", "--step", "g1"])
+    capsys.readouterr()
+    pre = runmod.state(child)
+    assert pre["current"]["id"] == "work-1"
+
+    cli.main([child, "up", "ruled at work-1 directly, with a reachable parent"])
+    capsys.readouterr()
+
+    cst = runmod.state(child)
+    assert runmod.paused(cst["current"]), (
+        "the child's own current is not the marker -- the untouched sibling "
+        "outranked it: %r" % (cst["current"],))
+
+    pst = runmod.state("issue20")
+    ask = pst["current"]
+    assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
+    assert ask["resumes"] == child
+
+    _fill(journal.location("issue20") / "ASK.toml",
+          'answer = "narrow the scope to src/parser.c"\n')
+    cli.main(["issue20", "submit"])
+    capsys.readouterr()
+
+    resumed = runmod.state(child)["current"]
+    assert resumed["form"] == "skills/implementer/forms/IMPLEMENT.toml", (
+        "resume landed behind the stale sibling instead of the fresh round -- "
+        "current is %r" % (resumed,))
+
+
+# ============================================================================
+# The ask's own prefill (commitment 7, issue84.g2): keyed under `"paused"`,
+# not the literal word `"gate"` -- true of a gate's own reachable-parent
+# ask no less than a root run's self-minted one -- and `attempted` never
+# renders blank for want of a `scope`/`purpose` to read.
+# ============================================================================
+
+
+def test_pause_prefill_names_what_actually_paused_when_reachable(workdir, capsys):
+    _seed_two_gates("ppf1")
+    child = _drive_to_up("ppf1", "g1")
+    capsys.readouterr()
+
+    prefill = runmod.state("ppf1")["current"]["prefill"]
+    assert "gate" not in prefill, (
+        "prefill still keys the paused child under the literal word 'gate' -- %r" % (prefill,))
+    assert prefill.get("paused") == child
+    assert prefill.get("attempted"), "attempted must not render blank when scope/purpose were dispatched"
+
+
+def test_pause_prefill_names_what_actually_paused_at_a_root_self_mint(workdir, capsys):
+    cli.main(["open", "run-a-gate", "--id", "ppf2"])
+    capsys.readouterr()
+    cli.main(["ppf2", "up", "the purpose itself is unclear before any round lands"])
+    capsys.readouterr()
+
+    prefill = runmod.state("ppf2")["current"]["prefill"]
+    assert "gate" not in prefill, (
+        "root self-mint still keys the paused id under the literal word 'gate' -- %r" % (prefill,))
+    assert prefill.get("paused") == "ppf2"
+    assert prefill.get("attempted"), "attempted must not render blank at a root self-mint"
