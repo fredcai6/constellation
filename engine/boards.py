@@ -48,7 +48,10 @@ def prose(board_path) -> dict:
 def label(row) -> str:
     """A row's text: the first string after its id and status in file order
     -- `question` on one board, `idea` on the other -- so no render names a
-    column."""
+    column. Offered material (a recommendation, its options) lives nested in
+    its own subtable rather than as a top-level string, so no file order an
+    agent types the row in can ever surface it here in place of the real
+    label."""
     return next((v for k, v in row.items()
                  if k not in ("id", "status") and isinstance(v, str) and v.strip()), "")
 
