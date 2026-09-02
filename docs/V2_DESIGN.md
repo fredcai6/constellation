@@ -609,7 +609,6 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 
 | Measure | v1 | v2 target |
 |---|---|---|
-| Engine verbs | 18 | 7 |
 | Conductor pre-reading | 20–30k tokens of doctrine | the issue + the authority block |
 | Shared doctrine prose | ~11,000 words (`_shared/`) | one page + standards |
 
@@ -619,7 +618,7 @@ audit can retake.
 ## Waves
 
 1. **Critique.** Done 2026-08-23; findings folded into this revision, founding rulings likewise.
-2. **Engine.** Segment schema, six verbs with work-id addressing, field kinds, worklist amends,
+2. **Engine.** Segment schema, verbs with work-id addressing, field kinds, worklist amends,
    plan minting, prefill/returns, TOML journal + writer, the Zork-shaped CLI, advisory rail,
    Windows port, tests. Accepted when the appendix example round-trips.
 3. **run-an-issue + run-a-gate.** Forms and slimmed skills: issue-conductor, issue-conductor-delegated,
