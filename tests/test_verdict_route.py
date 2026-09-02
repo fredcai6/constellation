@@ -24,7 +24,8 @@ already does, and its fixtures are reused here rather than re-declared.
 
 from engine import cli, run as runmod
 from conftest import REPO
-from test_two_voices import CRITIC
+from test_two_voices import CRITIC, _dispatch_critic, _drive_to_plan_to_execute
+from test_nesting import _fill_plan_route_with_calls
 from test_verdict_panels import (
     _fill, _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
     _review_step, _select,
@@ -191,13 +192,14 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
 # Pinned as a table rather than swept blindly, because the claim under test is
 # a *comparison*: before #56 the answer was `pass` at all three, by a literal
 # in `state()`; now it is whatever each assembly's own outcome rows say is
-# inert, and only run-a-gate's changed. A new row here means an assembly
-# gained a two-voices step and someone has to say what its fold does; a
-# changed row means an existing consumer's behavior moved.
+# inert, and #56 and ruling 3 (2026-09-02) are the only two that moved it. A
+# new row here means an assembly gained a two-voices step and someone has to
+# say what its fold does; a changed row means an existing consumer's
+# behavior moved.
 TWO_VOICES = {
     ("run-a-gate", "review"): ["pass", "revise"],    # minted by select, not declared
     ("run-an-issue", "understand"): ["pass"],        # consolidate -- untouched
-    ("run-an-issue", "plan"): ["pass"],              # plan-to-execute -- untouched
+    ("run-an-issue", "plan"): ["pass", "revise"],    # plan-to-execute -- ruling 3
 }
 
 
@@ -223,13 +225,15 @@ def _two_voices_steps():
             yield name, seg["id"], {"segment": seg["id"], "form": form, "panel": panel}
 
 
-def test_only_run_a_gates_own_fold_moved_and_the_other_consumers_are_untouched():
+def test_run_a_gate_and_plan_to_executes_own_folds_moved_and_understand_is_untouched():
     """`state()` holds a two-voices step open on the verdicts its own deciding
-    spec declares inert, so consolidate and plan-to-execute still reach their
-    forms on `pass` and still refill behind the conductor on `revise` -- their
-    `revise` rows read `rework`, which acts, and neither gate edited them.
-    Asserting the whole table, not just run-a-gate's row, is what makes
-    "strict superset" a checked claim instead of a hope."""
+    spec declares inert. Consolidate still reaches its form only on `pass`
+    and still refills behind the conductor directly on `revise` -- its
+    `revise` row reads `rework`, which acts, and ruling 3 deliberately left
+    it alone. Plan-to-execute's own `revise` row now reads `release` too, the
+    same as run-a-gate's review, so both hold open for their conductor's
+    route form. Asserting the whole table, not just one row, is what makes
+    the comparison a checked claim instead of a hope."""
     found = {}
     for name, seg_id, step in _two_voices_steps():
         st = {"assembly": name, "steps": [step]}
@@ -303,3 +307,48 @@ def test_renaming_the_passing_value_in_the_outcome_table_needs_no_engine_edit(mo
     assert cli._returned_verdict(st, asm) == "", (
         "renaming the outcome table's passing value should still leave the "
         "room quiet, with no edit to engine/cli.py")
+
+
+# -- the plan seam gets the same shape (ruling 3, 2026-09-02) ---------------
+
+
+def test_a_plan_revise_holds_the_form_and_the_conductors_rework_mints_the_round_narrowed_by_calls(
+        workdir, capsys):
+    """PLAN_TO_EXECUTE.toml is this same shape now: a revise holds `plan`
+    open rather than refiring the round automatically, and the conductor's
+    own `rework` -- ruled finding by finding on the `calls` table, the same
+    shape ROUTE.toml's own `_route_with_calls` exercises above -- is what
+    actually sends the round back, narrowed to the blocking calls alone.
+    Also pins the other half of the projection gate: a `rework` names no
+    `plan`, so nothing is projected into `execute`."""
+    wid = _drive_to_plan_to_execute()
+    capsys.readouterr()
+
+    panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "plan")["panel"]
+    for n in range(1, len(panel) + 1):
+        _dispatch_critic(wid, "plan", verdict="revise",
+                         findings=(r"gap: the proof is untestable\n\n"
+                                   r"beyond: the whole parser wants rewriting"), n=n)
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    assert st["current"]["id"] == "plan"          # held for the conductor's own form
+    assert not any(s["segment"] == "plan" and s.get("source") == "mint"
+                   for s in st["steps"]), "the panel's own revise minted a round"
+
+    _fill_plan_route_with_calls(
+        wid, "rework",
+        ("gap: the proof is untestable", "blocking"),
+        ("beyond: the whole parser wants rewriting", "beyond"))
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    fresh = next(s for s in st["steps"]
+                if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
+    carried = fresh["prefill"]["findings"]
+    assert carried == "gap: the proof is untestable"
+    assert "wants rewriting" not in carried      # called beyond, not work here
+
+    # and nothing projected: a rework releases nothing to execute
+    assert not any(s.get("dispatches") == "run-a-gate" for s in st["steps"])

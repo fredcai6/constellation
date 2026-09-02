@@ -186,25 +186,38 @@ decides = "ruling"     # IMPASSE.toml's; PLAN.toml and REWORK.toml have no such 
 anchor = true
 form = "forms/PLAN_TO_EXECUTE.toml"
 filler = "conductor"
-# The round that just passed critique already cut the gate whole; submitting
-# this form projects it into `execute` below rather than asking the
-# conductor to retype what the panel already read (#27).
+# Ruling 3 (2026-09-02): mirrors run-a-gate's review/ROUTE.toml shape. The
+# critic panel's own two words are both inert (`release`, below), so the
+# step stays open on either verdict -- the conductor reads every finding and
+# says where the round goes, the same as run-a-gate's route form does.
+# `projects` still fires off this same submit, but conditionally now:
+# `_mint_projected_gate` (engine/cli.py) mints only where the submit names a
+# `plan`, since this form's own `rework` and `up` also reach this step and
+# neither has passed critique intact.
 projects = "run-a-gate"
-# The panel's own decides field, distinct from `ruling` above: that one is
-# IMPASSE.toml's, filled by the conductor; this one is PLAN_TO_EXECUTE.toml's
-# `resolution`, and its value is never typed -- it is the merged verdict,
-# resolved through the outcome rows below the same way a submitted decision
-# field would be. Named apart from `ruling` so the two outcome tables stay
-# disjoint: a word in one is never a legal answer read from the other.
+# The panel's own decides field, distinct from `ruling` above: this one is
+# PLAN_TO_EXECUTE.toml's `resolution`, answered by both voices -- the
+# panel's merged verdict first (always `release`, so it mints nothing), then
+# the conductor's own typed word. Named apart from `ruling` so the two
+# outcome tables stay disjoint: a word in one is never a legal answer read
+# from the other.
 decides = "resolution"
 
   [[segment.transition.outcome]]
   value = "pass"
-  does = "release"     # the panel cleared the plan; the projection above already mints
+  does = "release"     # the panel's own word; the form's own submit is what releases now
 
   [[segment.transition.outcome]]
   value = "revise"
-  does = "rework"     # another pass, through the rework-form, findings as prefill
+  does = "release"     # ditto -- the findings are the record, the form is the ruling on them
+
+  [[segment.transition.outcome]]
+  value = "rework"
+  does = "rework"     # another pass through the rework-form, carrying the calls ruled blocking and nothing else
+
+  [[segment.transition.outcome]]
+  value = "up"
+  does = "pause"     # the round you cannot rule on from here; an ask standing at the parent until it answers
 
   # One criterion per panelist. Three fresh-context readers disagreeing is a
   # panel; one reader holding three criteria is a reviewer with a checklist,
