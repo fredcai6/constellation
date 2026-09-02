@@ -119,6 +119,7 @@ def test_a_replan_restarts_the_rework_count(workdir, capsys):
     capsys.readouterr()
     _write_plan_artifact(runmod.journal.location(wid) / "plan.md")
     _fill(runmod.journal.location(wid) / "PLAN_TO_EXECUTE.toml", '''
+resolution = "pass"
 plan = "%s/plan.md"
 ''' % runmod.journal.location(wid))
     cli.main([wid, "submit"])
@@ -279,7 +280,7 @@ key-terms = "waived: none"
     assert _plan_measures(wid) == [10, 10, 10, 12]
 
 
-# -- 5. the outlet: a fourth revise mints a ruling, not a fourth round --------
+# -- 5. the outlet: a third revise mints a ruling, not a third round ---------
 
 
 def _fill_rework(wid):
@@ -306,42 +307,42 @@ def _round(wid, findings):
 
 
 def _drive_to_impasse(wid="issue17"):
-    """Three rework rounds, then the fourth revise -- which is the one the
-    segment's `impasse-after` turns into a ruling."""
+    """Two rework rounds, then the third revise -- which is the one the
+    segment's `impasse-after` (2, ruling 2026-09-02: at most three critic
+    dispatches per artifact) turns into a ruling."""
     _drive_to_revise(wid)
-    for n in (1, 2, 3):
+    for n in (1, 2):
         _round(wid, f"gap: the proof still passes on an empty diff ({n})")
     return wid
 
 
-def test_a_fourth_revise_mints_the_impasse_form_not_another_round(workdir, capsys):
+def test_a_third_revise_mints_the_impasse_form_not_another_round(workdir, capsys):
     wid = _drive_to_impasse()
     capsys.readouterr()
 
     st = runmod.state(wid)
     assert st["current"]["form"] == "forms/IMPASSE.toml", (
-        f"the fourth revise minted {st['current']['form']!r} -- the segment "
-        "declares impasse-after = 3, so this round is the ruling")
-    assert "empty diff (3)" in st["current"]["prefill"]["findings"]
-    # no fourth panel: another fresh-context reader is the loop, not the way out
+        f"the third revise minted {st['current']['form']!r} -- the segment "
+        "declares impasse-after = 2, so this round is the ruling")
+    assert "empty diff (2)" in st["current"]["prefill"]["findings"]
+    # no third panel: another fresh-context reader is the loop, not the way out
     assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
                    for s in st["steps"]), "the impasse minted a panel"
 
 
-def test_the_count_reaches_the_outlet_on_the_round_after_the_third(workdir, capsys):
+def test_the_count_reaches_the_outlet_on_the_round_after_the_second(workdir, capsys):
     """The boundary, both sides. The first revise mints round one, so the
     count is already 1 before any loop runs."""
     wid = _drive_to_revise()
     asm = runmod.load_assembly("run-an-issue")
     counts = [runmod.rework_rounds(runmod.state(wid), asm, "plan")]
-    for n in (1, 2):
-        _round(wid, f"gap {n}")
-        counts.append(runmod.rework_rounds(runmod.state(wid), asm, "plan"))
+    _round(wid, "gap 1")
+    counts.append(runmod.rework_rounds(runmod.state(wid), asm, "plan"))
     capsys.readouterr()
-    assert counts == [1, 2, 3]
-    # three rounds is still a round -- the revise that follows is the ruling
+    assert counts == [1, 2]
+    # two rounds is still a round -- the revise that follows is the ruling
     assert runmod.state(wid)["current"]["form"] == "skills/planner/forms/REWORK.toml"
-    _round(wid, "gap 3")
+    _round(wid, "gap 2")
     capsys.readouterr()
     assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
 
@@ -368,7 +369,7 @@ def test_advance_takes_the_plan_to_its_transition_over_a_live_revise(workdir, ca
     wid = _drive_to_impasse()
     capsys.readouterr()
     _fill(runmod.journal.location(wid) / "IMPASSE.toml",
-          'ruling = "advance"\nwhy = "three rounds all landed on the proof"\n')
+          'ruling = "advance"\nwhy = "both rounds landed on the proof"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -382,13 +383,13 @@ def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
     wid = _drive_to_impasse()
     capsys.readouterr()
     _fill(runmod.journal.location(wid) / "IMPASSE.toml",
-          'ruling = "rework"\nwhy = "round four changes the proof, not the prose"\n')
+          'ruling = "rework"\nwhy = "round three changes the proof, not the prose"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
 
     st = runmod.state(wid)
     assert st["current"]["form"] == "skills/planner/forms/REWORK.toml"
-    assert "empty diff (3)" in st["current"]["prefill"]["findings"]
+    assert "empty diff (2)" in st["current"]["prefill"]["findings"]
 
 
 def test_up_pauses_the_plan_impasse_rather_than_releasing(workdir, capsys):
@@ -423,7 +424,7 @@ def test_up_pauses_the_understand_impasse_rather_than_releasing(workdir, capsys)
     """The same ruling (commitment 3), at `understand`'s own impasse --
     shares `forms/IMPASSE.toml` with `plan` above, and now shares the
     outcome verb too: named separately from the test above, the way
-    `test_understands_fourth_revise_mints_the_impasse_form_not_another_
+    `test_understands_third_revise_mints_the_impasse_form_not_another_
     spec_round` already stands apart from `plan`'s own impasse tests,
     since the two segments dispatch their rounds differently even though
     the ruling itself is one policy."""
@@ -450,16 +451,18 @@ def test_up_pauses_the_understand_impasse_rather_than_releasing(workdir, capsys)
 
 
 def _drive_gate_to_impasse(child="issue17.g1"):
-    """Four review revises on one diff, each disposed of on the review
-    transition's own conductor form: the first three refill the interior
-    through its `rework`, and the fourth is the one the outlet takes. A
-    revise releases on its own now, so the form's `rework` is the path the
-    mint -- and the count with it -- actually runs on. run-a-gate's work
-    segment declares no rework-form, so every refill mints the step-form
-    again; the count is of those, and the opening step is not one."""
+    """Three review revises on one diff, each disposed of on the review
+    transition's own conductor form: the first two refill the interior
+    through its `rework`, and the third is the one the outlet takes (ruling,
+    2026-09-02: at most three critic dispatches per artifact -- `work`'s own
+    `impasse-after` is 2). A revise releases on its own now, so the form's
+    `rework` is the path the mint -- and the count with it -- actually runs
+    on. run-a-gate's work segment declares no rework-form, so every refill
+    mints the step-form again; the count is of those, and the opening step
+    is not one."""
     _mint_n_gates(1)
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
-    for n in (1, 2, 3, 4):
+    for n in (1, 2, 3):
         _fill_implement(child, runmod.state(child)["current"]["id"])
         cli.main([child, "submit"])
         _dispatch_review(child, verdict="revise",
@@ -467,15 +470,15 @@ def _drive_gate_to_impasse(child="issue17.g1"):
     return child
 
 
-def test_a_gates_fourth_revise_mints_the_impasse_form(workdir, capsys):
+def test_a_third_revise_mints_the_impasse_form(workdir, capsys):
     child = _drive_gate_to_impasse()
     capsys.readouterr()
 
     st = runmod.state(child)
     assert st["current"]["form"] == "forms/IMPASSE.toml"
-    assert "untestable (4)" in st["current"]["prefill"]["findings"]
+    assert "untestable (3)" in st["current"]["prefill"]["findings"]
     asm = runmod.load_assembly("run-a-gate")
-    assert runmod.rework_rounds(st, asm, "work") == 3
+    assert runmod.rework_rounds(st, asm, "work") == 2
 
 
 def test_a_gates_advance_mints_its_transition_and_the_round_is_disposed_of(workdir, capsys):
@@ -488,7 +491,7 @@ def test_a_gates_advance_mints_its_transition_and_the_round_is_disposed_of(workd
     capsys.readouterr()
     before = len(runmod.state(child)["steps"])
     _fill(runmod.journal.location(child) / "IMPASSE.toml",
-          'ruling = "advance"\nwhy = "three reviews all landed on the spec"\n')
+          'ruling = "advance"\nwhy = "both reviews landed on the spec"\n')
     cli.main([child, "submit"])
     capsys.readouterr()
 
@@ -507,7 +510,7 @@ def test_a_gates_rework_mints_the_step_form_again(workdir, capsys):
     child = _drive_gate_to_impasse()
     capsys.readouterr()
     _fill(runmod.journal.location(child) / "IMPASSE.toml",
-          'ruling = "rework"\nwhy = "round four rewrites the check, not the diff"\n')
+          'ruling = "rework"\nwhy = "round three rewrites the check, not the diff"\n')
     cli.main([child, "submit"])
     capsys.readouterr()
 
@@ -517,9 +520,9 @@ def test_a_gates_rework_mints_the_step_form_again(workdir, capsys):
     # the ruling step carries no `calls` table, so `_blocking_calls` reads
     # `None` and this caller's prefill is exactly what it always was. Asserted
     # on the content, not only on the form -- the neighbouring
-    # `test_a_gates_fourth_revise_mints_the_impasse_form` uses the same shape,
+    # `test_a_third_revise_mints_the_impasse_form` uses the same shape,
     # and without it a filter that dropped everything would pass here.
-    assert "untestable (4)" in st["current"]["prefill"]["findings"]
+    assert "untestable (3)" in st["current"]["prefill"]["findings"]
 
 
 def test_the_opening_step_is_not_a_send_back(workdir, capsys):
@@ -573,7 +576,7 @@ def test_a_gates_close_step_is_filled_by_its_conductor(workdir, capsys):
 
 
 def test_a_gates_impasse_step_is_filled_by_its_conductor(workdir, capsys):
-    """The fourth revise mints the impasse outlet, and the hand it stands up
+    """The third revise mints the impasse outlet, and the hand it stands up
     follows the assembly's conductor the same way the close step does."""
     child = _drive_gate_to_impasse()
     capsys.readouterr()
@@ -623,32 +626,33 @@ def _understand_round(wid, findings):
 
 
 def _drive_understand_to_impasse(wid="issue84"):
-    """Three more spec-writer rounds after the first revise, then the fourth
-    revise -- the one `understand`'s own `impasse-after` turns into a
+    """Two more spec-writer rounds after the first revise, then the third
+    revise -- the one `understand`'s own `impasse-after` (2, ruling
+    2026-09-02: at most three critic dispatches per artifact) turns into a
     ruling."""
     _drive_understand_to_revise(wid)
-    for n in (1, 2, 3):
+    for n in (1, 2):
         _understand_round(wid, f"gap: still assumes a trailing newline ({n})")
     return wid
 
 
-def test_understands_fourth_revise_mints_the_impasse_form_not_another_spec_round(workdir, capsys):
+def test_understands_third_revise_mints_the_impasse_form_not_another_spec_round(workdir, capsys):
     """Pins the fix: before it, `understand`'s transition decided on
     `resolution` alone, an outcome table of `pass | revise` with no third
     word, so a spec the panel kept sending back had no exit but a passing
     panel. `understand` now declares `impasse-after`, `impasse-form` and its
-    own `decides = "ruling"`, the same shape `plan` already has, so a fourth
-    revise mints the impasse form instead of a fifth spec-writer round."""
+    own `decides = "ruling"`, the same shape `plan` already has, so a third
+    revise mints the impasse form instead of a fourth spec-writer round."""
     wid = _drive_understand_to_impasse()
     capsys.readouterr()
 
     st = runmod.state(wid)
     assert st["current"]["form"] == "forms/IMPASSE.toml", (
-        f"the fourth revise minted {st['current']['form']!r} -- the segment "
-        "declares impasse-after = 3, so this round is the ruling")
-    assert "trailing newline (3)" in st["current"]["prefill"]["findings"]
-    # no fourth panel: another fresh-context reader is the loop, not the way out
+        f"the third revise minted {st['current']['form']!r} -- the segment "
+        "declares impasse-after = 2, so this round is the ruling")
+    assert "trailing newline (2)" in st["current"]["prefill"]["findings"]
+    # no third panel: another fresh-context reader is the loop, not the way out
     assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
                    for s in st["steps"]), "the impasse minted a panel"
     asm = runmod.load_assembly("run-an-issue")
-    assert runmod.rework_rounds(st, asm, "understand") == 3
+    assert runmod.rework_rounds(st, asm, "understand") == 2

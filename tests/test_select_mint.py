@@ -166,12 +166,13 @@ def _drive_gate_through(gid, rounds):
     return gid
 
 
-def test_a_fourth_route_decided_rework_still_reaches_the_impasse_form(workdir, capsys):
+def test_a_third_route_decided_rework_still_reaches_the_impasse_form(workdir, capsys):
     """The bug this gate inherited and fixes. `_panel_judged_rework` decides
     whether a rework was decided at a panel-bearing transition -- if it was,
     the fresh round carries the panel's findings and spends the segment's
-    `impasse-after` count, and the fourth one gets the outlet instead of a
-    fourth round.
+    `impasse-after` count, and the third one gets the outlet instead of a
+    third round (`impasse-after = 2`, ruling 2026-09-02: at most three
+    critic dispatches per artifact).
 
     Its guard used to compare the deciding step's own segment against the
     rework verb's *target* segment, and its form against that segment's
@@ -180,24 +181,24 @@ def test_a_fourth_route_decided_rework_still_reaches_the_impasse_form(workdir, c
     the moment review is its own segment (`does = "rework work"` names a
     target, and review's transition declares no static form at all), so the
     guard returned `(None, "")` for the exact step it exists to recognize,
-    the count never advanced, and the three-round outlet silently stopped
-    firing -- a gate looping forever with nothing to rule on the loop.
+    the count never advanced, and the outlet silently stopped firing -- a
+    gate looping forever with nothing to rule on the loop.
 
-    Driven through the real forms to a fourth revise, which is the only way
+    Driven through the real forms to a third revise, which is the only way
     to see it: every earlier round looks identical whether the guard works or
     not.
     """
-    _drive_gate_through("g1", 4)
+    _drive_gate_through("g1", 3)
     capsys.readouterr()
 
     st = runmod.state("g1")
     assert st["current"]["form"] == "forms/IMPASSE.toml", (
-        "the fourth route-decided rework minted another implement round "
+        "the third route-decided rework minted another implement round "
         "instead of the outlet -- the panel-judged guard did not recognize "
         f"the review step: {[(s['id'], s.get('form')) for s in st['steps']]}")
     assert st["current"]["prefill"]["arrival"] == "rework-rounds"
-    assert "untestable (4)" in st["current"]["prefill"]["findings"]
-    assert runmod.rework_rounds(st, runmod.load_assembly("run-a-gate"), "work") == 3
+    assert "untestable (3)" in st["current"]["prefill"]["findings"]
+    assert runmod.rework_rounds(st, runmod.load_assembly("run-a-gate"), "work") == 2
 
 
 def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, capsys):
@@ -207,14 +208,14 @@ def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, ca
     again. The ruling step is a single-conductor decision minted with no
     `panel` key at all, so the guard misses it by construction rather than by
     a segment comparison."""
-    _drive_gate_through("g1", 4)
+    _drive_gate_through("g1", 3)
     st = runmod.state("g1")
     impasse = st["current"]
     assert not impasse.get("panel")
     capsys.readouterr()
 
     _fill(journal.location("g1") / "IMPASSE.toml",
-          'ruling = "rework"\nwhy = "round four rewrites the check, not the diff"\n')
+          'ruling = "rework"\nwhy = "round three rewrites the check, not the diff"\n')
     cli.main(["g1", "submit"])
     capsys.readouterr()
 
@@ -224,9 +225,52 @@ def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, ca
     # the ruling's own prefill, carried forward -- not re-derived findings
     assert fresh["prefill"] == impasse["prefill"]
     # the ruling walked out of the wall rather than into it: the guard
-    # returned no outlet for a step with no panel, so a fourth round was
-    # minted where a fifth panel-judged rework would have hit the outlet again
-    assert runmod.rework_rounds(st, runmod.load_assembly("run-a-gate"), "work") == 4
+    # returned no outlet for a step with no panel, so a third round was
+    # minted where a further panel-judged rework would have hit the outlet
+    # again -- ruling 2's latch, driven the rest of the way below
+    assert runmod.rework_rounds(st, runmod.load_assembly("run-a-gate"), "work") == 3
+
+
+def test_the_next_revise_after_an_impasse_rework_re_latches_immediately(workdir, capsys):
+    """Ruling 2 (2026-09-02): the count latches. `rework_rounds` counts every
+    mint since the last step-form mint with no exception for where the mint
+    came from, so the impasse ruling's own `rework` -- which mints a fresh
+    round without spending through `_panel_judged_rework`'s own guard --
+    still leaves the count at 3, already past `impasse-after` (2). The very
+    next revise on that fresh round therefore reaches the impasse form again
+    immediately, with no fresh allowance of rounds: the engine already does
+    this (`rework_rounds` is never reset by an impasse), so this drives it
+    rather than building it."""
+    _drive_gate_through("g1", 3)
+    capsys.readouterr()
+    _fill(journal.location("g1") / "IMPASSE.toml",
+          'ruling = "rework"\nwhy = "one more pass, on the same proof"\n')
+    cli.main(["g1", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("g1")
+    assert st["current"]["form"] == "skills/implementer/forms/IMPLEMENT.toml"
+    assert runmod.rework_rounds(st, runmod.load_assembly("run-a-gate"), "work") == 3
+
+    _fill_implement("g1", st["current"]["id"])
+    cli.main(["g1", "submit"])
+    _select_panel("g1")
+    review = runmod.state("g1")["current"]["id"]
+    panelist = f"g1.{review}.p1"
+    cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", f"{review}.p1"])
+    _fill_review(panelist, "revise", "gap: still off by one (latch)")
+    cli.main([panelist, "submit"])
+    cli.main([panelist, "close"])
+    _fill(journal.location("g1") / "ROUTE.toml", 'resolution = "rework"\n')
+    cli.main(["g1", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("g1")
+    assert st["current"]["form"] == "forms/IMPASSE.toml", (
+        "the latch did not hold: a revise on the ruling's own fresh round "
+        "minted another implement round instead of re-reaching the impasse "
+        f"immediately: {[(s['id'], s.get('form')) for s in st['steps']]}")
+    assert "gap: still off by one (latch)" in st["current"]["prefill"]["findings"]
 
 
 # --- #73: amend add --transition, against a segment with a route-form ------
