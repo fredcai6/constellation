@@ -1,8 +1,7 @@
 # Constellation v2 Design
 
 **Status:** the design of record, rulings by Tommy, last folded in 2026-08-29. This document
-says what the system is and what it is ruled to become; where the tree differs from a ruling,
-the section says so in place. History lives in git.
+says what the system is and what it is ruled to become. History lives in git.
 
 ## Thesis
 
@@ -72,33 +71,6 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | **review** | reviewer subagents, cold | `REVIEW` | what was exercised and what was not; findings classed gap / beyond; `pass | revise` | route |
 | **route** | gate-conductor | its own form; `IMPASSE` after three | each finding **blocking / accepted / beyond / rejected**; rework → do with the blocking findings as prefill; pass → close; up → an ask for help, the spec being wrong the usual reason | do, or close |
 | **close** | gate-conductor | `GATE_CLOSE` | the residue; the engine appends the rest — together, the gate report. Nothing is committed here: git is the issue tier's | the parent's execute · review |
-
-Where the tree differs today: understand is one segment, not two -- do 1 (the board) and
-do 2 (the spec-writer's own round, in place rather than a dispatched subagent) share it, a
-cold critic panel and the route sitting on its one transition; there is no `up` outcome
-distinct from the interrogator's own impasse path. `run-a-gate` runs all six beats above, and
-its `route` form now calls every review finding and every declared deviation
-blocking/accepted/beyond/rejected, a `rework` carrying the blocking ones alone into the next
-implement round. Its one-word `resolution` keeps `revise` beside the three words this table
-names, because the review panel's own merged verdict resolves against that same outcome table
-and an undeclared value refuses; `up` is a legal word at `route` now as well as at an impasse,
-and at this tier both now pause the gate rather than releasing it -- an ask standing at the run
-that dispatched it until that run answers, declared wherever an outcome row's `does` reads
-`pause`. Wave 3b brings the tree to the shape above.
-
-## Why now — measurements
-
-*v1 measurements, taken before it was deleted — archival record, not a live count.*
-
-- The v1 engine is 4,515 lines with 85 refusal sites. With its MCP wrapper (2,749), lifecycle
-  (1,243), generator (1,089), and validator (758), the machinery totals ~10,000 lines.
-- The skill corpus is ~57,000 words. A issue-conductor that obeys its own `context` steps reads
-  20–30k tokens of doctrine before it reads the issue.
-- The recorded machinery failures are the enforcement layer fighting itself: the archive-move
-  lease deadlock, the five-step self-waive handshake, the Stop hook contradicting the HARD-band
-  advisory. No recorded failure shows an agent harmed by these guards' absence.
-- The AGENT_GUIDE's cardinal rule — "every addition should make 'here is how work is done'
-  shorter to state, not longer" — fails against the current corpus.
 
 ## Layer 1 — the engine is a secretary
 
@@ -374,8 +346,7 @@ each conductor dispatches the tier below and judges at its transitions:
 - **run-an-epic** (conductor: epic-conductor): open cuts the brief into wave 1 → waves of dispatched
   run-an-issue children → wave transitions (advance / repair / replan / stop, child amends
   adjudicated from the returns) → close.
-- **run-an-issue** (conductor: issue-conductor); the assembly on disk still cuts every gate
-  at plan-to-execute, which the rolling-horizon issue changes:
+- **run-an-issue** (conductor: issue-conductor):
 
 ```text
 <open>            seeds the understand board from the issue
@@ -605,46 +576,12 @@ layer first.
 ends it. "There is nothing here" is the largest member of a family that includes rescoping a
 gate, reordering a wave, and downgrading an assumption to an open question.
 
-## Measurable goals
-
-| Measure | v1 | v2 target |
-|---|---|---|
-| Conductor pre-reading | 20–30k tokens of doctrine | the issue + the authority block |
-| Shared doctrine prose | ~11,000 words (`_shared/`) | one page + standards |
-
-v1 is deleted, so its column is the archival record as measured then, not a figure a later
-audit can retake.
-
-## Waves
-
-1. **Critique.** Done 2026-08-23; findings folded into this revision, founding rulings likewise.
-2. **Engine.** Segment schema, verbs with work-id addressing, field kinds, worklist amends,
-   plan minting, prefill/returns, TOML journal + writer, the Zork-shaped CLI, advisory rail,
-   Windows port, tests. Accepted when the appendix example round-trips.
-3. **run-an-issue + run-a-gate.** Forms and slimmed skills: issue-conductor, issue-conductor-delegated,
-   interrogator, implementer, reviewer, excursion, triage — plus their v2
-   evals. **Ends with a real run-an-issue on a toy issue in this repo, run from the branch** —
-   the toy issue builds a genuine v2 component, so the validation run also builds v2. The pivot
-   criteria below arm here, not at cutover.
-3b. **The issue workflow** (`#55`). Three issue runs, not one: open and close as the engine's
-   (worktree, branch, archive, PR) first, because both later runs work inside it; then
-   rolling-horizon planning with the reviewed spec; then the gate-conductor, run *under* the
-   new planner as its validation — the wave-3 pattern, where the issue builds a genuine
-   component. One issue would be a plan cut across two assemblies and two new skills,
-   authored all at once under the planner it retires.
-4. **explorer + epic-conductor.** The explore and epic assemblies, wave-tier transitions, their evals.
-5. **Cutover.** Install, full eval pass, archive v1.
-   Hard cutover: v2 is validated with real runs, then replaces v1 wholesale.
-
 ## Pivot criteria for this effort
 
-- Explorer and interrogator share the understanding form only if one form serves both postures
-  in drafting. If the forms fight, split them — a cheap pivot.
 - A validation run needing doctrine beyond its forms means the missing knowledge moves into a
   form or an error message — never into a new shared doc.
 - Fresh-at-boundary handoffs losing understanding means the form is missing fields. Fix the
   form, not the boundary. Repeated loss on small issues means the fresh default is set too low.
-- A cutover validation run failing where v1 succeeded is diagnosed before v1 is deleted.
 - The repo needing a document beyond the one-page README to explain its own layout means the
   layout is too clever. Simplify it.
 
@@ -664,54 +601,3 @@ audit can retake.
   re-measurement.
 - **Fresh-by-default threshold:** what step count or gate count flips the default from continue
   to fresh? Pick after the wave-3 validation run.
-
-## Appendix — worked example
-
-Normative for shape, not for names: the engine's schema is accepted when this round-trips.
-Under rolling horizon an `advance` here re-enters the plan step rather than walking to the next
-minted gate.
-
-```toml
-# assemblies/run-an-issue/forms/GATE_TRANSITION.toml — a transition form, complete
-imperative = """
-The gate has returned. Decide whether its spec achieved the goal, and whether
-the plan still holds."""
-
-[[field]]
-id = "learned"
-kind = "evidence"
-note = "What this gate taught us."
-
-[[field]]
-id = "plan-holds"
-kind = "decision"
-note = "advance | remint | drop <gate-id> | replan — on anything but advance, the amend is the evidence."
-```
-
-```text
-$ spine issue7c3f status
-
-issue7c3f · run-an-issue · execute · gate transition g1 (5 of 7)
-  issue7c3f: parser drops the last record when the file ends without a newline
-
-  Gate g1 closed: verdict pass, 2 implement/review cycles, returns below.
-  Decide whether its spec achieved the goal, and whether the plan still holds.
-
-  returns from issue7c3f.g1
-    verdict    pass (2 cycles)
-    diff       src/parser.c +41 -7
-    check      pytest -q tests/parser — 41 passed  (re-run: spine issue7c3f.g1 check done)
-
-  your response form: .agent-work/issue7c3f/G1_TRANSITION.toml
-  fill it, then:     spine issue7c3f submit
-  also legal:        spine issue7c3f note ...   spine issue7c3f amend ...
-```
-
-```toml
-# .agent-work/issue7c3f/G1_TRANSITION.toml, filled
-learned = """
-Review passed in two cycles; the parser change was smaller than planned.
-Gate g2's scope note still assumed the larger change — trimmed via amend a3."""
-
-plan-holds = "advance"
-```
