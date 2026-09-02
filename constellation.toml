@@ -6,8 +6,7 @@
 [commands]
 # `test` is the fast suite -- no model calls, but not free: it drives real
 # git and journal I/O per test, so it runs closer to two minutes than
-# seconds (414 tests, ~93s measured). Run it constantly anyway -- the cost
-# is I/O, not a model.
+# seconds. Run it constantly anyway -- the cost is I/O, not a model.
 test = "python3 -m pytest -q"
 # `validate` is what a run's own gates should check, and what to run before
 # anything ships: the fast suite plus the agent evals, which drive a real

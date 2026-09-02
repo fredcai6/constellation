@@ -82,13 +82,13 @@ forms; coining a synonym for a term below is a defect.
   names, plus every step sharing its `child` — a pair closes together, and the deciding step
   can never target its own pair.
 - **up** — the bare CLI verb in `main()`'s dispatch table (`engine/cli.py`'s `verbs` dict,
-  alongside `status`/`submit`/`note`/`amend`/`close`/`trace`), and the value `pause`'s own four
+  alongside `status`/`submit`/`note`/`amend`/`close`/`trace`), and the value `pause`'s own
   outcome rows accept: the asker stops what it holds, the question stands one tier up in the
   run that dispatched it, and — once that run answers — the answer returns as the resumed
   unit's own orders, the same prefill shape `rework` already carries its own findings in.
-- **pause** — an outcome verb, declared today at four outcome rows across two assemblies
-  (`run-a-gate`'s `work` and `review`, `run-an-issue`'s `understand`-impasse and
-  `plan`-impasse): mints an ask into the run that dispatched this one — a step standing on
+- **pause** — an outcome verb, declared wherever an outcome row's `does` field reads `pause`
+  or `pause <segment>` (grep the assemblies for `does = "pause`): mints an ask into the run
+  that dispatched this one — a step standing on
   the still-live pair that dispatched it, reordered ahead of it, so the parent sees the ask
   without opening the child — and a paused marker here, in place of the round it decided at.
   The parent's own answer resumes that marker's segment as a fresh round, carrying the answer
@@ -214,9 +214,9 @@ forms; coining a synonym for a term below is a defect.
   what it is for. Counted per module and repo-wide in the map's report.
 - **corpus** — one word, two senses, on the same grounds as `anchor`. *The v2 corpus:* the
   authored artifacts an agent must read before it can work — skills, forms, standards,
-  assemblies — measured in words against the target `docs/AGENT_GUIDE.md` sets.
-  Derived output is not in it. *The mappable corpus:* every tracked `.py` file the map
-  is built from, which is the sense `tools/code_map` uses throughout its own docstrings.
+  assemblies. Derived output is not in it. *The mappable corpus:* every tracked `.py` file
+  the map is built from, which is the sense `tools/code_map` uses throughout its own
+  docstrings.
 - **delivery** — the engine actually rendering a word or line into `status`'s output, not
   merely a form or skill claiming it will. `render.py`'s whole job; a corpus sentence
   describing a delivery the engine does not make is a promise nothing keeps.

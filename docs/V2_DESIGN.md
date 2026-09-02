@@ -83,9 +83,8 @@ implement round. Its one-word `resolution` keeps `revise` beside the three words
 names, because the review panel's own merged verdict resolves against that same outcome table
 and an undeclared value refuses; `up` is a legal word at `route` now as well as at an impasse,
 and at this tier both now pause the gate rather than releasing it -- an ask standing at the run
-that dispatched it until that run answers, declared today at four outcome rows across two
-assemblies: `run-a-gate`'s `work` and `review`, and `run-an-issue`'s `understand`-impasse and
-`plan`-impasse alike. Wave 3b brings the tree to the shape above.
+that dispatched it until that run answers, declared wherever an outcome row's `does` reads
+`pause`. Wave 3b brings the tree to the shape above.
 
 ## Why now — measurements
 

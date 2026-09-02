@@ -24,6 +24,7 @@ disagree with is never yours to fix by writing one.
 
 ## Select
 
-Select fires again on every rework round. Choose for the round in front of
-you, not the round that just failed: a panel inherited unchanged is the
-foregone pair this beat exists to replace.
+A review panel reads a new diff each round, so select fires again on every
+rework round: choose for the round in front of you, not the round that just
+failed — a panel inherited unchanged is the foregone pair this beat exists
+to replace.

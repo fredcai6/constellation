@@ -31,9 +31,9 @@ in kind rather than run it a third time. After the third round the engine
 stops offering a fourth and asks you to rule instead — advance over the
 verdict, run another round, or send it up, which pauses the run rather than
 ending it: your ruling stands as an ask one tier up, and the round resumes
-with whatever it answers. Never sharpen the panel's brief
-between rounds — a panel reads from fresh context on purpose, and a
-sharpened brief tells it what to find.
+with whatever it answers. A critic panel re-reads the same artifact each
+round, so never sharpen its brief between rounds — fresh context is the
+point, and a sharpened brief tells it what to find.
 
 **A return is root-verified, never believed.** Before adjudicating any
 child's returns — a gate's, a spike's — open the artifact it names or re-run

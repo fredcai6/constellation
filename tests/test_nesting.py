@@ -3,7 +3,8 @@
 This drives the real `run-an-issue` and `run-a-gate` assemblies end to end --
 not fixtures. A gate spec minted from PLAN_TO_EXECUTE.toml becomes a child
 run's opening orders; the child's close stamps a return that completes the
-parent's dispatch step; `close` and `amend` round out the seven verbs.
+parent's dispatch step; `close` and `amend` round out the verbs `main()`
+dispatches.
 """
 
 import pathlib
