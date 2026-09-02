@@ -159,15 +159,16 @@ plan-holds = "advance"
 
 
 def _drive_to_impasse(pwid, gid):
-    """Three implement/review rounds, each revised and reworked, followed by
-    a fourth revise that reaches `work`'s own `impasse-after` threshold
-    (assemblies/run-a-gate/ASSEMBLY.toml, `impasse-after = 3`) and mints
-    IMPASSE.toml in place of a fifth step-form round -- the same shape
+    """Two implement/review rounds, each revised and reworked, followed by a
+    third revise that reaches `work`'s own `impasse-after` threshold
+    (assemblies/run-a-gate/ASSEMBLY.toml, `impasse-after = 2` -- ruling,
+    2026-09-02: at most three critic dispatches per artifact) and mints
+    IMPASSE.toml in place of a fourth step-form round -- the same shape
     `test_rework.py`'s own `_drive_gate_to_impasse` drives, adapted to the
     `_seed_two_gates` parent instead of a full run-an-issue mint."""
     child = f"{pwid}.{gid}"
     cli.main(["open", "run-a-gate", "--parent", pwid, "--step", gid])
-    for n in (1, 2, 3, 4):
+    for n in (1, 2, 3):
         _fill_implement(child)
         cli.main([child, "submit"])
         review = _select(child)
