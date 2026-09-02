@@ -28,9 +28,10 @@ id = "resolution"
 kind = "decision"
 optional = true
 note = """
-pass | revise. The critic panel's own merged verdict, carried onto this
-transition's outcome table -- not yours to argue, only to record if you want
-the record explicit. It reads `pass` every time you actually see this form: a
-`revise` refills the plan before this step is ever reached, so it never lands
-here to answer. Typing anything but `pass` mints a redundant rework round
-alongside the projection above, not a correction to it."""
+pass | revise, optional -- leave it blank. On an ordinary pass the critic
+panel's own merged verdict already resolved this step before you filled the
+form; on an impasse ruling that advanced over a live revise instead, no
+panel sits on this mint at all, so there is no verdict to record. Typing
+`pass` only re-records a clearing that already happened; typing anything
+else mints a second, redundant rework round alongside the projection above,
+not a correction to it."""

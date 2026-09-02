@@ -29,7 +29,7 @@ just with the work package riding along.
 constellation/
   README.md           this page
   docs/V2_DESIGN.md   founding spec — thesis, rulings, waves
-  engine/             the secretary: 7 verbs, rail, install copy
+  engine/             the secretary: rail, forms, journal, install copy
   assemblies/         run templates: run-an-issue, run-a-gate, explore-an-idea, and one per excursion
   skills/<name>/      one posture each: SKILL.md + the forms only that skill fills
   standards/          issue.md · skill.md · prose.md · glossary.md
