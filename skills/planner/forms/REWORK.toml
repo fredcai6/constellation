@@ -7,10 +7,11 @@ Work the findings into the plan and the gate spec both. Delete the restated.
 Move accepted detail into the gate's latitude. Replace a twice-patched proof
 in kind. A round that grew because its gates gained proofs is not the round
 that grew because a settled argument came back. Say which this was, in
-`deleted`. The plan document itself carries the approach and the risks that
-would change it; this gate's purpose, scope and proof are the fields below,
-not restated there -- implementation detail below gate grain is a defect,
-that is the gate's latitude."""
+`deleted`. Purpose says the result, proof says what verifies it, scope says
+where -- the how is the implementer's, and that is the bar a finding is held
+to. The plan document itself carries the approach and the risks that would
+change it; this gate's purpose, scope and proof are the fields below, not
+restated there."""
 
 [[field]]
 id = "plan"
