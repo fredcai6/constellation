@@ -597,3 +597,36 @@ def ledger(rows):
         return "no open runs"
     return _pairs([(r["id"], f"{r.get('assembly','')}  {r.get('where','')}  "
                              f"{r.get('title','')}") for r in rows], indent="")
+
+
+def _yield_round(rnd):
+    """One round's own line: the merged verdict, how many of the panel voted
+    `revise`, how many findings, and -- where the deciding submit ruled on
+    them -- a tally of each call. `uncalled` is a real answer, not a gap: it
+    is what a round at a seam with no route form (consolidate) always says,
+    rather than a guessed-at count of blocking findings."""
+    head = f"{rnd['revising']} revise" if rnd["verdict"] == "revise" else "pass"
+    n = rnd["findings"]
+    if not n:
+        return head
+    tail = f"{n} finding" if n == 1 else f"{n} findings"
+    calls = (" ".join(f"{c} {w}" for w, c in rnd["calls"].items())
+            if rnd["called"] else "uncalled")
+    return f"{head}   {tail}   {calls}"
+
+
+def review_yield(entries):
+    """The run's own review yield: per seam, per round, the panel's verdict,
+    how many findings, and how each was called -- `engine/review_yield.py`'s
+    derivation, printed here the same way `trace` prints a timeline nobody
+    typed. Empty where the run judged nothing at a seam yet, which prints
+    nothing rather than an empty header."""
+    if not entries:
+        return ""
+    width = max(len(e["label"]) for e in entries)
+    lines = ["review yield"]
+    for e in entries:
+        for i, rnd in enumerate(e["rounds"], start=1):
+            label = e["label"].ljust(width) if i == 1 else " " * width
+            lines.append(f"  {label}  r{i}  {_yield_round(rnd)}")
+    return "\n".join(lines)
