@@ -131,14 +131,27 @@ def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
     return child_wid
 
 
-def _fill_plan_to_execute(wid):
-    """Nothing to author here now (#27): the round the panel just passed
-    already cut the gate, and submitting this projects it. Only the plan
-    artifact pointer is this form's own to fill."""
-    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"), '''
-plan = ".agent-work/%s/plan.md"
-''' % wid)
+def _fill_plan_to_execute(wid, resolution="pass", calls=""):
+    """The conductor's own route form at the plan seam (ruling 3): `resolution`
+    is now the conductor's own typed decision, and `plan` -- the pointer that
+    projects the gate -- is filled only where the round releases with
+    something to project. `calls` (default none) is one or more `[[calls]]`
+    blocks, verbatim, for a caller narrowing a `rework` to the blocking
+    findings alone -- see `_fill_plan_route_with_calls` below."""
+    body = 'resolution = "%s"\n' % resolution
+    if resolution in ("pass", "revise"):
+        _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
+        body += '\nplan = ".agent-work/%s/plan.md"\n' % wid
+    if calls:
+        body += "\n" + calls
+    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"), body)
+
+
+def _fill_plan_route_with_calls(wid, resolution, *calls):
+    """The plan seam's own half of `_route_with_calls` (test_verdict_route.py):
+    one `[[calls]]` block per (finding, call) pair, ruled by the conductor."""
+    blocks = "".join('[[calls]]\nfinding = "%s"\ncall = "%s"\n\n' % c for c in calls)
+    _fill_plan_to_execute(wid, resolution, calls=blocks)
 
 
 def _fill_implement(wid, step_id):
@@ -316,11 +329,13 @@ key-terms = "waived: none"
 
 
 def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
-    """Four revises landing on the same objection -- the only way a root
-    objection reaches the plan segment's impasse form now that the panel's
-    vocabulary is `pass | revise`, not a third word that jumps there in one."""
+    """Three revises landing on the same objection -- the first review plus
+    two reworks -- is the only way a root objection reaches the plan
+    segment's impasse form now that the panel's vocabulary is `pass |
+    revise`, not a third word that jumps there in one, and `impasse-after`
+    is 2 (ruling, 2026-09-02)."""
     _dispatch_plan_critic(wid, verdict="revise", findings=findings)
-    for _ in range(3):
+    for _ in range(2):
         st = runmod.state(wid)
         fresh = next(s for s in st["steps"]
                     if s["segment"] == "plan" and s.get("source") == "mint"
@@ -329,10 +344,19 @@ def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
         _dispatch_plan_critic(wid, verdict="revise", findings=findings)
 
 
-def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean"):
+def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
+                          resolution=None):
     """Open every one of plan-to-execute's panelists, fill and close each --
-    the two-voices transition's panel half, which must pass before its form
-    (PLAN_TO_EXECUTE.toml) is even reachable.
+    the two-voices transition's panel half. Both of the panel's own words
+    release (ruling 3), so the step holds open for its own form either way,
+    the same shape run-a-gate's review/ROUTE.toml already has: where the
+    panel just returned is still `current` after this -- the plan-to-execute
+    shape, not consolidate's own mechanical refill, which folds shut on a
+    revise before any form is ever reached -- a `verdict="revise"` also
+    disposes of the round on that form, defaulting to `resolution`
+    (`"rework"` unless the caller names another), so a caller driving
+    straight through still reaches the fresh round it always did without
+    knowing this mechanism moved.
 
     Driven off the assembly's own panel length rather than a pinned count:
     the step completes on the last verdict, so a test that closes one of
@@ -348,6 +372,11 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean"):
         _fill_critic(panelist, verdict, findings)
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
+    current = runmod.state(wid).get("current")
+    if (verdict == "revise" and current and current["id"] == step_id
+            and current.get("form") == "forms/PLAN_TO_EXECUTE.toml"):
+        _fill_plan_to_execute(wid, resolution or "rework")
+        cli.main([wid, "submit"])
     return step_id
 
 

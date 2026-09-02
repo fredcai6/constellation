@@ -945,7 +945,7 @@ def complete_submit(wid, step_id, fields, ran):
         journal.append(wid, "prefill",
                        fields={**(st.get("prefill") or {}), **fields})
     _mint(wid, asm, step, form, fields)
-    _mint_projected_gate(wid, asm, step, st)
+    _mint_projected_gate(wid, asm, step, st, fields)
     _resume_paused_child(wid, step, fields)
     if outcome:
         _perform(wid, asm, *outcome, fields, step)
@@ -1739,18 +1739,32 @@ def _mint_gates(wid, seg, gates, start=1):
 #   conductor filling it by hand the way `gates` used to. That reproduces
 #   the transcription bug one step later -- a second typing is a second
 #   chance to drift from what the panel actually judged.
+# `fields` -- ruling 3: the plan seam's route form now also reaches this
+#   step's own submit on a `rework` or an `up`, where nothing has passed
+#   critique and there is nothing to project. Before ROUTE.toml's shape
+#   reached this transition, the step could only ever be submitted after a
+#   pass -- a revise folded straight to a fresh round with no conductor
+#   submit in between -- so this had nothing to gate on and gated on
+#   nothing. Now it does: `plan` is the form's own optional artifact field,
+#   filled only when the round releases with something to project, so its
+#   presence on the submitted fields is what a `pass` (or a recorded
+#   `revise` the conductor chose not to send back) looks like next to a
+#   `rework`/`up`, which leave it blank.
 _GATE_FIELDS = ("purpose", "scope", "proof", "budget", "model", "direction")
 
 
-def _mint_projected_gate(wid, asm, step, st):
+def _mint_projected_gate(wid, asm, step, st, fields):
     """A transition step whose own segment declares `projects` mints one
     gate into the segment `projects` names, on submit -- built from this
     segment's own most recent interior return, never from anything typed on
-    the transition's own form. A no-op off that step, or where the segment
-    it names is not one this assembly's own `_mint_gates` can reach."""
+    the transition's own form. A no-op off that step, where the segment it
+    names is not one this assembly's own `_mint_gates` can reach, or where
+    this submit named no `plan` -- a `rework` or an `up` releases nothing to
+    project."""
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     t = seg.get("transition", {})
-    if step.get("form") != t.get("form") or not t.get("projects"):
+    if (step.get("form") != t.get("form") or not t.get("projects")
+            or not fields.get("plan")):
         return
     target = next((s for s in asm["segment"] if s.get("dispatches") == t["projects"]), None)
     prior = [s for s in st["steps"] if s["segment"] == step["segment"] and s["id"] != step["id"]]

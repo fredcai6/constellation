@@ -146,6 +146,13 @@ def test_a_rework_round_dispatches_a_single_planner(workdir, capsys):
         cli.main([critic, "close"])
     capsys.readouterr()
 
+    # both of the panel's own words release now (ruling 3, 2026-09-02): the
+    # step holds open for the conductor's own route form, which is what
+    # actually sends the round back
+    _fill(journal.location(wid) / "PLAN_TO_EXECUTE.toml", 'resolution = "rework"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
     fresh = _fresh_mint(runmod.state(wid), "plan")
     assert fresh["dispatches"] == "cut-a-gate"
     assert "panel" not in fresh  # round two: single planner, not three

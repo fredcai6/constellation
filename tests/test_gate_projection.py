@@ -55,7 +55,7 @@ def test_one_gate_minted_per_pass_not_k(workdir, capsys):
     wid = _drive_to_plan_to_execute()
     capsys.readouterr()
 
-    _fill_plan_to_execute(wid)  # only `plan` -- there is no gates field to fill
+    _fill_plan_to_execute(wid)  # resolution and the plan pointer -- no gates field to fill
     cli.main([wid, "submit"])
     capsys.readouterr()
 
