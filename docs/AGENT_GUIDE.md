@@ -3,8 +3,7 @@
 Orientation for any agent working in this repository: what this project is for, where everything
 lives, and what binds you before you write. Root pointer files (`CLAUDE.md`, `AGENTS.md`)
 redirect here so there is one guide, not many. `README.md` is the human's page and may lag
-this one; where they disagree, this file is right about the repo and `docs/V2_DESIGN.md` is
-right about the design.
+this one; where they disagree, this file is right.
 
 ## What this is
 
@@ -96,7 +95,7 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 | Document | Source of truth for |
 |---|---|
 | `docs/AGENT_GUIDE.md` | this guide — purpose, layout, documentation map |
-| `docs/V2_DESIGN.md` | the design of record: the workflow, thesis, rulings, waves. Where it and the tree differ, it says so in place. |
+| `docs/V2_DESIGN.md` | the founding design: thesis, rulings, and the reasoning behind them. A starting point, not a target sheet; where it and the tree differ, the tree is right and the passage goes. |
 | `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
 | `docs/DERIVED_IS_CODE.md` | why nothing generated is committed |
 | `standards/prose.md` | how this repo writes |

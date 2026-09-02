@@ -28,7 +28,7 @@ just with the work package riding along.
 ```text
 constellation/
   README.md           this page
-  docs/V2_DESIGN.md   founding spec — thesis, rulings, waves
+  docs/V2_DESIGN.md   founding design — thesis and rulings; a starting point, not a target sheet
   engine/             the secretary: rail, forms, journal, install copy
   assemblies/         run templates: run-an-issue, run-a-gate, explore-an-idea, and one per excursion
   skills/<name>/      one posture each: SKILL.md + the forms only that skill fills
