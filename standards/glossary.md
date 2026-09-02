@@ -36,9 +36,9 @@ forms; coining a synonym for a term below is a defect.
   writes that as a revise finding, the same as any other. Any revise refills, findings merged.
   The merged verdict resolves the same way a submitted decision field does — against the
   transition's own declared `outcome` rows where one names a `decides` field, or (a panel-only
-  transition with none) by refilling directly, three rounds of it reaching the segment's own
-  impasse form where one is declared. A panel is written once, at the mint that makes its
-  step: declared on a transition, or named at an earlier one (run-a-gate's `select`), never
+  transition with none) by refilling directly, `impasse-after` rounds of it reaching the
+  segment's own impasse form where one is declared. A panel is written once, at the mint that
+  makes its step: declared on a transition, or named at an earlier one (run-a-gate's `select`), never
   grown after. Review never lives in an interior.
 - **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
@@ -159,11 +159,13 @@ forms; coining a synonym for a term below is a defect.
   a wave from the epic's findings and adjudicates at its transition.
 - **finding** — something real that was observed and recorded, and is not yet work. A reviewer's
   finding classed `beyond`, and an epic's unfiled finding, are the same thing at two scopes.
-- **call** — one route-step ruling on a single review finding or declared deviation, read once
-  against this gate's own diff: `blocking | accepted | beyond | rejected`. Distinct from the
-  issue tier's **disposition** (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges
-  one finding or deviation once; a disposition judges one spec commitment across the run's
-  whole life.
+- **call** — one route-step ruling on a single finding raised against the artifact it names —
+  a panel's finding at either tier, or (a gate's own) a declared deviation too: `blocking |
+  accepted | beyond | rejected`. Two route forms carry the field, run-a-gate's `ROUTE.toml`
+  against a diff and run-an-issue's `PLAN_TO_EXECUTE.toml` against a plan, the same shape at
+  both. Distinct from the issue tier's **disposition** (`GATE_TRANSITION.toml`'s `dispositions`
+  field): a call judges one finding or deviation once; a disposition judges one spec commitment
+  across the run's whole life.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The
@@ -193,9 +195,11 @@ forms; coining a synonym for a term below is a defect.
   never appear in one reading.
 - **spec writer** — the hat the persistent conductor wears to draft the spec, understand's own
   step-form round (`skills/spec-writer/`), distinct from the interrogator hat it wears to work
-  the board. Judged by a cold critic panel on the segment's transition, the same shape
-  plan-to-execute uses to judge a plan; a revise refills the round, findings as prefill, and
-  there is no rework-form — a second round is another first cut, not a patch.
+  the board. Judged by a cold critic panel on the segment's transition, the same panel
+  plan-to-execute's own transition carries; a revise here still refills the round directly,
+  findings as prefill, and there is no rework-form — a second round is another first cut, not a
+  patch. Plan-to-execute's own revise no longer refills this way (ruling 3): it holds the round
+  for the conductor's route form instead.
 - **gate spec** — the purpose, scope, proof and optional model, optional direction a planner
   writes per round of the plan segment — one gate spec per round, the round's own artifact.
   Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only
