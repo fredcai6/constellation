@@ -1,9 +1,9 @@
 # Step: impasse. Owned by run-a-gate; filled by whoever conducts the gate.
-# Minted in place of a fourth implement round once the review has
+# Minted in place of the next implement round once the review has
 # sent the same diff back `impasse-after` times -- counted on the conductor's
 # own rework, since that is the hand the round is actually sent back by. It
-# carries no panel: a fourth fresh-context reader is the loop, not the way out
-# of it.
+# carries no panel: one more fresh-context reader is the loop, not the way
+# out of it.
 
 imperative = """
 The review has sent this diff back three times. Rule on the loop, not on the
