@@ -12,23 +12,22 @@ never wherever the dispatching shell happens to be standing, or g4's later
 archive move cannot find it.
 """
 
-import pathlib
-
 from engine import cli, journal, rail, render, run as runmod
 from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_plan, \
-    _dispatch_and_close_plan, _dispatch_plan_critic, _fill, _select_panel, \
-    _work_the_board, _write_plan_artifact
+    _dispatch_and_close_plan, _dispatch_plan_critic, _select_panel, \
+    _work_the_board, _fill_plan_to_execute
 
 
 def _open_one_gate(wid, issue, proof):
     """Drive a run-an-issue open to one freshly minted gate dispatch step,
     with a caller-chosen `proof` -- the shape a check-resolution test needs,
     which `test_nesting._mint_first_gate` does not expose. The proof is the
-    plan round's own field now (#27): it has to ride in through
-    `_fill_plan`, not a PLAN_TO_EXECUTE.toml block -- that form has nothing
-    left to author, and a stale `[[gates]]` block there is silently ignored
-    rather than refused, which is exactly the trap this comment is here to
-    name for the next reader."""
+    plan round's own field now (#27): it has to ride in through `_fill_plan`,
+    not a PLAN_TO_EXECUTE.toml block -- a stale `[[gates]]` block there is
+    silently ignored rather than refused, which is exactly the trap this
+    comment is here to name for the next reader. `_fill_plan_to_execute`
+    (test_nesting.py) is the route form's own conductor fill now (ruling 3):
+    `resolution` and, on a pass, the `plan` pointer that projects the gate."""
     cli.main(["open", "run-an-issue", "--issue", issue, "--title", "t"])
     _fill_open(wid)
     cli.main([wid, "submit"])
@@ -38,9 +37,7 @@ def _open_one_gate(wid, issue, proof):
     _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
         w, purpose="gate purpose", scope="gate scope", proof=proof))
     _dispatch_plan_critic(wid)
-    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
-         'plan = ".agent-work/%s/plan.md"\n' % wid)
+    _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
 
 
@@ -179,9 +176,7 @@ def test_a_gate_dispatched_from_a_cwd_that_is_not_the_parents_worktree_still_nes
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
-    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
-         f'plan = ".agent-work/{wid}/plan.md"\n')
+    _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
     step_id = runmod.state(wid)["current"]["id"]
     capsys.readouterr()
@@ -211,9 +206,7 @@ def test_dispatch_brief_names_the_worktree_and_branch_for_a_root_run(workdir, ca
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
-    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
-         f'plan = ".agent-work/{wid}/plan.md"\n')
+    _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -238,9 +231,7 @@ def test_review_panel_brief_on_a_nested_gate_names_the_parents_worktree_and_bran
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid)
-    _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"),
-         f'plan = ".agent-work/{wid}/plan.md"\n')
+    _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
     step_id = runmod.state(wid)["current"]["id"]
     cli.main(["open", "run-a-gate", "--parent", wid, "--step", step_id])

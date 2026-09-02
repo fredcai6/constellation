@@ -1,37 +1,93 @@
-# Transition: plan → execute. Owned by run-an-issue. Two voices: the critic
-# panel's verdicts return here -- a revise refills the plan interior with the
-# findings, resolved through this transition's own `resolution` outcome row,
-# three rounds of it reaching the plan segment's impasse form instead; on
-# pass, submitting the form below releases it.
+# Transition: plan → execute. Owned by run-an-issue; filled by whoever
+# conducts the issue. Ruling 3 (2026-09-02): mirrors run-a-gate's own
+# review/ROUTE.toml shape. Two voices: the critic panel reads the plan and
+# rules first -- both of its words release, so nothing mints on the panel's
+# say alone -- and this form is where its round is disposed of, on a revise
+# as much as on a pass, since a round with findings in it is exactly the
+# round somebody has to rule on. The panel's verdict is above in the room;
+# this is the answer to it.
 
 imperative = """
-The plan has passed critique. There is nothing to author here: point at the
-plan artifact that passed, and submit. The round the critics just judged
-already cut the gate whole -- purpose, scope, proof, and any model or
-direction override -- and submitting this mints it as its own dispatched
-run, its fields carried across read-only."""
-
-[[field]]
-id = "plan"
-kind = "artifact"
-note = """
-The plan artifact that passed critique, in this run's work location
-(.agent-work/<work-id>/). Submitting this projects the one gate the round
-ahead cut into its own dispatch -- a projection of the planner's own form,
-never a copy typed here: purpose, scope, proof and any model or direction
-override cross into the child's prefill; the horizon behind them does not.
-The critics who just judged the round could see the whole future plan; the
-gate that executes it sees only its own piece."""
+The panel has returned. Read its findings as written -- a revise is not an
+invitation to argue the verdict you were given -- and say where this round
+goes: on to execute, or back for another pass. Then call every finding it
+returned, one by one; a `rework` carries the ones you call blocking and
+nothing else. The round that just passed critique already cut the gate
+whole -- purpose, scope, proof, and any model or direction override --
+so a `pass` (or a `revise` you are not sending back) needs nothing retyped,
+only the plan artifact pointed at."""
 
 [[field]]
 id = "resolution"
 kind = "decision"
+note = """
+pass | revise | rework | up. The first two are the panel's own words,
+resolved onto this same table when its verdict returned -- record one if you
+want the record explicit, but both release the round exactly as leaving the
+plan field filled and submitting does, so `revise` typed here does not send
+anything back. Your own two are the last two: `rework` is another planner
+pass, carrying the findings you call `blocking` below and nothing else --
+after `impasse-after` of them the ruling form comes instead. `up` is the
+round you cannot rule on from here, the spec being wrong the usual reason:
+it pauses this segment rather than releasing it, your reason standing as an
+ask one tier up -- with whatever it answers carried back as this round's
+own next orders, the same as the impasse form's own `up` beside it. Say the
+ask in `calls` below where it belongs to a finding, since that call is what
+the ask itself carries up."""
+
+[[field]]
+id = "plan"
+kind = "artifact"
 optional = true
 note = """
-pass | revise, optional -- leave it blank. On an ordinary pass the critic
-panel's own merged verdict already resolved this step before you filled the
-form; on an impasse ruling that advanced over a live revise instead, no
-panel sits on this mint at all, so there is no verdict to record. Typing
-`pass` only re-records a clearing that already happened; typing anything
-else mints a second, redundant rework round alongside the projection above,
-not a correction to it."""
+The plan artifact that passed critique, in this run's work location
+(.agent-work/<work-id>/) -- filled when this round releases (a `pass`, or a
+`revise` you are not sending back) and left blank on a `rework` or an `up`,
+since neither has anything intact to project. Filling it projects the one
+gate the round ahead cut into its own dispatch -- a projection of the
+planner's own form, never a copy typed here: purpose, scope, proof and any
+model or direction override cross into the child's prefill; the horizon
+behind them does not. The critics who just judged the round could see the
+whole future plan; the gate that executes it sees only its own piece."""
+
+# `calls` is written last, after the scalar `resolution` and `plan`, because
+# a plan field renders as a bare `[[calls]]` header and every scalar declared
+# after it would nest inside that array's last block instead of standing as
+# its own field (tests/test_reachable_briefs.py holds the whole tree to
+# this). The reading order is the other one: rule the findings, then say
+# where the round goes.
+[[field]]
+id = "calls"
+kind = "plan"
+optional = true
+note = """
+One block per finding the panel returned -- every one of them gets a call,
+and this form is the only place any of them is ruled on.
+
+`blocking` -- the plan is not filled while this stands. These and only these
+ride into a `rework` as the fresh planner round's own findings, so a
+blocking call is that round's orders. `accepted` -- true, and the round
+stands anyway; a finding you are noting rather than acting on, recorded here
+rather than worked. `beyond` -- real, and outside what this plan set out to
+do; it leaves as a triage candidate, never as work here. `rejected` -- not
+true of this plan, or below the bar a plan is held to (purpose says the
+result, proof says what verifies it, scope says where; how is the
+implementer's, and a finding about how is rejected on that bar alone) --
+and the one call that owes a reason: fold it in after a colon, the way
+`rejected: the how is the implementer's, not this plan's` reads. A
+`rejected` call on a finding that claims something about what the code does
+names the command that refuted it, the way an issue's `measured` type
+carries its command.
+
+Quote what you are calling as it was written rather than numbering it: on a
+`rework` the blocking blocks are literally what the next round arrives
+holding, so a call naming `F1` hands that round the string `F1`. Leave the
+field out only where the panel returned no findings."""
+
+  [[field.item]]
+  id = "finding"
+  note = "The panel's finding as it was written -- quoted, never summarised."
+
+  [[field.item]]
+  id = "call"
+  note = "blocking | accepted | beyond | rejected: <reason>"

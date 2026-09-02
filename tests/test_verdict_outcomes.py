@@ -28,9 +28,11 @@ def test_run_an_issues_plan_transition_declares_resolution_disjoint_from_ruling(
     pick the transition's own `resolution` field, not `ruling` -- the plan
     segment's own, IMPASSE.toml's -- since the two outcome tables have to
     stay disjoint for a deciding step to resolve to exactly one of them.
-    `_outcome` then resolves both of `resolution`'s legal values against the
-    row the assembly actually declares, exactly as it would for a value a
-    conductor typed into a real field."""
+    `_outcome` then resolves each of `resolution`'s four legal values
+    (ruling 3, 2026-09-02) against the row the assembly actually declares:
+    the panel's two are both inert, and the conductor's own `rework` is the
+    one that mints -- the same shape run-a-gate's review/ROUTE.toml already
+    has (test_verdict_route.py's own version of this test)."""
     asm = runmod.load_assembly("run-an-issue")
     step = {"segment": "plan", "form": "forms/PLAN_TO_EXECUTE.toml"}
 
@@ -38,22 +40,34 @@ def test_run_an_issues_plan_transition_declares_resolution_disjoint_from_ruling(
     assert field == "resolution"
     assert field != "ruling"  # the segment's own decides -- IMPASSE.toml's, not this
 
-    seg, does = cli._outcome(asm, step, {"resolution": "revise"}, {"steps": []})
+    # the panel's own two words: neither acts, so the step stays open for the
+    # form and the conductor is the one who says where the round goes
+    for verdict in ("pass", "revise"):
+        seg, does = cli._outcome(asm, step, {"resolution": verdict}, {"steps": []})
+        assert seg["id"] == "plan" and does == "release"
+
+    # the conductor's own two
+    seg, does = cli._outcome(asm, step, {"resolution": "rework"}, {"steps": []})
     assert seg["id"] == "plan" and does == "rework"
 
-    seg, does = cli._outcome(asm, step, {"resolution": "pass"}, {"steps": []})
-    assert seg["id"] == "plan" and does == "release"
+    seg, does = cli._outcome(asm, step, {"resolution": "up"}, {"steps": []})
+    assert seg["id"] == "plan" and does == "pause"
 
 
-def test_a_panels_revise_resolves_through_the_outcome_table_and_reworks(workdir, capsys):
-    """End to end: the panel's own merged verdict, never typed by a
-    conductor, still reaches `_perform`'s `rework` verb through the same
-    outcome table a submitted decision field would use. The fresh round
-    dispatches (#27) the same as any other round, carrying the panel's
-    findings -- proof that `_perform` ran against a synthetic step built for
-    this call, not the real plan-to-execute step, whose own prefill (the
-    consolidated spec, the run's own understanding) is not what a
-    rework round should carry forward."""
+def test_the_conductors_rework_resolves_through_the_outcome_table_and_reworks(workdir, capsys):
+    """End to end: the panel's own merged verdict is inert now (ruling 3) --
+    it releases and holds `plan` open for the conductor's own form, exactly
+    like run-a-gate's review/ROUTE.toml -- so what reaches `_perform`'s
+    `rework` verb is the conductor's own typed `rework`, through the same
+    outcome table a submitted decision field would use at any other step.
+    `_dispatch_panel` (test_two_voices.py) submits that route form itself,
+    defaulting to `rework`, the same way a conductor following a revise
+    would. The fresh round still dispatches (#27) the same as any other
+    round, carrying the panel's findings -- proof that `_perform` ran
+    against this step's own prefill (what caused the round) rather than the
+    real plan-to-execute step's own prefill (the consolidated spec, the
+    run's own understanding), which is not what a rework round should carry
+    forward."""
     wid = _drive_to_plan_to_execute()
     real_prefill = runmod.state(wid)["prefill"]
     assert real_prefill  # the real step's prefill is non-empty to begin with

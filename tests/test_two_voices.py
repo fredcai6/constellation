@@ -2,18 +2,27 @@
 the panel first, and completes on the form's submit -- never the reverse.
 
 run-an-issue's plan-to-execute was the first transition in the repo shaped
-this way: the critic panel reads the plan, and only a `pass` reaches the mint
-form that cuts gates. Before this, four sites in cli.py guarded on `panel and
-not form`, so a form-carrying transition took the plain form path and the
-critic was never dispatched -- a plan could mint gates without ever being
-attacked. Understand's own consolidate is now shaped the same way -- the
-cold panel reads the spec-writer's round, and only a `pass` reaches
-consolidate's own bookkeeping -- so `_work_the_board` below drives that one
-too, on every fixture in this file. These tests drive the real `run-an-issue`
-assembly (the first, end to end) and the real two-step mechanism
-`run.py`/`cli.py` provide (the rest, via direct journal fixtures, the same
-way test_verdict_panels.py isolates a revise round). test_verdict_panels.py
-is the check that run-a-gate's panel-only review is unchanged by any of this.
+this way: the critic panel reads the plan, and the mint form that cuts gates
+is what actually releases the round. Before this, four sites in cli.py
+guarded on `panel and not form`, so a form-carrying transition took the
+plain form path and the critic was never dispatched -- a plan could mint
+gates without ever being attacked. Understand's own consolidate is now
+shaped the same way for its panel half -- the cold panel reads the
+spec-writer's round, and only a `pass` reaches consolidate's own bookkeeping,
+a revise still refilling behind the conductor automatically -- so
+`_work_the_board` below drives that one too, on every fixture in this file.
+Plan-to-execute's own fold moved again under ruling 3 (2026-09-02): both of
+the panel's words now release, so the step holds open for its own form on a
+revise as much as on a pass, and the conductor's own `rework` (not the
+panel's `revise`) is what sends the round back -- test_verdict_route.py has
+the fuller account of that shape, mirrored from run-a-gate's own
+review/ROUTE.toml; this file keeps the two-voices mechanism itself (panel
+first, form completes it) as its own subject. These tests drive the real
+`run-an-issue` assembly (the first, end to end) and the real two-step
+mechanism `run.py`/`cli.py` provide (the rest, via direct journal fixtures,
+the same way test_verdict_panels.py isolates a revise round).
+test_verdict_panels.py is the check that run-a-gate's panel-only review is
+unchanged by any of this.
 """
 
 import pathlib
@@ -23,6 +32,7 @@ import pytest
 from engine import cli, forms, journal, run as runmod
 from conftest import REPO
 from test_nesting import _write_plan_artifact
+from test_rework import _drive_understand_to_impasse
 
 CRITIC = "skills/critic/forms/CRITIC.toml"
 CONSOLIDATE = REPO / "assemblies/run-an-issue/forms/CONSOLIDATE.toml"
@@ -133,12 +143,16 @@ key-terms = "waived: none"
 ''' % (loc, findings_addressed, deleted))
 
 
-def _fill_plan_to_execute(wid):
-    """Nothing to author here now (#27): the round the panel just passed
-    already cut the gate, and submitting this projects it."""
-    _write_plan_artifact(f".agent-work/{wid}/plan.md")
-    _fill(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml",
-         'plan = ".agent-work/%s/plan.md"\n' % wid)
+def _fill_plan_to_execute(wid, resolution="pass"):
+    """The conductor's own route form at the plan seam (ruling 3): `resolution`
+    is the conductor's own typed decision, and `plan` -- the pointer that
+    projects the gate -- is filled only where the round releases with
+    something to project."""
+    body = 'resolution = "%s"\n' % resolution
+    if resolution in ("pass", "revise"):
+        _write_plan_artifact(f".agent-work/{wid}/plan.md")
+        body += '\nplan = ".agent-work/%s/plan.md"\n' % wid
+    _fill(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml", body)
 
 
 def _fill_verdict(wid, verdict, findings="none: waived: clean"):
@@ -161,29 +175,28 @@ def _dispatch_critic(pwid, step_id, verdict="pass", findings="none: waived: clea
     return panelist
 
 
-def _dispatch_panel(pwid, step_id, verdict="pass", findings="none: waived: clean"):
+def _dispatch_panel(pwid, step_id, verdict="pass", findings="none: waived: clean",
+                    resolution=None):
     """Clear a panel step: every panelist the assembly declares, not just the
     first. The step completes on the last verdict, so closing one of three
-    leaves the transition outstanding."""
+    leaves the transition outstanding.
+
+    Both of plan-to-execute's own words release now (ruling 3), so a revise
+    there leaves the step standing open on its own form rather than folding
+    shut -- unlike consolidate's `understand` panel, which still refills
+    behind the conductor automatically. Where that is what just happened
+    (the step is still `current`, standing on PLAN_TO_EXECUTE.toml), this
+    also disposes of the round on that form, defaulting `resolution` to
+    `"rework"` so a caller driving straight through still reaches the fresh
+    round it always did."""
     panel = next(s for s in runmod.state(pwid)["steps"] if s["id"] == step_id)["panel"]
     for n in range(1, len(panel) + 1):
         _dispatch_critic(pwid, step_id, verdict, findings, n=n)
-
-
-def _drive_plan_to_impasse(wid, panel_id="plan", findings="gap: wrong artifact entirely"):
-    """Four revises landing on the same objection -- the only way a root
-    objection reaches the plan segment's impasse form now that the panel's
-    vocabulary is `pass | revise`, not a third word that jumps there in one."""
-    _dispatch_panel(wid, panel_id, verdict="revise", findings=findings)
-    for _ in range(3):
-        st = runmod.state(wid)
-        fresh_interior = next(s for s in st["steps"]
-                              if s["segment"] == "plan" and s.get("dispatches")
-                              and s["id"] not in st["done"])
-        _dispatch_and_close_plan(wid, fresh_interior["id"], _fill_rework_form)
-        panel_id = next(s["id"] for s in runmod.state(wid)["steps"]
-                        if s.get("panel") and s["id"] not in runmod.state(wid)["done"])
-        _dispatch_panel(wid, panel_id, verdict="revise", findings=findings)
+    current = runmod.state(pwid).get("current")
+    if (verdict == "revise" and current and current["id"] == step_id
+            and current.get("form") == "forms/PLAN_TO_EXECUTE.toml"):
+        _fill_plan_to_execute(pwid, resolution or "rework")
+        cli.main([pwid, "submit"])
 
 
 def _drive_to_plan_to_execute(wid="issue99", settle="waived: none"):
@@ -306,16 +319,32 @@ def test_settle_carries_the_boards_answers(workdir, capsys):
 # -- 2. revise sends the plan back with findings attributed, panel re-fires -
 
 
-def test_revise_sends_the_plan_back_with_findings_attributed_and_the_panel_refires(workdir, capsys):
+def test_a_revise_holds_the_form_and_the_conductors_rework_sends_findings_back_attributed(workdir, capsys):
+    """Ruling 3 (2026-09-02): both of the panel's own words release now, so a
+    revise no longer refires the round on its own -- it holds `plan` open for
+    the conductor's own form, the same as run-a-gate's review/ROUTE.toml.
+    Only the conductor's own `rework` (not the panel's `revise`) sends the
+    round back, and it still carries the panel's findings, attributed."""
     wid = _drive_to_plan_to_execute()
     capsys.readouterr()
 
-    _dispatch_panel(wid, "plan", verdict="revise", findings="gap: gate 1 is untestable")
+    panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "plan")["panel"]
+    for n in range(1, len(panel) + 1):
+        _dispatch_critic(wid, "plan", verdict="revise",
+                         findings="gap: gate 1 is untestable", n=n)
     capsys.readouterr()
 
     st = runmod.state(wid)
-    assert "plan" in st["done"]                     # released, like a panel-only step
+    assert st["current"]["id"] == "plan"            # held open, not released by the panel alone
+    assert st["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
+    assert not any(s["segment"] == "plan" and s.get("source") == "mint"
+                   for s in st["steps"]), "the panel's own revise minted a round"
 
+    _fill_plan_to_execute(wid, "rework")
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(wid)
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
     # rework, not a second first draft -- and it dispatches, like every round
@@ -365,7 +394,7 @@ def test_pass_opens_plan_to_execute_for_the_conductor(workdir, capsys):
 
     cli.main(["i1"])
     out = capsys.readouterr().out
-    assert "nothing to author here" in out            # PLAN_TO_EXECUTE's own imperative
+    assert "The panel has returned." in out           # PLAN_TO_EXECUTE's own imperative
     assert "spine open give-a-verdict" not in out     # not the panel view anymore
 
 
@@ -411,27 +440,37 @@ def test_submit_refuses_while_a_verdict_is_outstanding(workdir, capsys):
 
 # There is no third verdict word. A panel that objects at the root writes it
 # as a revise finding, the same as any other -- and, once the panel's own
-# vocabulary is `pass | revise`, only three of them landing on the plan in a
-# row reaches the segment's outlet. That path -- four revises, the fourth
-# minting IMPASSE.toml with `arrival = "rework-rounds"` -- is pinned in
-# tests/test_rework.py, which drives it for both run-an-issue and run-a-gate;
-# this file's own job is the two-voices shape (panel and form on one step),
-# which the room-naming test below still exercises with a plain revise.
+# vocabulary is `pass | revise`, only two reworks landing on the plan in a
+# row reach the segment's outlet (impasse-after = 2). That path -- the third
+# revise minting IMPASSE.toml with `arrival = "rework-rounds"` -- is pinned
+# in tests/test_rework.py, which drives it for run-an-issue's plan and
+# understand and for run-a-gate alike; this file's own job is the
+# two-voices shape (panel and form on one step).
+#
+# Ruling 3 (2026-09-02) moved plan-to-execute's own `revise` row to
+# `release` -- the panel's word is always quiet there now, whatever the
+# conductor's own route form later decides -- so a plain revise can no
+# longer reach the room this test is about at that transition; the room
+# still fires (`_returned_verdict` reads the same outcome table everywhere),
+# it is only that plan-to-execute's own panel-level row never resolves to
+# anything but the quiet class any more. Consolidate did not move, so its
+# own impasse is what still exercises this room with a plain revise.
 
 
 def test_the_room_names_a_returned_panels_non_pass_verdict(workdir, capsys):
     """The findings arrived as orders and the word the panel merged on did
-    not, so the reader of an outlet room had to infer whether three critics
-    had looped or not. A pass is the room arriving normally and is not
-    named.
+    not, so the reader of an outlet room had to infer whether critics had
+    looped or not. A pass is the room arriving normally and is not named.
 
     A single revise no longer proves this: every round now dispatches (#27),
     so the very next room after one revise is the dispatch view, which never
     reaches `_returned_verdict` at all. Only the outlet -- a looped revise's
     non-dispatch IMPASSE.toml -- lands the reader on the room this test is
-    about, the same room an escalate used to reach in one."""
-    wid = _drive_to_plan_to_execute()
-    _drive_plan_to_impasse(wid)
+    about, the same room an escalate used to reach in one. Driven through
+    `understand`'s own impasse (`test_rework._drive_understand_to_impasse`):
+    plan-to-execute's own panel-level row is unconditionally quiet since
+    ruling 3, so it can no longer be what demonstrates this."""
+    wid = _drive_understand_to_impasse()
     capsys.readouterr()
 
     cli.main([wid])
