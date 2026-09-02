@@ -144,7 +144,7 @@ def _measure_artifacts(wid, step, form, fields):
 
 def _resolve_command(text, root=None):
     """`palette:test args` -> the host repo's test command plus args. A proof
-    chaining several named jobs with `&&` (`palette:test && palette:lines`)
+    chaining several named jobs with `&&` (`palette:test && palette:map`)
     resolves each side on its own, so the second name is looked up rather
     than handed to the shell as a literal command it does not have.
 

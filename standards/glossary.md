@@ -149,8 +149,7 @@ forms; coining a synonym for a term below is a defect.
 - **proof budget** — how long a proof may run before it is broken rather than slow. Declared
   per gate spec as `budget`, whole seconds, 600 where the spec declares none; a proof that
   outruns it is refused. Distinct from the handback, which bounds the caller's wait rather
-  than the proof, and from the engine-line and corpus caps `docs/AGENT_GUIDE.md` calls
-  budgets, which are alert thresholds on size and refuse nothing.
+  than the proof.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
   implementer working its interior and the gate-conductor naming, at `select`, the panel that
   reviews it.
