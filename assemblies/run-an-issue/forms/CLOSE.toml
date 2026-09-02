@@ -5,7 +5,10 @@
 # candidates raised, not its blocked, resumed, observation, or decision notes.
 
 imperative = """
-Close the run. Sweep what remains; add only what the record does not carry."""
+Close the run. Sweep what remains; add only what the record does not carry.
+The engine prints and archives this run's own review yield beside this form
+once you submit -- rounds per seam, findings per round, how each was called
+-- so nobody tabulates it by hand."""
 
 [[field]]
 id = "disposition"
