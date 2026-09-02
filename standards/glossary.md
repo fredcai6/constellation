@@ -166,6 +166,10 @@ forms; coining a synonym for a term below is a defect.
   both. Distinct from the issue tier's **disposition** (`GATE_TRANSITION.toml`'s `dispositions`
   field): a call judges one finding or deviation once; a disposition judges one spec commitment
   across the run's whole life.
+- **review yield** — a closed run's own record of its review seams, derived and printed at
+  close (`engine/review_yield.py`): rounds per seam, findings per round, and each finding's
+  call where a route form ruled on one. Written beside `CLOSE.toml` as `YIELD.md`, and reachable
+  on a live run through `spine <work-id> trace --yield`. Nothing a conductor tabulates by hand.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The
