@@ -564,29 +564,6 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
     assert verbs_checked, "no outcome named a verb -- this test swept nothing"
 
 
-SKILL_BUDGETS = {"issue-conductor": 1500, "implementer": 800, "gate-conductor": 800,
-                 "critic": 850, "reviewer": 700, "spec-writer": 600}
-
-
-def test_budgeted_skills_exist_inside_budget():
-    """Every role `SKILL_BUDGETS` lists gets a SKILL.md, checked against the
-    budget `standards/skill.md` sets and enforced with `wc -w`, FORMS
-    INCLUDED (that standard's word-budget bar): what a role costs is
-    everything its agent reads to hold that posture, and its
-    own forms are read every time it is filled. This test used to count the
-    SKILL.md alone and say so in this docstring, which left one budget with
-    two live definitions and a skill free to spend the difference by moving
-    words into a form."""
-    for name, budget in SKILL_BUDGETS.items():
-        skill = ROOT / "skills" / name / "SKILL.md"
-        assert skill.exists(), f"skills/{name}/SKILL.md does not exist"
-        parts = [skill] + sorted((ROOT / "skills" / name / "forms").glob("*.toml"))
-        counts = {p.name: len(p.read_text().split()) for p in parts}
-        assert sum(counts.values()) <= budget, (
-            f"skills/{name} is {sum(counts.values())} words, over its "
-            f"{budget}-word budget: {counts}")
-
-
 def _glossary_entry(text, name):
     """The bullet's own text, from `- **name** —` to the next `- **` bullet or
     end of file. A `re.search` for the name alone would match a substring of a

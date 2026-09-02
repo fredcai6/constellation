@@ -291,25 +291,12 @@ refusals, the MCP server, and every CLI-vs-door distinction. Bind/release descen
 
 ### Size
 
-One budget, and it is **the engine's** — `engine/` and the `spine` CLI, which is where the
-rail, assembly loading, Windows support and the install copy all live, measured by
-`palette:lines`. The live number and what counts against it now live in
-`docs/AGENT_GUIDE.md`; this section keeps the reasoning, not the figure. Blank lines, comments
-and docstrings are prose: the instrument prints them beside the count, never inside it — counted
-inside it, the prose carrying the engine's reasons is the cheapest thing to cut to get green,
-and it is the last thing that should go. The bar is an aspiration, not a wall — its job is to keep pressure on every line earning its keep. One kind of line always
-earns it:
-**anything the engine can derive, it derives.** A rule stated in a form for an agent to apply
-against data the engine already holds is mechanical work the secretary exists to remove, and a
-budget that argues for leaving it to the agent is arguing the wrong way (`docs/DERIVED_IS_CODE.md`) — and it is one number: the rule is against gaming, not against reorganizing. Moving
-engine work out of `engine/` into a decoupled tool to duck the cap counts as a miss. Splitting a
-module within `engine/` does not: `palette:lines` counts the engine spine whole, so moving lines
-between files inside it changes nothing the instrument reads, and the cap is never a reason to
-leave one module carrying several unrelated concerns. A tool with no seam into a run — nothing in
-`engine/` imports it, nothing on a run's path calls it, invoked by hand from the palette — is
-outside the cap, because moving nothing out of the engine cannot buy the engine anything.
-`tools/code_map`, run by `palette:map` at closeout, is the standing case.
-Forms and templates are corpus words, not machinery lines.
+**Anything the engine can derive, it derives.** A rule stated in a form for an agent to apply
+against data the engine already holds is mechanical work the secretary exists to remove, rather
+than left to the agent (`docs/DERIVED_IS_CODE.md`). A tool with no seam into a run — nothing in
+`engine/` imports it, nothing on a run's path calls it, invoked by hand from the palette —
+belongs in `tools/`, not `engine/`; `tools/code_map`, run by `palette:map` at closeout, is the
+standing case.
 Greenfield rewrite; the old machinery stays untouched until cutover.
 
 ## Layer 2 — forms carry the doctrine
@@ -584,7 +571,7 @@ Short cited pages, not skills. Forms cite them from the field that produces the 
 
 - `standards/issue.md` — an issue is the problem, observations with baselines, and what fixed
   means. Breadcrumbs are optional and discardable. Implementation steps in an issue are a defect.
-- `standards/skill.md` — what a good skill looks like: word budget, reads only its form, one move.
+- `standards/skill.md` — what a good skill looks like: reads only its form, one move.
 - `standards/prose.md` — how-to-talk.
 
 The understanding moves live at the fields that use them: the
@@ -623,25 +610,12 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 
 | Measure | v1 | v2 target |
 |---|---|---|
-| Corpus words (authored artifacts an agent must read before it can work) | ~57,000 | see `docs/AGENT_GUIDE.md` |
-| Engine lines of code (`engine/` + `spine`: rail, loader, Windows, install copy — decoupled tools are outside it) | ~10,000 | see `docs/AGENT_GUIDE.md` |
 | Engine verbs | 18 | 7 |
 | Conductor pre-reading | 20–30k tokens of doctrine | the issue + the authority block |
 | Shared doctrine prose | ~11,000 words (`_shared/`) | one page + standards |
 
-v1's ~10,000 is a raw `wc -l`, taken before the instrument counted code; the two rows above
-are not measured the same way, so read v1 against v2 as an order of magnitude rather than a
-ratio. v1 is deleted, so its column is the archival record as measured then, not a figure a
-later audit can retake. The live corpus and engine numbers, and what counts against each, are
-owned by `docs/AGENT_GUIDE.md` — not repeated here.
-
-The corpus target counts artifacts someone authored and an agent must read before it can
-work. Derived output is not corpus: the code map is regenerated from the source at closeout,
-never committed, and read on the spot — and a cap that grew with the source it describes
-would not be a cap.
-
-Draft per-skill word budgets, forms included — revised at wave boundaries, enforced at cutover
-with `wc`. The live numbers are owned by `standards/skill.md`.
+v1 is deleted, so its column is the archival record as measured then, not a figure a later
+audit can retake.
 
 ## Waves
 
@@ -661,18 +635,13 @@ with `wc`. The live numbers are owned by `standards/skill.md`.
    component. One issue would be a plan cut across two assemblies and two new skills,
    authored all at once under the planner it retires.
 4. **explorer + epic-conductor.** The explore and epic assemblies, wave-tier transitions, their evals.
-5. **Cutover.** Install, full eval pass, the word/line ledger against the budgets, archive v1.
+5. **Cutover.** Install, full eval pass, archive v1.
    Hard cutover: v2 is validated with real runs, then replaces v1 wholesale.
 
 ## Pivot criteria for this effort
 
 - Explorer and interrogator share the understanding form only if one form serves both postures
   in drafting. If the forms fight, split them — a cheap pivot.
-- Approaching the machinery cap is the prompt for one question, asked aloud: **what do we not
-  need?** Answer it with a real audit — a call-site census, a dead-key sweep — not a guess. The
-  answer may well be that it is all load-bearing; that is a valid outcome and the audit is
-  still worth its cost. Raise the number deliberately when it is reached, never by drifting one
-  feature at a time, which is how v1 arrived at ~10,000.
 - A validation run needing doctrine beyond its forms means the missing knowledge moves into a
   form or an error message — never into a new shared doc.
 - Fresh-at-boundary handoffs losing understanding means the form is missing fields. Fix the

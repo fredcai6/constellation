@@ -57,23 +57,8 @@ now: **does fixing this change what an agent does at a step, or what a human see
 decides?** If neither, the finding is true and inert — record it and leave it. Real, cheap and
 correct is not sufficient, which is what `standards/issue.md` says from the other side.
 
-Two budgets bound every addition: engine code at **≤ 2,500 lines**, measured by
-`palette:lines`, which counts lines of code and prints comments and docstrings beside that
-number rather than in it; and corpus at **≤ 20,000 words**, measured by `palette:words`,
-which counts the same way but excludes TOML comments. Corpus is not what any single agent
-reads — the heaviest single step, `issue-conductor`'s biggest, reads about 3,166 words, and
-summing every form a full `issue-conductor` run fills plus the whole glossary comes to about
-8,590; the heaviest skill, `planner`, is 1,353 words, `reviewer` 520. What the corpus number
-tracks instead is total maintenance and coherence surface: `skills/`, `standards/`,
-`assemblies/`, and this file — everything someone doing a repo-wide pass must hold at once.
-No test enforces either budget. Both are alert thresholds, not walls: crossing one is not a
-refusal, it is a prompt to stop and ask what the repo does not need anymore, and whether a
-consolidation pass is due. Never trim an artifact just to bring a number down — that spends
-real guidance to shrink an integer, which is not a win. Moving engine work into `tools/` to
-duck the cap is gaming and still counts as a miss; reorganizing within `engine/` is not —
-`palette:lines` counts `engine spine` wholesale, so it reads the same either way — and the cap
-is never a reason to leave a module carrying several unrelated concerns. `tools/` is outside
-both caps by ruling.
+Adding guidance is not free: before writing more, ask whether a consolidation pass is due —
+what the repo already carries that it no longer needs.
 
 `standards/glossary.md` is the single largest file in corpus. Its growth is the intended
 mechanism rather than drift — new terms enter it through the key-terms field precisely so a
@@ -96,11 +81,11 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 
 | Path | Holds |
 |---|---|
-| `engine/` + `spine` | the secretary: rail, forms, journal, install copy. Bound by the machinery cap. |
+| `engine/` + `spine` | the secretary: rail, forms, journal, install copy. |
 | `assemblies/` | run templates, one directory each |
 | `skills/<name>/` | one posture each: a `SKILL.md` and the forms only that skill fills |
 | `standards/` | what binds writing and issues — see below |
-| `tools/` | decoupled tooling. Outside both caps by ruling: no verb, no step, no form field, no import from `engine/`. |
+| `tools/` | decoupled tooling: no verb, no step, no form field, no import from `engine/`. |
 | `tests/` | the fast suite: no model calls |
 | `evals/` | end-to-end runs against a real light model |
 | `constellation.toml` | the palette, and the logical model tiers resolved at dispatch |
@@ -111,7 +96,7 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 | Document | Source of truth for |
 |---|---|
 | `docs/AGENT_GUIDE.md` | this guide — purpose, layout, documentation map |
-| `docs/V2_DESIGN.md` | the design of record: the workflow, thesis, rulings, budgets, waves. Where it and the tree differ, it says so in place. |
+| `docs/V2_DESIGN.md` | the design of record: the workflow, thesis, rulings, waves. Where it and the tree differ, it says so in place. |
 | `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
 | `docs/DERIVED_IS_CODE.md` | why nothing generated is committed |
 | `standards/prose.md` | how this repo writes |

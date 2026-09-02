@@ -63,9 +63,9 @@ Two live examples of getting this wrong, both ours:
   had no caller and removed it. The right fix was to give it one: unwired
   derivation is a missing call site, not dead weight.
 
-A tight line budget makes deletion look cheaper than wiring. It is not, when
-the thing deleted is work an agent would otherwise do by hand. **Lines spent
-removing mechanical work from agents are the best lines in this engine.**
+Deletion can look cheaper than wiring. It is not, when the thing deleted is
+work an agent would otherwise do by hand. **Lines spent removing mechanical
+work from agents are the best lines in this engine.**
 
 ## What catches the rest
 
