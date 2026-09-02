@@ -309,7 +309,6 @@ a merged identity.
 | `reviewer` | cold panelist, dispatched by a gate's review transition; reads a gate spec and an implement step's outputs, judges whether the work fills the spec |
 | `critic` | cold panelist, dispatched by a plan-shaped transition; reads a spec and a plan, judges whether the plan meets the spec's intent |
 | `excursion` | one named question as a child run — prior art, prototype, picture, or rival — returning a scoped verdict and what regenerates it |
-| `triage` | route candidates into issues per the standard; runs at close |
 | `how-to-talk` | prose standard, unchanged |
 
 **Conductors judge at transitions, pump in between.** A conductor's interior role is
