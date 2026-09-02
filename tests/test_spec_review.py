@@ -63,7 +63,6 @@ settle = "waived: none"
 def _fill_critic(wid, verdict, findings="none: waived: clean"):
     _fill(journal.location(wid) / "CRITIC.toml", '''
 findings = "%s"
-vocabulary = "waived: consistent"
 verdict = "%s"
 ''' % (findings, verdict))
 

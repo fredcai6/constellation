@@ -141,7 +141,7 @@ def test_a_rework_round_dispatches_a_single_planner(workdir, capsys):
         critic = f"{wid}.{step_id}.p{n}"
         _fill(journal.location(critic) / "CRITIC.toml",
               'findings = "gap: needs another look"\n'
-              'vocabulary = "waived: consistent"\nverdict = "revise"\n')
+              'verdict = "revise"\n')
         cli.main([critic, "submit"])
         cli.main([critic, "close"])
     capsys.readouterr()

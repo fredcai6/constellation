@@ -37,11 +37,6 @@ prefill the fresh implement step verbatim — write them to be worked from.
 None: waived: clean."""
 
 [[field]]
-id = "vocabulary"
-kind = "evidence"
-note = "Names the change introduces that fight the glossary or standards/prose.md — or waived: consistent."
-
-[[field]]
 id = "verdict"
 kind = "decision"
 note = """

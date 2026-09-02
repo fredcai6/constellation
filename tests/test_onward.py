@@ -99,7 +99,7 @@ def test_a_panelist_returns_to_the_gate_not_the_run(workdir, capsys):
     panelist = f"issue17.g1.{review}.p1"
     _fill(journal.location(panelist) / "REVIEW.toml",
           'verify = "ran it"\nfindings = "none: waived: clean"\n'
-          'vocabulary = "waived: consistent"\nverdict = "pass"\n')
+          'verdict = "pass"\n')
     cli.main([panelist, "submit"])
     capsys.readouterr()
 

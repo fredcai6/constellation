@@ -153,7 +153,7 @@ def _to_rework(explore):
     for n, verdict in enumerate(("revise", "pass", "pass"), start=1):
         out, _ = _spine("open", "give-a-verdict", "--parent", explore, "--step", f"{panel}.p{n}")
         critic = out.split()[1]
-        _fill(critic, "CRITIC.toml", f'findings = "gap: no point"\nvocabulary = "waived: ok"\nverdict = "{verdict}"\n')
+        _fill(critic, "CRITIC.toml", f'findings = "gap: no point"\nverdict = "{verdict}"\n')
         _spine(critic, "submit")
         _spine(critic, "close")
     assert _current(explore)["form"] == "forms/REWORK.toml"

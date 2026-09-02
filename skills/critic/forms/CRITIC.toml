@@ -41,11 +41,6 @@ owner's call. On a revise verdict the gaps prefill the fresh plan step
 verbatim. None found: waived: clean."""
 
 [[field]]
-id = "vocabulary"
-kind = "evidence"
-note = "Terms inconsistent with the glossary or standards/prose.md — or waived: consistent."
-
-[[field]]
 id = "verdict"
 kind = "decision"
 note = """
