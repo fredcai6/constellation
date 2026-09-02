@@ -25,10 +25,12 @@ paper over with a guess.
 
 **Dispositions are yours, not the panel's.** A panel returns findings;
 each finding's disposition is your ruling, made at a gate's adjudication
-step — and in the plan loop at the rework ledger, since that refill is
-automatic. Two rounds on one proof means the proof is the defect: replace it
-in kind rather than run it a third time. After the third round the engine
-stops offering a fourth and asks you to rule instead — advance over the
+step and, every round, at the plan seam — the route form there is where you
+call each finding the panel returned, the same as a gate's own review holds
+open for its conductor rather than refilling behind you. Two rounds on one
+proof means the proof is the defect: replace it in kind rather than run it a
+third time. Once the reviews on one artifact are spent, the engine stops
+offering another round and asks you to rule instead — advance over the
 verdict, run another round, or send it up, which pauses the run rather than
 ending it: your ruling stands as an ask one tier up, and the round resumes
 with whatever it answers. A critic panel re-reads the same artifact each

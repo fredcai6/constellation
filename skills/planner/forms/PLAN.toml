@@ -8,15 +8,15 @@
 
 imperative = """
 Cut the next gate: purpose, scope, proof, and, when you know them, a model
-override and a direction for what it should teach. A fresh-context critic
-must be able to attack it from the spec and the plan alone, and a
+override and a direction for what it should teach. Purpose says the result,
+proof says what verifies it, scope says where -- the how is the
+implementer's, and that is the bar this gate is held to. A fresh-context
+critic must be able to attack it from the spec and the plan alone, and a
 fresh-context implementer must be able to execute it from the gate spec
 alone. Sketch the horizon behind it -- coarsely, and only as far as you can
 actually commit to before the ground shifts. The plan document itself
 carries the approach and the risks that would change it; this gate's
-purpose, scope and proof are the fields below, not restated there --
-implementation detail below gate grain is a defect, that is the gate's
-latitude."""
+purpose, scope and proof are the fields below, not restated there."""
 
 [[field]]
 id = "plan"
