@@ -20,6 +20,7 @@ from engine import checks as checkrun
 from engine import forms
 from engine import journal
 from engine import render
+from engine import review_yield
 from engine import run as runmod
 
 USAGE = """spine <work-id>                     where you are
@@ -36,7 +37,9 @@ spine open <assembly> --parent <id> --row <row-id>     open an excursion from
     it completes no step. Assemblies: find-prior-art, build-a-prototype,
     draw-a-picture
 spine                               every open run
-spine <work-id> trace               this run and its children, as one timeline"""
+spine <work-id> trace               this run and its children, as one timeline
+spine <work-id> trace --yield       ... plus the review yield: rounds per
+    seam, findings per round, how each was called"""
 
 GIT_TIMEOUT = 600  # a wedged git or gh reads through as a failed call, not a hang
 
@@ -2523,6 +2526,16 @@ def cmd_close(argv):
                            kind_detail="blocked", about="",
                            text=f"parent {st['parent']} not found -- return not delivered")
             print(f"warning: parent {st['parent']} not found -- return not delivered")
+    # The run's own review yield -- rounds per seam, findings per round, how
+    # each was called -- written beside CLOSE.toml so `_sweep_to_archive`
+    # carries it into the archive with everything else this run produced,
+    # and printed here so a conductor sees it without opening the archive.
+    # Computed, never asked for: `docs/DERIVED_IS_CODE.md`'s first instance
+    # for a lesson rather than a field (#16).
+    yield_table = render.review_yield(review_yield.run_yield(wid))
+    if yield_table:
+        (journal.location(wid) / "YIELD.md").write_text(yield_table + "\n")
+        print(yield_table + "\n")
     print(f"closed {wid}\n")
     result = cmd_status([wid])
     if archiving:
@@ -2606,6 +2619,10 @@ def cmd_trace(argv):
     # puts cause before effect there; within one run, file order still rules.
     rows.sort(key=lambda r: (r[0], -r[1].count("."), r[1], r[2]))
     print(render.trace(wid, rows))
+    if "--yield" in argv:
+        table = render.review_yield(review_yield.run_yield(wid))
+        if table:
+            print("\n" + table)
     return 0
 
 
