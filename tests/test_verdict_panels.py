@@ -280,21 +280,22 @@ def test_rework_refills_with_every_panelists_findings_concatenated_and_attribute
 def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
     """There is still no third verdict word: a root objection is a revise
     finding like any other, so the only way this gate's review ever ends
-    without a final pass is the loop -- four revises the conductor sends
-    back through the transition's own form, the fourth reaching the impasse,
-    `advance` walking the gate on to its own close over the live revise (`up`
-    now pauses rather than closing, so it cannot drive this scenario to a
-    return any more -- see test_pause_gate.py for that path instead). The
-    count is spent on the form's own `rework` now, which is the path the
-    mint moved onto; `_summary` still stamps the panel's own last merged
-    verdict onto the return, not the conductor's ruling on it, so the parent
-    adjudicating sees what the panel actually said."""
+    without a final pass is the loop -- three revises the conductor sends
+    back through the transition's own form, the third reaching the impasse
+    (`impasse-after = 2`, ruling 2026-09-02: at most three critic dispatches
+    per artifact), `advance` walking the gate on to its own close over the
+    live revise (`up` now pauses rather than closing, so it cannot drive
+    this scenario to a return any more -- see test_pause_gate.py for that
+    path instead). The count is spent on the form's own `rework` now, which
+    is the path the mint moved onto; `_summary` still stamps the panel's own
+    last merged verdict onto the return, not the conductor's ruling on it,
+    so the parent adjudicating sees what the panel actually said."""
     journal.append("issue9", "run", title="t", assembly="run-an-issue")
     journal.append("issue9", "step", id="g5", segment="execute", dispatches="run-a-gate",
                    prefill={"purpose": "p"}, child="issue9.g5", source="mint")
     cli.main(["open", "run-a-gate", "--parent", "issue9", "--step", "g5"])
     child = "issue9.g5"
-    for n in range(4):
+    for n in range(3):
         _fill_implement(child)
         cli.main([child, "submit"])
         panel_id = _select(child)          # a fresh panel every round, chosen here

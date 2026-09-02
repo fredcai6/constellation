@@ -21,8 +21,11 @@ id = "work"
 interior = "steps"
 step-form = "skills/implementer/forms/IMPLEMENT.toml"
 # This segment has no rework-form, so every refill is another pass at the same
-# diff. After three, a further revise mints the impasse form instead.
-impasse-after = 3
+# diff. Two reworks succeed -- the first and second reviews each send the
+# diff back for another pass -- and the third review's own revise reaches
+# the impasse form instead of minting a fourth round (ruling, 2026-09-02: at
+# most three critic dispatches per artifact).
+impasse-after = 2
 impasse-form = "forms/IMPASSE.toml"
 worker = "implementer"
 model = "standard"
