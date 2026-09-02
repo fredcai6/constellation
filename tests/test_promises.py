@@ -15,6 +15,7 @@ import ast
 import inspect
 import pathlib
 import re
+import subprocess
 import tempfile
 import tomllib
 
@@ -790,7 +791,12 @@ def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc(
 #   `"a" + "b"` into one string at compile time) does not hand the compiled
 #   `.pyc` a single embedded constant spelling the whole phrase -- that
 #   folding is exactly what made an earlier draft of this same fragment
-#   technique a hit on its own bytecode.
+#   technique a hit on its own bytecode. Still rooted wrong: rglob walked
+#   the filesystem, not the repository, so it also caught a sibling
+#   issue-tier worktree and generated map output; walking `git ls-files`
+#   instead drops those for free and lets `docs/process-notes/` join
+#   `V2_DESIGN.md` as a third exclusion, since a dated record quoting the
+#   claim as evidence of a defect is not a standing claim either.
 def test_no_text_in_the_repository_claims_up_mints_nothing_or_ends_the_run():
     _j = ""  # a name, not a literal -- see the rationale above
     fragments = [
@@ -801,17 +807,20 @@ def test_no_text_in_the_repository_claims_up_mints_nothing_or_ends_the_run():
     ]
     pattern = re.compile("|".join(fragments))
     hits = []
-    for path in ROOT.rglob("*"):
-        if not path.is_file():
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True,
+    ).stdout.split(b"\0")
+    for raw in tracked:
+        if not raw:
             continue
-        parts = path.relative_to(ROOT).parts
-        if (".git" in parts or ".agent-work" in parts or "__pycache__" in parts
-                or path.name == "V2_DESIGN.md"):
-            continue  # __pycache__: compiled artifacts, never authored corpus
+        rel = raw.decode()
+        if rel == "docs/V2_DESIGN.md" or rel.startswith("docs/process-notes/"):
+            continue  # a decision the answerer may name, or a dated record
+            # quoting the claim as evidence -- neither is standing prose
         try:
-            text = path.read_text()
+            text = (ROOT / rel).read_text()
         except (UnicodeDecodeError, OSError):
             continue  # not a text file this property could ever be stated in
         if pattern.search(text):
-            hits.append(str(path.relative_to(ROOT)))
+            hits.append(rel)
     assert not hits, f"stale claims about what `up` does survive at: {hits}"
