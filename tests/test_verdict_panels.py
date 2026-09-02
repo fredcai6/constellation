@@ -33,7 +33,6 @@ def _fill_review(wid, verdict, findings="none: waived: clean"):
     _fill(journal.location(wid) / "REVIEW.toml", '''
 verify = "read the diff line by line"
 findings = "%s"
-vocabulary = "waived: consistent"
 verdict = "%s"
 ''' % (findings, verdict))
 

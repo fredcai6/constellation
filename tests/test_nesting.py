@@ -157,7 +157,6 @@ def _fill_review(wid, verdict="pass", findings="none: waived: clean"):
     _fill(journal.location(wid) / "REVIEW.toml", '''
 verify = "read the diff line by line"
 findings = "%s"
-vocabulary = "waived: consistent"
 verdict = "%s"
 ''' % (findings, verdict))
 
@@ -292,7 +291,7 @@ def _fill_critic(wid, verdict, findings="none: waived: clean"):
     """The plan panel declares CRITIC.toml, which has no `verify` field -- a
     critic judges the plan's soundness, not what it exercised."""
     _fill(journal.location(wid) / "CRITIC.toml",
-          'findings = "%s"\nvocabulary = "waived: consistent"\nverdict = "%s"\n'
+          'findings = "%s"\nverdict = "%s"\n'
           % (findings, verdict))
 
 

@@ -96,7 +96,7 @@ def _pass_spec(wid="issue17"):
         panelist = f"{wid}.{tag}"
         (journal.location(panelist) / "CRITIC.toml").write_text(
             'findings = "none: waived: clean"\n'
-            'vocabulary = "waived: consistent"\nverdict = "pass"\n')
+            'verdict = "pass"\n')
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
 
@@ -114,7 +114,7 @@ def _critic_step(wid="c1"):
 
 def _fill_critic(wid, verdict):
     pathlib.Path(f".agent-work/{wid}/CRITIC.toml").write_text(
-        'findings = "none: waived: clean"\nvocabulary = "waived: consistent"\n'
+        'findings = "none: waived: clean"\n'
         f'verdict = "{verdict}"\n')
 
 
@@ -276,7 +276,7 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(bare_workdir, capsys
     panelist = f"{child}.{review}.p1"
     pathlib.Path(f".agent-work/issue17/g1/{review}/p1/REVIEW.toml").write_text(
         'verify = "read it"\nfindings = "none: waived: clean"\n'
-        'vocabulary = "waived: consistent"\nverdict = "pass"\n')
+        'verdict = "pass"\n')
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
     # a pass releases nothing on its own now: the round is disposed of on the

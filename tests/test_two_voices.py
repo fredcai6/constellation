@@ -146,7 +146,6 @@ def _fill_verdict(wid, verdict, findings="none: waived: clean"):
     critic reads a plan with the critic's form, not the reviewer's."""
     _fill(journal.location(wid) / "CRITIC.toml", '''
 findings = "%s"
-vocabulary = "waived: consistent"
 verdict = "%s"
 ''' % (findings, verdict))
 

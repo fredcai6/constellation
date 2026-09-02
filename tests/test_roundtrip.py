@@ -194,7 +194,7 @@ def _pass_spec(wid):
         panelist = f"{wid}.{tag}"
         (journal.location(panelist) / "CRITIC.toml").write_text(
             'findings = "none: waived: clean"\n'
-            'vocabulary = "waived: consistent"\nverdict = "pass"\n')
+            'verdict = "pass"\n')
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
 
