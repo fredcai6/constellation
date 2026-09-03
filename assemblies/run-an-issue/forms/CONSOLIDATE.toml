@@ -1,65 +1,93 @@
 # Anchor: understand → plan. Owned by run-an-issue; filled by the conductor,
 # under the interrogator's own hat -- the spec itself is the spec-writer's
-# round, judged cold by the panel above, not summarized again here. Two
-# voices, PLAN_TO_EXECUTE's own shape: the panel rules first, so this form
-# reads `pass` every time it is actually reached -- a revise refills the
-# spec-writer's round before this step is ever reached. On submit the engine
-# still validates the understand board: an open row refuses, a decision
-# answered without the principal's words refuses; the escape is
-# deferred: <reason>, journaled.
+# round, judged cold by the panel above, not summarized again here.
+# Ruling 3's follow-up (2026-09-03): mirrors run-a-gate's own review/ROUTE.toml
+# shape, and plan-to-execute's below it. Two voices: the
+# critic panel reads the spec-writer's round and rules first -- both of its
+# words release, so nothing advances on the panel's say alone -- and this
+# form is where its round is disposed of, on a revise as much as on a pass,
+# since a round with findings in it is exactly the round somebody has to
+# rule on. The panel's verdict is above in the room; this is the answer to
+# it. On a release the engine also validates the understand board: an open
+# row refuses, a decision answered without the principal's words refuses;
+# the escape is deferred: <reason>, journaled -- a rework or an up does not
+# reach that check, since the board is not done until the spec passes.
 
 imperative = """
-This step will not pass while a row is open, or while a decision is
-recorded with no words from the principal -- close what is left on the
-board above, every row answered, mooted, or deferred with a reason. The
-spec has already passed critique; record this segment's own bookkeeping
-here: the glossary and what the board's excursions produced. Neither is
-the spec; both stay behind in this run's own record."""
+The panel has returned. Read its findings as written -- a revise is not an
+invitation to argue the verdict you were given -- and say where this round
+goes: on to consolidation, or back for another pass. Then call every finding
+it returned, one by one; a `rework` carries the ones you call blocking and
+nothing else. On a release (a `pass`, or a `revise` you are not sending
+back) this step will not complete while a row is open on the board above, or
+while a decision is recorded with no words from the principal -- close what
+is left there, every row answered, mooted, or deferred with a reason -- and
+record this segment's own bookkeeping below: the glossary and what the
+board's excursions produced, neither of them the spec, both staying behind
+in this run's own record."""
+
+[[field]]
+id = "resolution"
+kind = "decision"
+note = """
+pass | revise | rework | up. The first two are the panel's own words,
+resolved onto this same table when its verdict returned -- record one if you
+want the record explicit, but both release the round exactly as leaving the
+fields below filled and submitting does, so `revise` typed here does not
+send anything back. Your own two are the last two: `rework` is another
+spec-writer pass, carrying the findings you call `blocking` below and
+nothing else -- after `impasse-after` of them the ruling form comes instead.
+`up` is the round you cannot rule on from here, the spec being wrong the
+usual reason: it pauses this segment rather than releasing it, your reason
+standing as an ask one tier up -- with whatever it answers carried back as
+this round's own next orders, the same as the impasse form's own `up`
+beside it. Say the ask in `calls` below where it belongs to a finding, since
+that call is what the ask itself carries up."""
 
 [[field]]
 id = "spec"
 kind = "artifact"
+optional = true
 note = """
-The specification that just passed critique, in this run's work location.
-Point at it — never retype it: `carries` puts this field in the run's own
-prefill, which is the only way the plan segment's planner and its critics,
-a different segment entirely, ever see it. The name is standards/glossary.md's
-`spec` — the same one explore-an-idea's own SPEC.toml artifact answers to."""
+The specification that just passed critique, in this run's work location --
+filled when this round releases (a `pass`, or a `revise` you are not
+sending back) and left blank on a `rework` or an `up`, since neither has
+anything intact to carry. Point at it — never retype it: `carries` puts this
+field in the run's own prefill, which is the only way the plan segment's
+planner and its critics, a different segment entirely, ever see it. The
+name is standards/glossary.md's `spec` — the same one explore-an-idea's own
+SPEC.toml artifact answers to."""
 
 [[field]]
 id = "key-terms"
 kind = "evidence"
-note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+optional = true
+note = """
+This work's load-bearing terms; each cites its glossary entry or proposes a
+new one. Coining a synonym is a defect. Filled on a release, the same as
+`spec`; left blank on a `rework` or an `up`."""
 
 [[field]]
 id = "settle"
 kind = "evidence"
+optional = true
 note = """
 What the board's excursion column produced: every excursion dispatched, the
 one question it answered and what its returns said; every decline, and the
 reason given. The row asks; this reports. It is the only path by which a
 per-row brief reaches the planner, the fresh-context panel, and the next
-reader of the journal — the board stays behind in the work location, and these
-fields are what join the run's prefill."""
+reader of the journal — the board stays behind in the work location, and
+these fields are what join the run's prefill. Filled on a release, the same
+as `spec`; left blank on a `rework` or an `up`."""
 
-[[field]]
-id = "resolution"
-kind = "decision"
-optional = true
-note = """
-pass | revise. The critic panel's own merged verdict, carried onto this
-transition's outcome table -- not yours to argue, only to record if you want
-the record explicit. It reads `pass` every time you actually see this form: a
-`revise` refills the spec-writer's round before this step is ever reached, so
-it never lands here to answer."""
-
-# [plan-field-last]
+# [plan-fields-last]
 # Rationale: `forms.materialize` writes a `kind = "plan"` field as a bare
 #   `[[id]]` array-of-tables header; any scalar field's `key = ""` written
 #   after that header lands inside the array-of-tables' last block under
 #   TOML's own rule for what a headerless key belongs to, not beside it as a
-#   sibling. `resolution` moved above so the rendered stub keeps it a real
-#   top-level field instead of nesting it inside the last obligation.
+#   sibling. `resolution`, `spec`, `key-terms` and `settle` -- every scalar
+#   this form declares -- all stand above both of the form's own plan
+#   fields, `obligations` and `calls`, for the same reason.
 # See: tests/test_reachable_briefs.py
 [[field]]
 id = "obligations"
@@ -72,10 +100,50 @@ One block per commitment the spec makes, verbatim from its own numbered
 list. Minted as rows on the execution-state board (EXECUTION_STATE.toml) the
 moment this releases -- every gate's advance reads their dispositions
 afterward to decide whether the run is done, never the spec's prose again.
-Leave blank on a run whose gates already close it out some other way; a
-run that fills nothing here settles trivially, exactly as before this
+Leave blank on a run whose gates already close it out some other way, or on
+a `rework` or an `up`, where there is no spec settled yet to seed rows from;
+a run that fills nothing here settles trivially, exactly as before this
 board existed."""
 
   [[field.item]]
   id = "obligation"
   note = "One spec commitment, verbatim."
+
+# `calls` is written last, after every scalar and after `obligations`,
+# because a plan field renders as a bare `[[calls]]` header and every scalar
+# declared after it would nest inside that array's last block instead of
+# standing as its own field (tests/test_reachable_briefs.py holds the whole
+# tree to this). The reading order is the other one: rule the findings,
+# then say where the round goes.
+[[field]]
+id = "calls"
+kind = "plan"
+optional = true
+note = """
+One block per finding the panel returned -- every one of them gets a call,
+and this form is the only place any of them is ruled on.
+
+`blocking` -- the spec is not filled while this stands. These and only these
+ride into a `rework` as the fresh spec-writer round's own findings, so a
+blocking call is that round's orders. `accepted` -- true, and the round
+stands anyway; a finding you are noting rather than acting on, recorded here
+rather than worked. `beyond` -- real, and outside what this spec set out to
+do; it leaves as a triage candidate, never as work here. `rejected` -- not
+true of this spec, or not this seam's to answer, and the one call that owes
+a reason: fold it in after a colon, the way `rejected: the board already
+settled this` reads. A `rejected` call on a finding that claims something
+about what the code does names the command that refuted it, the way an
+issue's `measured` type carries its command.
+
+Quote what you are calling as it was written rather than numbering it: on a
+`rework` the blocking blocks are literally what the next round arrives
+holding, so a call naming `F1` hands that round the string `F1`. Leave the
+field out only where the panel returned no findings."""
+
+  [[field.item]]
+  id = "finding"
+  note = "The panel's finding as it was written -- quoted, never summarised."
+
+  [[field.item]]
+  id = "call"
+  note = "blocking | accepted | beyond | rejected: <reason>"

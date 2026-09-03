@@ -42,18 +42,30 @@ def test_load_open():
 
 
 def test_load_consolidate():
+    """Follow-up to ruling 3, 2026-09-03: consolidate is the conductor's own
+    route form now, the same shape PLAN_TO_EXECUTE.toml has -- `resolution`
+    leads, every scalar it declares stands before its two plan fields
+    (`obligations`, then `calls`, both optional now that a rework or an up
+    reaches this same form with nothing released to record)."""
     form = forms.load(CONSOLIDATE)
-    assert _ids(form) == ["spec", "key-terms", "settle", "resolution", "obligations"]
+    assert _ids(form) == ["resolution", "spec", "key-terms", "settle",
+                          "obligations", "calls"]
     kinds = _kinds(form)
     assert kinds["spec"] == "artifact"
     assert kinds["key-terms"] == kinds["settle"] == "evidence"
-    assert kinds["obligations"] == "plan"
+    assert kinds["obligations"] == kinds["calls"] == "plan"
     assert kinds["resolution"] == "decision"
+    assert forms.vocabulary(_note(CONSOLIDATE, "resolution")) == [
+        "pass", "revise", "rework", "up"]
     obligations = next(f for f in form["fields"] if f["id"] == "obligations")
     assert obligations["mints"] == "board rows"
     assert obligations["board"] == "execution-state"
     assert obligations["optional"] is True
     assert [it["id"] for it in obligations["item"]] == ["obligation"]
+    calls = next(f for f in form["fields"] if f["id"] == "calls")
+    assert calls["optional"] is True
+    assert "mints" not in calls
+    assert [it["id"] for it in calls["item"]] == ["finding", "call"]
 
 
 def test_load_implement():
@@ -88,10 +100,13 @@ def test_load_defaults_kind_and_note_and_optional():
     form = forms.load(CONSOLIDATE)
     for field in form["fields"]:
         assert isinstance(field["note"], str) and field["note"]
-    for fid in ("key-terms", "settle"):  # plain evidence fields; optional left to default
-        field = next(f for f in form["fields"] if f["id"] == fid)
-        assert field["kind"] == "evidence"
-        assert field["optional"] is False
+    # `resolution` is the one field this form declares `optional` explicitly
+    # false: everything else that reaches this seam does so through the
+    # route form's own resolution word, and it is the one answer no round
+    # -- release, rework, or up -- ever leaves out.
+    field = next(f for f in form["fields"] if f["id"] == "resolution")
+    assert field["kind"] == "decision"
+    assert field["optional"] is False
 
 
 # -- vocabulary(): the values a note declares ---------------------------------

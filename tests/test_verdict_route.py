@@ -192,13 +192,13 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
 # Pinned as a table rather than swept blindly, because the claim under test is
 # a *comparison*: before #56 the answer was `pass` at all three, by a literal
 # in `state()`; now it is whatever each assembly's own outcome rows say is
-# inert, and #56 and ruling 3 (2026-09-02) are the only two that moved it. A
-# new row here means an assembly gained a two-voices step and someone has to
-# say what its fold does; a changed row means an existing consumer's
-# behavior moved.
+# inert, and #56, ruling 3 (2026-09-02) and its 2026-09-03 follow-up at
+# consolidate are the only ones that moved it. A new row here means an
+# assembly gained a two-voices step and someone has to say what its fold
+# does; a changed row means an existing consumer's behavior moved.
 TWO_VOICES = {
     ("run-a-gate", "review"): ["pass", "revise"],    # minted by select, not declared
-    ("run-an-issue", "understand"): ["pass"],        # consolidate -- untouched
+    ("run-an-issue", "understand"): ["pass", "revise"],  # consolidate -- ruling 3 follow-up
     ("run-an-issue", "plan"): ["pass", "revise"],    # plan-to-execute -- ruling 3
 }
 
@@ -225,15 +225,14 @@ def _two_voices_steps():
             yield name, seg["id"], {"segment": seg["id"], "form": form, "panel": panel}
 
 
-def test_run_a_gate_and_plan_to_executes_own_folds_moved_and_understand_is_untouched():
+def test_run_a_gates_review_plan_to_executes_and_consolidates_own_folds_all_moved():
     """`state()` holds a two-voices step open on the verdicts its own deciding
-    spec declares inert. Consolidate still reaches its form only on `pass`
-    and still refills behind the conductor directly on `revise` -- its
-    `revise` row reads `rework`, which acts, and ruling 3 deliberately left
-    it alone. Plan-to-execute's own `revise` row now reads `release` too, the
-    same as run-a-gate's review, so both hold open for their conductor's
-    route form. Asserting the whole table, not just one row, is what makes
-    the comparison a checked claim instead of a hope."""
+    spec declares inert. All three of run-a-gate's review, plan-to-execute
+    and (2026-09-03) consolidate now read both `pass` and `revise` as
+    `release`, so all three hold open for their conductor's own route form
+    rather than any of them refilling behind the conductor directly.
+    Asserting the whole table, not just one row, is what makes the
+    comparison a checked claim instead of a hope."""
     found = {}
     for name, seg_id, step in _two_voices_steps():
         st = {"assembly": name, "steps": [step]}

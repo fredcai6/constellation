@@ -72,12 +72,30 @@ def _fill_spec(wid):
     _fill(loc / "SPEC.toml", 'spec = "%s/spec.md"\n' % loc)
 
 
-def _fill_consolidate(wid):
-    _fill(pathlib.Path(f".agent-work/{wid}/CONSOLIDATE.toml"), '''
-spec = ".agent-work/%s/spec.md"
-key-terms = "waived: none"
-settle = "waived: none"
-''' % wid)
+def _fill_consolidate(wid, resolution="pass", calls=""):
+    """The conductor's own route form at the understand seam (ruling 3's
+    2026-09-03 follow-up): `resolution` is now the conductor's own typed
+    decision, and the release-only fields -- `spec`, `key-terms`, `settle`
+    -- are filled only where the round releases with something to record.
+    `calls` (default none) is one or more `[[calls]]` blocks, verbatim, for
+    a caller narrowing a `rework` to the blocking findings alone -- see
+    `_fill_consolidate_route_with_calls` below."""
+    body = 'resolution = "%s"\n' % resolution
+    if resolution in ("pass", "revise"):
+        body += ('\nspec = ".agent-work/%s/spec.md"\n'
+                 'key-terms = "waived: none"\n'
+                 'settle = "waived: none"\n') % wid
+    if calls:
+        body += "\n" + calls
+    _fill(pathlib.Path(f".agent-work/{wid}/CONSOLIDATE.toml"), body)
+
+
+def _fill_consolidate_route_with_calls(wid, resolution, *calls):
+    """The understand seam's own half of `_route_with_calls`
+    (test_verdict_route.py): one `[[calls]]` block per (finding, call)
+    pair, ruled by the conductor."""
+    blocks = "".join('[[calls]]\nfinding = "%s"\ncall = "%s"\n\n' % c for c in calls)
+    _fill_consolidate(wid, resolution, calls=blocks)
 
 
 def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing newline",
@@ -346,17 +364,16 @@ def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
 
 def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
                           resolution=None):
-    """Open every one of plan-to-execute's panelists, fill and close each --
-    the two-voices transition's panel half. Both of the panel's own words
-    release (ruling 3), so the step holds open for its own form either way,
-    the same shape run-a-gate's review/ROUTE.toml already has: where the
-    panel just returned is still `current` after this -- the plan-to-execute
-    shape, not consolidate's own mechanical refill, which folds shut on a
-    revise before any form is ever reached -- a `verdict="revise"` also
-    disposes of the round on that form, defaulting to `resolution`
-    (`"rework"` unless the caller names another), so a caller driving
-    straight through still reaches the fresh round it always did without
-    knowing this mechanism moved.
+    """Open every panelist the current transition's own panel declares --
+    plan-to-execute's or consolidate's, whichever is `current` -- fill and
+    close each. Both of a two-voices transition's own words release (ruling
+    3, and its 2026-09-03 follow-up at consolidate), so the step holds open
+    for its own form either way, the same shape run-a-gate's review/ROUTE.toml
+    already has: where the panel just returned is still `current` after this.
+    A `verdict="revise"` also disposes of the round on that form, defaulting
+    to `resolution` (`"rework"` unless the caller names another), so a
+    caller driving straight through still reaches the fresh round it always
+    did without knowing this mechanism moved.
 
     Driven off the assembly's own panel length rather than a pinned count:
     the step completes on the last verdict, so a test that closes one of
@@ -373,9 +390,13 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
     current = runmod.state(wid).get("current")
+    form = current.get("form") if current else ""
     if (verdict == "revise" and current and current["id"] == step_id
-            and current.get("form") == "forms/PLAN_TO_EXECUTE.toml"):
-        _fill_plan_to_execute(wid, resolution or "rework")
+            and form in ("forms/PLAN_TO_EXECUTE.toml", "forms/CONSOLIDATE.toml")):
+        if form == "forms/PLAN_TO_EXECUTE.toml":
+            _fill_plan_to_execute(wid, resolution or "rework")
+        else:
+            _fill_consolidate(wid, resolution or "rework")
         cli.main([wid, "submit"])
     return step_id
 

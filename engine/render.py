@@ -603,8 +603,9 @@ def _yield_round(rnd):
     """One round's own line: the merged verdict, how many of the panel voted
     `revise`, how many findings, and -- where the deciding submit ruled on
     them -- a tally of each call. `uncalled` is a real answer, not a gap: it
-    is what a round at a seam with no route form (consolidate) always says,
-    rather than a guessed-at count of blocking findings."""
+    is what a round at a seam with no route form (explore-an-idea's spec,
+    the one left) always says, rather than a guessed-at count of blocking
+    findings."""
     head = f"{rnd['revising']} revise" if rnd["verdict"] == "revise" else "pass"
     n = rnd["findings"]
     if not n:
