@@ -879,6 +879,7 @@ def cmd_submit(argv):
     _check_artifact(wid, form, fields)
     outcome = _outcome(asm, step, fields, st)
     _check_release_artifacts(form, fields, outcome)
+    _check_projection(asm, step, st, fields)
 
     # `validates = "board"` only gates a release (`_releases`): a rework or
     # an up leaves this segment unfinished, and the board it validates is
@@ -1815,12 +1816,82 @@ def _mint_gates(wid, seg, gates, start=1):
 #   reached this transition, the step could only ever be submitted after a
 #   pass -- a revise folded straight to a fresh round with no conductor
 #   submit in between -- so this had nothing to gate on and gated on
-#   nothing. Now it does: `plan` is the form's own optional artifact field,
-#   filled only when the round releases with something to project, so its
-#   presence on the submitted fields is what a `pass` (or a recorded
+#   nothing. Now it does: `_releases` is what a `pass` (or a recorded
 #   `revise` the conductor chose not to send back) looks like next to a
-#   `rework`/`up`, which leave it blank.
+#   `rework`/`up`, generic off the outcome rather than off any one form's
+#   own artifact field name.
 _GATE_FIELDS = ("purpose", "scope", "proof", "budget", "model", "direction")
+
+
+# [projected-source]
+# Rationale: #87 -- an impasse `advance` mints this same transition, and the
+#   step immediately behind it is then the ruling form, which carries only
+#   `ruling` and `why`, never a gate field. The single-step read
+#   `_mint_projected_gate` used to make found nothing there and returned
+#   quietly: no gate minted, no refusal, the run walking on to a terminal
+#   step with the ruling's own ok never having reached a child. Walking the
+#   segment's own prior steps backward instead of reading only the one
+#   immediately behind the transition finds the round the ruling actually
+#   approved -- the most recent one that ever carried a gate field --
+#   whichever form happens to sit between it and the transition.
+#   `cmd_submit`'s pre-journal `_check_projection` calls this exact
+#   function rather than re-deriving a subset of its guard in prose, so the
+#   mint and the refusal that guards it can never drift from each other:
+#   there is one guard, not two hand-written copies of the same conditions.
+# Rejected: keying the applicability guard off `fields.get("plan")`, the
+#   transition form's own field name for "did this release with something
+#   to project." That bakes one form's own artifact field into a function
+#   obligation 2 requires stay written off the transition's `projects`
+#   declaration and the gate fields alone -- a second assembly growing a
+#   projecting transition with a differently-named artifact field would
+#   silently inherit nothing. `_releases(_outcome(...))` asks the same
+#   question -- did this submit's own outcome finish the segment, not send
+#   it back or up -- without naming any field at all.
+def _projected_source(step, st, asm, fields):
+    """`None` when this submit is not a projecting transition's own release
+    -- the wrong step, a segment with no `projects`, or a `rework`/`up`
+    that finishes nothing. Otherwise `(target, gate)`: `target` is the
+    segment `projects` names, and `gate` is built from the most recent
+    step in this same segment, walking backward from the transition, whose
+    own submitted fields carry at least one of `_GATE_FIELDS` -- `{}`,
+    legitimately, where the walk finds none."""
+    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
+    t = seg.get("transition", {})
+    if (step.get("form") != t.get("form") or not t.get("projects")
+            or not _releases(_outcome(asm, step, fields, st))):
+        return None
+    target = next((s for s in asm["segment"] if s.get("dispatches") == t["projects"]), None)
+    if not target:
+        return None
+    prior = [s for s in st["steps"] if s["segment"] == step["segment"] and s["id"] != step["id"]]
+    gate = {}
+    for s in reversed(prior):
+        source = st["done"].get(s["id"], {}).get("fields", {})
+        candidate = {k: source[k] for k in _GATE_FIELDS if k in source}
+        if candidate:
+            gate = candidate
+            break
+    return target, gate
+
+
+def _check_projection(asm, step, st, fields):
+    """Where this submit is a projecting transition's own release, the
+    backward walk `_projected_source` performs must actually find a round
+    to project -- checked here, before `journal.append` makes the submit
+    durable, so the true dead end (a segment with no round to project at
+    all) refuses loudly and says what it could not project, in place of
+    the silent nothing-minted `_mint_projected_gate` used to leave behind.
+    Not applicable (`None`) and found something (a non-empty `gate`) both
+    pass through untouched."""
+    found = _projected_source(step, st, asm, fields)
+    if found is None:
+        return
+    target, gate = found
+    if not gate:
+        raise SystemExit(render.refusal(
+            step["id"], f"projects into {target['id']!r} but this segment "
+            "has no round behind it that ever carried a gate field -- "
+            "nothing here to project", escape=""))
 
 
 def _mint_projected_gate(wid, asm, step, st, fields):
@@ -1829,19 +1900,13 @@ def _mint_projected_gate(wid, asm, step, st, fields):
     segment's own most recent interior return, never from anything typed on
     the transition's own form. A no-op off that step, where the segment it
     names is not one this assembly's own `_mint_gates` can reach, or where
-    this submit named no `plan` -- a `rework` or an `up` releases nothing to
-    project."""
-    seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
-    t = seg.get("transition", {})
-    if (step.get("form") != t.get("form") or not t.get("projects")
-            or not fields.get("plan")):
+    the walk finds no round to project -- `_check_projection` is what
+    refuses that last case before this ever runs; here it is simply
+    nothing to mint."""
+    found = _projected_source(step, st, asm, fields)
+    if found is None:
         return
-    target = next((s for s in asm["segment"] if s.get("dispatches") == t["projects"]), None)
-    prior = [s for s in st["steps"] if s["segment"] == step["segment"] and s["id"] != step["id"]]
-    if not target or not prior:
-        return
-    source = st["done"].get(prior[-1]["id"], {}).get("fields", {})
-    gate = {k: source[k] for k in _GATE_FIELDS if k in source}
+    target, gate = found
     if gate:
         # Sequential, not position-1 every round: unlike a remint (still
         # redoing one gate's own slot, so colliding into a suffix is the

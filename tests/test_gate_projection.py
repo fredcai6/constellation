@@ -22,6 +22,7 @@ from test_nesting import (
     _fill_consolidate,
     _fill_open,
     _fill_plan,
+    _fill_plan_rework,
     _fill_plan_to_execute,
     _work_the_board,
 )
@@ -274,3 +275,154 @@ def test_a_rework_with_a_blank_plan_is_still_accepted(workdir, capsys):
     capsys.readouterr()
 
     assert any(e.get("kind") == "submit" for e in journal.read(wid))
+
+
+# -- 6. #87: an impasse advance projects the round the ruling approved -------
+
+
+def _drive_to_impasse_with_varying_gates(wid="issue17"):
+    """The same shape `test_rework._drive_to_impasse` drives -- one plan
+    round, two reworks, the third revise landing on the ruling form -- but
+    with each round cutting a *different* purpose/scope, unlike
+    `_fill_plan`'s and `_fill_rework`'s own fixed defaults. Every fixture
+    upstream fills the same three literal strings every round, so "most
+    recent" and "first found" agree by accident and no test can tell the
+    backward walk apart from a forward one. This is what lets a caller
+    assert the minted gate actually carries the *last* round's own
+    values, not merely a round's."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
+        w, purpose="round 1 purpose", scope="round 1 scope"))
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: round 1 is untestable")
+    for n, (purpose, scope) in enumerate(
+            [("round 2 purpose", "round 2 scope"),
+             ("round 3 purpose -- the one the ruling approves",
+              "round 3 scope -- the one the ruling approves")], start=2):
+        st = runmod.state(wid)
+        fresh = next(s for s in st["steps"]
+                    if s["segment"] == "plan" and s.get("source") == "mint"
+                    and s["id"] not in st["done"] and s.get("dispatches"))
+        _dispatch_and_close_plan(
+            wid, fresh["id"],
+            lambda w, p=purpose, s=scope: _fill_plan_rework(w, purpose=p, scope=s))
+        _dispatch_plan_critic(wid, verdict="revise", findings=f"gap: round {n} is untestable")
+    return wid
+
+
+def test_impasse_advance_projects_the_round_the_ruling_approved(workdir, capsys):
+    """#87: an `advance` mints this same transition, and the step
+    immediately behind it is then the ruling form -- `ruling`, `why`, never
+    a gate field. Walking the segment's own prior steps backward instead of
+    reading only the one immediately behind the transition finds the round
+    the ruling actually approved -- the last rework round -- and this drive
+    gives each of the three rounds its own purpose/scope, so the assertion
+    below actually distinguishes "most recent" from "earliest" or "any":
+    the review's own gap, mutating `reversed(prior)` into a forward walk
+    left this test green until the gates it minted differed round to
+    round. Obligations 4, 5 and 8 are one drive and one test, not three:
+    the dispatch and adjudication pair this produces is numbered as the
+    segment's next child and shaped exactly like the pair an ordinary
+    release produces, and its prefill carries only the last round's own
+    fields, not the first round's or the middle one's."""
+    wid = _drive_to_impasse_with_varying_gates()
+    capsys.readouterr()
+    _fill(journal.location(wid) / "IMPASSE.toml",
+          'ruling = "advance"\nwhy = "all three rounds landed on the proof"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    # advance mints the transition alone -- no panel to argue with
+    assert runmod.state(wid)["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
+
+    _fill_plan_to_execute(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    gates = [s for s in st["steps"] if s.get("dispatches") == "run-a-gate"]
+    assert [g["id"] for g in gates] == ["g1"]
+    adjudications = [s for s in st["steps"] if s.get("form") == "forms/GATE_TRANSITION.toml"]
+    assert [a["id"] for a in adjudications] == ["g1-adjudicate"]
+
+    g1 = next(s for s in st["steps"] if s["id"] == "g1")
+    assert g1["prefill"]["purpose"] == "round 3 purpose -- the one the ruling approves"
+    assert g1["prefill"]["scope"] == "round 3 scope -- the one the ruling approves"
+    assert g1["prefill"]["proof"] == "true"
+    # not the first round's, and not the middle one's either
+    assert g1["prefill"]["purpose"] not in ("round 1 purpose", "round 2 purpose")
+
+
+def test_a_rework_on_the_transition_still_projects_nothing(workdir, capsys):
+    """Obligation 6's other half, the one `test_one_gate_minted_per_pass_
+    not_k` (the pass side) doesn't cover: a transition submitted with its
+    round sent back releases nothing, so `_projected_source` returns
+    `None` -- off `_releases`, before the walk ever runs -- and no gate is
+    minted."""
+    wid = _drive_to_plan_to_execute()
+    _fill_plan_to_execute(wid, "rework")
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    assert not any(s.get("dispatches") == "run-a-gate"
+                  for s in runmod.state(wid)["steps"])
+
+
+# -- 7. the true dead end refuses instead of walking on quietly -------------
+
+
+def _synthetic_projecting_assembly():
+    """A `plan` segment whose transition projects into `execute`, and an
+    `execute` segment `_mint_gates` can reach -- the minimum shape
+    `_projected_source` needs, built by hand because no assembly in the
+    tree can actually reach the walk-finds-nothing case (plan.md's risk
+    note): every real projecting transition sits behind at least one round
+    that filled a gate field, since nothing dispatches it otherwise."""
+    return {"segment": [
+        {"id": "plan", "transition": {
+            "form": "T.toml", "projects": "run-a-gate",
+            "decides": "resolution",
+            "outcome": [{"value": "pass", "does": "release"},
+                       {"value": "rework", "does": "rework"}]}},
+        {"id": "execute", "dispatches": "run-a-gate"},
+    ]}
+
+
+def test_the_walk_refuses_where_it_finds_no_round_to_project(workdir, capsys):
+    """Obligation 3: a segment whose only prior round never carried a gate
+    field is the true dead end this whole change is about -- the walk
+    reaches the start of the segment with nothing to show for it, and
+    `_check_projection` refuses before the submit is journaled rather than
+    minting nothing in silence."""
+    asm = _synthetic_projecting_assembly()
+    step = {"id": "t1", "segment": "plan", "form": "T.toml"}
+    st = {"steps": [{"id": "r1", "segment": "plan"}, step],
+         "done": {"r1": {"fields": {"resolution": "pass"}}}}  # no gate field, ever
+    fields = {"resolution": "pass"}
+
+    with pytest.raises(SystemExit) as e:
+        cli._check_projection(asm, step, st, fields)
+    assert "t1" in str(e.value)
+    assert "no round behind it" in str(e.value)
+
+    # `_mint_projected_gate` itself is a no-op on the same input -- the
+    # refusal above is what stands between this and a silent nothing-minted
+    cli._mint_projected_gate("wid", asm, step, st, fields)
+
+
+def test_the_widened_guard_returns_none_off_a_non_transition_step(workdir, capsys):
+    """The guard `_projected_source` replaces used to be a subset of
+    conditions re-derived at each caller; widened now to cover the whole
+    applicability question in one place. A step inside a projecting
+    segment that is not the transition itself -- an ordinary interior
+    round -- is not this transition's own release, so `_check_projection`
+    stands down rather than tripping on a narrower, hand-copied guard."""
+    asm = _synthetic_projecting_assembly()
+    step = {"id": "r1", "segment": "plan", "form": "PLAN.toml"}  # not the transition's form
+    st = {"steps": [step], "done": {}}
+
+    cli._check_projection(asm, step, st, {})  # must not raise
+    assert cli._projected_source(step, st, asm, {}) is None
