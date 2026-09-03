@@ -33,11 +33,12 @@ forms; coining a synonym for a term below is a defect.
 - **verdict panel** — 0..n panelists a transition dispatches, each reading from fresh context
   and prefilled with focused criteria; verdicts return to the transition. The panel's vocabulary
   is `pass | revise`, never a third word: a panel that judges the artifact itself wrong to build
-  writes that as a revise finding, the same as any other. Any revise refills, findings merged.
-  The merged verdict resolves the same way a submitted decision field does — against the
-  transition's own declared `outcome` rows where one names a `decides` field, or (a panel-only
-  transition with none) by refilling directly, `impasse-after` rounds of it reaching the
-  segment's own impasse form where one is declared. A panel is written once, at the mint that
+  writes that as a revise finding, the same as any other. The merged verdict — panelists'
+  findings folded into one — resolves the same way a submitted decision field does — against
+  the transition's own declared `outcome` rows where one names a `decides` field (most panels
+  now hold either verdict open for a conductor's own route form there), or (a panel-only
+  transition with none, explore-an-idea's spec) by refilling directly, `impasse-after` rounds of
+  it reaching the segment's own impasse form where one is declared. A panel is written once, at the mint that
   makes its step: declared on a transition, or named at an earlier one (run-a-gate's `select`), never
   grown after. Review never lives in an interior.
 - **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
@@ -161,11 +162,10 @@ forms; coining a synonym for a term below is a defect.
   finding classed `beyond`, and an epic's unfiled finding, are the same thing at two scopes.
 - **call** — one route-step ruling on a single finding raised against the artifact it names —
   a panel's finding at either tier, or (a gate's own) a declared deviation too: `blocking |
-  accepted | beyond | rejected`. Two route forms carry the field, run-a-gate's `ROUTE.toml`
-  against a diff and run-an-issue's `PLAN_TO_EXECUTE.toml` against a plan, the same shape at
-  both. Distinct from the issue tier's **disposition** (`GATE_TRANSITION.toml`'s `dispositions`
-  field): a call judges one finding or deviation once; a disposition judges one spec commitment
-  across the run's whole life.
+  accepted | beyond | rejected`. Every panel-bearing transition's own route form carries the
+  field, the same shape wherever one exists. Distinct from the issue tier's **disposition**
+  (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges one finding or deviation once;
+  a disposition judges one spec commitment across the run's whole life.
 - **review yield** — a closed run's own record of its review seams, derived and printed at
   close (`engine/review_yield.py`): rounds per seam, findings per round, and each finding's
   call where a route form ruled on one. Written beside `CLOSE.toml` as `YIELD.md`, and reachable
@@ -200,10 +200,12 @@ forms; coining a synonym for a term below is a defect.
 - **spec writer** — the hat the persistent conductor wears to draft the spec, understand's own
   step-form round (`skills/spec-writer/`), distinct from the interrogator hat it wears to work
   the board. Judged by a cold critic panel on the segment's transition, the same panel
-  plan-to-execute's own transition carries; a revise here still refills the round directly,
-  findings as prefill, and there is no rework-form — a second round is another first cut, not a
-  patch. Plan-to-execute's own revise no longer refills this way (ruling 3): it holds the round
-  for the conductor's route form instead.
+  plan-to-execute's own transition carries. Both of the panel's own words release now (ruling 3's
+  2026-09-03 follow-up): `CONSOLIDATE.toml` is the conductor's own route form here too, the same
+  shape plan-to-execute's `PLAN_TO_EXECUTE.toml` already has — a conductor's own `rework`, not
+  the panel's bare revise, is what sends the round back, narrowed to the calls ruled blocking.
+  There is still no rework-form: the step-form (this same round's own `SPEC.toml`) refills in
+  its place — a second round is another first cut, not a patch.
 - **gate spec** — the purpose, scope, proof and optional model, optional direction a planner
   writes per round of the plan segment — one gate spec per round, the round's own artifact.
   Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only
