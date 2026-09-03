@@ -1,8 +1,10 @@
 # Step: spec. Owned by the spec-writer skill; filled by the spec-writer --
 # the conductor's own hat for this one round, distinct from the interrogator
 # hat it wears to work the board (`hat`, engine/run.py). The understand
-# board is the source; it is not attached. A revise mints this same form
-# again, the panel's findings arriving as prefill -- there is no
+# board is the source; it is not attached. A conductor's `rework` -- ruled
+# off the panel's own findings at CONSOLIDATE.toml, the route form the
+# segment holds open on either of the panel's own words -- mints this same
+# form again, the blocking calls arriving as prefill -- there is no
 # rework-form, so a second round is another first cut, not a patch.
 
 imperative = """
