@@ -871,12 +871,14 @@ def cmd_submit(argv):
     # and so before anything is journaled. A check is the one part of a submit
     # that can outlive its caller, and a refusal raised after the caller has
     # been handed back is one nobody is standing there to read. `_outcome` is
-    # called here as that guard -- its answer also gates `validates` below --
-    # and whichever process completes the submit computes it again.
+    # called here as that guard -- its answer also gates `validates` and
+    # `_check_release_artifacts` below -- and whichever process completes
+    # the submit computes it again.
     _check_plan(asm, form, fields)
     _check_vocabulary(asm, step, form, fields)
     _check_artifact(wid, form, fields)
     outcome = _outcome(asm, step, fields, st)
+    _check_release_artifacts(form, fields, outcome)
 
     # `validates = "board"` only gates a release (`_releases`): a rework or
     # an up leaves this segment unfinished, and the board it validates is
@@ -1150,6 +1152,37 @@ def _releases(outcome):
     _, does = outcome
     return not any(v.strip().split(" ", 1)[0] in ("rework", "pause")
                   for v in does.split(";") if v.strip())
+
+
+# [release-needs-its-artifact]
+# Rationale: `plan` on PLAN_TO_EXECUTE.toml and `spec` on CONSOLIDATE.toml
+#   went optional so a `rework` or an `up` -- neither releasing anything --
+#   could leave them blank. The same optional flag let a `pass`, or a
+#   recorded `revise`, leave the same field blank and release anyway:
+#   `carries` and `_mint_projected_gate` (both gated on `_releases`) found
+#   nothing to carry or project and silently did nothing, so a round the
+#   record calls released produced no evidence it had -- #87's class, the
+#   silent kind epic wave 5 is closing one instance of at a time. Generic
+#   off `kind = "artifact"` and `_releases`, never a form name: the next
+#   route form to grow an optional artifact field inherits this for free.
+# Rejected: refusing on any blank artifact field regardless of `_releases`.
+#   A `rework` or an `up` has nothing intact to carry -- that blank is the
+#   correct answer, not a gap -- and PLAN_TO_EXECUTE.toml and
+#   CONSOLIDATE.toml both say so in the field's own note.
+def _check_release_artifacts(form, fields, outcome):
+    """On a submit whose own outcome `_releases`, every `kind = "artifact"`
+    field the form declares must be answered -- `waived:`/`unknown:` still
+    count, the same escape any other field takes; only a field truly blank
+    (absent from `fields`, which is what `forms.parse` leaves once it
+    strips an empty slot) refuses. A `rework` or an `up` never reaches this
+    check at all: `_releases` is what tells the two apart."""
+    if not _releases(outcome):
+        return
+    for f in form.get("fields", []):
+        if f.get("kind") == "artifact" and f["id"] not in fields:
+            raise SystemExit(render.refusal(
+                f["id"], "a release needs it -- blank here and the round "
+                "releases with nothing carried or projected, silently"))
 
 
 # [blocking-calls]

@@ -278,3 +278,29 @@ def test_an_unresolved_board_routes_back_to_the_board_even_after_the_spec_passes
     assert "q1" in msg
     assert "deferred:" in msg
     assert runmod.state(wid)["current"]["id"] == "understand"   # sent back, not advanced
+
+
+def test_a_release_with_a_blank_spec_is_refused(workdir, capsys):
+    """#87's silent class, consolidate's own copy of it: `spec` went
+    optional so a `rework`/`up` -- neither releasing anything -- could
+    leave it blank. The same optional flag let a `pass` leave it blank too
+    and release anyway, `carries` finding nothing to fold into the run's
+    prefill and silently doing nothing -- a round the record calls released
+    with no understanding behind it. `_check_release_artifacts`
+    (engine/cli.py) refuses this before anything is journaled, generic off
+    `kind = "artifact"` and `_releases` -- the same check pinned at the plan
+    seam (test_gate_projection.py)."""
+    wid = _open_to_spec_writer()
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    _dispatch_panel(wid, "understand", verdict="pass")
+    capsys.readouterr()
+
+    _fill(f".agent-work/{wid}/CONSOLIDATE.toml", 'resolution = "pass"\n')
+    with pytest.raises(SystemExit) as e:
+        cli.main([wid, "submit"])
+    assert "spec" in str(e.value)
+    assert "a release needs it" in str(e.value)
+    capsys.readouterr()
+
+    assert runmod.state(wid)["current"]["id"] == "understand"  # never advanced

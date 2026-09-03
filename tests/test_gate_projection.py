@@ -241,3 +241,36 @@ key-terms = "waived: none"
     assert any(e.get("kind") == "submit" for e in journal.read(child))
     measures = [e for e in journal.read(child) if e.get("kind") == "measure"]
     assert not any(m["field"] == "plan" for m in measures)
+
+
+def test_a_release_with_a_blank_plan_is_refused(workdir, capsys):
+    """#87's silent class: `plan` went optional so a `rework`/`up` -- neither
+    releasing anything -- could leave it blank. The same optional flag let
+    a `pass` leave it blank too and release anyway, `_mint_projected_gate`
+    finding nothing to project and silently doing nothing -- a round the
+    record calls released with no gate behind it.
+    `_check_release_artifacts` (engine/cli.py) refuses this before anything
+    is journaled, generic off `kind = "artifact"` and `_releases`: the same
+    check that lets a `rework`/`up` leave the field blank is what proves a
+    release cannot."""
+    wid = _drive_to_plan_to_execute()
+    _fill(journal.location(wid) / "PLAN_TO_EXECUTE.toml", 'resolution = "pass"\n')
+    with pytest.raises(SystemExit) as e:
+        cli.main([wid, "submit"])
+    assert "plan" in str(e.value)
+    assert "a release needs it" in str(e.value)
+    capsys.readouterr()
+
+    assert runmod.state(wid)["current"]["id"] == "plan"  # never advanced
+
+
+def test_a_rework_with_a_blank_plan_is_still_accepted(workdir, capsys):
+    """The fork `_check_release_artifacts` turns on: a `rework` has nothing
+    intact to project, so leaving `plan` blank there is the correct answer,
+    not a gap -- `_releases` is what keeps the new check off this path."""
+    wid = _drive_to_plan_to_execute()
+    _fill_plan_to_execute(wid, "rework")
+    cli.main([wid, "submit"])  # must not raise
+    capsys.readouterr()
+
+    assert any(e.get("kind") == "submit" for e in journal.read(wid))
