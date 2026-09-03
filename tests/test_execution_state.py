@@ -37,6 +37,8 @@ def _fill_consolidate_with_obligation(wid, obligation="Fix the parser to handle 
     the spec's own numbered commitment, seeded as a row on the
     execution-state board."""
     _fill(pathlib.Path(f".agent-work/{wid}/CONSOLIDATE.toml"), '''
+resolution = "pass"
+
 spec = ".agent-work/%s/spec.md"
 key-terms = "waived: none"
 settle = "waived: none"

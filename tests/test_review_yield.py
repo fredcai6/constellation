@@ -12,9 +12,9 @@ import pathlib
 from engine import cli, journal, render, review_yield, run as runmod
 from gitremote import stub_gh
 from test_nesting import (
-    _dispatch_and_close_plan, _fill_close, _fill_consolidate, _fill_critic,
-    _fill_open, _fill_plan_rework, _fill_plan_route_with_calls, _fill_plan_to_execute,
-    _fill_spec, _work_the_board,
+    _dispatch_and_close_plan, _fill_close, _fill_consolidate,
+    _fill_consolidate_route_with_calls, _fill_critic, _fill_open, _fill_plan_rework,
+    _fill_plan_route_with_calls, _fill_plan_to_execute, _fill_spec, _work_the_board,
 )
 from test_verdict_panels import (
     _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
@@ -153,11 +153,14 @@ def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
     assert "r2  pass" in table
 
 
-def test_review_yield_renders_consolidates_findings_as_uncalled(workdir, capsys):
-    """Consolidate has no route form -- its revise refills the spec-writer's
-    round on the panel's own return alone, with no conductor ruling on any
-    one finding -- so a round with findings still renders honestly as
-    `uncalled` rather than guessing which of them were blocking."""
+def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
+    """Follow-up to ruling 3, 2026-09-03: consolidate is a route-form seam
+    now, CONSOLIDATE.toml, the same shape plan-to-execute's own
+    PLAN_TO_EXECUTE.toml already has -- so a round with findings renders its
+    call tally the same way plan-to-execute's own round does, not
+    `uncalled`. `explore-an-idea`'s own spec segment is the one seam left
+    without a route form; `uncalled` is what its own findings still render
+    as, unexercised by this file."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -170,21 +173,42 @@ def test_review_yield_renders_consolidates_findings_as_uncalled(workdir, capsys)
 
     step_id = runmod.state(wid)["current"]["id"]
     assert step_id == "understand"
-    panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == step_id)["panel"]
-    for n in range(1, len(panel) + 1):
-        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
-        panelist = f"{wid}.{step_id}.p{n}"
-        verdict, findings = (("revise", "gap: the glossary check ran on the wrong word")
-                             if n == 1 else ("pass", "none: waived: clean"))
-        _fill_critic(panelist, verdict, findings)
-        cli.main([panelist, "submit"])
-        cli.main([panelist, "close"])
+
+    # round one: two critics find something, one passes clean; the
+    # conductor calls one finding blocking and rejects the other.
+    _dispatch_plan_panel(wid, [
+        ("revise", "gap: the glossary check ran on the wrong word"),
+        ("revise", "gap: the settle field is thin"),
+        ("pass", "none: waived: clean"),
+    ])
+    _fill_consolidate_route_with_calls(
+        wid, "rework",
+        ("gap: the glossary check ran on the wrong word", "blocking"),
+        ("gap: the settle field is thin", "rejected: below the bar a spec is held to"))
+    cli.main([wid, "submit"])
+
+    # round two: a fresh spec-writer pass, filled in place (no dispatch --
+    # understand declares no `dispatches`), then a clean panel: the round
+    # releases with nothing to call.
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    _dispatch_plan_panel(wid, [
+        ("pass", "none: waived: clean"),
+        ("pass", "none: waived: clean"),
+        ("pass", "none: waived: clean"),
+    ])
+    _fill_consolidate(wid, "pass")
+    cli.main([wid, "submit"])
 
     entries = review_yield.run_yield(wid)
     consolidate = next(e for e in entries if e["label"] == "consolidate")
-    r1 = consolidate["rounds"][0]
-    assert r1["verdict"] == "revise" and r1["findings"] == 1 and r1["called"] is False
+    assert len(consolidate["rounds"]) == 2
+    r1, r2 = consolidate["rounds"]
+    assert r1 == {"verdict": "revise", "revising": 2, "findings": 2, "called": True,
+                  "calls": {"blocking": 1, "rejected": 1}}
+    assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {}}
 
     table = render.review_yield(entries)
     assert "consolidate" in table
-    assert "uncalled" in table
+    assert "1 blocking 1 rejected" in table
+    assert "uncalled" not in table

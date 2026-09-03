@@ -844,13 +844,6 @@ def cmd_submit(argv):
         raise SystemExit(render.located(f"no response form yet — run: spine {wid}"))
     filled = forms.parse(dest)
 
-    if step.get("validates") == "board":
-        board = st["boards"].get(step["segment"], "")
-        problems = boards.validate(board) if board else []
-        if problems:
-            raise SystemExit(render.refusal(pathlib.Path(board).name,
-                                            "\n  ".join(problems), escape=""))
-
     fields = {}
     for f in form["fields"]:
         fid, kind = f["id"], f.get("kind", "evidence")
@@ -878,12 +871,22 @@ def cmd_submit(argv):
     # and so before anything is journaled. A check is the one part of a submit
     # that can outlive its caller, and a refusal raised after the caller has
     # been handed back is one nobody is standing there to read. `_outcome` is
-    # called here as that guard and its answer thrown away; whichever process
-    # completes the submit computes it again.
+    # called here as that guard -- its answer also gates `validates` below --
+    # and whichever process completes the submit computes it again.
     _check_plan(asm, form, fields)
     _check_vocabulary(asm, step, form, fields)
     _check_artifact(wid, form, fields)
-    _outcome(asm, step, fields, st)
+    outcome = _outcome(asm, step, fields, st)
+
+    # `validates = "board"` only gates a release (`_releases`): a rework or
+    # an up leaves this segment unfinished, and the board it validates is
+    # not done until the round it is validated against actually passes.
+    if step.get("validates") == "board" and _releases(outcome):
+        board = st["boards"].get(step["segment"], "")
+        problems = boards.validate(board) if board else []
+        if problems:
+            raise SystemExit(render.refusal(pathlib.Path(board).name,
+                                            "\n  ".join(problems), escape=""))
 
     # A check both resolves and runs against this run's own tree -- not
     # against whatever directory the invoking shell happens to be standing
@@ -944,7 +947,11 @@ def complete_submit(wid, step_id, fields, ran):
     # in its own segment, so without this the run's understanding never crosses
     # a segment boundary and the coldest reader in the run -- the one the
     # understanding was written for -- is the only one who never sees it.
-    if step.get("carries"):
+    # Gated on `_releases` the same as `validates = "board"` above: a rework
+    # or an up submits `resolution` and maybe `calls`, never a real `spec`,
+    # and folding those into prefill would carry a blank field over whatever
+    # a prior release already put there.
+    if step.get("carries") and _releases(outcome):
         journal.append(wid, "prefill",
                        fields={**(st.get("prefill") or {}), **fields})
     _mint(wid, asm, step, form, fields)
@@ -1116,6 +1123,33 @@ def _outcome(asm, step, fields, st):
                 argfield, "remint needs a new gate spec -- a remint with no "
                 "spec is a drop wearing the wrong name"))
     return seg, does
+
+
+# [releases]
+# Rationale: `validates = "board"` and `carries = true` are both declared on
+#   consolidate's own transition, and both used to be safe to fire on every
+#   submit of that step because there was only ever one -- the panel's own
+#   `pass` was the only verdict that ever reached a submitted form at all,
+#   a bare `revise` refilling the spec-writer round directly with no
+#   conductor submit in between. Ruling 3's 2026-09-03 follow-up gave
+#   consolidate the plan seam's own shape: the step now also reaches an
+#   ordinary submit on a `rework` or an `up`, neither of which finishes this
+#   segment -- the board is not done until the spec passes, and there is no
+#   spec yet to carry. Both checks gate on this so a rework or an up submit
+#   is refused on its own merits alone, never because the board it does not
+#   need yet is still open, and never carries a blank field over whatever
+#   prefill already held.
+def _releases(outcome):
+    """True where this submit's own outcome finishes the deciding step's
+    segment, rather than sending the round back (`rework`) or up (`pause`) --
+    the two verbs that leave it still open. `None` -- no decided field, or a
+    null the engine reads as waived/unknown -- releases too: nothing here
+    holds the round open on its account."""
+    if not outcome:
+        return True
+    _, does = outcome
+    return not any(v.strip().split(" ", 1)[0] in ("rework", "pause")
+                  for v in does.split(";") if v.strip())
 
 
 # [blocking-calls]
@@ -2262,13 +2296,14 @@ def _act_on_verdicts(pwid, step_id):
     there is nothing more to mint, the verdict itself rides the summary up
     to whoever adjudicates next; for a two-voices step, `state()` has
     already left it open instead, so this is inert twice over and the form
-    is what releases it -- run-a-gate's review declares both of its verdicts
-    that way, so its rounds are always disposed of by a conductor. A verb
-    that acts -- `rework`, which run-an-issue's consolidate and
-    plan-to-execute still declare for `revise` -- is `_perform`'s from here,
-    findings and the segment's own three-round outlet included, since a
-    conductor form deciding the same rework reaches that verb by the
-    ordinary submit and owes the round exactly the same two things."""
+    is what releases it -- run-a-gate's review, run-an-issue's consolidate
+    and plan-to-execute all declare both of their verdicts that way now, so
+    every one of their rounds is disposed of by a conductor. A verb that
+    acts -- `rework`, which explore-an-idea's spec still declares for
+    `revise`, having no route form of its own -- is `_perform`'s from here,
+    findings and the segment's own outlet included, since a conductor form
+    deciding the same rework reaches that verb by the ordinary submit and
+    owes the round exactly the same two things."""
     pst = runmod.state(pwid)
     step = next((s for s in pst["steps"] if s["id"] == step_id), None)
     if not step or not step.get("panel") or runmod.panel_outstanding(pst, step):

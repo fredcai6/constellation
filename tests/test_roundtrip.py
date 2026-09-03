@@ -218,8 +218,8 @@ def test_consolidate_refuses_an_unworked_board(bare_workdir, capsys):
     capsys.readouterr()
 
     pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
-        'spec = ".agent-work/issue17/spec.md"\nkey-terms = "waived: none"\n'
-        'settle = "waived: none"\n')
+        'resolution = "pass"\n\nspec = ".agent-work/issue17/spec.md"\n'
+        'key-terms = "waived: none"\nsettle = "waived: none"\n')
 
     with pytest.raises(SystemExit) as e:
         cli.main(["issue17", "submit"])
@@ -237,8 +237,8 @@ def test_the_board_escape_is_one_step(bare_workdir, capsys):
     cli.main(["issue17", "submit"])
     _pass_spec("issue17")
     pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
-        'spec = ".agent-work/issue17/spec.md"\nkey-terms = "waived: none"\n'
-        'settle = "waived: none"\n')
+        'resolution = "pass"\n\nspec = ".agent-work/issue17/spec.md"\n'
+        'key-terms = "waived: none"\nsettle = "waived: none"\n')
 
     board = pathlib.Path(".agent-work/issue17/UNDERSTAND.toml")
     board.write_text(board.read_text()

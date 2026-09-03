@@ -52,12 +52,20 @@ def _fill_spec(wid):
     _fill(loc / "SPEC.toml", 'spec = "%s/spec.md"\n' % loc)
 
 
-def _fill_consolidate(wid):
-    _fill(f".agent-work/{wid}/CONSOLIDATE.toml", '''
-spec = ".agent-work/%s/spec.md"
-key-terms = "waived: none"
-settle = "waived: none"
-''' % wid)
+def _fill_consolidate(wid, resolution="pass", calls=""):
+    body = 'resolution = "%s"\n' % resolution
+    if resolution in ("pass", "revise"):
+        body += ('\nspec = ".agent-work/%s/spec.md"\n'
+                 'key-terms = "waived: none"\n'
+                 'settle = "waived: none"\n') % wid
+    if calls:
+        body += "\n" + calls
+    _fill(f".agent-work/{wid}/CONSOLIDATE.toml", body)
+
+
+def _fill_consolidate_route_with_calls(wid, resolution, *calls):
+    blocks = "".join('[[calls]]\nfinding = "%s"\ncall = "%s"\n\n' % c for c in calls)
+    _fill_consolidate(wid, resolution, calls=blocks)
 
 
 def _fill_critic(wid, verdict, findings="none: waived: clean"):
@@ -160,7 +168,13 @@ def test_the_spec_writers_returns_reach_the_critic_panel(workdir, capsys):
 # -- 3. the transition's three routes -----------------------------------------
 
 
-def test_revise_routes_back_to_the_writer_with_findings_and_a_fresh_panel(workdir, capsys):
+def test_a_revise_holds_the_form_for_the_conductor_rather_than_refiring_the_round(
+        workdir, capsys):
+    """Follow-up to ruling 3, 2026-09-03: consolidate holds this same shape
+    now -- a bare revise no longer refires the spec-writer round on its own,
+    it holds the step open on CONSOLIDATE.toml, the conductor's own route
+    form, the same as run-a-gate's review/ROUTE.toml and plan-to-execute's
+    own PLAN_TO_EXECUTE.toml already do."""
     wid = _open_to_spec_writer()
     _fill_spec(wid)
     cli.main([wid, "submit"])
@@ -171,13 +185,43 @@ def test_revise_routes_back_to_the_writer_with_findings_and_a_fresh_panel(workdi
     capsys.readouterr()
 
     st = runmod.state(wid)
-    assert "understand" in st["done"]        # the transition released, like any panel step
+    assert st["current"]["id"] == "understand"          # held open, not released by the panel alone
+    assert st["current"]["form"] == "forms/CONSOLIDATE.toml"
+    assert not any(s["segment"] == "understand" and s.get("source") == "mint"
+                   for s in st["steps"]), "the panel's own revise minted a round"
 
+
+def test_the_conductors_rework_sends_only_the_blocking_calls_carrying_no_spec_and_seeding_no_board(
+        workdir, capsys):
+    """Only the conductor's own `rework` -- ruled finding by finding on
+    CONSOLIDATE.toml's `calls` table -- sends the round back, narrowed to
+    what it called blocking, the same as PLAN_TO_EXECUTE.toml's own
+    `rework` does at the plan seam. A rework carries no spec (there is
+    nothing intact to carry) and seeds no execution-state board row (there
+    is no spec settled yet to seed one from)."""
+    wid = _open_to_spec_writer()
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    _dispatch_panel(wid, "understand", verdict="revise",
+                    findings=(r"gap: commitment 1 is not numbered\n\n"
+                              r"gap: the parser needs a full rewrite"))
+    capsys.readouterr()
+
+    _fill_consolidate_route_with_calls(
+        wid, "rework",
+        ("gap: commitment 1 is not numbered", "blocking"),
+        ("gap: the parser needs a full rewrite", "rejected: unfounded -- the parser is untouched by this spec"))
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    st = runmod.state(wid)
     fresh_writer = next(s for s in st["steps"]
                         if s["segment"] == "understand" and s.get("source") == "mint"
                         and s["form"] == "skills/spec-writer/forms/SPEC.toml")
-    assert "commitment 1 is not numbered" in fresh_writer["prefill"]["findings"]
-    assert "[p1]" in fresh_writer["prefill"]["findings"]     # attributed
+    assert fresh_writer["prefill"]["findings"] == "gap: commitment 1 is not numbered"
+    assert "full rewrite" not in fresh_writer["prefill"]["findings"]  # called rejected, not blocking
 
     fresh_panel = next(s for s in st["steps"]
                        if s.get("panel") and s["segment"] == "understand"
@@ -185,6 +229,10 @@ def test_revise_routes_back_to_the_writer_with_findings_and_a_fresh_panel(workdi
     original = next(s for s in st["steps"] if s["id"] == "understand")
     assert fresh_panel["panel"] == original["panel"]
     assert st["current"]["id"] == fresh_writer["id"]   # the writer resumes, not the mint form
+
+    assert "spec" not in (st.get("prefill") or {}), "a rework has nothing intact to carry"
+    assert not pathlib.Path(f".agent-work/{wid}/EXECUTION_STATE.toml").exists(), (
+        "a rework has no spec settled yet to seed a board row from")
 
 
 def test_pass_routes_forward_once_consolidate_is_filled(workdir, capsys):

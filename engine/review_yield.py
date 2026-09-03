@@ -13,8 +13,9 @@ plus the first. A finding is one block a panelist returned in its own
 `findings` field, empty or `waived:`/`none:` counting as zero. A call is the
 conductor's `blocking | accepted | beyond | rejected` on one finding, read
 from a route form's `calls` table where the deciding submit carried one --
-run-a-gate's `ROUTE.toml`, run-an-issue's `PLAN_TO_EXECUTE.toml`. Consolidate
-has no route form, so its findings render uncalled rather than guessed at.
+run-a-gate's `ROUTE.toml`, run-an-issue's `PLAN_TO_EXECUTE.toml` and
+`CONSOLIDATE.toml`. A seam with no route form of its own (explore-an-idea's
+spec, the one left) renders its findings uncalled rather than guessed at.
 """
 
 import os
@@ -74,8 +75,9 @@ def _panel_findings(returns):
 
 def _calls(fields):
     """The `call` word of each row in a submitted `calls` table, in order --
-    or `None` where the deciding submit carried no such table at all
-    (consolidate, always; any other seam's round with nothing to call)."""
+    or `None` where the deciding submit carried no such table at all (a seam
+    with no route form, always; any other seam's round with nothing to
+    call)."""
     rows = (fields or {}).get("calls")
     if not isinstance(rows, list):
         return None

@@ -334,7 +334,7 @@ def test_status_names_the_board_it_will_validate(bare_workdir, capsys):
     cli.main(["issue17"])
     out = capsys.readouterr().out
     assert "UNDERSTAND.toml" in out
-    assert "will not pass while a row is open" in out
+    assert "will not complete while a row is open" in " ".join(out.split())
 
 
 def test_every_refusal_states_an_escape_that_works(bare_workdir):
@@ -349,8 +349,8 @@ def test_every_refusal_states_an_escape_that_works(bare_workdir):
     cli.main(["issue17", "submit"])
     _pass_spec()
     pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
-        'spec = ".agent-work/issue17/spec.md"\nkey-terms = "waived: none"\n'
-        'settle = "waived: none"\n')
+        'resolution = "pass"\n\nspec = ".agent-work/issue17/spec.md"\n'
+        'key-terms = "waived: none"\nsettle = "waived: none"\n')
 
     with pytest.raises(SystemExit) as e:
         cli.main(["issue17", "submit"])

@@ -32,18 +32,20 @@ model = "standard"
 board-worker = "interrogator"
 step-form = "skills/spec-writer/forms/SPEC.toml"
 worker = "spec-writer"
-# This segment has no rework-form, so every revise is another pass at the
-# same spec-writer round. After this many, a further revise mints the
-# impasse form instead: the loop itself becomes the thing the conductor
-# rules on. Counted since the last step-form mint, same as `plan` below --
-# `forms/IMPASSE.toml` is shared with it, worded at the artifact each
-# segment produces rather than at "plan" by name. Two reworks succeed --
-# the first and second reviews each send the spec back for another pass --
-# and the third review's own revise reaches the outlet instead of a fourth
-# round (ruling, 2026-09-02: at most three critic dispatches per artifact).
-# This segment keeps consolidate's mechanical revise-refills-behind-the-
-# conductor shape; only the count moved -- `plan` below got the route-form
-# fix too, this segment did not, a follow-up left open on purpose.
+# This segment has no rework-form, so the conductor's own `rework` (on
+# CONSOLIDATE.toml below) is another pass at the same spec-writer round --
+# the step-form refills in its place. After this many, a further rework
+# mints the impasse form instead: the loop itself becomes the thing the
+# conductor rules on. Counted since the last step-form mint, same as `plan`
+# below -- `forms/IMPASSE.toml` is shared with it, worded at the artifact
+# each segment produces rather than at "plan" by name. Two reworks succeed --
+# the first and second rounds each send the spec back for another pass --
+# and the third round's own rework reaches the outlet instead of a fourth
+# (ruling, 2026-09-02: at most three critic dispatches per artifact).
+# Follow-up to that ruling, 2026-09-03: consolidate now holds the plan
+# seam's own shape too -- the panel's two words both release below, and
+# CONSOLIDATE.toml is the conductor's route form, left open on purpose when
+# the plan seam got it.
 impasse-after = 2
 impasse-form = "forms/IMPASSE.toml"
 decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no such field
@@ -64,28 +66,36 @@ decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no s
 anchor = true
 form = "forms/CONSOLIDATE.toml"
 filler = "conductor"
-validates = "board"   # engine refuses an open row or a self-answered decision
-# The spec joins the run's prefill, so every later dispatch carries it.
-# A panelist's prefill comes from prior steps in its own segment, so without
-# this the critic -- the reader consolidate is written for -- never sees it.
+validates = "board"   # refuses an open row or a self-answered decision on a release; a rework or an up does not have to close it first (`_releases`, engine/cli.py)
+# The spec joins the run's prefill, so every later dispatch carries it -- on
+# a release only, the same guard as `validates` above: a rework or an up
+# leaves nothing intact to carry, and `_releases` is what keeps this fold
+# from writing a blank spec over prefill's own.
 carries = true
-# Two voices, the same shape as plan-to-execute below: the critic panel
-# reads the spec-writer's round and rules first: pass reaches this form (the
-# interrogator's own record, key-terms and settle -- mechanical once the
-# panel already cleared the spec), revise refills the segment with a fresh
-# spec-writer round before this form is ever reached, two of those
-# reaching the segment's own impasse form above. Named apart from `ruling`
-# above so the two outcome tables stay disjoint: a word in one is never a
-# legal answer read from the other.
+# Follow-up to ruling 3, 2026-09-03: mirrors run-a-gate's own review/ROUTE.toml
+# and plan-to-execute's shape above. The critic panel's own two words are
+# both inert (`release`, below), so the step stays open on either verdict --
+# the conductor reads every finding and says where the round goes, the same
+# as the other two route forms do. Named apart from `ruling` above so the
+# two outcome tables stay disjoint: a word in one is never a legal answer
+# read from the other.
 decides = "resolution"
 
   [[segment.transition.outcome]]
   value = "pass"
-  does = "release"     # the panel cleared the spec; this form's own submit is what releases
+  does = "release"     # the panel's own word; the form's own submit is what releases now
 
   [[segment.transition.outcome]]
   value = "revise"
-  does = "rework"     # another spec-writer round, findings as prefill; no rework-form, so the same step-form again
+  does = "release"     # ditto -- the findings are the record, the form is the ruling on them
+
+  [[segment.transition.outcome]]
+  value = "rework"
+  does = "rework"     # another spec-writer pass; no rework-form, so the step-form refills
+
+  [[segment.transition.outcome]]
+  value = "up"
+  does = "pause"     # the round you cannot rule on from here; an ask standing at the parent until it answers
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"
