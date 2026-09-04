@@ -20,6 +20,7 @@ meaning what it says.
 """
 
 import pathlib
+import re
 
 import pytest
 
@@ -28,13 +29,37 @@ from gitremote import init_checkout
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
 
+# [workdir-drops-dispatch]
+# Rationale: `workdir` copies this repo's own `constellation.toml`
+#   verbatim, and that file's `[commands]` now carries a real `dispatch`
+#   entry (a real `claude` invocation) -- so every existing fast-suite test
+#   that renders a dispatch or panel room through this fixture would spawn
+#   a real subprocess in the background the instant that entry became real,
+#   with the failure invisible (`_spawn`'s `Popen` is fire-and-forget, its
+#   errors caught and logged, never raised into the render). Dropping the
+#   key here is airtight rather than merely tidy: `spawn_dispatch` itself
+#   refuses to spawn anything when `"dispatch" not in commands` (commitment
+#   3), so a workdir-based render has nothing left to call even if some
+#   later change to the engine forgot to guard the call site.
+# Rejected: an autouse fixture monkeypatching `checks.spawn_dispatch`.
+#   That guard would live beside the fixture rather than in it, covering
+#   every test in the session (including `test_spawn_dispatch.py`'s own
+#   direct, deliberate calls) unless it were then taught to exempt them --
+#   a second thing to keep in sync with the first. Editing the one file
+#   `workdir` already writes needs nothing else to know about the guard.
+def _without_dispatch_entry(text):
+    return re.sub(r"(?m)^dispatch[ \t]*=.*\n", "", text)
+
+
 @pytest.fixture
 def workdir(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     # the command palette (models, check commands) is host-repo config;
-    # tests run in an isolated tmp cwd, so it travels with them
-    (tmp_path / "constellation.toml").write_text((REPO / "constellation.toml").read_text())
+    # tests run in an isolated tmp cwd, so it travels with them -- its real
+    # `dispatch` entry is dropped, see `_without_dispatch_entry` above.
+    (tmp_path / "constellation.toml").write_text(
+        _without_dispatch_entry((REPO / "constellation.toml").read_text()))
     init_checkout(tmp_path)
     return tmp_path
 

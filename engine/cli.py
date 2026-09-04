@@ -575,10 +575,73 @@ def _tree_info(wid, st):
     return worktree, branch
 
 
+# [already-dispatched]
+# Rationale: "already spawned" (commitment 19) is read the same way
+#   `checks.hand_in`'s own in-flight check reads "a proof is already
+#   running" -- a scan of the run's own journal for the entry that a spawn
+#   attempt writes, keyed to the one field a caller can already tell apart
+#   panelists by (`child`), not a second piece of state invented to track
+#   what the journal already records. One scan per rendering (the panel
+#   loop calls this once, before its per-panelist loop, rather than once
+#   per outstanding child) since nothing a render does can move a record
+#   that only a completed spawn appends.
+def _dispatched_children(wid):
+    """Child ids that already carry a `dispatch-started` record on `wid`'s
+    own journal -- rendering this room again must not spawn a second
+    process for any of them."""
+    return {e.get("child") for e in journal.read(wid) if e.get("kind") == "dispatch-started"}
+
+
+# [spawn-once-per-render]
+# Rationale: the record-check/call/catch/log sequence is identical for a
+#   dispatch step's one child and a panel step's each outstanding
+#   panelist -- only which child id drives it differs -- so it is written
+#   once here rather than twice inline in `_dispatch_status` and
+#   `_panel_status`. A `DispatchFailure` is caught, not let escape:
+#   rendering a room is a read, and a harness that fails to start is a
+#   fact about that child, not a reason to crash the render for every
+#   other child (or child-less caller) standing in the same room.
+#   `spawn_dispatch` itself never writes anything to `log` on that path --
+#   the process never started, so nothing of its own reached the file --
+#   so the failure's reason is the one thing worth appending there, since
+#   the log is where commitment 18 says a person already looks for this
+#   child's story.
+# Rejected: journaling the failure too. `spawn_dispatch`'s own contract
+#   already draws this line -- no journal entry for anything short of a
+#   running, journaled process -- and a failure record here would need its
+#   own "already tried, don't retry" reading nowhere else asks for; a
+#   repository whose entry is simply broken keeps failing, and keeps
+#   logging why, on every render until someone fixes the entry.
+def _spawn_outstanding(wid, child_id, brief_text, tier, tree, started):
+    """Start `child_id`'s harness process through this repository's own
+    `dispatch` palette entry -- once. A no-op, with nothing journaled or
+    logged, when `child_id` is already in `started` (this render's own
+    `_dispatched_children(wid)`) or when the palette carries no `dispatch`
+    entry at all (`spawn_dispatch` returns `None` for either a repository
+    that never configured one, commitment 3's world). The log basename is
+    the child id's own tail past the leading `wid.` -- not merely its last
+    dotted segment, which two different panel steps in the same run would
+    both give `p1` -- so it stays distinct per child inside `wid`'s own
+    work location, which is all commitment 18 asks."""
+    if child_id in started:
+        return
+    tail = child_id[len(wid) + 1:] if child_id.startswith(wid + ".") else child_id
+    log = journal.location(wid) / f"dispatch.{tail}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        checkrun.spawn_dispatch(_palette(tree).get("commands", {}), brief_text,
+                                _runner(tier), tree, wid, child_id, log)
+    except checkrun.DispatchFailure as e:
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(f"{e.reason}: {e.detail}\n")
+
+
 def _dispatch_status(wid, st, asm, step, blocked):
     """A dispatch step renders a brief, not a form: the engine launches
     nothing, so making the one right invocation is the whole job. The brief
-    is what a conductor copies into whatever harness it dispatches."""
+    is what a conductor copies into whatever harness it dispatches -- and, as
+    of commitment 18, the same text the engine itself hands that harness when
+    it starts it."""
     dispatched = runmod.load_assembly(step["dispatches"])
     tier = _tier(step, asm)
     child_id = step.get("child") or f"{wid}.{step['id']}"
@@ -587,11 +650,13 @@ def _dispatch_status(wid, st, asm, step, blocked):
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.DISPATCH))
     lines.append("")
-    lines.append(render.brief(child_id, dispatched.get("conductor", ""), tier,
+    brief_text = render.brief(child_id, dispatched.get("conductor", ""), tier,
                               _runner(tier), open_cmd, _finishing(dispatched),
-                              worktree, branch))
+                              worktree, branch)
+    lines.append(brief_text)
     lines.append("")
     lines.append(render.legal_moves(wid))
+    _spawn_outstanding(wid, child_id, brief_text, tier, worktree, _dispatched_children(wid))
     return "\n".join(lines)
 
 
@@ -606,6 +671,7 @@ def _panel_status(wid, st, asm, step, blocked):
     verdict_asm = runmod.load_assembly("give-a-verdict")
     returned = {r["child"].rsplit(".", 1)[-1] for r in st["returns"].get(step["id"], [])}
     worktree, branch = _tree_info(wid, st)
+    started = _dispatched_children(wid)
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.PANEL))
     lines.append("")
@@ -619,9 +685,11 @@ def _panel_status(wid, st, asm, step, blocked):
         if outstanding:
             child_id = f"{wid}.{step['id']}.{tag}"
             open_cmd = f"spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}"
-            lines.append(render.brief(child_id, panelist.get("worker", ""), tier,
+            brief_text = render.brief(child_id, panelist.get("worker", ""), tier,
                                       _runner(tier), open_cmd, finishing,
-                                      worktree, branch))
+                                      worktree, branch)
+            lines.append(brief_text)
+            _spawn_outstanding(wid, child_id, brief_text, tier, worktree, started)
         lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
