@@ -883,18 +883,28 @@ def _board_state(path):
 #   the interior design panel's own case, which carries no verdict field at
 #   all and so never resolves here either way) is the quiet class, and the
 #   outcome table says which word that is, not this function.
+# Rejected: suppressing a refusal the way an inert clean word is suppressed.
+#   A word the panel's own form does not declare is the one thing this line
+#   exists to put in front of the conductor -- the table has nothing to say
+#   about it, so asking the table whether to print it is asking the wrong
+#   question, and the answer would be silence on exactly the round somebody
+#   has to rule on.
 def _returned_verdict(st, asm):
-    """The most recently returned panel's merged verdict, when its declared
+    """The most recently returned panel's folded verdict, when its declared
     act is not `release`. Read from the last panel step that has a full
     house of returns, so a re-fired panel still waiting on its own critics
-    reports the round that actually ruled, not silence."""
+    reports the round that actually ruled, not silence. A refusal is named
+    (`unreadable p2`) whatever the table says; a quiet panel -- no voice's
+    form declaring a vocabulary -- is silent, as it is today."""
     for s in reversed(st["steps"]):
         rs = st["returns"].get(s["id"]) or []
         if s.get("panel") and rs and not runmod.panel_outstanding(st, s):
-            verdict = runmod.merged_verdict(rs)
             _, spec = runmod.deciding_spec(asm, s)
-            quiet = runmod.declared_does(spec, verdict) in (None, "release")
-            return "" if quiet else verdict
+            outcome = runmod.verdict_fold(rs, runmod.panel_forms(asm, s), spec)
+            if outcome[0] == "clean" and \
+                    runmod.declared_does(spec, outcome[1]) in (None, "release"):
+                return ""
+            return runmod.verdict_record(outcome)
     return ""
 
 
@@ -2555,8 +2565,16 @@ def _act_on_verdicts(pwid, step_id):
     if not step or not step.get("panel") or runmod.panel_outstanding(pst, step):
         return
     returns = pst["returns"][step_id]
-    verdict = runmod.merged_verdict(returns)
     asm = runmod.load_assembly(pst["assembly"])
+    _, spec = runmod.deciding_spec(asm, step)
+    # A refusal and a quiet panel both perform nothing: neither is a word the
+    # table declares a verb for, and synthesising one anyway is how an
+    # unreadable round would come to mint a real next step. Record-only, like
+    # the other six sites -- a panel-only step is already `done` by the time
+    # this runs, verdict aside, so nothing here is what walks the run on.
+    kind, verdict = runmod.verdict_fold(returns, runmod.panel_forms(asm, step), spec)
+    if kind != "clean":
+        return
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     t = seg.get("transition", {})
     # [panel-owner]
@@ -2600,12 +2618,21 @@ def _summary(st):
     # two-voices transition's critics rule on the plan exactly as a
     # panel-only review rules on a diff, and skipping them wrote the empty
     # string into the close summary of every run three critics had judged.
+    # The last panel-bearing step in journal order wins, and this loop --
+    # unlike the review yield's -- reaches the design-it-twice panel too,
+    # whose planners are dispatched under a form declaring no verdict at
+    # all. That round settled nothing about a verdict, so it reports `""`:
+    # neither the tuple the fold hands back nor a clean word carried
+    # forward from some earlier panel this one has superseded.
     verdict = ""
+    asm = runmod.load_assembly(st["assembly"]) if st.get("assembly") else None
     for s in st["steps"]:
-        if s.get("panel"):
+        if s.get("panel") and asm:
             rs = st["returns"].get(s["id"]) or []
             if rs:
-                verdict = runmod.merged_verdict(rs)
+                _, spec = runmod.deciding_spec(asm, s)
+                verdict = runmod.verdict_record(
+                    runmod.verdict_fold(rs, runmod.panel_forms(asm, s), spec))
     amends = [{"action": a.get("action", ""), "step": a.get("step", ""),
                "segment": a.get("segment", ""), "reason": a.get("reason", ""),
                "anchor": a.get("anchor", False)} for a in st.get("amends", [])]

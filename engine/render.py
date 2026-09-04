@@ -460,7 +460,8 @@ NULLS = "waived: <reason>  /  unknown: <reason>"
 # [escape-for-field]
 # Rationale: a `decision` field whose note declares its values refuses
 #   `waived:` and `unknown:` -- `_check_vocabulary` rejects both, because a
-#   waived verdict would fall through `merged_verdict` to a `pass`. So an empty
+#   waived verdict is no word the field declares, so `verdict_fold` resolves
+#   it to a refusal naming that voice rather than to a ruling. So an empty
 #   or in-hand answer on such a field cannot be offered the nulls: that is
 #   advice the very next submit rejects. Where the values are enforced the
 #   escape names them, in the phrasing `_check_vocabulary`'s refusal uses.
@@ -602,14 +603,24 @@ def ledger(rows):
                              f"{r.get('title','')}") for r in rows], indent="")
 
 
+# [yield-head-prints-what-it-was-handed]
+# Rationale: the head line is the round's own verdict record, prefixed by the
+#   count of voices that sent it back where there are any -- so a seam whose
+#   words are `go | stop` prints `2 stop`, and one whose panel could not be
+#   read prints `unreadable p2`. Both come from `_round` (engine/
+#   review_yield.py), which resolved them against that seam's own table.
+# Rejected: a literal `"pass"` fallback for the not-revising branch. It reads
+#   as a default and is in fact a second hardcoded vocabulary: rename a
+#   seam's passing value and every clean round in the yield would still
+#   print the old word, with nothing comparing anything for a check to catch.
 def _yield_round(rnd):
-    """One round's own line: the merged verdict, how many of the panel voted
-    `revise`, how many findings, and -- where the deciding submit ruled on
-    them -- a tally of each call. `uncalled` is a real answer, not a gap: it
-    is what a round at a seam with no route form (explore-an-idea's spec,
-    the one left) always says, rather than a guessed-at count of blocking
-    findings."""
-    head = f"{rnd['revising']} revise" if rnd["verdict"] == "revise" else "pass"
+    """One round's own line: the round's verdict record, how many of the
+    panel sent it back, how many findings, and -- where the deciding submit
+    ruled on them -- a tally of each call. `uncalled` is a real answer, not a
+    gap: it is what a round at a seam with no route form (explore-an-idea's
+    spec, the one left) always says, rather than a guessed-at count of
+    blocking findings."""
+    head = f"{rnd['revising']} {rnd['verdict']}" if rnd["revising"] else rnd["verdict"]
     n = rnd["findings"]
     if not n:
         return head

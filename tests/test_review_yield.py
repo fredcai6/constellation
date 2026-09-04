@@ -43,7 +43,19 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     """A rework round ruled finding by finding, then a clean pass: the
     printed and archived yield names the seam `plan-to-execute` (the
     disposing form's own name), shows round one's call tally, and shows
-    round two as a bare `pass`."""
+    round two as a bare `pass`.
+
+    `revising` is `0` on both rounds, including the one three critics sent
+    back with findings. It counts voices whose own word the seam's table
+    says *does* something, and plan-to-execute declares both `pass` and
+    `revise` as `release` (ruling 3, 2026-09-02) -- the conductor's own
+    `rework` on PLAN_TO_EXECUTE.toml is what sends the round back here, not
+    the panel's word. So the head line reads `revise` rather than `2
+    revise`: the verdict is still the panel's, and the count it used to
+    carry was a literal `== "revise"` that agreed with the table at this
+    seam only by accident. `tests/test_verdict_wiring.py` drives a
+    non-zero tally under a table whose non-release row is the one a
+    panelist answered."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -83,13 +95,13 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     plan = next(e for e in entries if e["label"] == "plan-to-execute")
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
-    assert r1 == {"verdict": "revise", "revising": 2, "findings": 2, "called": True,
+    assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
                   "calls": {"blocking": 1, "rejected": 1}}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {}}
 
     table = render.review_yield(entries)
     assert "plan-to-execute" in table
-    assert "r1  2 revise   2 findings   1 blocking 1 rejected" in table
+    assert "r1  revise   2 findings   1 blocking 1 rejected" in table
     assert "r2  pass" in table
 
     # skip the projected gate -- this test's subject is the plan seam's own
@@ -119,7 +131,12 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
 def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
     """`run-a-gate`'s review, minted at `select` rather than declared, is
     found and named the same way -- `review`, the segment's own id, since
-    its transition declares neither form nor panel."""
+    its transition declares neither form nor panel.
+
+    `revising` reads `0` on the revise round for the same reason it does at
+    plan-to-execute above: review's own two words both declare `release`
+    (#57), so no voice here returned a word this seam's table acts on, and
+    the head line carries the verdict alone."""
     _open_gate()
     review = _review_step("g1")
     panelist = _open_panelist("g1", review)
@@ -143,13 +160,13 @@ def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
     review_entry = next(e for e in entries if e["label"] == "review")
     assert len(review_entry["rounds"]) == 2
     r1, r2 = review_entry["rounds"]
-    assert r1 == {"verdict": "revise", "revising": 1, "findings": 1, "called": True,
+    assert r1 == {"verdict": "revise", "revising": 0, "findings": 1, "called": True,
                   "calls": {"blocking": 1}}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {}}
 
     table = render.review_yield(entries)
     assert "review" in table
-    assert "r1  1 revise   1 finding   1 blocking" in table
+    assert "r1  revise   1 finding   1 blocking" in table
     assert "r2  pass" in table
 
 
@@ -160,7 +177,11 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     call tally the same way plan-to-execute's own round does, not
     `uncalled`. `explore-an-idea`'s own spec segment is the one seam left
     without a route form; `uncalled` is what its own findings still render
-    as, unexercised by this file."""
+    as, unexercised by this file.
+
+    And `revising` is `0` here too: that same follow-up made both of
+    consolidate's panel words `release`, so this seam's table acts on
+    neither of them either."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -204,11 +225,12 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     consolidate = next(e for e in entries if e["label"] == "consolidate")
     assert len(consolidate["rounds"]) == 2
     r1, r2 = consolidate["rounds"]
-    assert r1 == {"verdict": "revise", "revising": 2, "findings": 2, "called": True,
+    assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
                   "calls": {"blocking": 1, "rejected": 1}}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {}}
 
     table = render.review_yield(entries)
     assert "consolidate" in table
+    assert "r1  revise   2 findings" in table
     assert "1 blocking 1 rejected" in table
     assert "uncalled" not in table

@@ -158,9 +158,11 @@ def _slot(field_id: str, short: bool) -> str:
 # [escapes-refused]
 # Rationale: the two escapes are offered per field, not once per form, because
 #   `cli._check_vocabulary` refuses both on a `decision` field whose note
-#   declares its values -- a `waived:` verdict would fall through `merged_verdict` to
-#   `pass`, so the refusal is correct and it is the template that was wrong to
-#   promise a way out its own submit rejects.
+#   declares its values -- a `waived:` verdict is no word that field's own
+#   vocabulary declares, so `verdict_fold` resolves it to a refusal naming
+#   that voice, which holds the round open at its seam and names it at the
+#   room. The refusal here is correct, and it is the template that was wrong
+#   to promise a way out its own submit rejects.
 # Rejected: dropping the two lines from the header for every form. A form is a
 #   mix -- one field with a vocabulary beside four of prose -- and the four
 #   still take the escapes; a per-form answer is wrong for one side or the

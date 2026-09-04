@@ -325,9 +325,11 @@ def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
 
 
 def test_a_verdict_outside_the_vocabulary_refuses_at_the_panelists_submit(workdir, capsys):
-    """The verdict is checked where it is written, not where it is merged.
-    That is what makes `merged_verdict`'s fall-through to `pass` sound: a
-    value nothing can act on never becomes a return for it to read."""
+    """The verdict is checked where it is written, not where it is folded.
+    That is the first of two guards on the same word: a value nothing can act
+    on never becomes a return here at all, and one that reaches the journal
+    anyway -- a form's own note reworded after the fact -- resolves through
+    `verdict_fold` to a refusal naming the voice, never to a ruling."""
     _open_gate()
     review = _review_step("g1")
     panelist = _open_panelist("g1", review)

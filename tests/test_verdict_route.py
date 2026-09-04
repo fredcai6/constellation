@@ -22,6 +22,8 @@ Drives the real `run-a-gate` assembly, not a fixture -- `test_verdict_panels.py`
 already does, and its fixtures are reused here rather than re-declared.
 """
 
+import ast
+
 from engine import cli, run as runmod
 from conftest import REPO
 from test_two_voices import CRITIC, _dispatch_critic, _drive_to_plan_to_execute
@@ -232,13 +234,21 @@ def test_run_a_gates_review_plan_to_executes_and_consolidates_own_folds_all_move
     `release`, so all three hold open for their conductor's own route form
     rather than any of them refilling behind the conductor directly.
     Asserting the whole table, not just one row, is what makes the
-    comparison a checked claim instead of a hope."""
+    comparison a checked claim instead of a hope.
+
+    Each return carries a `child` tag positional with `step["panel"]`, which
+    is what makes this a real read of the seam's own table. `verdict_fold`
+    pairs a return to its panelist by that tag; a return with no `child` key
+    resolves to no panelist form at all and folds to quiet, which holds
+    regardless of the word -- so a childless fixture would keep this whole
+    table green while proving nothing it claims."""
     found = {}
     for name, seg_id, step in _two_voices_steps():
         st = {"assembly": name, "steps": [step]}
         found[(name, seg_id)] = [
             v for v in ("pass", "revise")
-            if runmod._holds_for_its_form(st, step, [{"fields": {"verdict": v}}])]
+            if runmod._holds_for_its_form(
+                st, step, [{"child": f"w.{seg_id}.p1", "fields": {"verdict": v}}])]
     assert found == TWO_VOICES
 
 
@@ -247,65 +257,169 @@ def test_an_interior_design_panel_still_completes_on_its_own_form():
     quietly break: ruling 10's design panel sits on an *interior* step, whose
     segment declares an impasse `ruling` and no verdict word at all. No row
     resolves, so nothing acts, so the step holds for its form -- pass and
-    revise alike, exactly as the literal `pass` check left it."""
+    revise alike, exactly as the literal `pass` check left it.
+
+    The return carries its own `child` tag for the same reason the table
+    walk above does: without one the fold pairs it to no panelist form and
+    answers quiet, which holds for a reason that has nothing to do with this
+    segment's table."""
     step = {"segment": "plan", "form": "skills/planner/forms/PLAN.toml",
             "panel": [{"form": CRITIC}]}
     st = {"assembly": "run-an-issue", "steps": [step]}
     for verdict in ("pass", "revise"):
-        assert runmod._holds_for_its_form(st, step, [{"fields": {"verdict": verdict}}])
+        assert runmod._holds_for_its_form(
+            st, step, [{"child": "w.plan.p1", "fields": {"verdict": verdict}}])
 
 
 # -- the vocabulary comparison itself is gone from the routing branches -----
 
 
-def test_no_line_in_cli_compares_the_word_verdict():
-    """#46's own completion condition, checked literally: `_returned_verdict`
-    was the one surviving site that still wrote `verdict == "pass"` -- the
-    room's own suppression, not a routing branch, but still the engine
-    holding the reviewer's word. It now reads the same outcome table
-    `_holds_for_its_form` and `_act_on_verdicts` already read (`declared_does`
-    resolving to `release`, or an undeclared word, is the quiet class), so
-    the grep this issue names returns nothing rather than one deliberate
-    survivor."""
-    src = (REPO / "engine" / "cli.py").read_text()
-    hits = [(n, line) for n, line in enumerate(src.splitlines(), start=1)
-           if "verdict ==" in line or "verdict !=" in line]
-    assert hits == [], f"expected no surviving comparison, found: {hits}"
+# The four `engine/` modules that read a returned verdict: the three the
+# wiring gate touched plus `run.py` itself, which is where `verdict_fold`,
+# `_voice_outcome` and `declared_does` live now. Obligation 1's own words are
+# "anywhere in `engine/`", and this is the one check that carries them, so it
+# has to reach the module the fold lives in as well as the modules that call
+# it -- otherwise a future hardcoded comparison inside the fold's own home
+# passes through clean.
+VERDICT_READING_MODULES = ("cli.py", "render.py", "review_yield.py", "run.py")
 
 
-def test_renaming_the_passing_value_in_the_outcome_table_needs_no_engine_edit(monkeypatch):
-    """The check #46 itself asks for: change the reviewer's declared
-    vocabulary and the room's suppression follows it, with no edit to
-    `engine/cli.py`. `_returned_verdict` no longer compares the merged word
-    against the literal `pass` -- it asks the same outcome table
-    `_holds_for_its_form` and `_act_on_verdicts` already read, so a renamed
-    `value` row is exactly as quiet as the original one was.
+def _reads_a_verdict(node):
+    """Does this expression reach a returned verdict's own word anywhere
+    inside it -- a `["verdict"]` subscript or a `.get("verdict", ...)` call,
+    at any depth, so a comparison that wraps the read in
+    `forms.leading_word(...)` is seen the same as a bare one."""
+    for sub in ast.walk(node):
+        if (isinstance(sub, ast.Subscript) and isinstance(sub.slice, ast.Constant)
+                and sub.slice.value == "verdict"):
+            return True
+        if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
+                and sub.func.attr == "get" and sub.args
+                and isinstance(sub.args[0], ast.Constant)
+                and sub.args[0].value == "verdict"):
+            return True
+    return False
 
-    `merged_verdict` (engine/run.py) still folds a panel's returns to the
-    fixed pair `pass`/`revise` regardless of what a critic's own form calls
-    them -- CRITIC.toml's `verdict` field note is where that pair is named,
-    a second site outside this issue's one-line, cli.py-scoped completion
-    check, found here but not fixed: #46 asks only that `engine/cli.py` hold
-    no verdict word, and that function does not. Monkeypatching
-    `merged_verdict` to answer the renamed word is the honest stand-in for
-    the rest of a full vocabulary rename this issue does not reach; what
-    this test actually exercises is the half `_returned_verdict` touches --
-    the outcome table's own declared value, read fresh rather than compared
-    against a word this function remembers."""
-    step = {"id": "plan", "segment": "plan", "form": "forms/PLAN_TO_EXECUTE.toml",
-            "panel": [{"form": CRITIC}]}
-    st = {"assembly": "run-an-issue", "steps": [step],
-          "returns": {"plan": [{"fields": {"verdict": "clear"}}]}}
+
+def _verdict_comparisons(src):
+    """Every `==`/`!=` node in `src` either side of which reads a returned
+    verdict -- the shape obligation 1 forbids, whatever word it is compared
+    against."""
+    hits = []
+    for node in ast.walk(ast.parse(src)):
+        if not isinstance(node, ast.Compare):
+            continue
+        if not any(isinstance(op, (ast.Eq, ast.NotEq)) for op in node.ops):
+            continue
+        if any(_reads_a_verdict(o) for o in [node.left] + list(node.comparators)):
+            hits.append(node.lineno)
+    return hits
+
+
+def test_no_node_in_the_engine_compares_a_returned_verdict_to_a_word():
+    """Obligation 1's own completion condition -- no literal reviewer verdict
+    word compared against a returned verdict anywhere in `engine/` -- read as
+    a syntax tree rather than as text, and swept across every module that
+    reads one.
+
+    The text form this replaces (`"verdict ==" in line`, over `cli.py`
+    alone) missed both of the real comparisons this gate removed.
+    `engine/render.py:612`'s `rnd["verdict"] == "revise"` breaks the
+    contiguous substring on the `"]`; `engine/review_yield.py:93-94`'s
+    `forms.leading_word((r.get("fields") or {}).get("verdict", "")) ==
+    "revise"` puts the word and the operator on two physical lines and wraps
+    the read in a call besides. Verified by hand against both files as they
+    stood before this gate touched them: the predicate below flags
+    `render.py:612` and `review_yield.py:93` and nothing else.
+
+    It costs no false positive on `run.py`'s two legitimate reads either:
+    `_voice_outcome`'s own `.get("verdict", "")` feeds an `in vocab`
+    membership test, which is not an `Eq`/`NotEq` node, and `declared_does`
+    compares the outcome table's own `"value"` key, which is not a verdict
+    read.
+
+    What this cannot see, by its own shape, is a bare string-literal verdict
+    *value* that nothing compares against -- the `"pass"` fallback
+    `render._yield_round` used to carry. `tests/test_verdict_wiring.py`
+    drives that layer instead, at the one function this check cannot reach
+    into."""
+    found = {}
+    for name in VERDICT_READING_MODULES:
+        hits = _verdict_comparisons((REPO / "engine" / name).read_text())
+        if hits:
+            found[name] = hits
+    assert found == {}, f"expected no surviving comparison, found: {found}"
+
+
+# A critic's own form, renamed: CRITIC.toml's shape exactly -- a `decision`
+# field whose note opens with its alternatives -- with the passing value
+# called `clear` instead of `pass`. Written to disk rather than built as a
+# dict because `run.panel_forms` reads the path the step's own panel entry
+# names, which is the whole point of driving the real reader here.
+RENAMED_CRITIC = """
+[[field]]
+id = "findings"
+kind = "evidence"
+note = "One per finding. None found: waived: clean."
+
+[[field]]
+id = "verdict"
+kind = "decision"
+note = "clear | revise. The passing word, renamed."
+"""
+
+
+def test_renaming_the_passing_value_in_the_outcome_table_needs_no_engine_edit(tmp_path):
+    """The check #46 itself asks for, and now the whole of it: rename the
+    reviewer's passing value in the outcome table *and* in the panelist
+    form's own note, and the room's suppression follows both with no edit to
+    `engine/cli.py`.
+
+    Nothing is stubbed. `_returned_verdict` resolves the panel's own forms
+    through `run.panel_forms` and folds the returns through `verdict_fold`,
+    so the renamed word has to survive two readings to reach the room: the
+    panelist's own declared vocabulary (`forms.enforced_vocabulary` on the
+    form the step's panel entry names) and the deciding table's own row.
+    Neither is a literal in `engine/`, so renaming the pair together leaves
+    the round exactly as quiet as `pass` was.
+
+    This is what the earlier version of this test could only stand in for.
+    It monkeypatched `merged_verdict` to answer the renamed word, because
+    `merged_verdict` folded every panel to the fixed pair `pass`/`revise`
+    whatever a critic's form called them -- so the half of the rename below
+    the room's own line was not reachable at all. `merged_verdict` is gone
+    and the fold reads the form, so the stand-in has a real thing to be."""
+    form_ref = "RENAMED_CRITIC.toml"
+    (tmp_path / form_ref).write_text(RENAMED_CRITIC)
 
     asm = runmod.load_assembly("run-an-issue")
+    # The panel entry names an assembly-owned ref, so `resolve_form` reads it
+    # relative to the assembly's own directory -- pointed at this test's own
+    # tmp dir, which is what puts the renamed form in the panelist's slot
+    # without touching `skills/`.
+    asm["dir"] = tmp_path
     seg = next(s for s in asm["segment"] if s["id"] == "plan")
     row = next(o for o in seg["transition"]["outcome"] if o["value"] == "pass")
-    row["value"] = "clear"  # the reviewer's passing value, renamed in the assembly alone
+    row["value"] = "clear"  # the reviewer's passing value, renamed in the assembly
 
-    monkeypatch.setattr(runmod, "merged_verdict", lambda returns: "clear")
+    step = {"id": "plan", "segment": "plan", "form": "forms/PLAN_TO_EXECUTE.toml",
+            "panel": [{"form": form_ref}]}
+    st = {"assembly": "run-an-issue", "steps": [step],
+          "returns": {"plan": [{"child": "w.plan.p1", "fields": {"verdict": "clear"}}]}}
+
     assert cli._returned_verdict(st, asm) == "", (
-        "renaming the outcome table's passing value should still leave the "
-        "room quiet, with no edit to engine/cli.py")
+        "renaming the outcome table's passing value, and the panelist form's "
+        "own note with it, should still leave the room quiet, with no edit "
+        "to engine/cli.py")
+
+    # And the converse, so the assertion above is not passing on silence:
+    # rename only the table's row and leave the form's note naming `clear`
+    # too, but have the voice answer the word neither of them declares. The
+    # room names the refusal rather than reporting a word it could not read.
+    st["returns"]["plan"] = [{"child": "w.plan.p1", "fields": {"verdict": "pass"}}]
+    assert cli._returned_verdict(st, asm) == "unreadable p1", (
+        "the old passing word is no longer in this panelist's own vocabulary, "
+        "so the room should name the refusal, not fall back to the word")
 
 
 # -- the plan seam gets the same shape (ruling 3, 2026-09-02) ---------------

@@ -84,14 +84,27 @@ def _calls(fields):
     return [forms.leading_word(r.get("call", "")) for r in rows if isinstance(r, dict)]
 
 
-def _round(returns, done_entry):
-    """One panel dispatch on one artifact: the merged verdict, how many of
-    the panel returned `revise`, how many findings, and -- where the
+# [revising-is-a-table-read]
+# Rationale: "how many of the panel sent the round back" is a question the
+#   seam's own outcome table answers per voice -- a word whose row does
+#   anything but the inert `release` is a voice sending it back -- so the
+#   tally reads `declared_does` against each voice's own resolved word, the
+#   same reader every other consumer of a verdict already uses. A refused or
+#   quiet voice counts as neither, having returned no word the table can act
+#   on.
+# Rejected: counting returns whose leading word is `revise`. Rename that
+#   value in a seam's table and its form's note together -- the rename this
+#   whole issue exists to make free -- and the tally silently reads zero on
+#   every round that in fact sent the artifact back.
+def _round(returns, done_entry, panel_forms, table):
+    """One panel dispatch on one artifact: the round's own verdict record,
+    how many of the panel sent it back, how many findings, and -- where the
     deciding submit carried a `calls` table -- a tally of how each was
     called, in the order the conductor ruled them."""
-    verdict = runmod.merged_verdict(returns)
-    revising = sum(1 for r in returns if forms.leading_word(
-        (r.get("fields") or {}).get("verdict", "")) == "revise")
+    verdict = runmod.verdict_record(runmod.verdict_fold(returns, panel_forms, table))
+    revising = sum(1 for kind, word in runmod.voice_outcomes(returns, panel_forms)
+                   if kind == "clean" and runmod.declared_does(table, word)
+                   not in (None, "release"))
     calls = _calls((done_entry or {}).get("fields"))
     findings = len(calls) if calls is not None else _panel_findings(returns)
     tally = {}
@@ -101,7 +114,7 @@ def _round(returns, done_entry):
             "called": calls is not None, "calls": tally}
 
 
-def seam_rounds(st, seg):
+def seam_rounds(st, seg, assembly):
     """Every round this seam's own artifact has been judged at, in journal
     order: round one from `skeleton()`'s own mint or `select`'s first panel
     mint, every later round `_mint_segment_round`/`_mint` (cli.py) minted
@@ -117,7 +130,14 @@ def seam_rounds(st, seg):
         returns = st["returns"].get(step["id"], [])
         if not returns:
             continue
-        rounds.append(_round(returns, st["done"].get(step["id"])))
+        # Each round resolves its own table and its own panel forms from the
+        # step it was dispatched on, never the seam's static declaration: a
+        # round minted at `select` (run-a-gate's review) writes its panel at
+        # runtime, and a round's own step is what says which of the segment's
+        # two tables governs it.
+        _, table = runmod.deciding_spec(assembly, step)
+        rounds.append(_round(returns, st["done"].get(step["id"]),
+                             runmod.panel_forms(assembly, step), table))
     return rounds
 
 
@@ -140,7 +160,7 @@ def run_yield(wid):
         assembly = runmod.load_assembly(cst["assembly"])
         prefix = "" if child == wid else child.rsplit(".", 1)[-1] + " "
         for seg in _seam_segments(assembly):
-            rounds = seam_rounds(cst, seg)
+            rounds = seam_rounds(cst, seg, assembly)
             if rounds:
                 entries.append({"label": prefix + _seam_label(seg), "rounds": rounds})
     return entries

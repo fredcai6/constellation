@@ -369,7 +369,8 @@ def test_every_prefill_key_the_engine_mints_is_named_by_the_form_that_receives_i
 
 def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
     """`waived:` and `unknown:` are refused on a decision field whose note declares a
-    vocabulary -- `merged_verdict` would read a waived verdict as a `pass` --
+    vocabulary -- `verdict_fold` reads a waived verdict as a refusal, not a
+    ruling --
     so a template offering them there hands the agent a way out its own submit
     rejects. The offer is per field, not per form: one enum field beside four
     of prose leaves the four still taking the escapes, and only a form with
@@ -403,6 +404,17 @@ def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
                     f"{f}: {field['id']} accepts the escapes and is offered neither")
 
 
+# A third mode for the sweep below. The first two say a reader names the
+# vocabulary's words in its own source, or that no engine branch reads them
+# at all. Neither fits a reader that takes the words from the field's own
+# note: `_voice_outcome` (engine/run.py) resolves every panelist's return
+# against `forms.enforced_vocabulary(field)`, critic and reviewer alike, and
+# asserting the two literal words appear in its source would be asserting
+# exactly the hardcoding this issue removed. So the claim held here is the
+# generic call, and its converse -- that the words themselves are *not* in
+# that source.
+BY_THE_FIELDS_OWN_NOTE = (runmod._voice_outcome, "enforced_vocabulary")
+
 # The enum each transition accepts, as its form teaches it, and the act that
 # performs it. Pinned here because the derivation reads prose: a note reworded
 # so its ` | ` leaves the opening line yields no vocabulary and enforces
@@ -413,9 +425,9 @@ VOCABULARIES = [
     # `_outcome`'s field like any other -- excluded from `swept` below and
     # covered instead by `test_a_declared_outcome_and_its_field_note_are_the_same_list`.
     ("skills/critic/forms/CRITIC.toml", "verdict",
-     ["pass", "revise"], runmod.merged_verdict),
+     ["pass", "revise"], BY_THE_FIELDS_OWN_NOTE),
     ("skills/reviewer/forms/REVIEW.toml", "verdict",
-     ["pass", "revise"], runmod.merged_verdict),
+     ["pass", "revise"], BY_THE_FIELDS_OWN_NOTE),
     # These two the engine enforces and no engine code reads: the value is
     # carried in prefill and the reader is the agent on the other side. Saying
     # so is the point -- a string here instead of a function is a claim that
@@ -487,6 +499,20 @@ def test_every_vocabulary_the_engine_enforces_is_the_one_the_form_teaches():
     engine_src = "".join((ROOT / "engine" / f).read_text()
                          for f in ("cli.py", "run.py", "forms.py", "render.py"))
     for path, fid, vocab, act in VOCABULARIES:
+        if isinstance(act, tuple):
+            # the claim is that the reader takes the words from the field's
+            # own note; hold both halves of it
+            fn, generic_call = act
+            src = inspect.getsource(fn)
+            assert f"{generic_call}(" in src, \
+                f"{path}: {fid} is recorded as read through {generic_call}, and " \
+                f"{fn.__name__} does not call it"
+            for alt in vocab:
+                head = alt.split("<")[0].strip()
+                assert not re.search(rf'["\']{re.escape(head)}["\']', src), \
+                    f"{path}: {fid} is recorded as read from the field's own note, " \
+                    f"but {fn.__name__} names {head!r} itself"
+            continue
         if isinstance(act, str):
             # the claim is that nothing branches on it; hold the claim
             for alt in vocab:
@@ -519,9 +545,9 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
 
     A panel-only transition submits no form of its own, so `_direct_taught`
     always misses it -- `_act_on_verdicts` synthesizes the decided field from
-    `merged_verdict`, never from a step this assembly minted. What teaches
+    `verdict_fold`, never from a step this assembly minted. What teaches
     the agent there is the panel's own form instead: every panelist declares
-    a field of the same name (the vote `merged_verdict` folds), so the panel
+    a field of the same name (the vote `verdict_fold` folds), so the panel
     is checked in `_direct_taught`'s place, requiring every panelist agree.
     """
     perform_src = inspect.getsource(cli._perform)
