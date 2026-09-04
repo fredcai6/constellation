@@ -116,7 +116,7 @@ def test_panel_brief_carries_every_ingredient(workdir, capsys):
     assert "tier         standard" in out
     assert "runner       claude-sonnet-5" in out
     assert "finishing:" in out and "REVIEW.toml" in out
-    assert "outstanding" in out
+    assert "not dispatched" in out
 
     line = next(l for l in out.splitlines() if "open it:" in l)
     open_cmd = line.split("open it:", 1)[1].strip()

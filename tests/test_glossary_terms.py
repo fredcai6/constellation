@@ -27,6 +27,11 @@ HEADWORD = re.compile(r"^- \*\*([^*]+)\*\*", re.MULTILINE)
 
 DELIVERY_TERMS = {"posture", "brief", "role", "delivery"}
 
+# #55's own key-terms field: `dispatch`'s changed meaning and the new
+# `liveness` entry this gate writes, plus `impasse` and `projection` (#94),
+# riding along on the same seam under epic #55's ride-along rule.
+FOUR_STATE_TERMS = {"dispatch", "liveness", "impasse", "projection"}
+
 STALE_PHRASES = ("writes per gate at plan-to-execute", "consolidate output")
 
 
@@ -35,6 +40,15 @@ def test_delivery_terms_resolve_to_a_glossary_entry():
     terms this gate owns -- resolves to a glossary headword."""
     headwords = set(HEADWORD.findall(GLOSSARY.read_text()))
     missing = DELIVERY_TERMS - headwords
+    assert not missing, f"no glossary headword for {missing}"
+
+
+def test_four_state_terms_resolve_to_a_glossary_entry():
+    """Completeness: `dispatch`'s changed meaning, the new `liveness` entry,
+    and the two ride-along terms (`impasse`, `projection`) each resolve to a
+    glossary headword."""
+    headwords = set(HEADWORD.findall(GLOSSARY.read_text()))
+    missing = FOUR_STATE_TERMS - headwords
     assert not missing, f"no glossary headword for {missing}"
 
 

@@ -233,7 +233,7 @@ def test_plan_to_execute_dispatches_its_critic_before_any_gate_is_minted(workdir
     out = capsys.readouterr().out
     assert f"spine open give-a-verdict --parent {wid} --step plan.p1" in out
     assert "intent-fit" in out                     # the critic's own criteria
-    assert "outstanding" in out
+    assert "not dispatched" in out
     assert "PLAN_TO_EXECUTE" not in out             # the form is not offered yet
 
     # the form cannot be filled around the critic either
