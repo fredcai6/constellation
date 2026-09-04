@@ -116,7 +116,7 @@ def hand_in(wid, step, fields, commands, check_root, budget):
         "wid": wid, "step": step["id"], "fields": fields, "commands": commands,
         "cwd": where, "budget": budget, "result": str(result.resolve())}),
         encoding="utf-8")
-    proc = _spawn(payload, log)
+    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
     try:
         code = proc.wait(timeout=HANDBACK)
     except subprocess.TimeoutExpired:
@@ -132,16 +132,24 @@ def hand_in(wid, step, fields, commands, check_root, budget):
     raise SystemExit(_said(result, wid, step["id"]))
 
 
-def _spawn(payload, log):
-    """The detached runner. `start_new_session` puts it in a session of its
-    own, so a harness that kills the caller's whole process group does not
-    take the proof with it -- insurance rather than the mechanism, since a
-    plain child already outlived a dispatched agent's turn when this was
-    measured.
+def _spawn(argv, log, cwd=None):
+    """The detached runner, generalized to any argv: `Popen` it with output
+    captured to `log` and nothing read from the caller's own stdin.
+    `start_new_session` puts it in a session of its own, so a harness that
+    kills the caller's whole process group does not take the child with it
+    -- insurance rather than the mechanism, since a plain child already
+    outlived a dispatched agent's turn when this was measured.
+
+    Shared by `hand_in`'s own proof runner (`cwd=None`, inheriting the
+    caller's) and `spawn_dispatch`'s child launch (`cwd=` the child's own
+    tree) -- one `Popen` call carrying commitments 6, 17 and 18 for both,
+    rather than a second copy of the same five keyword arguments.
 
     `PYTHONPATH` carries this tree's root rather than a rewritten path:
-    install is a copy, so the runner is found the same way in the repo and in
-    an installed copy."""
+    install is a copy, so a module run this way is found the same way in
+    the repo and in an installed copy. Harmless, not just convenient, for an
+    argv that names no Python module at all -- an extra `PYTHONPATH` entry
+    a non-Python harness never looks at costs it nothing."""
     env = {**os.environ,
            "PYTHONPATH": os.pathsep.join(
                p for p in (str(_ROOT), os.environ.get("PYTHONPATH", "")) if p),
@@ -149,9 +157,116 @@ def _spawn(payload, log):
                "CONSTELLATION_SESSION", str(os.getpid()))}
     with open(log, "a", encoding="utf-8") as out:
         return subprocess.Popen(
-            [sys.executable, "-m", "engine.checks", str(payload)],
-            stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
-            start_new_session=True, env=env)
+            argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
+            start_new_session=True, env=env, cwd=cwd)
+
+
+# [dispatch-failure]
+# Rationale: the primitive's contract has exactly one axis (the gate room's
+#   own words): a genuinely absent `dispatch` key is nothing to spawn and no
+#   failure (returns `None`, no exception at all -- commitment 3's world),
+#   and every other case is a reported, distinguishable failure. Splitting
+#   those two by *shape* (return value vs. raised exception) rather than by
+#   a value the absent case would also have to carry makes the two
+#   mechanically un-collapsible: a caller cannot mistake `None` for a
+#   `DispatchFailure`, however either is constructed, which is stronger than
+#   asking a caller to compare two sentinel strings correctly forever.
+#   `.reason` is one of the module-level DISPATCH_* constants (not free
+#   text) so the three failure inputs stay distinguishable from each other
+#   too -- a caller branches on `exc.reason`, never on `str(exc)`.
+# Rejected: one return-value shape for all outcomes (success, absent, and
+#   the three failures) via a small result object. It would make the axis
+#   uniform to inspect, but every call site would need an `if` for a case
+#   (absent) that commitment 3 says is not an error at all, and Python
+#   already has a mechanism for "stop and report why" that isn't "also
+#   check a field to see if you should have stopped" -- an unraised `None`
+#   already reads, at the call site, as "there was nothing to do here."
+class DispatchFailure(Exception):
+    """A `spawn_dispatch` attempt that produced no journal entry. `.reason`
+    names which of the three failure inputs this was; `.detail` is the free
+    text a person reads in a refusal or a log."""
+    def __init__(self, reason, detail):
+        super().__init__(f"{reason}: {detail}")
+        self.reason = reason
+        self.detail = detail
+
+
+DISPATCH_MALFORMED = "dispatch-malformed"       # entry present but not a list
+DISPATCH_UNFILLED = "dispatch-unfilled"         # a recognized placeholder given no value
+DISPATCH_SPAWN_FAILED = "dispatch-spawn-failed"  # Popen itself could not start the process
+
+_DISPATCH_TOKENS = {"{brief}": "brief", "{runner}": "runner", "{tree}": "tree"}
+
+
+# [spawn-dispatch]
+# Rationale: `{brief}`/`{runner}`/`{tree}` are matched by exact whole-word
+#   equality, never a substring or a general `{...}` parse -- a word that
+#   merely contains braces (a real args element that happens to have some
+#   other `{token}` in it) is data, not a placeholder, and commitment 2 asks
+#   for whole-word substitution only. Checking the three names directly,
+#   rather than stripping braces and looking the stripped name up in a set,
+#   means an unrecognized brace-token (`{host}`, say) simply falls through
+#   to "left untouched" with no special-casing -- it was never one of the
+#   three names to begin with.
+# Rejected: treating a missing `tree` (the one placeholder the docstring
+#   calls optional -- "where present") differently from a missing `brief`
+#   or `runner`. The purpose text describes all three the same way
+#   ("a placeholder the caller supplied no value for"), and a caller that
+#   forgets to pass a tree when the configured entry asks for one is the
+#   same misconfiguration as forgetting a brief -- both are DISPATCH_UNFILLED,
+#   not a fourth category.
+def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
+    """Spawn one dispatched child's process from a `[commands]`-shaped
+    mapping's `dispatch` entry, substituting `{brief}`, `{runner}` and
+    `{tree}` into it as whole argv words, and journal the spawn keyed by
+    `child_id` (commitment 9) -- never by `wid`'s current step, which a
+    panel step shares across several children.
+
+    Returns the journal entry `journal.append` wrote (identity, pid, start
+    time) once the process is actually running. Returns `None` -- no
+    exception, no journal entry -- when `commands` carries no `dispatch`
+    key at all: a repository that has not configured one (commitment 3).
+
+    Raises `DispatchFailure` for every other way this can fail to produce a
+    running, journaled process: the entry is present but not a list
+    (today's single-string `[commands]` shape used verbatim would land
+    here), a placeholder in it names one of `{brief}`/`{runner}`/`{tree}`
+    but the caller passed `None` for that value, or the process itself
+    fails to start (a nonexistent executable, most commonly). No journal
+    entry is written in any of these cases -- the append happens only after
+    `_spawn` hands back a live `Popen`, so there is no window in which a
+    partial entry could land.
+
+    `tree` also becomes the spawned process's own working directory
+    (commitment 7) regardless of whether the entry's text uses `{tree}` at
+    all; `log` is where its stdout and stderr are captured, opened in
+    append mode exactly like a check's own log."""
+    if "dispatch" not in commands:
+        return None
+    entry = commands["dispatch"]
+    if not isinstance(entry, list):
+        raise DispatchFailure(
+            DISPATCH_MALFORMED,
+            f"the dispatch entry must be a list of words, not {type(entry).__name__} "
+            f"-- {entry!r}")
+    values = {"brief": brief, "runner": runner, "tree": tree}
+    argv = []
+    for word in entry:
+        name = _DISPATCH_TOKENS.get(word)
+        if name is None:
+            argv.append(word)
+            continue
+        value = values.get(name)
+        if value is None:
+            raise DispatchFailure(
+                DISPATCH_UNFILLED, f"{word} has no value supplied for this child")
+        argv.append(str(value))
+    try:
+        proc = _spawn(argv, log, cwd=tree)
+    except OSError as e:
+        raise DispatchFailure(DISPATCH_SPAWN_FAILED, str(e)) from e
+    return journal.append(wid, "dispatch-started", child=child_id, pid=proc.pid,
+                           tree=tree, log=str(pathlib.Path(log).resolve()))
 
 
 def _said(result, wid, step_id):
