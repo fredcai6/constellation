@@ -13,6 +13,7 @@ import secrets
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 
 from engine import boards
@@ -962,6 +963,94 @@ def cmd_status(argv):
                         triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"],
                         role=runmod.hat(asm, step, st), row_returns=st["row_returns"]))
     return 0
+
+
+# [wait-outstanding]
+# Rationale: the process-only definition commitment 3 draws -- a live-pid
+#   `dispatch-started` record with no `return` yet -- is read straight off
+#   the journal via `_dispatch_records` rather than through
+#   `_dispatch_child`/`_spawn_outstanding`, because those two also spawn:
+#   `wait` must watch a child a prior render already started without ever
+#   starting one of its own (this gate's own boundary -- gate 2's own
+#   commitments 13-15 make `wait` the sole spawner, not this one). A child
+#   with no record at all reads exactly the same as one that already
+#   returned or whose pid died -- not outstanding -- which is what lets a
+#   never-dispatched child, and a palette with no `dispatch` entry at all,
+#   fall out of this predicate for free rather than needing a branch of
+#   their own.
+def _wait_outstanding(wid, child_ids, returns_by_child):
+    """Which of `child_ids` `wait` still has to poll: a live-pid
+    `dispatch-started` record with no return landed for that child yet."""
+    records = _dispatch_records(wid)
+    return [cid for cid in child_ids
+            if cid not in returns_by_child
+            and cid in records and checkrun.alive(records[cid].get("pid"))]
+
+
+def _wait_bound(argv):
+    """The bound this call's own `wait` obeys: the default
+    (`checkrun.WAIT_BOUND`) unless overridden with `--for <seconds>`
+    (commitment 8)."""
+    raw = _opt(argv, "--for")
+    if raw is None:
+        return checkrun.WAIT_BOUND
+    try:
+        seconds = int(raw)
+    except ValueError:
+        seconds = 0
+    if seconds <= 0:
+        raise SystemExit(render.refusal(
+            "for", f"{raw!r} is not a number of seconds",
+            escape="pass whole seconds -- --for 30"))
+    return seconds
+
+
+# [wait-verb]
+# Rationale: reproduces `cmd_status`'s own branch order (911-933) by hand
+#   rather than asking `_current_form` which branch matched -- today it
+#   only ever returns `None` for a panel, paused or dispatch step and a
+#   loaded form for the rest, so a caller still has to re-run the same
+#   checks to tell those apart. This gate's own `direction` field asks
+#   whether that is worth pulling into a shared helper first; written by
+#   hand a fourth time here, it was no harder to keep correct than the
+#   three copies already standing (`cmd_status`, `cmd_submit`,
+#   `cmd_close`), which itself answers the question for now -- left as a
+#   note for whichever later gate needs the branch a second time.
+# Rejected: blocking on a dispatch or panel step whose child has never been
+#   dispatched at all. Nothing has journaled a `dispatch-started` record
+#   for it, so it reads as nothing outstanding on the very first poll --
+#   exactly like a palette with no `dispatch` entry configured -- and
+#   `wait` renders immediately rather than starting what only `status` or
+#   `submit` start today.
+def cmd_wait(argv):
+    wid = argv[0]
+    bound = _wait_bound(argv[1:])
+    st = runmod.state(wid)
+    if st is None:
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+    if not st["open"] or st["awaiting_close"]:
+        return cmd_status([wid])
+    asm, step, _ = _current_form(st)
+    if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
+        child_ids = [f"{wid}.{step['id']}.p{i}" for i in range(1, len(step["panel"]) + 1)]
+    elif runmod.paused(step):
+        return cmd_status([wid])
+    elif step.get("dispatches"):
+        child_ids = [step.get("child") or f"{wid}.{step['id']}"]
+    else:
+        # `runmod.in_flight` names a proof, not a child, and a childless
+        # form step has no child at all -- neither is something `wait` has
+        # anything to poll, so both render immediately (commitment 29).
+        return cmd_status([wid])
+    deadline = time.monotonic() + bound
+    while True:
+        fresh = runmod.state(wid)  # re-folded every cycle, never cached (commitment 10)
+        if not _wait_outstanding(wid, child_ids, fresh["returns_by_child"]):
+            break
+        if time.monotonic() >= deadline:
+            break
+        time.sleep(checkrun.WAIT_POLL)
+    return cmd_status([wid])  # renders no view of its own (commitment 2)
 
 
 def cmd_submit(argv):
@@ -2949,7 +3038,8 @@ def main(argv=None):
         return 0
     verb = argv[1] if len(argv) > 1 else "status"
     verbs = {"status": cmd_status, "submit": cmd_submit, "note": cmd_note,
-             "amend": cmd_amend, "close": cmd_close, "trace": cmd_trace, "up": cmd_up}
+             "amend": cmd_amend, "close": cmd_close, "trace": cmd_trace, "up": cmd_up,
+             "wait": cmd_wait}
     if verb not in verbs:
         # `spine <id> sumbit` used to render the room and exit 0: only the exact
         # word is acted on, so a near-miss must not look like a hit.
