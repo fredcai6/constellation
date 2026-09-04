@@ -39,6 +39,16 @@ from engine import render
 HANDBACK = 90  # seconds `submit` holds its caller -- see the module docstring
 BUDGET = 600   # seconds a proof may run before it is broken, absent a declared one
 
+# [wait-bound]
+# Rationale: `wait` blocks in the same caller turn `HANDBACK` is about --
+#   a harness that moves a foreground command to the background at ~120s
+#   never wakes the agent to read what it prints, so the default bound
+#   stays at or under `HANDBACK` itself rather than inventing a second
+#   number that could run the caller past that cutoff. `--for <seconds>`
+#   overrides it per call for whoever chooses to hold longer anyway.
+WAIT_BOUND = 90  # seconds `wait` blocks by default before it renders anyway
+WAIT_POLL = 1    # seconds between `wait`'s own re-folds of the journal
+
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
