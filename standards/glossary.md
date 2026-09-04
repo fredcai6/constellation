@@ -31,16 +31,35 @@ forms; coining a synonym for a term below is a defect.
   own transition step alone, without refilling its interior — `advance`'s move over a live
   revise, distinct from `release`, which mints nothing at all.
 - **verdict panel** — 0..n panelists a transition dispatches, each reading from fresh context
-  and prefilled with focused criteria; verdicts return to the transition. The panel's vocabulary
-  is `pass | revise`, never a third word: a panel that judges the artifact itself wrong to build
-  writes that as a revise finding, the same as any other. The merged verdict — panelists'
-  findings folded into one — resolves the same way a submitted decision field does — against
-  the transition's own declared `outcome` rows where one names a `decides` field (most panels
-  now hold either verdict open for a conductor's own route form there), or (a panel-only
-  transition with none, explore-an-idea's spec) by refilling directly, `impasse-after` rounds of
-  it reaching the segment's own impasse form where one is declared. A panel is written once, at the mint that
+  and prefilled with focused criteria; verdicts return to the transition. Each panelist's own
+  form teaches its own vocabulary — most declare `pass | revise`, but this is read from the
+  form, never assumed as a fixed pair. `verdict_fold` (`engine/run.py`) folds the panel's
+  returns to one panel-wide outcome, one of three per-voice/panel kinds — **clean**, **refused**,
+  **quiet** — never a merged verdict computed as a bare majority or a hardcoded word. A `clean`
+  fold resolves the same way a submitted decision field does — against the transition's own
+  declared `outcome` rows where one names a `decides` field (most panels now hold either verdict
+  open for a conductor's own route form there), or (a panel-only transition with none,
+  explore-an-idea's spec) by refilling directly, `impasse-after` rounds of it reaching the
+  segment's own impasse form where one is declared. A panel is written once, at the mint that
   makes its step: declared on a transition, or named at an earlier one (run-a-gate's `select`), never
   grown after. Review never lives in an interior.
+- **clean** — one of `verdict_fold`'s three per-voice/panel outcomes (`engine/run.py`): a
+  voice's return whose leading word is inside that voice's own form's declared vocabulary, or
+  (panel-wide) the panel's own clean word once a refusal and total quiet are both ruled out.
+  See **verdict panel**.
+- **refused** — one of `verdict_fold`'s three per-voice/panel outcomes: a voice's own form
+  declares a vocabulary but the return's leading word is not in it (missing, empty, or
+  foreign), or the voice's own form could not be loaded at all. A refusal from any voice is
+  the whole panel's own outcome, naming that voice, ahead of any clean word a co-panelist
+  returned. Printed at every surface that reports a panel round as **unreadable**.
+- **quiet** — one of `verdict_fold`'s three per-voice/panel outcomes: a voice's own form
+  declares no `verdict` field at all — design-it-twice's rival-planner panel is this case. A
+  panel folds to quiet only once every voice is quiet; one voice whose form declares a
+  vocabulary takes the whole panel out of quiet eligibility even where that voice's own return
+  is itself clean.
+- **unreadable** — the word `verdict_record` (`engine/run.py`) prints for a **refused**
+  outcome, at every surface that reports a panel round — the room's own line, the close
+  summary, the review yield — followed by the refusing voice's own tag, e.g. `unreadable p2`.
 - **anchor** — one word, two senses. The rule above bars a second name for one thing; it does
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
   template step flagged so that amending it away is loud in the ledger and the parent's

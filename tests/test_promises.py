@@ -590,6 +590,84 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
     assert verbs_checked, "no outcome named a verb -- this test swept nothing"
 
 
+def _panel_verdict_taught(asm, panel):
+    """The vocabulary every voice in `panel` teaches for the literal field
+    id `"verdict"` -- `_voice_outcome`'s own hardcoded key
+    (`engine/run.py`'s `f.get("id") == "verdict"`), never `decides`, which
+    coincides with it only by chance at explore-an-idea's spec seam. Each
+    entry resolves its own form the way the runtime does
+    (`runmod._panelist_form_ref`): the entry's own `form` where it names
+    one, and otherwise `give-a-verdict`'s terminal form -- the shape a
+    `[[panelists]]` block from `SELECT.toml` has, which is what an entry
+    naming no form of its own (`{}`) mimics.
+
+    `None` where no voice's form declares a `verdict` field at all --
+    design-it-twice's rival-planner panel is this case, and has nothing to
+    check."""
+    vocabs = []
+    for entry in panel:
+        pasm, ref = runmod._panelist_form_ref(asm, entry)
+        fields = forms.load(runmod.resolve_form(pasm, ref))["fields"]
+        field = next((f for f in fields if f["id"] == "verdict"), None)
+        vocabs.append(forms.vocabulary(field["note"]) if field else None)
+    if all(v is None for v in vocabs):
+        return None
+    assert vocabs and all(v == vocabs[0] for v in vocabs), (
+        f"panel voices teach different verdict vocabularies: {vocabs}")
+    return vocabs[0]
+
+
+def test_the_panels_own_vocabulary_never_drifts_from_the_table_it_answers():
+    """Obligation 12. `test_a_declared_outcome_and_its_field_note_are_the_same_list`
+    already checks the panel's own vocabulary, but only through its one
+    `taught is None and spec.get("panel")` branch -- the panel-only shape,
+    exactly one seam in the tree (explore-an-idea's spec transition). At the
+    three seams whose transition *also* stands a conductor on a form
+    (run-an-issue's consolidate and plan-to-execute, run-a-gate's review),
+    `_direct_taught` resolves the conductor's own vocabulary directly and
+    that branch's body is never reached -- so the panel's own opinion is
+    never separately held to the table there at all, and could drift from
+    it in total silence.
+
+    This is that independent check, run alongside the existing one rather
+    than nested inside its guard: at every seam where a conductor form's own
+    vocabulary is found (`_direct_taught` is not `None`) and a panel also
+    reads the round, the panel's own `verdict` field must teach a subset of
+    the same seam's declared `outcome` values -- subset, not equality,
+    since the panel's two words (`pass | revise`) never spans a table that
+    also carries `rework`, `up`, and (at review) `close`.
+
+    Review carries no static `[[[segment.]transition.]panel]` anywhere in
+    ASSEMBLY.toml on purpose -- its panel is minted at `select` from
+    `SELECT.toml`'s own `panelists` field, whose blocks carry no form of
+    their own. It is the one seam in the tree shaped that way, so it is
+    named directly rather than discovered structurally, the same way
+    `VOCABULARIES` above names its own hardcoded seams."""
+    checked = 0
+    for name in runmod.assemblies():
+        asm = runmod.load_assembly(name)
+        for seg in asm["segment"]:
+            for spec in (seg, seg.get("transition", {})):
+                fid = spec.get("decides")
+                if not fid or _direct_taught(asm, seg, spec, fid) is None:
+                    continue
+                is_review = name == "run-a-gate" and seg["id"] == "review" and spec is seg
+                panel = spec.get("panel") or ([{}] if is_review else None)
+                if panel is None:
+                    continue
+                taught = _panel_verdict_taught(asm, panel)
+                if taught is None:
+                    continue
+                declared = [o["value"] for o in spec.get("outcome", [])]
+                assert set(taught) <= set(declared), (
+                    f"{name}/{seg['id']}: panel teaches {taught}, not a subset "
+                    f"of the declared outcomes {declared}")
+                checked += 1
+    assert checked == 3, (
+        f"expected exactly the three named seams (consolidate, "
+        f"plan-to-execute, review), got {checked}")
+
+
 def _glossary_entry(text, name):
     """The bullet's own text, from `- **name** —` to the next `- **` bullet or
     end of file. A `re.search` for the name alone would match a substring of a

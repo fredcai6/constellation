@@ -16,6 +16,14 @@ its own check -- so the second assertion checks the phrasing, not presence.
 
 Both pin DESIRED behaviour: the first fails until the four entries exist,
 and the second is a tripwire against the deleted phrasing creeping back in.
+
+#80's gate 4 (obligation 13) rides the same seam: `verdict panel`'s own
+entry described a fixed `pass | revise` vocabulary and "the merged verdict",
+both stale now that `verdict_fold` reads each panelist's own form and folds
+to `clean`/`refused`/`quiet` rather than a bare merge of a hardcoded pair.
+`clean`, `refused`, `quiet` and `unreadable` are the four load-bearing names
+that primitive introduced and used across more than one file with no
+headword of their own until this gate.
 """
 
 import pathlib
@@ -32,7 +40,17 @@ DELIVERY_TERMS = {"posture", "brief", "role", "delivery"}
 # riding along on the same seam under epic #55's ride-along rule.
 FOUR_STATE_TERMS = {"dispatch", "liveness", "impasse", "projection"}
 
-STALE_PHRASES = ("writes per gate at plan-to-execute", "consolidate output")
+# #80's gate 4: verdict_fold's own per-voice/panel outcome kinds, plus the
+# record word a refusal prints -- live in engine/run.py and engine/cli.py,
+# never named by a glossary headword before this gate.
+VERDICT_FOLD_TERMS = {"clean", "refused", "quiet", "unreadable"}
+
+STALE_PHRASES = (
+    "writes per gate at plan-to-execute", "consolidate output",
+    # #80's gate 4: the fixed pair and the deleted merge function
+    # `verdict panel`'s own entry used to describe.
+    "is `pass | revise`, never a third word", "The merged verdict",
+)
 
 
 def test_delivery_terms_resolve_to_a_glossary_entry():
@@ -49,6 +67,15 @@ def test_four_state_terms_resolve_to_a_glossary_entry():
     glossary headword."""
     headwords = set(HEADWORD.findall(GLOSSARY.read_text()))
     missing = FOUR_STATE_TERMS - headwords
+    assert not missing, f"no glossary headword for {missing}"
+
+
+def test_verdict_fold_terms_resolve_to_a_glossary_entry():
+    """Completeness: `verdict_fold`'s three per-voice/panel outcome kinds
+    and the record word a refusal prints each resolve to a glossary
+    headword."""
+    headwords = set(HEADWORD.findall(GLOSSARY.read_text()))
+    missing = VERDICT_FOLD_TERMS - headwords
     assert not missing, f"no glossary headword for {missing}"
 
 
