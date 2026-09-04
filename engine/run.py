@@ -264,14 +264,66 @@ def _ordered(raw_steps, seg_order):
     return ordered
 
 
-def merged_verdict(returns):
-    """Revise outranks pass: any blocking finding outranks a clean one. The
-    panel's whole vocabulary is `pass | revise` -- there is no third word, so
-    one revise among the returns is what decides it."""
-    vs = [forms.leading_word((r.get("fields") or {}).get("verdict", "")) for r in returns]
-    if "revise" in vs:
-        return "revise"
-    return "pass"
+# [panelist-assembly]
+# Rationale: every panelist is dispatched under this one assembly
+#   (`_open_child`, engine/cli.py), so where a voice's form comes from when
+#   its own panel entry names none is answered here rather than guessed at
+#   each reader.
+PANELIST_ASSEMBLY = "give-a-verdict"
+
+
+def _panelist_form_ref(assembly, entry):
+    """(assembly, ref) for the form one panel entry's own voice was
+    dispatched under: the entry's own `form` where it names one, and
+    otherwise the panelist assembly's own terminal form.
+
+    The fallback is not defensive -- it is the tree's most-exercised panel.
+    `select` mints run-a-gate's review panel from the `[[panelists]]` blocks
+    a conductor submits, and those carry a worker, a tier and a criterion
+    and no form at all, so the voice really is dispatched under
+    give-a-verdict's own REVIEW.toml. Reading `entry["form"]` alone would
+    resolve every one of those voices to no form, which is the one input
+    `panel_forms` below turns into a refusal.
+    """
+    ref = (entry or {}).get("form", "")
+    if ref:
+        return assembly, ref
+    pasm = load_assembly(PANELIST_ASSEMBLY)
+    seg = next((s for s in pasm["segment"] if s.get("transition", {}).get("terminal")), {})
+    return pasm, seg.get("transition", {}).get("form", "")
+
+
+# [panel-forms-guarded]
+# Rationale: a journal is append-only and a panel step's own entry names the
+#   form path each voice was dispatched under, so renaming or moving a
+#   panelist form strands every run whose journal already names it -- an
+#   ordinary, correct change, not a corrupt file, exactly as `_load_form`
+#   (engine/cli.py) already records for a step's own form. That guard cannot
+#   be shared: it raises through `render.refusal`, and this reader runs
+#   inside `state()`'s own journal fold, the first thing every command does
+#   and a full replay of every historical step. So a path that is gone
+#   resolves that one voice's slot to `None` -- which `_voice_outcome` reads
+#   as a refusal, the same outcome and the same downstream treatment an
+#   ordinary vocabulary-violating return already gets.
+# Rejected: a bare `resolve_form` + `forms.load` pair at each call site. That
+#   is the shape that once left `spine issue57.g4` dead with an uncaught
+#   `FileNotFoundError` after a gate renamed REVIEW_ROUND.toml, reintroduced
+#   at seven sites instead of one.
+# Rejected: raising a `SystemExit` here the way `load_assembly` does for an
+#   unresolvable assembly name. An assembly name is resolved once, against a
+#   command the operator just typed; this is resolved on every fold, against
+#   history nobody is standing on.
+# See: engine/cli.py `_load_form`, `_open_child`
+def panel_forms(assembly, step):
+    """The panelist form each voice in `step["panel"]` was dispatched under,
+    positional with the panel -- `None` in a voice's own slot where the path
+    that voice was dispatched under is no longer in the tree."""
+    out = []
+    for entry in step.get("panel") or []:
+        asm, ref = _panelist_form_ref(assembly, entry)
+        path = resolve_form(asm, ref) if ref else None
+        out.append(forms.load(path) if path and path.exists() else None)
+    return out
 
 
 # [pair-return-by-pn-index]
@@ -304,19 +356,56 @@ def _voice_form(panel_forms, tag):
 #   word is resolved against that voice's declared vocabulary, never a
 #   panel-wide one, so two panelists under two different forms (a critic and
 #   a reviewer, say) are each held to their own.
+# Rationale: a voice whose form path `panel_forms` could not load is a voice
+#   whose declared vocabulary cannot be read, which is the same thing as a
+#   return this reader cannot resolve against one -- so it takes the outcome
+#   that already exists for that, naming the voice, and every one of the
+#   fold's callers treats it exactly as it treats an ordinary
+#   vocabulary-violating return.
+# Rejected: a fourth outcome word of its own. Seven call sites would each
+#   grow a branch for a case none of them can do anything different about.
 def _voice_outcome(tag, ret, form):
     """One panelist's own outcome: `("clean", word)` -- the return's leading
     word, in the form's own vocabulary; `("refused", tag)` -- a vocabulary
-    declared but the word is not in it (missing, empty, or foreign), naming
-    this voice so a panel-wide refusal can say which one; or `("quiet",
-    None)` -- the form declares no `verdict` field at all, PLAN.toml's own
-    case, true regardless of what the return's fields hold."""
+    declared but the word is not in it (missing, empty, or foreign), or the
+    form itself unreadable, naming this voice so a panel-wide refusal can
+    say which one; or `("quiet", None)` -- the form declares no `verdict`
+    field at all, PLAN.toml's own case, true regardless of what the return's
+    fields hold.
+
+    `None` and `{}` are two different forms of nothing here: `None` is a
+    path that failed to load (`panel_forms`), and `{}` is a tag naming no
+    panelist at all (`_voice_form`), which stays quiet.
+    """
+    if form is None:
+        return ("refused", tag)
     field = next((f for f in (form or {}).get("fields", []) if f.get("id") == "verdict"), None)
     vocab = forms.enforced_vocabulary(field) if field else []
     if not vocab:
         return ("quiet", None)
     word = forms.leading_word((ret.get("fields") or {}).get("verdict", ""))
     return ("clean", word) if word in vocab else ("refused", tag)
+
+
+# [voice-outcomes]
+# Rationale: the per-voice list is what `verdict_fold` folds, and one caller
+#   needs the voices themselves rather than the panel-wide answer -- the
+#   review yield's own `revising` tally is a count of how many voices
+#   returned a word the seam's table says does something, which the folded
+#   result cannot answer. Promoted to its own name so the pairing and the
+#   vocabulary lookup are written once.
+# Rejected: `review_yield.py` redoing the pairing itself. Two walks over the
+#   same returns drift, and the `pN` tag rule is exactly the thing a second
+#   copy gets wrong.
+def voice_outcomes(returns, panel_forms):
+    """Each return's own outcome, in `returns` order -- `_voice_outcome` per
+    voice, paired to its panelist by the child id's own `pN` tag."""
+    out = []
+    for ret in returns:
+        m = _PANEL_CHILD_TAG.search(ret.get("child", "") or "")
+        tag = m.group(1) if m else ""
+        out.append(_voice_outcome(tag, ret, _voice_form(panel_forms, tag)))
+    return out
 
 
 # [refusal-outranks-every-clean-word]
@@ -344,11 +433,7 @@ def verdict_fold(returns, panel_forms, table):
     through `declared_does`, so what a word does stays the table's call, not
     a string comparison.
     """
-    outcomes = []
-    for ret in returns:
-        m = _PANEL_CHILD_TAG.search(ret.get("child", "") or "")
-        tag = m.group(1) if m else ""
-        outcomes.append(_voice_outcome(tag, ret, _voice_form(panel_forms, tag)))
+    outcomes = voice_outcomes(returns, panel_forms)
     refusal = next((o for o in outcomes if o[0] == "refused"), None)
     if refusal:
         return refusal
@@ -369,6 +454,34 @@ def verdict_fold(returns, panel_forms, table):
         return (inert, -_table_row_rank(table, word))
     ranked = sorted(clean, key=lambda o: _rank(o[1]))
     return ranked[0]
+
+
+# [unreadable-record]
+# Rationale: three surfaces report a panel round -- the room's own line
+#   (`_returned_verdict`), the close summary (`_summary`) and the review
+#   yield (`review_yield._round`, rendered by `render._yield_round`) -- and a
+#   refusal has to read the same at all three or a reader learns three
+#   conventions for one event. One word plus the voice's own tag, written
+#   here once, is what each of them prints.
+# Rejected: leaving each surface to format the tuple. Three spellings of
+#   `("refused", "p2")` is the drift this exists to prevent, and one of them
+#   would have been the raw tuple.
+REFUSED_RECORD = "unreadable"
+
+
+def verdict_record(outcome):
+    """What a surface writes about a panel round's own outcome: the refusal
+    word plus the voice it names, `""` where the panel was quiet (no voice's
+    form declares a vocabulary), and the clean word itself otherwise.
+
+    Whether a clean word is itself worth printing is the surface's own call
+    -- the room suppresses one the table says is inert, the close summary and
+    the review yield report it -- so that suppression is not folded in here.
+    """
+    kind, word = outcome
+    if kind == "refused":
+        return f"{REFUSED_RECORD} {word}".strip()
+    return word or ""
 
 
 # [table-row-tiebreak]
@@ -442,25 +555,74 @@ def declared_does(spec, value):
 
 # [two-voices-holds]
 # Rationale: a two-voices step stays open for its conductor whenever the
-#   transition's own outcome row for the merged verdict resolves to the
-#   inert `release` -- not only when the word is `pass`. `release` mints
-#   nothing, so folding the step into `done` on it walks the run past a form
-#   nobody was ever stood on; any other verb mints the next round itself,
-#   and the panel finishes the step alone exactly as before.
+#   panel's own folded outcome resolves to the inert `release` -- not only
+#   when the word is `pass`. `release` mints nothing, so folding the step
+#   into `done` on it walks the run past a form nobody was ever stood on;
+#   any other verb mints the next round itself, and the panel finishes the
+#   step alone exactly as before. A refusal and a quiet panel both hold too:
+#   neither is a word the table can act on, and holding is what puts the
+#   round in front of the conductor whose form is standing there -- the one
+#   place a refusal can be ruled on rather than suppressed.
 # Rejected: comparing the merged word against the literal `pass` here. That
 #   was true of every table in the tree and true by rule of none of them --
 #   a transition whose own `revise` releases (run-a-gate's review) folds
 #   shut on exactly the round its conductor exists to judge.
+# Rejected: keeping the no-assembly early return this replaced. It read
+#   `merged_verdict(returns) == "pass"`, and every real `state()` call
+#   carries an assembly -- so it guarded an input the fold cannot reach
+#   either, at the cost of one more literal verdict word in `engine/`.
+def _two_voices_fold(st, step, returns):
+    """`(holds, unreadable)`: whether this two-voices step stays open for its
+    own form to complete, and whether the only thing holding it there is a
+    panelist form path that is no longer in the tree."""
+    assembly = load_assembly(st["assembly"])
+    _, spec = deciding_spec(assembly, step)
+    voices = panel_forms(assembly, step)
+    kind, word = verdict_fold(returns, voices, spec)
+    if kind == "clean":
+        # `None` -- no row at all -- is the interior case: a design panel
+        # (ruling 10) sits on a step whose own segment declares an impasse
+        # ruling, not a verdict, so no verdict word ever resolves there and
+        # the form completes the step exactly as it always has. Inert either
+        # way is what holds.
+        return declared_does(spec, word) in (None, "release"), False
+    return True, kind == "refused" and _voice_form(voices, word) is None
+
+
 def _holds_for_its_form(st, step, returns):
     """Does this two-voices step stay open for its own form to complete?"""
-    if not st.get("assembly"):
-        return merged_verdict(returns) == "pass"
-    _, spec = deciding_spec(load_assembly(st["assembly"]), step)
-    # `None` -- no row at all -- is the interior case: a design panel (ruling
-    # 10) sits on a step whose own segment declares an impasse ruling, not a
-    # verdict, so no verdict word ever resolves there and the form completes
-    # the step exactly as it always has. Inert either way is what holds.
-    return declared_does(spec, merged_verdict(returns)) in (None, "release")
+    return _two_voices_fold(st, step, returns)[0]
+
+
+# [missing-form-never-reopens-a-superseded-step]
+# Rationale: `_two_voices_fold` runs inside the full replay of every journal
+#   `state()` reads, so it is consulted for every historical two-voices step
+#   on every command, not only the one being acted on. A step the panel
+#   itself folded shut carries no later submit to re-affirm it -- its `done`
+#   is re-derived from that fold every time -- so renaming its panelist form
+#   afterwards would newly read that ancient return as refused, hold the step
+#   open again, and walk `current` back to it: `awaiting_close` goes false
+#   and `cmd_close`'s pending guard lists a step the run finished long ago.
+#   Where the journal itself already shows the run past that step, its own
+#   history is what decided it, and no reading of a path that is gone today
+#   revises that. A run that is genuinely still standing on such a step has
+#   nothing after it in `done`, so it stays held open and the refusal is
+#   reported, which is the case the guard is for.
+# Rejected: skipping the guarded read for every step but `current`. `current`
+#   is derived from `done`, which is what this is computing -- the two cannot
+#   both be the input.
+# Rejected: never letting a missing form hold a step at all. That is the
+#   crash's silent twin from the other side: the run's own current step would
+#   release on a panel nobody can read.
+def _reinstate_superseded(st, held):
+    """Put back any step held open only by a panelist form path that is gone,
+    where the journal already shows the run standing past it."""
+    order = [s["id"] for s in st["steps"]]
+    for sid, entry in held.items():
+        if sid in st["done"] or sid not in order:
+            continue
+        if st["closed"] or any(o in st["done"] for o in order[order.index(sid) + 1:]):
+            st["done"][sid] = entry
 
 
 def state(work_id):
@@ -472,6 +634,7 @@ def state(work_id):
           "returns": {}, "returns_by_child": {}, "row_returns": {}, "amends": [],
           "checks": [], "measures": [], "in_flight": {}, "closed": False}
     raw_steps = []
+    held_on_a_missing_form = {}
     for e in entries:
         kind = e.get("kind")
         if kind == "run":
@@ -517,9 +680,13 @@ def state(work_id):
             returns.append(e)
             st["returns_by_child"][e.get("child", "")] = e
             two_voices = bool(step and step.get("panel") and step.get("form"))
-            if len(returns) >= expected and not (
-                    two_voices and _holds_for_its_form(st, step, returns)):
+            holds, unreadable = (_two_voices_fold(st, step, returns)
+                                 if two_voices and len(returns) >= expected
+                                 else (False, False))
+            if len(returns) >= expected and not holds:
                 st["done"][e["step"]] = e
+            elif unreadable:
+                held_on_a_missing_form[e["step"]] = e
         elif kind == "check":
             st["checks"].append({"command": e.get("command"), "exit": e.get("exit"),
                                  "output": e.get("output")})
@@ -544,6 +711,7 @@ def state(work_id):
     st["in_flight"] = {k: v for k, v in st["in_flight"].items() if k not in st["done"]}
     seg_order = [s["id"] for s in load_assembly(st["assembly"])["segment"]] if st.get("assembly") else []
     st["steps"] = _ordered(raw_steps, seg_order)
+    _reinstate_superseded(st, held_on_a_missing_form)
     st["current"] = next((s for s in st["steps"] if s["id"] not in st["done"]), None)
     # A run is open until it is closed -- not merely until its last step is
     # submitted. The difference is load-bearing: a run whose steps are all done

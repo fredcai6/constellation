@@ -1,13 +1,19 @@
 """`run.verdict_fold`: the fold logic obligations 1, 2, 4 and 5 need, proved
-in isolation against hand-built returns, panelist forms and outcome tables --
-nothing wired into any real call site here (that is the next gate). Three
-inputs, not two: a panel's returns, the panelist form each voice was
+in isolation against hand-built returns, panelist forms and outcome tables.
+Three inputs, not two: a panel's returns, the panelist form each voice was
 dispatched under (positional with `step["panel"]`), and the deciding
 segment's own outcome table, shaped like `run.deciding_spec`'s own second
 return value.
+
+The differential test that stood here -- the fold's clean word against
+`merged_verdict`'s, for every declared panel in the tree -- went out with
+`merged_verdict` itself. Its job was to hold the new fold to the old logic
+while nothing called the new one; `tests/test_verdict_wiring.py` now drives
+the real, and only, fold through real seams instead, which is the stronger
+claim and needs no second implementation of the two-word logic to compare
+against.
 """
 
-from engine import forms as formsmod
 from engine import run as runmod
 
 # A vocabulary-bearing form, shaped like CRITIC.toml / REVIEW.toml: a
@@ -232,100 +238,3 @@ def test_case_13_ranking_survives_renaming_the_verdict_words():
     returns_swapped = [_ret("w.step.p1", "stop"), _ret("w.step.p2", "go")]
     outcome2 = runmod.verdict_fold(returns_swapped, [RENAMED_FORM, RENAMED_FORM], RENAMED_TABLE)
     assert outcome2 == ("clean", "stop")
-
-
-# -- differential: verdict_fold's clean word must match merged_verdict's,  --
-# -- for every real panel-bearing seam in the tree, both orders of returns --
-
-
-def _vocab_of(form):
-    field = next((f for f in form.get("fields", []) if f.get("id") == "verdict"), None)
-    return formsmod.enforced_vocabulary(field) if field else []
-
-
-def _load_panel_form(assembly, entry):
-    # `formsmod.load` normalizes the raw `[[field]]` toml array into the
-    # `{"fields": [...]}` shape `_voice_outcome`/`_vocab_of` read -- a bare
-    # `tomllib.load` leaves it keyed `"field"` (singular) instead.
-    path = runmod.resolve_form(assembly, entry["form"])
-    return formsmod.load(path)
-
-
-def _declared_panels(assembly):
-    """(table, panel) for every segment or transition in `assembly` that
-    statically declares a panel -- the sites `skeleton()` mints a
-    panel-carrying step for, read the same way `deciding_spec` reads them.
-    Excludes a panel minted at runtime from a `plan` field (run-a-gate's
-    review): nothing in `ASSEMBLY.toml` names its voices, so there is no
-    panel here to build returns from.
-
-    The step dict handed to `deciding_spec` carries a `form` key only where
-    `skeleton()` itself would have set one -- a panel-only transition
-    (explore-an-idea's spec) declares no `form` at all, and `deciding_spec`
-    tells that apart from a transition that does by direct equality with
-    the transition's own `t.get("form")`, which answers `None`, not `""`,
-    where it is absent.
-    """
-    found = []
-    for seg in assembly["segment"]:
-        if seg.get("panel"):
-            step = {"segment": seg["id"]}
-            if seg.get("step-form"):
-                step["form"] = seg["step-form"]
-            _, table = runmod.deciding_spec(assembly, step)
-            found.append((table, seg["panel"]))
-        t = seg.get("transition", {})
-        if t.get("panel"):
-            step = {"segment": seg["id"]}
-            if t.get("form"):
-                step["form"] = t["form"]
-            _, table = runmod.deciding_spec(assembly, step)
-            found.append((table, t["panel"]))
-    return found
-
-
-def _returns_for(panel, vocab, revising_index):
-    """One return per panelist -- every voice answers `vocab`'s own first
-    (mildest) alternative, except `revising_index`, which answers its last
-    (most consequential) one. `revising_index=None` means every voice is
-    mild -- the all-passing panel."""
-    return [
-        {"child": f"w.step.p{i}",
-         "fields": {"verdict": vocab[-1] if i - 1 == revising_index else vocab[0]}}
-        for i in range(1, len(panel) + 1)
-    ]
-
-
-def test_differential_verdict_fold_matches_merged_verdict_across_the_tree():
-    checked_any = False
-    for name in runmod.assemblies():
-        assembly = runmod.load_assembly(name)
-        for table, panel in _declared_panels(assembly):
-            panel_forms = [_load_panel_form(assembly, entry) for entry in panel]
-            vocabs = [_vocab_of(f) for f in panel_forms]
-            if not any(vocabs):
-                # A quiet-only panel -- design-it-twice's own PLAN.toml
-                # voices declare no verdict field at all -- has no clean
-                # word for this comparison to rank; `verdict_fold` folds it
-                # to ("quiet", None) regardless of table, which is not this
-                # gate's concern.
-                continue
-            assert all(v == vocabs[0] for v in vocabs), (
-                f"{name}: this panel's voices do not share one vocabulary -- "
-                "merged_verdict's own hardcoded pass|revise vocabulary can no "
-                "longer stand in as this comparison's ground truth")
-            vocab = vocabs[0]
-            assert vocab, f"{name}: a declared verdict field with no vocabulary"
-
-            for returns in (
-                _returns_for(panel, vocab, None),
-                _returns_for(panel, vocab, 0),
-                list(reversed(_returns_for(panel, vocab, 0))),
-            ):
-                checked_any = True
-                outcome = runmod.verdict_fold(returns, panel_forms, table)
-                want = ("clean", runmod.merged_verdict(returns))
-                assert outcome == want, (
-                    f"{name}: verdict_fold{outcome} != merged_verdict-derived "
-                    f"{want} for returns {returns}")
-    assert checked_any, "no panel-bearing seam found in the tree at all"

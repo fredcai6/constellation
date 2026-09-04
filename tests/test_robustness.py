@@ -367,7 +367,8 @@ def test_a_refusal_on_a_vocabulary_field_offers_its_values_not_an_escape_it_refu
         bare_workdir, capsys):
     """The escape above is the other half of the same promise. `waived:` and
     `unknown:` are refused on a decision field whose note declares values -- a
-    waived verdict falls through `merged_verdict` to a `pass` -- but the
+    waived verdict is no word that field declares, so `verdict_fold` resolves
+    it to a refusal naming the voice rather than to a ruling -- but the
     refusal surface went on offering them, so an agent that took the advice on
     an empty or in-hand field was refused on its very next submit.
 
