@@ -24,6 +24,11 @@ validate-gate-loop = "python3 -m pytest -q && python3 -m pytest 'evals/test_impl
 # `--render-only` narrows the page tree to one package; the walk behind it stays
 # whole, so the referenced-by-tests column survives. Repeat it to add packages.
 map = "python3 -m tools.code_map build --root . --artifacts .code-map --out map --render-only engine"
+# `dispatch` is the real harness a dispatch or panel room's outstanding
+# child is actually started through -- `evals/harness.py`'s own `cmd` in
+# full (around evals/harness.py:128-129), so the one process every eval
+# already drives by hand is the same one the engine now starts itself.
+dispatch = ["claude", "-p", "{brief}", "--model", "{runner}", "--allowedTools", "Bash", "Read", "Write", "Edit"]
 
 # Logical tiers, resolved at dispatch. Forms and assemblies name only the
 # tier, never a provider, so an assembly is portable across shops.
