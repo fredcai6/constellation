@@ -587,9 +587,12 @@ def _tree_info(wid, st):
 #   record's own `pid` to read against `checkrun.alive`. One scan per
 #   rendering (the panel loop calls this once, before its per-panelist
 #   loop, rather than once per child) since nothing a render does can move
-#   a record that only a completed spawn appends -- a child this render
-#   itself spawns is folded into this same dict in memory (see
-#   `_dispatch_child`) rather than earning a second scan.
+#   a record that only a completed spawn appends -- and after this gate no
+#   render ever folds a freshly-spawned record into this dict at all,
+#   because no render spawns anything any more (`_dispatch_child` is a pure
+#   read; `cmd_wait`'s own pre-loop spawn is the only caller left that
+#   starts a child). Whatever that pre-loop needs from a single scan across
+#   its own per-child loop is `cmd_wait`'s own call, not restated here.
 def _dispatch_records(wid):
     """Every child id that already carries a `dispatch-started` record on
     `wid`'s own journal, mapped to that record -- rendering this room again
@@ -621,20 +624,21 @@ def _dispatch_records(wid):
 def _spawn_outstanding(wid, child_id, brief_text, tier, tree, started):
     """Start `child_id`'s harness process through this repository's own
     `dispatch` palette entry -- once. A no-op, with nothing journaled or
-    logged, when `child_id` is already in `started` (this render's own
-    `_dispatch_records(wid)`) or when the palette carries no `dispatch`
-    entry at all (`spawn_dispatch` returns `None` for either a repository
-    that never configured one, commitment 3's world). The log basename is
-    the child id's own tail past the leading `wid.` -- not merely its last
-    dotted segment, which two different panel steps in the same run would
-    both give `p1` -- so it stays distinct per child inside `wid`'s own
-    work location, which is all commitment 18 asks.
+    logged, when `child_id` is already in `started` (`cmd_wait`'s own
+    `_dispatch_records(wid)`, read once before its per-child spawn loop) or
+    when the palette carries no `dispatch` entry at all (`spawn_dispatch`
+    returns `None` for either a repository that never configured one,
+    commitment 3's world). The log basename is the child id's own tail past
+    the leading `wid.` -- not merely its last dotted segment, which two
+    different panel steps in the same run would both give `p1` -- so it
+    stays distinct per child inside `wid`'s own work location, which is all
+    commitment 18 asks.
 
     Returns the journal entry a successful attempt wrote, `None` for every
     other outcome (already started, no `dispatch` entry configured, or the
-    attempt failed) -- so a caller that needs this render's own outcome
-    immediately, to report commitment 12's status without a second pass
-    over the journal, reads it straight off the return rather than
+    attempt failed) -- so `cmd_wait`, its one caller in `engine/` after
+    this gate, can tell a genuine spawn from a no-op without a second pass
+    over the journal, reading it straight off the return rather than
     rescanning."""
     if child_id in started:
         return None
@@ -676,63 +680,101 @@ def _respawn_cmd(child_id, open_cmd):
 # Rationale: shared by a dispatch step's lone child and each of a panel
 #   step's several (commitment 11 -- each read against its own history,
 #   never the step's record as a whole) since the read is identical for
-#   both: attempt this render's own spawn when nothing has tried yet and no
-#   return has landed, then report which of the four states -- not
-#   dispatched, working, gone without returning, returned -- actually holds,
-#   modeled the way `_in_flight_status` above already turns a journaled pid
-#   plus `checkrun.alive` into "still running" vs. "gone with no result" for
-#   a check's own proof. A spawn attempt that fails renders the same word a
-#   wholly absent entry gets -- "not dispatched" -- distinguished only by
-#   whether that child's own log now holds a reason (commitment 13).
+#   both: report which of the four states -- not dispatched, working, gone
+#   without returning, returned -- actually holds off whatever `records`
+#   already carries, modeled the way `_in_flight_status` above already
+#   turns a journaled pid plus `checkrun.alive` into "still running" vs.
+#   "gone with no result" for a check's own proof. This function never
+#   spawns (gate 2's own move, commitments 13-15 -- `cmd_wait` is the sole
+#   spawner now), so a spawn attempt that failed and a child never
+#   attempted at all read the same word here, "not dispatched",
+#   distinguished only by whether that child's own log holds a reason
+#   (commitment 13) -- neither this function nor its caller needs to tell
+#   them apart.
 # Rejected: two copies of this, one inlined at each of `_dispatch_status`
-#   and `_panel_status`. Those two already share `_spawn_outstanding` for
-#   the same reason; a second, identical fork here would be the same
+#   and `_panel_status`. A second, identical fork here would be the same
 #   duplication one level up.
 def _dispatch_child(wid, child_id, role, tier, open_cmd, finish_form,
                     worktree, branch, records, is_returned):
-    """One child's row: `(status, brief_text, records)`. `brief_text` is
-    `None` for "working" (commitment 14 -- never a manual dispatch command
-    beside a live pid) and for "returned" (renders exactly as it does
-    today); otherwise it carries the `open it:` line for "not dispatched" or
-    the respawn command for "gone without returning". `records` comes back
-    updated in memory with a record this call's own spawn attempt just
-    wrote, so a panel's per-panelist loop never rescans the journal for it."""
+    """One child's row: `(status, brief_text)`. `brief_text` is `None` for
+    "working" (commitment 14 -- never a manual dispatch command beside a
+    live pid) and for "returned" (renders exactly as it does today);
+    otherwise it carries the `open it:` line for "not dispatched" or the
+    respawn command for "gone without returning". A pure read off
+    `records` -- this call spawns nothing and threads nothing back;
+    `cmd_wait` is the only caller left that starts a child (commitments
+    13-15)."""
     runner = _runner(tier)
-    if not is_returned and child_id not in records:
-        brief_text = render.brief(child_id, role, tier, runner, open_cmd,
-                                  finish_form, worktree, branch)
-        spawned = _spawn_outstanding(wid, child_id, brief_text, tier, worktree, records)
-        if spawned is not None:
-            records = {**records, child_id: spawned}
     if is_returned:
-        return "returned", None, records
+        return "returned", None
     record = records.get(child_id)
     if record is None:
-        return "not dispatched", brief_text, records
+        return "not dispatched", render.brief(child_id, role, tier, runner, open_cmd,
+                                              finish_form, worktree, branch)
     if checkrun.alive(record.get("pid")):
-        return "working", None, records
+        return "working", None
     return ("gone without returning",
            render.brief(child_id, role, tier, runner, _respawn_cmd(child_id, open_cmd),
-                        finish_form, worktree, branch),
-           records)
+                        finish_form, worktree, branch))
+
+
+# [child-descriptor]
+# Rationale: `cmd_wait`'s own pre-loop spawn (commitments 13-15) needs the
+#   same role/tier/open_cmd/finish_form a render already derives to build
+#   the brief `_spawn_outstanding` hands the dispatch harness, so that
+#   derivation is pulled out here rather than written a third time inline
+#   in `cmd_wait` -- the shared shape this gate's own `direction` field
+#   names, so gate 3's dead-pid restart rewrite extends this seam instead
+#   of re-deriving it. Two functions, not one, because a dispatch step and
+#   a panel step are already told apart by their own callers (branch order:
+#   `panel_outstanding` before `dispatches`, `_current_form`) before either
+#   is ever reached -- a single combined helper would have to re-guess
+#   which key a step carrying both (round one's own design panel) means by
+#   re-checking `dispatches` first, silently wrong for a panel step that
+#   also happens to dispatch.
+def _dispatch_descriptor(wid, asm, step):
+    """The one child a dispatch step names, as `(role, tier, open_cmd,
+    finish_form)` -- everything `_dispatch_child` needs besides the child
+    id and tree info to read or brief that child."""
+    dispatched = runmod.load_assembly(step["dispatches"])
+    open_cmd = f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"
+    return dispatched.get("conductor", ""), _tier(step, asm), open_cmd, _finishing(dispatched)
+
+
+def _panel_descriptors(wid, asm, step):
+    """Each panelist a panel step names, as `(child_id, role, tier,
+    open_cmd, finish_form)` -- a panelist's role is its own `worker`, not
+    the give-a-verdict assembly's conductor: `_open_child` stamps that
+    worker onto the dispatched child's step as its `filler`, so the panel
+    entry is the source of truth, not just the brief that names it."""
+    seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
+    verdict_asm = runmod.load_assembly("give-a-verdict")
+    out = []
+    for i, panelist in enumerate(step["panel"], start=1):
+        tag = f"p{i}"
+        child_id = f"{wid}.{step['id']}.{tag}"
+        tier = panelist.get("model") or seg.get("model", "")
+        open_cmd = f"spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}"
+        out.append((child_id, panelist.get("worker", ""), tier, open_cmd,
+                    _finishing(verdict_asm, panelist.get("form", ""))))
+    return out
 
 
 def _dispatch_status(wid, st, asm, step, blocked):
-    """A dispatch step renders a brief, not a form: the engine starts this
-    child itself through the repository's own `dispatch` palette entry when
-    one is configured, handing that harness exactly the brief rendered here
-    (commitment 18). A repository with no such entry configured leaves
-    starting the child to the reader, who copies the same brief into
-    whatever harness they dispatch by hand (commitment 3)."""
-    dispatched = runmod.load_assembly(step["dispatches"])
-    tier = _tier(step, asm)
+    """A dispatch step renders a brief, not a form: `wait`, not this
+    render, starts this step's child through the repository's own
+    `dispatch` palette entry when one is configured (commitments 13-15) --
+    rendering this room only reads whatever `wait` has already done, and
+    shows the same brief `wait` handed that harness (commitment 18). A
+    repository with no such entry configured leaves starting the child to
+    the reader, who copies the same brief into whatever harness they
+    dispatch by hand (commitment 3)."""
     child_id = step.get("child") or f"{wid}.{step['id']}"
-    open_cmd = f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"
+    role, tier, open_cmd, finish_form = _dispatch_descriptor(wid, asm, step)
     worktree, branch = _tree_info(wid, st)
-    status, brief_text, _ = _dispatch_child(
-        wid, child_id, dispatched.get("conductor", ""), tier, open_cmd,
-        _finishing(dispatched), worktree, branch, _dispatch_records(wid),
-        child_id in st["returns_by_child"])
+    status, brief_text = _dispatch_child(
+        wid, child_id, role, tier, open_cmd, finish_form, worktree, branch,
+        _dispatch_records(wid), child_id in st["returns_by_child"])
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.DISPATCH))
     lines.append("")
@@ -751,22 +793,17 @@ def _panel_status(wid, st, asm, step, blocked):
     conductor: `_open_child` stamps that worker onto the dispatched child's
     step as its `filler`, so the panel entry is the source of truth, not
     just the brief that names it."""
-    seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
-    verdict_asm = runmod.load_assembly("give-a-verdict")
     worktree, branch = _tree_info(wid, st)
     records = _dispatch_records(wid)
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.PANEL))
     lines.append("")
-    for i, panelist in enumerate(step["panel"], start=1):
-        tag = f"p{i}"
-        child_id = f"{wid}.{step['id']}.{tag}"
-        tier = panelist.get("model") or seg.get("model", "")
-        finishing = _finishing(verdict_asm, panelist.get("form", ""))
-        open_cmd = f"spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}"
-        status, brief_text, records = _dispatch_child(
-            wid, child_id, panelist.get("worker", ""), tier, open_cmd, finishing,
-            worktree, branch, records, child_id in st["returns_by_child"])
+    for panelist, (child_id, role, tier, open_cmd, finish_form) in zip(
+            step["panel"], _panel_descriptors(wid, asm, step)):
+        tag = child_id.rsplit(".", 1)[-1]
+        status, brief_text = _dispatch_child(
+            wid, child_id, role, tier, open_cmd, finish_form, worktree, branch,
+            records, child_id in st["returns_by_child"])
         lines.append(f"  panelist {tag} ({status})"
                      f" -- criteria: {panelist.get('criteria', '')}")
         if brief_text:
@@ -969,15 +1006,18 @@ def cmd_status(argv):
 # Rationale: the process-only definition commitment 3 draws -- a live-pid
 #   `dispatch-started` record with no `return` yet -- is read straight off
 #   the journal via `_dispatch_records` rather than through
-#   `_dispatch_child`/`_spawn_outstanding`, because those two also spawn:
-#   `wait` must watch a child a prior render already started without ever
-#   starting one of its own (this gate's own boundary -- gate 2's own
-#   commitments 13-15 make `wait` the sole spawner, not this one). A child
-#   with no record at all reads exactly the same as one that already
-#   returned or whose pid died -- not outstanding -- which is what lets a
-#   never-dispatched child, and a palette with no `dispatch` entry at all,
-#   fall out of this predicate for free rather than needing a branch of
-#   their own.
+#   `_dispatch_child`, because `_dispatch_child` is a pure read now and only
+#   `_spawn_outstanding` still spawns -- called once, before this predicate
+#   is ever asked anything, by `cmd_wait`'s own pre-loop spawn (commitments
+#   13-15 make `wait` the sole spawner). This predicate itself starts
+#   nothing: by the time it first runs, `cmd_wait` has already made its one
+#   spawn attempt per child, so what it reads here is always the record
+#   that attempt left behind (or found already there). A child with no
+#   record at all reads exactly the same as one that already returned or
+#   whose pid died -- not outstanding -- which is what lets a
+#   never-dispatched child whose own spawn attempt failed, and a palette
+#   with no `dispatch` entry at all, fall out of this predicate for free
+#   rather than needing a branch of their own.
 def _wait_outstanding(wid, child_ids, returns_by_child):
     """Which of `child_ids` `wait` still has to poll: a live-pid
     `dispatch-started` record with no return landed for that child yet."""
@@ -1005,6 +1045,37 @@ def _wait_bound(argv):
     return seconds
 
 
+# [wait-spawn]
+# Rationale: `cmd_wait`'s own guard reproduces both halves `_dispatch_child`
+#   enforced before this gate (`if not is_returned and child_id not in
+#   records`), not only the half `_spawn_outstanding`'s own guard already
+#   checks (`if child_id in started: return None`). `_spawn_outstanding`
+#   only knows about `dispatch-started` records -- it has no notion of a
+#   `return` at all -- so a child that was opened by hand
+#   (`spine open ... --parent ...`, still legal until gate 4's room-text
+#   rewrite) and already returned, but carries no such record, would read
+#   as not-yet-started by `_spawn_outstanding`'s own guard alone and get
+#   spawned a second time: the exact double-dispatch defect commitment 15
+#   exists to close, reintroduced inside the mechanism removing it. Made
+#   once per `cmd_wait` invocation, before the poll loop, never once per
+#   cycle -- that repetition is commitment 25's, for the dead-pid restart
+#   case commitment 27 adds next gate, not this one.
+def _wait_spawn(wid, st, descriptors):
+    """One spawn attempt for each `(child_id, role, tier, open_cmd,
+    finish_form)` in `descriptors` that is neither already returned nor
+    already carrying a `dispatch-started` record -- `cmd_wait`'s own
+    pre-loop start, making `wait` the sole spawner of a child (commitments
+    13-15)."""
+    worktree, branch = _tree_info(wid, st)
+    records = _dispatch_records(wid)
+    for child_id, role, tier, open_cmd, finish_form in descriptors:
+        if child_id in st["returns_by_child"] or child_id in records:
+            continue
+        brief_text = render.brief(child_id, role, tier, _runner(tier), open_cmd,
+                                  finish_form, worktree, branch)
+        _spawn_outstanding(wid, child_id, brief_text, tier, worktree, records)
+
+
 # [wait-verb]
 # Rationale: reproduces `cmd_status`'s own branch order (911-933) by hand
 #   rather than asking `_current_form` which branch matched -- today it
@@ -1016,12 +1087,14 @@ def _wait_bound(argv):
 #   three copies already standing (`cmd_status`, `cmd_submit`,
 #   `cmd_close`), which itself answers the question for now -- left as a
 #   note for whichever later gate needs the branch a second time.
-# Rejected: blocking on a dispatch or panel step whose child has never been
-#   dispatched at all. Nothing has journaled a `dispatch-started` record
-#   for it, so it reads as nothing outstanding on the very first poll --
-#   exactly like a palette with no `dispatch` entry configured -- and
-#   `wait` renders immediately rather than starting what only `status` or
-#   `submit` start today.
+# Rejected: leaving a dispatch or panel step whose child has never been
+#   dispatched at all to render immediately with nothing outstanding, the
+#   way gate 1 left it (`GATE_TRANSITION.toml`, finding 1: a prior render
+#   already in `wait`'s own trailing `cmd_status` call started such a
+#   child, not `wait` itself). This gate closes that gap: `cmd_wait`'s own
+#   pre-loop spawn starts such a child itself, before the poll loop begins,
+#   so `wait` no longer depends on some render already in its own call
+#   chain to have started it first.
 def cmd_wait(argv):
     wid = argv[0]
     bound = _wait_bound(argv[1:])
@@ -1032,16 +1105,19 @@ def cmd_wait(argv):
         return cmd_status([wid])
     asm, step, _ = _current_form(st)
     if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
-        child_ids = [f"{wid}.{step['id']}.p{i}" for i in range(1, len(step["panel"]) + 1)]
+        descriptors = _panel_descriptors(wid, asm, step)
     elif runmod.paused(step):
         return cmd_status([wid])
     elif step.get("dispatches"):
-        child_ids = [step.get("child") or f"{wid}.{step['id']}"]
+        child_id = step.get("child") or f"{wid}.{step['id']}"
+        descriptors = [(child_id, *_dispatch_descriptor(wid, asm, step))]
     else:
         # `runmod.in_flight` names a proof, not a child, and a childless
         # form step has no child at all -- neither is something `wait` has
         # anything to poll, so both render immediately (commitment 29).
         return cmd_status([wid])
+    child_ids = [d[0] for d in descriptors]
+    _wait_spawn(wid, st, descriptors)
     deadline = time.monotonic() + bound
     while True:
         fresh = runmod.state(wid)  # re-folded every cycle, never cached (commitment 10)
