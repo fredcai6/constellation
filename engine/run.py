@@ -7,6 +7,7 @@ condition it prevents.
 """
 
 import pathlib
+import re
 import tomllib
 
 from engine import forms, journal
@@ -271,6 +272,138 @@ def merged_verdict(returns):
     if "revise" in vs:
         return "revise"
     return "pass"
+
+
+# [pair-return-by-pn-index]
+# Rationale: a panel step's several children are each read against their own
+#   history (commitment 11), so a return is attributed to its own panelist by
+#   the child id's own `pN` tag -- the same tag `_panel_status` (engine/cli.py)
+#   mints as `f"{wid}.{step['id']}.p{i}"` -- indexed into `panel_forms` the
+#   way every existing reader indexes `step["panel"][N-1]`.
+# Rejected: zipping `returns` against `panel_forms` in arrival order. Returns
+#   land in journal order, not dispatch order, so the first return home is
+#   not necessarily panelist one's.
+# Rejected: keying by role name. Two panelists can share a role (two
+#   critics), so role alone cannot tell them apart; the child id's own tag
+#   already does, unambiguously.
+_PANEL_CHILD_TAG = re.compile(r"\.(p\d+)$")
+
+
+def _voice_form(panel_forms, tag):
+    """The panelist form the voice tagged `tag` (e.g. `"p2"`) was dispatched
+    under, or `{}` where the tag cannot be read -- `_voice_outcome` then
+    finds no `verdict` field on it and resolves quiet, same as a form that
+    truly declares none."""
+    n = int(tag[1:]) if tag else 0
+    return panel_forms[n - 1] if 1 <= n <= len(panel_forms) else {}
+
+
+# [voice-outcome-vocabulary]
+# Rationale: `forms.enforced_vocabulary` already answers "what will the
+#   engine accept here" from the panelist's own form -- a return's leading
+#   word is resolved against that voice's declared vocabulary, never a
+#   panel-wide one, so two panelists under two different forms (a critic and
+#   a reviewer, say) are each held to their own.
+def _voice_outcome(tag, ret, form):
+    """One panelist's own outcome: `("clean", word)` -- the return's leading
+    word, in the form's own vocabulary; `("refused", tag)` -- a vocabulary
+    declared but the word is not in it (missing, empty, or foreign), naming
+    this voice so a panel-wide refusal can say which one; or `("quiet",
+    None)` -- the form declares no `verdict` field at all, PLAN.toml's own
+    case, true regardless of what the return's fields hold."""
+    field = next((f for f in (form or {}).get("fields", []) if f.get("id") == "verdict"), None)
+    vocab = forms.enforced_vocabulary(field) if field else []
+    if not vocab:
+        return ("quiet", None)
+    word = forms.leading_word((ret.get("fields") or {}).get("verdict", ""))
+    return ("clean", word) if word in vocab else ("refused", tag)
+
+
+# [refusal-outranks-every-clean-word]
+# Rationale: obligation 6 binds the seam not to release on a refusal, and a
+#   clean word from a co-panelist cannot buy that back -- so a refusal from
+#   any voice is the whole panel's result, naming the voice, ahead of any
+#   ranking among the clean words and regardless of precedence among them.
+# [quiet-needs-every-voice-quiet]
+# Rationale: quiet is the design-it-twice panel's own case -- every voice's
+#   form declares no vocabulary at all. One voice's form declaring a
+#   vocabulary takes the whole panel out of quiet eligibility even where
+#   that voice's own return is clean, so a no-vocabulary voice paired with a
+#   vocabulary voice folds to the vocabulary voice's clean word, not quiet.
+def verdict_fold(returns, panel_forms, table):
+    """Fold a panel's returns to one panel-wide outcome: `("clean", word)`,
+    `("refused", tag)`, or `("quiet", None)` -- three per-voice outcomes
+    (`_voice_outcome`) combined by one rule, not by whichever branch an
+    implementation happens to reach first.
+
+    `panel_forms` is the panelist form each voice was dispatched under,
+    positional with `step["panel"]`. `table` is the deciding segment's own
+    outcome table, shaped like `deciding_spec`'s own second return value --
+    this function never resolves that table itself (never `deciding_spec`,
+    never an assembly, never a step); it only reads the table it is handed,
+    through `declared_does`, so what a word does stays the table's call, not
+    a string comparison.
+    """
+    outcomes = []
+    for ret in returns:
+        m = _PANEL_CHILD_TAG.search(ret.get("child", "") or "")
+        tag = m.group(1) if m else ""
+        outcomes.append(_voice_outcome(tag, ret, _voice_form(panel_forms, tag)))
+    refusal = next((o for o in outcomes if o[0] == "refused"), None)
+    if refusal:
+        return refusal
+    if all(o[0] == "quiet" for o in outcomes):
+        return ("quiet", None)
+    clean = [o for o in outcomes if o[0] == "clean"]
+    # Ranked by what the table says each word does, first, never by the word
+    # itself: a value `declared_does` resolves to something other than the
+    # inert default outranks one it resolves to that default -- `None` (no
+    # row at all) counts as the same inert default a row that names none
+    # does (ruled: matches what every existing reader of `declared_does`
+    # already treats as one bucket). Two words tied on that -- both inert,
+    # which is the ordinary case at three of the tree's four panel-bearing
+    # seams, where the table's own two rows both resolve to the same inert
+    # default -- fall to `_table_row_rank` below.
+    def _rank(word):
+        inert = declared_does(table, word) in (None, "release")
+        return (inert, -_table_row_rank(table, word))
+    ranked = sorted(clean, key=lambda o: _rank(o[1]))
+    return ranked[0]
+
+
+# [table-row-tiebreak]
+# Rationale: something declared has to break a tie between two clean words
+#   the table resolves to the same disposition -- not arrival order, and
+#   not a word the engine names -- so this reads the one thing every voice
+#   in the panel is already judged against in common: the table
+#   `verdict_fold` is handed, through `declared_does`. A row declared later
+#   outranks one declared earlier that lands on the same disposition; a
+#   word the table names no row for at all outranks nothing, so it never
+#   beats a row that is actually there. That is a new meaning for row
+#   order: today only a row's own `value` and `does` are read pointwise
+#   (`declared_does`), and where a row sits relative to another means
+#   nothing to any existing reader. From here it does, whenever two rows
+#   land on the same disposition -- and every table in the tree that has
+#   such a pair already reads this way unforced, before this gate ever
+#   named it: the word that leaves the round alone sits first, the one that
+#   sends it back sits after.
+# Rejected: a panelist's own form -- the note its `verdict` field declares
+#   its alternatives in. Two voices in one panel can be dispatched under
+#   two different forms (commitment 11's own reason a return is paired by
+#   the child's `pN` tag, not by position), so two notes' word orders are
+#   not one order to rank across. The table is one order shared by the
+#   whole panel already, and it is already the argument this function
+#   reads -- no new parameter, no new pairing to get wrong.
+# Rejected: comparing the two words to each other directly. That is the
+#   defect this gate exists to remove.
+def _table_row_rank(table, value):
+    """`value`'s position among `table`'s own `[[outcome]]` rows, or `-1`
+    where no row names it at all -- lower than any real position, so an
+    undeclared value never outranks one the table actually declares."""
+    for i, row in enumerate(table.get("outcome", [])):
+        if row["value"].split("<")[0].strip().lower() == value:
+            return i
+    return -1
 
 
 # [deciding-spec]
