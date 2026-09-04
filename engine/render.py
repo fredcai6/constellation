@@ -135,9 +135,11 @@ def legal_moves(wid):
 # the kind of step, not of the run it appears in.
 
 DISPATCH = """
-You dispatch this yourself. Run the open command below -- in a subagent if you
-have one, in this session if you do not -- and carry the child through to its
-own close. It returns here when it closes, and this step completes then."""
+The engine starts this child itself through the repository's own dispatch
+entry when one is configured; wherever a command appears below instead, you
+are the one who runs it. Carry the child through to its own close either way
+-- in a subagent if you have one, in this session if you do not. It returns
+here when it closes, and this step completes then."""
 
 # Every verb here is one the reader performs. The first draft of PANEL ended
 # "dispatch each panelist and wait for its verdict", and a light model did the
@@ -146,12 +148,13 @@ own close. It returns here when it closes, and this step completes then."""
 # reads as permission to stop acting, so these end on the reader's own move.
 
 PANEL = """
-You open each outstanding panelist below and carry it through to its own
-close -- that close is what returns its verdict here. Run each in a subagent
-if you have one, in this session if you do not. Every panelist reads from
-fresh context and its brief is the whole handoff; the verdict on this work is
-the panel's to give, which is the whole reason for a second voice. This step
-completes once the last verdict has returned."""
+The engine starts each panelist itself through the repository's own dispatch
+entry when one is configured; wherever a row below carries a command instead,
+you are the one who runs it, carrying that panelist through to its own close.
+Run each in a subagent if you have one, in this session if you do not. Every
+panelist reads from fresh context and its brief is the whole handoff; the
+verdict on this work is the panel's to give, which is the whole reason for a
+second voice. This step completes once the last verdict has returned."""
 
 
 # [excursion-kinds]

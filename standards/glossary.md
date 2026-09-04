@@ -98,6 +98,12 @@ forms; coining a synonym for a term below is a defect.
   panel, no dispatch, only the positive `paused` key naming the segment the parent's answer
   will resume. Recognized everywhere by that key, never by the absence of the other three,
   which `amend add --transition` already mints today with no pause behind it at all.
+- **impasse** — a segment ruling reached once its transition has sent the same round back
+  `impasse-after` times: the loop itself, not any one round's findings, is the question, and the
+  segment's own impasse form — not a fresh round — reaches whoever conducts it. `advance` closes
+  the segment on the diff as it stands, over a live revise; `rework` is the answer only when it
+  names what changes that the counted rounds did not; `up` pauses the segment as an ask at the
+  run that dispatched it, the same as any other pause.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
 - **work id** — a run's address: the tracker issue's number when one exists (`issue17`),
@@ -172,6 +178,17 @@ forms; coining a synonym for a term below is a defect.
   on a live run through `spine <work-id> trace --yield`. Nothing a conductor tabulates by hand.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
+- **dispatch** — a step (a gate dispatch, or one panel entry) naming a child run for the engine
+  to start itself, through the repository's own `dispatch` command-palette entry when one is
+  configured — handing that harness the same brief its own room renders. A repository with no
+  such entry leaves starting the child to the reader, who copies that same brief into whatever
+  harness they run by hand. Names the step, not the child run it opens nor the CLI verb that
+  opens it.
+- **liveness** — whether a dispatched child's own process is still there: `checks.alive` read
+  against the pid its own `dispatch-started` record carries (a pid this reader may not signal
+  reads as alive, the same rule a check's own in-flight proof already reads by). Read per child,
+  never per step, and folded with whether that child has itself returned into the one of four
+  words a room reports for it: not dispatched, working, gone without returning, returned.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The
   order; contested by a blocked note up, never edited.
 - **return** — the child's terminal fields, stamped into the parent's waiting step at close,
@@ -210,6 +227,12 @@ forms; coining a synonym for a term below is a defect.
   writes per round of the plan segment — one gate spec per round, the round's own artifact.
   Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only
   prefill. The orders a gate is run from, and the only place a runner is named.
+- **projection** — a transition whose own segment declares `projects` carrying a just-released
+  round's gate fields (`purpose`, `scope`, `proof`, `budget`, `model`, `direction`) forward into
+  a fresh gate at submit, rather than asking a conductor to retype what the panel already judged.
+  Walks the segment backward for the most recent round that ever carried a gate field, so an
+  impasse `advance` — whose own ruling form carries none — still finds the round it actually
+  approved.
 - **horizon** — the gates likely to follow the one a plan round just cut, coarsely, and the
   conditions that would change them. Sits beside the gate spec on the same round; the critics
   read it, provisional by construction and never attacked at gate grain, and it never crosses

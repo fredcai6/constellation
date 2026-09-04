@@ -109,7 +109,9 @@ def test_a_dispatch_step_says_the_conductor_is_the_one_who_runs_it(workdir, caps
     from test_brief import _mint_dispatch_step
     _mint_dispatch_step()
     out = _room(capsys, "d1")
-    assert "You dispatch this yourself" in out
+    # wrapping can fold a long sentence across lines -- normalize before matching
+    normalized = " ".join(out.split())
+    assert "you are the one who runs it" in normalized
     # and it still carries the brief it always did
     assert "open it:" in out and "d1.g1" in out
 
@@ -120,8 +122,9 @@ def test_a_panel_step_says_the_verdict_is_the_panels_to_give(workdir, capsys):
     from test_brief import _mint_panel_step
     _mint_panel_step()
     out = _room(capsys, "g9")
-    assert "You open each outstanding panelist" in out
-    assert "the panel's to give" in out
+    normalized = " ".join(out.split())
+    assert "you are the one who runs it" in normalized
+    assert "the panel's to give" in normalized
     assert "open it:" in out
 
 

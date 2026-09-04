@@ -398,7 +398,9 @@ least resistance: at a dispatch step, `status` renders the resolved runner invoc
 literal, typeable dispatch command — the conductor copies it, never composes it. The child's
 `open` records the tier it was dispatched under; the ledger and the child's returns both
 surface it, so a mismatch is visible at the transition that adjudicates the child. The engine
-still launches nothing — it resolves, renders, and records.
+starts the child itself through the palette's own `dispatch` entry when one is configured,
+handing it this exact brief; a repository with no such entry leaves starting the child to the
+conductor, who copies the same brief into whatever harness it dispatches by hand.
 
 ### The authority block
 

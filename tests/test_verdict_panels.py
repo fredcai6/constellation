@@ -109,7 +109,7 @@ def test_status_renders_one_dispatch_command_per_panelist_with_progress(workdir,
     assert f"spine open give-a-verdict --parent g1 --step {review}.p1" in out
     assert DEFAULT_LENS in out                     # the lens select just named
     assert "claude-sonnet-5" in out                 # tier resolved, same as a dispatch
-    assert "outstanding" in out
+    assert "not dispatched" in out
 
     panelist = _open_panelist("g1", review)
     _fill_review(panelist, "pass")
@@ -132,7 +132,7 @@ def test_a_multi_panelist_step_shows_each_returned_or_outstanding(workdir, capsy
     cli.main(["g2"])
     out = capsys.readouterr().out
     assert "panelist p1 (returned)" in out
-    assert "panelist p2 (outstanding)" in out
+    assert "panelist p2 (not dispatched)" in out
     assert "claude-haiku-4-5-20251001" in out  # p2's own model override resolves
 
 
