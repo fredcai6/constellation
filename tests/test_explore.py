@@ -200,3 +200,33 @@ def test_amend_add_transition_takes_the_panel_the_assembly_declares_today(explor
     fresh = [s for s in st["steps"] if s["segment"] == "spec" and s.get("panel")]
     assert len(fresh) == 1 and len(fresh[0]["panel"]) == 3
     assert fresh[0]["anchor"] and st["amends"][-1]["anchor"], "the anchored transition was re-minted quietly"
+
+
+def test_round_cap_undeclared_never_pauses_the_spec_seam(explore):
+    """issue113's C5: `spec` is the one seam left declaring no `round-cap` at
+    all (spec.md's out-of-scope list), and it already has no impasse outlet
+    of its own -- "every disposition here is the human's" (ASSEMBLY.toml).
+    Driven seven rounds deep, well past the five that stop `understand`,
+    `plan` and `review`, nothing here pauses: an undeclared cap changes
+    nothing about how a run resolves."""
+    _to_rework(explore)  # round 1, landed
+    for n in range(2, 8):  # rounds 2..7, six more landed rounds
+        _write_spec_md(explore)
+        _fill(explore, "REWORK.toml",
+              'spec = "SPEC.md"\ndispositions = "F1 edit"\nnext = "resubmit"\n')
+        _spine(explore, "submit")
+        panel = _current(explore)["id"]
+        assert _current(explore).get("panel"), f"round {n} did not reach a fresh panel"
+        for p, verdict in enumerate(("revise", "pass", "pass"), start=1):
+            out, _ = _spine("open", "give-a-verdict", "--parent", explore,
+                            "--step", f"{panel}.p{p}")
+            critic = out.split()[1]
+            _fill(critic, "CRITIC.toml", f'findings = "gap: round {n}"\nverdict = "{verdict}"\n')
+            _spine(critic, "submit")
+            _spine(critic, "close")
+        assert _current(explore)["form"] == "forms/REWORK.toml", (
+            f"round {n} did not land a fresh REWORK round")
+
+    st = runmod.state(explore)
+    assert not runmod.paused(st["current"]), "an undeclared round-cap paused the run anyway"
+    assert not any(s.get("form") == "skills/gate-conductor/forms/ASK.toml" for s in st["steps"])

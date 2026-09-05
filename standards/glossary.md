@@ -123,6 +123,14 @@ forms; coining a synonym for a term below is a defect.
   the segment on the diff as it stands, over a live revise; `rework` is the answer only when it
   names what changes that the counted rounds did not; `up` pauses the segment as an ask at the
   run that dispatched it, the same as any other pause.
+- **round-cap** — a segment property beside `impasse-after`, in a different kind: a run-level
+  ceiling on a **seam**'s own **round**s, counted since the run opened and never reset by a
+  fresh artifact — where `impasse-after` counts one artifact's own rework rounds and resets on
+  a new one. Declared on `run-an-issue`'s `understand` and `plan`, and on `run-a-gate`'s
+  `review`. Where a send-back would land the seam's round past the cap, it mints an ask to the
+  run's principal instead — naming the seam, the landed count, and every landed round's own
+  findings — and `impasse-after`'s own outlet is not consulted on that send-back, having nothing
+  left to fire on: the cap outranks it where both would otherwise fire on the same round.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
 - **work id** — a run's address: the tracker issue's number when one exists (`issue17`),
@@ -195,6 +203,15 @@ forms; coining a synonym for a term below is a defect.
   close (`engine/review_yield.py`): rounds per seam, findings per round, and each finding's
   call where a route form ruled on one. Written beside `CLOSE.toml` as `YIELD.md`, and reachable
   on a live run through `spine <work-id> trace --yield`. Nothing a conductor tabulates by hand.
+- **seam** — a panel-bearing transition (`engine/review_yield.py`'s `_seam_segments`): a segment
+  whose transition declares a panel outright (`run-an-issue`'s consolidate, plan-to-execute) or
+  whose round is minted at `select` through a `route-form` (`run-a-gate`'s review). Named for a
+  human by `seam_label` — the disposing form's own name where the transition declares one, or
+  (review, whose transition declares neither) the segment's own id.
+- **round** — one panel dispatch on one artifact at a seam, the count `run.rework_rounds` uses
+  plus the first — `engine/review_yield.py`'s `seam_round_steps`, blind to which mint produced
+  the step (`skeleton()`'s own, a later `rework`, `select`'s own panel mint), so it counts a
+  seam's rounds since the run opened rather than per artifact. See **round-cap**.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **dispatch** — a step (a gate dispatch, or one panel entry) naming a child run for the engine

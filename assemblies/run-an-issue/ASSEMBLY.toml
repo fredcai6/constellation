@@ -48,6 +48,12 @@ worker = "spec-writer"
 # the plan seam got it.
 impasse-after = 2
 impasse-form = "forms/IMPASSE.toml"
+# A run-level ceiling on this seam's own rounds (`consolidate`, below) --
+# distinct from `impasse-after`'s per-artifact one, and counted the way
+# `engine/review_yield.py` already counts a seam's rounds: since this run
+# opened, never reset by a fresh artifact. The cap outranks the impasse
+# outlet where both would fire on the same send-back (issue113).
+round-cap = 5
 decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no such field
 
   [[segment.outcome]]
@@ -155,6 +161,8 @@ rework-form = "skills/planner/forms/REWORK.toml"
 # mint came from.
 impasse-after = 2
 impasse-form = "forms/IMPASSE.toml"
+# See the same field on `understand` above: this seam is `plan-to-execute`.
+round-cap = 5
 worker = "planner"
 # design-it-twice's three planner entries below name no model of their own,
 # so without this the brief they render carries no tier and no resolved

@@ -2135,6 +2135,35 @@ def _blocking_calls(fields):
         if isinstance(r, dict) and forms.leading_word(r.get("call", "")) == "blocking")
 
 
+# [seam-findings-history]
+# Rationale: issue113's run-level round-cap owes its ask every landed
+#   round's own findings, not only the round that tripped it (C1-findings)
+#   -- the same "blocking calls narrowed where the round's own done-entry
+#   carried a `calls` table, else every panelist's own non-empty `findings`
+#   joined and attributed" rule `_panel_judged_rework` already applies to
+#   the live round, walked here over every step `review_yield.seam_round_steps`
+#   names instead of the one step `_perform` is deciding. Living beside
+#   `_blocking_calls` rather than in `review_yield.py` reuses that reader
+#   directly rather than a second copy of its own narrowing rule.
+def _seam_findings_history(wid, seg):
+    """Every round landed at `seg`'s own seam, oldest first, each block
+    formatted exactly as `_panel_judged_rework` formats the current round's
+    own findings prefill -- blocking calls narrowed where that round's own
+    done-entry carried a `calls` table, else every panelist's own
+    non-empty `findings` joined and attributed."""
+    st = runmod.state(wid)
+    blocks = []
+    for rstep in review_yield.seam_round_steps(st, seg):
+        called = _blocking_calls(st["done"].get(rstep["id"], {}).get("fields"))
+        if called is not None:
+            blocks.append(called)
+            continue
+        blocks.append("\n\n".join(
+            f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
+            for r in st["returns"].get(rstep["id"], [])))
+    return "\n\n".join(blocks)
+
+
 # [panel-judged-rework]
 # Rationale: a rework decided at a transition its own panel returned to is
 #   the same act whichever voice decided it -- the merged verdict resolving
@@ -2260,6 +2289,15 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "transition":
             _mint_transition(wid, tseg)
         elif word == "rework":
+            cap = seg.get("round-cap")
+            if cap:
+                landed = len(review_yield.seam_rounds(runmod.state(wid), seg, asm))
+                if landed >= cap:
+                    why = (f"{review_yield.seam_label(seg)} has landed {landed} rounds "
+                           f"in this run, at its round-cap of {cap}")
+                    _pause_gate(wid, tseg, why,
+                                {"why": _seam_findings_history(wid, seg)})
+                    continue
             judged, outlet = _panel_judged_rework(wid, asm, tseg, step, fields)
             if outlet:
                 journal.append(wid, "step", id=f"{tseg['id']}-a{secrets.token_hex(2)}",
