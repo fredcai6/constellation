@@ -161,7 +161,7 @@ def test_every_spine_command_the_engine_prints_uses_a_real_verb():
     same defect as one that names none: the agent types it and nothing
     happens. `submit it: spine {wid}` shipped once, and only re-rendered
     status."""
-    verbs = {"submit", "note", "amend", "close", "status", "check"}
+    verbs = {"submit", "note", "amend", "close", "status", "check", "wait"}
     src = (ROOT / "engine" / "cli.py").read_text() + (ROOT / "engine" / "render.py").read_text()
 
     # `spine open <assembly> ...` -- the assembly must be one that exists

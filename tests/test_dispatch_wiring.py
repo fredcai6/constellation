@@ -14,15 +14,17 @@ commands mapping) is a short-lived `python3 -c ...` of the test's own
 choosing, never `claude`.
 """
 
+import os
 import pathlib
 import subprocess
 import tomllib
 
 import pytest
 
+from engine import checks as checkrun
 from engine import cli, journal, render
 from test_brief import _mint_dispatch_step, _mint_panel_step
-from test_wait import _throwaway_dispatch, _dispatch_entries
+from test_wait import _throwaway_dispatch, _dispatch_entries, _record, _dead_pid, _gate
 
 
 # -- gate 2's own negative: rendering starts nothing ---------------------------
@@ -83,6 +85,15 @@ def test_a_repository_with_no_dispatch_entry_spawns_nothing(bare_workdir, capsys
 
 
 # -- commitment 12: four states, rendered -------------------------------------
+
+
+# -- gate 3's own regression: unconfigured stays byte-for-byte (commitment 17) --
+# This test and the two `test_gone_without_returning_*` tests below (in the
+# "commitment 15" section) are this gate's own commitment-17 regression:
+# `workdir` strips its copied `constellation.toml`'s `dispatch` entry, and
+# `bare_workdir` seeds no `constellation.toml` at all -- both leave
+# `_dispatch_configured` false, so all three exercise the unconfigured world
+# and must stay green byte-for-byte unchanged by this gate's diff.
 
 
 def test_a_never_touched_child_renders_not_dispatched_with_its_brief(workdir, capsys):
@@ -213,6 +224,22 @@ def test_gone_without_returning_offers_the_resume_command_once_the_run_exists(
     assert "already exists" in (r2.stdout + r2.stderr)
 
 
+# -- commitment 20: `wait` never joins the trailing aside ---------------------
+
+
+def test_legal_moves_never_names_wait():
+    """A regression, not a new behavior: `render.legal_moves`'s trailing
+    "also legal:" aside was never touched by this run, and commitment 20
+    rules that it must stay that way on purpose. On a room with something
+    outstanding, `wait` is *the* move, not one more also-legal option --
+    it belongs in commitment 18's own line above the child rows. The
+    trailing aside is exactly where note 24's diagnosed failure lives:
+    text to read rather than an act to perform. Naming `wait` there would
+    reproduce that failure in the one line built to avoid it, so this pins
+    the omission down as checked rather than a default nobody verified."""
+    assert "wait" not in render.legal_moves("d1").lower()
+
+
 # -- commitment 1: the real constellation.toml names the real harness --------
 
 
@@ -262,3 +289,332 @@ def test_the_fast_suites_workdir_never_touches_a_real_process(
     assert calls == []
     assert _dispatch_entries("d1") == []
     assert _dispatch_entries("g9") == []
+
+
+# -- commitment 22 / commitment 16's first row: brief suppressed when configured --
+
+
+def test_a_never_dispatched_dispatch_childs_row_suppresses_its_brief_when_configured(
+        bare_workdir, capsys):
+    """`bare_workdir` carries no `constellation.toml` of its own, so a
+    real, test-local `dispatch` entry (`_throwaway_dispatch`) is installed
+    by hand to put this repository in the configured world commitment 22
+    is about. Once `wait` -- not a render -- is what starts this child,
+    printing the brief's `open it:` line here would hand the reader a
+    command they must not run: `wait` either already beat them to it, or
+    will the moment it is typed. The row must still carry its own status
+    word, proving suppression of the brief rather than an empty render."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    assert "d1.g1 (not dispatched)" in out
+    assert "brief --" not in out
+    assert "open it:" not in out
+
+
+def test_a_never_dispatched_panelists_row_suppresses_its_brief_when_configured(
+        bare_workdir, capsys):
+    """The panel-step half of the case above: same real, test-local
+    `dispatch` entry, same never-dispatched child, same suppressed brief."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_panel_step(wid="g9", worker="reviewer")
+
+    cli.main(["g9"])
+    out = capsys.readouterr().out
+
+    assert "panelist p1 (not dispatched)" in out
+    assert "brief --" not in out
+    assert "open it:" not in out
+
+
+# -- commitments 18/19: an all-gone room names no move, states no lie --------
+
+
+def test_a_dispatch_room_of_only_gone_children_reports_zero_outstanding_and_names_no_wait(
+        bare_workdir, capsys):
+    """A dispatch step's lone child carries a dead-pid `dispatch-started`
+    record and no return -- gone, not outstanding (commitment 3). Typing
+    `wait` there would do nothing: its pre-loop spawn skips a child that
+    already carries a record, and its poll loop has nothing left to wait
+    for either, so the new line must report the count (0) and stop, never
+    naming `wait` as the move. The gone child's own row, a few lines below,
+    still carries the command that actually recovers it (`_respawn_cmd`,
+    unchanged by this gate) -- naming `wait` on the line above it too would
+    print two different, conflicting instructions for the same child,
+    exactly the "text to read rather than an act to perform" failure the
+    line exists to close. Restarting a gone child is a later gate's job,
+    not this one's."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    _record("d1", "d1.g1", _dead_pid())
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "wait" not in line
+    assert "d1.g1 (gone without returning)" in out
+    assert "open it:" in out
+
+
+def test_a_panel_room_of_only_gone_panelists_reports_zero_outstanding_and_names_no_wait(
+        bare_workdir, capsys):
+    """The panel-step shape of the case above, with every remaining
+    unresolved panelist gone -- not paired with a live or never-dispatched
+    one, since `test_a_panel_of_three_spawns_only_its_one_genuinely_outstanding_child`
+    (`test_wait.py`) already covers a room with exactly one genuinely
+    outstanding child (count 1, not 0). Two panelists, both dead-pid
+    records with no return: the room's count is 0 and `wait` is named
+    nowhere on its line, while each panelist's own respawn row still
+    renders unchanged below it."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    wid = "g9"
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work",
+                   panel=[{"worker": "reviewer", "criteria": "c1"},
+                          {"worker": "critic", "criteria": "c2"}])
+    _record(wid, f"{wid}.review.p1", _dead_pid(), tag="review.p1")
+    _record(wid, f"{wid}.review.p2", _dead_pid(), tag="review.p2")
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "wait" not in line
+    assert "panelist p1 (gone without returning)" in out
+    assert "panelist p2 (gone without returning)" in out
+    assert out.count("open it:") == 2
+
+
+# -- commitments 18/19: a genuinely outstanding room names the count and wait -
+
+
+def test_a_dispatch_room_with_a_genuinely_outstanding_child_names_the_count_and_wait(
+        bare_workdir, capsys):
+    """The positive case the line exists for in the first place: a live-pid
+    `dispatch-started` record with no return is exactly `_wait_outstanding`'s
+    own definition of outstanding, so the count is 1 and naming `wait` is
+    true -- typing it is what `wait`'s own poll loop is already blocking on
+    for this child. `os.getpid()` stands in for a live pid: this test
+    process is genuinely alive for as long as the assertion below runs,
+    which is all `checkrun.alive`'s `os.kill(pid, 0)` needs to read it as
+    outstanding rather than gone."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    _record("d1", "d1.g1", os.getpid())
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "1 outstanding" in line
+    assert "d1 wait starts it" in line
+    assert "d1.g1 (working)" in out
+
+
+def test_a_panel_room_with_a_genuinely_outstanding_panelist_names_the_count_and_wait(
+        bare_workdir, capsys):
+    """The panel-step half of the case above: one panelist carries a
+    live-pid record and no return, so the room's count is 1 and its line
+    names `wait` -- the same population `wait`'s own poll loop blocks on,
+    read here through `_outstanding_state` rather than a second definition
+    that could drift from it."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_panel_step(wid="g9", worker="reviewer")
+    _record("g9", "g9.review.p1", os.getpid(), tag="review.p1")
+
+    cli.main(["g9"])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "1 outstanding" in line
+    assert "g9 wait starts it" in line
+    assert "panelist p1 (working)" in out
+
+
+# -- commitment 18: a never-dispatched child still names wait at zero count ---
+
+
+def test_a_never_dispatched_dispatch_childs_room_still_names_wait_at_zero_count(
+        bare_workdir, capsys):
+    """The zero count that is not the all-gone case: this room's only child
+    carries no `dispatch-started` record at all, so `_wait_outstanding`'s own
+    count reads 0 -- the same number
+    `test_a_dispatch_room_of_only_gone_children_reports_zero_outstanding_and_names_no_wait`
+    above reads for a room where every unresolved child is gone. The two
+    must not read the same on the line itself: `wait`'s own pre-loop spawn
+    (`_wait_spawn`) is exactly what starts a never-dispatched child, so this
+    line has to name `wait` even at count 0, while that other room's line,
+    at the identical count, must not. Both halves (this test's positive and
+    that test's negative) are asserted so a reader can see the count alone
+    never decides this -- `name_wait` is a second, independent read."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "d1 wait starts it" in line
+
+
+# -- commitment 17: the line is absent entirely from an unconfigured room ----
+
+
+def test_an_unconfigured_dispatch_rooms_line_is_absent(workdir, capsys):
+    """`workdir`'s own `constellation.toml` carries no `dispatch` entry
+    (`_without_dispatch_entry`, conftest.py), so `_dispatch_configured` reads
+    false and the whole new line is skipped, not merely emptied -- commitment
+    17's byte-for-byte rule: this world renders exactly as it did before this
+    gate. A hand-typed `spine open ...` in this world writes no
+    `dispatch-started` record on the parent (commitment 3's own process-only
+    definition), so nothing here could ever make the line report anything
+    true; the ruling is that it must not be printed at all, not that it must
+    always read zero."""
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    assert "d1.g1 (not dispatched)" in out
+    assert "outstanding" not in out
+
+
+def test_an_unconfigured_panel_rooms_line_is_absent(workdir, capsys):
+    """The panel-step half of the case above."""
+    _mint_panel_step(wid="g9", worker="reviewer")
+
+    cli.main(["g9"])
+    out = capsys.readouterr().out
+
+    assert "panelist p1 (not dispatched)" in out
+    assert "outstanding" not in out
+
+
+# -- commitment 19: a childless form step has nothing to be outstanding ------
+
+
+def test_a_childless_form_steps_room_has_no_outstanding_line(bare_workdir, capsys):
+    """`_gate()` opens a real run-a-gate standing on its own first step
+    ("work-1"), a plain form step -- no panel, no dispatches. Nothing
+    commitment 3's own process-only definition can ever call outstanding
+    there, so the line must not appear at all: one that is always present
+    carries no information (commitments 18, 19)."""
+    wid = _gate()
+    capsys.readouterr()
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    assert "outstanding" not in out
+
+
+# -- the in-flight line is unconditional, in both worlds ----------------------
+
+
+@pytest.mark.parametrize("fixture_name", ["workdir", "bare_workdir"])
+def test_a_live_in_flight_proof_reports_one_outstanding_in_both_worlds(
+        fixture_name, request, capsys, monkeypatch):
+    """Commitment 19 overrides commitment 17's configured-only carve-out
+    here: a step's proof is spawned through the check-runner/`HANDBACK`
+    mechanism, a path with nothing to do with whether `commands.dispatch` is
+    configured, so this line renders with no `_dispatch_configured` gate at
+    all. `_gate()` itself always leaves `constellation.toml` unconfigured --
+    `[models]` only, no `dispatch` entry -- so parametrizing the fixture
+    alone would exercise the same unconfigured world twice and never catch a
+    future change that wrongly gated this line. The `bare_workdir` run
+    installs a real, test-local `dispatch` entry (`_throwaway_dispatch`,
+    same helper `test_wait.py`'s own configured-world tests use) after
+    `_gate()` returns, so the two parametrized runs are genuinely different
+    repositories -- one configured, one not -- and the assertion below on
+    `_dispatch_configured` itself proves that difference rather than
+    assuming it."""
+    root = request.getfixturevalue(fixture_name)
+    monkeypatch.setattr(checkrun, "HANDBACK", 1)
+    wid = _gate()
+    if fixture_name == "bare_workdir":
+        _throwaway_dispatch(root, root / "spawned")
+    assert cli._dispatch_configured(root) == (fixture_name == "bare_workdir")
+    journal.append(wid, "prefill", fields={"proof": "sleep 30"})
+    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+        'change = "c"\ndeviations = "waived: none"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "1 outstanding" in line
+    assert "wait" not in line
+
+
+@pytest.mark.parametrize("fixture_name", ["workdir", "bare_workdir"])
+def test_a_dead_in_flight_proof_reports_zero_outstanding_in_both_worlds(
+        fixture_name, request, capsys):
+    """The dead-pid half of the case above: `checkrun.alive` reads a really-
+    gone pid (`_dead_pid`, run to completion rather than merely abandoned) as
+    dead, so the count drops to zero -- still with no `wait` named, since
+    `wait` renders this room immediately either way, running or dead
+    (commitment 6), and naming `wait` here would promise a block that never
+    happens. Made genuinely configured under `bare_workdir` and genuinely
+    unconfigured under `workdir`, the same way the live case above is, and
+    for the same reason: this line's presence must not be an accident of one
+    particular `constellation.toml`, and the pair must actually prove that
+    rather than reading the identical unconfigured file twice."""
+    root = request.getfixturevalue(fixture_name)
+    wid = _gate()
+    if fixture_name == "bare_workdir":
+        _throwaway_dispatch(root, root / "spawned")
+    assert cli._dispatch_configured(root) == (fixture_name == "bare_workdir")
+    journal.append(wid, "check-started", step="work-1", pid=_dead_pid(),
+                   cwd=".", budget=600, log="check.work-1.log",
+                   commands=[{"field": "proof", "command": "true"}])
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "wait" not in line
+
+
+# -- the in-flight room says plainly that nothing notifies you ---------------
+
+
+def test_a_proof_in_flight_says_nothing_notifies_you_and_names_the_cadence(
+        bare_workdir, capsys, monkeypatch):
+    """Three headless gate-conductors in this run read the old text -- "see
+    where it landed: spine <wid>" -- as a destination rather than an act,
+    concluded a notification was coming, and stopped acting; nothing was
+    going to arrive. `test_wait.py`'s own
+    `test_a_proof_in_flight_renders_immediately` mints the same shape: a
+    real, short-lived `sleep 30` proof, handed back before it finishes, so
+    its pid is genuinely alive when this room renders. The room must now
+    say plainly that no message arrives and it does not change on its own,
+    and name the reader's move as an act with a cadence -- run this room's
+    own command again, every minute or two -- not a place to look."""
+    monkeypatch.setattr(checkrun, "HANDBACK", 1)
+    wid = _gate()
+    journal.append(wid, "prefill", fields={"proof": "sleep 30"})
+    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+        'change = "c"\ndeviations = "waived: none"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    assert "in flight" in out
+    lowered = out.lower()
+    assert "nothing notifies you" in lowered
+    assert "no message arrives" in lowered
+    assert "does not change on its own" in lowered
+    assert "every minute or two" in lowered
+    assert "see where it landed" not in lowered
