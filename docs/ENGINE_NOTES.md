@@ -141,3 +141,26 @@ Whichever wins, the test is the handoff's: repo shape and installed shape must
 not diverge, because that divergence is what grew v1's installer to 3,219 lines
 — v1 is deleted, so that figure is archival record, not a line count this tree
 carries.
+
+## Rendering is a read; `wait` starts and restarts
+
+Rendering a room is a read: `status`, and every internal call that walks a
+room's text, moves nothing on disk and starts no process. `spine <work-id>
+wait` is the one thing that starts a dispatch or panel step's child that has
+never been dispatched at all, and the one thing that restarts a capped child
+gone without returning, up to `checkrun.MAX_STARTS` attempts.
+
+One asymmetry this run leaves on purpose: a board row's own excursion is
+still opened by hand, by whoever reads the row and runs the `open` command
+it prints, while a dispatch or panel step's child is not — that one starts
+itself the moment `wait` is run against it.
+
+The one added cost is a command a conductor now runs at every dispatch or
+panel seam that did not need one before: `wait`, once per such seam, to see
+the room move past whatever its child owes it, where the room used to start
+that child on its own.
+
+A child already dead and at its start cap will not be started again. The
+ruling escape for that case has its own name now, the words the conductor
+actually rules with: `drop it` — the conductor closes the step on what
+stands, rather than holding out for a child nothing will start again.

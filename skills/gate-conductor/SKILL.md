@@ -18,9 +18,12 @@ you.
 You dispatch, and you write no diff. Who implements is named in the assembly,
 not chosen by you. Who reads is chosen by you, at `select`, and that is the
 one place in the gate where your judgement about the work shapes what happens
-to it. Your job at each seam is to run the command the room prints and wait
-for what comes back. The diff is never yours to write, and a finding you
-disagree with is never yours to fix by writing one.
+to it. In a repository whose palette carries a `dispatch` entry, no command
+ever prints at a dispatch or panel seam; your job there is running `` `wait` ``
+and reading what comes back. Where no such entry is configured, the room still
+prints one command per child, and your job is running the command the room prints
+and waiting for what comes back. Either way, the diff is never yours to write,
+and a finding you disagree with is never yours to fix by writing one.
 
 ## Select
 

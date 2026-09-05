@@ -102,7 +102,7 @@ forms; coining a synonym for a term below is a defect.
   names, plus every step sharing its `child` — a pair closes together, and the deciding step
   can never target its own pair.
 - **up** — the bare CLI verb in `main()`'s dispatch table (`engine/cli.py`'s `verbs` dict,
-  alongside `status`/`submit`/`note`/`amend`/`close`/`trace`), and the value `pause`'s own
+  alongside `status`/`submit`/`note`/`amend`/`close`/`trace`/`wait`), and the value `pause`'s own
   outcome rows accept: the asker stops what it holds, the question stands one tier up in the
   run that dispatched it, and — once that run answers — the answer returns as the resumed
   unit's own orders, the same prefill shape `rework` already carries its own findings in.
@@ -202,12 +202,25 @@ forms; coining a synonym for a term below is a defect.
   configured — handing that harness the same brief its own room renders. A repository with no
   such entry leaves starting the child to the reader, who copies that same brief into whatever
   harness they run by hand. Names the step, not the child run it opens nor the CLI verb that
-  opens it.
+  opens it. The `not dispatched -> working` transition happens only through `wait` now
+  (gate 2) — rendering the step starts nothing.
 - **liveness** — whether a dispatched child's own process is still there: `checks.alive` read
   against the pid its own `dispatch-started` record carries (a pid this reader may not signal
   reads as alive, the same rule a check's own in-flight proof already reads by). Read per child,
   never per step, and folded with whether that child has itself returned into the one of four
   words a room reports for it: not dispatched, working, gone without returning, returned.
+- **wait** — the CLI verb (`spine <work-id> wait`) that blocks while the current step's child is
+  outstanding, re-folding the journal every poll cycle until none is left or a bound
+  (`checkrun.WAIT_BOUND`, overridable with `--for <seconds>`) expires, then renders exactly what
+  `status` renders. The **sole** starter of a child never dispatched at all, and the capped
+  **restarter** of one gone without returning, up to `checkrun.MAX_STARTS` attempts — no render
+  starts or restarts a child any more (gates 2 and 4).
+- **outstanding** — a dispatch or panel step's child not yet returned, split into the two shapes
+  `wait` treats differently: the **startable** case — never dispatched, or dead and short of
+  `checkrun.MAX_STARTS` (`_startable`, `engine/cli.py:672`) — where `wait` will start or restart
+  it; and the **spent** case — dead and already at that cap, the "gone without returning --
+  starts spent" row (`engine/cli.py:831`) — where nothing is left for `wait` to do, and the
+  ruling escape is to drop the step instead.
 - **prefill** — the parent's dispatch fields, stamped read-only into a child's opening. The
   order; contested by a blocked note up, never edited.
 - **return** — the child's terminal fields, stamped into the parent's waiting step at close,
