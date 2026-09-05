@@ -159,17 +159,19 @@ Branch and worktree names derive from the id too.
 A bare `spine` with no id prints the ledger — every open run's id, title, assembly, position,
 and state — generated on demand from the journals, never stored.
 
-### Verbs (7, down from 18)
+### Verbs (9)
 
 | Verb | Does |
 |---|---|
 | `open` | instantiate a run from an assembly template; mints the work id, takes the title; copies the skeleton into the journal; sets up the work location |
-| `status` | where you are: the step's prefill and imperative rendered as prose, the path of the materialized response form, and the other legal moves spelled out as typeable commands |
+| `status` | where you are: the step's prefill and imperative rendered as prose, the path of the materialized response form, and the other legal moves spelled out as typeable commands — a read with no side effect |
 | `submit` | read the filled response form; the engine validates fields, runs its command checks and appends their output, journals, advances. A refusal names the missing or failing field and nothing else |
 | `amend` | edit a segment's worklist — add, close, reorder; one required `reason` string, journaled |
 | `note` | append an observation, triage candidate, or decision to the record |
 | `close` | terminal; stamps return fields into the parent's waiting step if the run is parented; archives |
 | `trace` | this run and everything it dispatched, as one timeline; for debugging the seam, and deliberately not offered among `status`'s legal moves |
+| `up` | pause the current step: mint an ask into the run that dispatched this one, and a paused marker here; the parent's answer resumes this step as a fresh round |
+| `wait` | block while the current step's child is outstanding — starting a never-dispatched one and restarting one gone without returning, capped — polling until none is left or a bound expires, then render status |
 
 Two run states the verbs must express:
 
@@ -394,13 +396,14 @@ portable:
   `model` item, and the resolved tier rides the prefill.
 
 The tier must be *used*, not merely recorded, and the mechanics make using it the path of
-least resistance: at a dispatch step, `status` renders the resolved runner invocation as the
-literal, typeable dispatch command — the conductor copies it, never composes it. The child's
-`open` records the tier it was dispatched under; the ledger and the child's returns both
-surface it, so a mismatch is visible at the transition that adjudicates the child. The engine
-starts the child itself through the palette's own `dispatch` entry when one is configured,
-handing it this exact brief; a repository with no such entry leaves starting the child to the
-conductor, who copies the same brief into whatever harness it dispatches by hand.
+least resistance. The child's `open` records the tier it was dispatched under; the ledger and
+the child's returns both surface it, so a mismatch is visible at the transition that
+adjudicates the child. In a repository whose palette carries a `dispatch` entry, `` `wait` ``
+is what starts a dispatch or panel step's child under that resolved tier, and what restarts one
+gone without returning, capped — `status` prints no command at that seam at all, because
+`wait` is the only move left to type. A repository with no such entry leaves starting the child
+to the conductor, who copies the brief's own `open it:` command into whatever harness it
+dispatches by hand.
 
 ### The authority block
 

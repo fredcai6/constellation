@@ -10,7 +10,10 @@ The diff is in. Say which lenses read it, before anybody is dispatched. Two
 are the default and go on the panel unless something about this diff makes
 one of them inert; a third is warranted when the change reaches somewhere
 neither of them looks. Submitting this dispatches nobody -- it mints the
-review step, and the room prints one command per panelist after."""
+review step. In a repository whose palette carries a `dispatch` entry, no
+command ever prints there; `wait` is what starts each panelist. Where no
+such entry is configured, the room still prints one command per panelist,
+for you to run by hand."""
 
 [[field]]
 id = "omitted"

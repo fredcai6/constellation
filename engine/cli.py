@@ -26,6 +26,11 @@ from engine import run as runmod
 
 USAGE = """spine <work-id>                     where you are
 spine <work-id> submit              hand in the filled response form
+spine <work-id> wait [--for N]      block while the current step's child is
+    outstanding -- starting a never-dispatched one and restarting one gone
+    without returning, capped -- then print status
+spine <work-id> up "<reason>"       pause: ask the parent for a decision this
+    run cannot make itself
 spine <work-id> note <kind> <text>  record an observation, block, or decision
 spine <work-id> amend add --segment S --form F --reason "..."
 spine <work-id> amend close <step-id> --reason "..."
@@ -679,9 +684,11 @@ def _startable(is_returned, record, count):
 # [spawn-once-per-render]
 # Rationale: the record-check/call/catch/log sequence is identical for a
 #   dispatch step's one child and a panel step's each outstanding
-#   panelist -- only which child id drives it differs -- so it is written
-#   once here rather than twice inline in `_dispatch_status` and
-#   `_panel_status`. A `DispatchFailure` is caught, not let escape:
+#   panelist -- only which child id drives it differs -- so it is factored
+#   out here as its own function rather than inlined into `_wait_spawn`'s
+#   own loop body, which calls it once per descriptor regardless of
+#   whether that descriptor came from a dispatch step or a panel step.
+#   A `DispatchFailure` is caught, not let escape:
 #   rendering a room is a read, and a harness that fails to start is a
 #   fact about that child, not a reason to crash the render for every
 #   other child (or child-less caller) standing in the same room.
@@ -695,7 +702,7 @@ def _startable(is_returned, record, count):
 #   running, journaled process -- and a failure record here would need its
 #   own "already tried, don't retry" reading nowhere else asks for; a
 #   repository whose entry is simply broken keeps failing, and keeps
-#   logging why, on every render until someone fixes the entry.
+#   logging why, on every `wait` call until someone fixes the entry.
 def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, is_returned):
     """Start `child_id`'s harness process through this repository's own
     `dispatch` palette entry -- a fresh start or a restart, whichever
