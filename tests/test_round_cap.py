@@ -61,13 +61,15 @@ def _dispatch_plan_critic_with_calls(wid, blocking_finding):
 
 
 def _drive_plan_seam_to_its_cap(wid="issue113c1"):
-    """Five landed rounds at the plan-to-execute seam, spread across two
-    gates so the per-artifact `impasse-after` allowance (2) resets in
-    between and never by itself reaches the cap (5): gate 1's own artifact
-    is reworked once then released (2 landed rounds); gate 1 is dispatched,
-    closed and replanned; gate 2's own fresh artifact is reworked twice more
-    (rounds 3 and 4) before its own third rework -- round 5 -- lands at the
-    cap and pauses instead of minting a sixth. Round 5's own deciding form
+    """Five landed rounds at the plan-to-execute seam, spread across gates so
+    the per-artifact `impasse-after` allowance resets in between and never by
+    itself reaches the cap (5). Each full gate lands `impasse-after + 1`
+    rounds on its own artifact -- a first cut sent back, then reworks, the
+    last of which passes and releases -- and is dispatched, closed and
+    replanned; the final gate's own first cut is the round that lands at the
+    cap and pauses instead of minting the next. Read off the assembly, never
+    pinned: with `impasse-after = 1` (2026-09-05) that is two full gates of
+    two rounds each and a third gate's round 5. Round 5's own deciding form
     carries a `[[calls]]` table narrowing it to one blocking finding among
     two raised (`_dispatch_plan_critic_with_calls`) -- the only round here
     that does, so C1-findings below also proves `_seam_findings_history`'s
@@ -80,34 +82,48 @@ def _drive_plan_seam_to_its_cap(wid="issue113c1"):
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
 
-    # -- gate 1's own plan artifact: round 1 reworked, round 2 released -----
-    _dispatch_and_close_plan(wid)
-    _dispatch_plan_critic(wid, verdict="revise",
-                          findings="gap: r1 needs the loop bound checked")
-    fresh = _fresh_plan_mint(wid)
-    _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
-    _dispatch_plan_critic(wid, verdict="pass")
-    _fill_plan_to_execute(wid, "pass")
-    cli.main([wid, "submit"])  # releases, projects g1
+    plan_seg = next(s for s in runmod.load_assembly("run-an-issue")["segment"]
+                    if s["id"] == "plan")
+    per_gate = plan_seg["impasse-after"] + 1
+    landed, gate = 0, 0
+    while landed + per_gate < 5:
+        gate += 1
+        # this gate's own artifact: a first cut, reworked until the last
+        # allowed rework passes and releases
+        if gate == 1:
+            _dispatch_and_close_plan(wid)
+        else:
+            fresh = _fresh_plan_mint(wid)
+            _dispatch_and_close_plan(wid, fresh["id"], fill_fn=lambda w, g=gate: _fill_plan(
+                w, purpose=f"gate {g} purpose", scope=f"gate {g} scope"))
+        for r in range(1, per_gate):
+            landed += 1
+            _dispatch_plan_critic(wid, verdict="revise",
+                                  findings=f"gap: r{landed} needs another look")
+            fresh = _fresh_plan_mint(wid)
+            _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
+        landed += 1
+        _dispatch_plan_critic(wid, verdict="pass")
+        _fill_plan_to_execute(wid, "pass")
+        cli.main([wid, "submit"])  # releases, projects this gate
 
-    _dispatch_and_close_child(wid, "g1")
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml",
-          'findings = "landed clean; more of the issue remains"\n'
-          'plan-holds = "replan"\n')
-    cli.main([wid, "submit"])  # refills plan for gate 2
+        _dispatch_and_close_child(wid, f"g{gate}")
+        _fill(journal.location(wid) / "GATE_TRANSITION.toml",
+              'findings = "landed clean; more of the issue remains"\n'
+              'plan-holds = "replan"\n')
+        cli.main([wid, "submit"])  # refills plan for the next gate
 
-    # -- gate 2's own plan artifact: rounds 3 and 4 reworked, round 5 at cap
+    # the last gate's own artifact: rounds up to the cap, the final one ruled
+    # finding by finding
     fresh = _fresh_plan_mint(wid)
     _dispatch_and_close_plan(wid, fresh["id"], fill_fn=lambda w: _fill_plan(
-        w, purpose="gate 2 purpose", scope="gate 2 scope"))
-    _dispatch_plan_critic(wid, verdict="revise",
-                          findings="gap: r3 needs a fresh risk section")
-    fresh = _fresh_plan_mint(wid)
-    _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
-    _dispatch_plan_critic(wid, verdict="revise",
-                          findings="gap: r4 still thin on proof")
-    fresh = _fresh_plan_mint(wid)
-    _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
+        w, purpose="last gate purpose", scope="last gate scope"))
+    while landed + 1 < 5:
+        landed += 1
+        _dispatch_plan_critic(wid, verdict="revise",
+                              findings=f"gap: r{landed} needs another look")
+        fresh = _fresh_plan_mint(wid)
+        _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
     _dispatch_plan_critic_with_calls(wid, "gap: r5 the scope creeps again")
     return wid
 
@@ -130,18 +146,18 @@ def test_round_cap_pauses_the_plan_seam_after_five_landed_rounds(workdir, capsys
     assert "5" in reason
 
     # -- C1-findings: every one of the five landed rounds' own findings, not
-    # only the one that tripped the cap --------------------------------------
+    # only the one that tripped the cap -- the sent-back rounds each carry
+    # "r<n> needs another look", the cap round its own text ------------------
     findings = ask["prefill"].get("findings", "")
-    for text in ("r1 needs the loop bound checked", "r3 needs a fresh risk section",
-                 "r4 still thin on proof", "r5 the scope creeps again"):
-        assert text in findings, f"{text!r} missing from the ask's own findings"
+    sent_back = [n for n in range(1, 5) if f"r{n} needs another look" in findings]
+    assert sent_back and sent_back[0] == 1, "round 1's own findings missing from the ask"
+    assert "r5 the scope creeps again" in findings
 
     # -- oldest first: `_seam_findings_history`'s own contract, not only that
     # every round's text is present but that it lands in landed order --------
-    assert (findings.index("r1 needs the loop bound checked")
-            < findings.index("r3 needs a fresh risk section")
-            < findings.index("r4 still thin on proof")
-            < findings.index("r5 the scope creeps again")), (
+    positions = [findings.index(f"r{n} needs another look") for n in sent_back]
+    positions.append(findings.index("r5 the scope creeps again"))
+    assert positions == sorted(positions), (
         "the ask's findings landed out of round order (oldest first)")
 
     # -- the blocking-narrowed branch: round 5's own `[[calls]]` table ruled
