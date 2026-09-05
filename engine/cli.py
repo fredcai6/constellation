@@ -886,8 +886,13 @@ def _panel_descriptors(wid, asm, step):
 #   `name_wait` true on its own account regardless of what its own record
 #   or count say; there is no separate copy of that disjunct left to have
 #   forgotten the clause. `records` and `counts` are supplied by the
-#   caller (`_dispatch_status`/`_panel_status`), not re-fetched here, since
-#   both already hold them for their own call to `_dispatch_child`.
+#   caller, not re-fetched here: `_dispatch_status`/`_panel_status` already
+#   hold both for their own call to `_dispatch_child`, while `cmd_submit`'s
+#   and `cmd_close`'s refusal sites are callers with no such call of their
+#   own -- a refusal renders no row, so neither ever calls
+#   `_dispatch_child` -- and fetch `records`/`counts`
+#   (`_dispatch_records`/`_dispatch_start_counts`) solely to make this
+#   call.
 def _outstanding_state(wid, child_ids, returns_by_child, records, counts):
     """`(count, name_wait)` for `child_ids`: how many `wait` still has to
     poll for (`_wait_outstanding`'s own count), and whether typing `wait`
@@ -911,7 +916,9 @@ def _dispatch_status(wid, st, asm, step, blocked):
     for a "gone without returning" one alike (commitment 22 -- `wait`
     starts or restarts either itself) and gains one line above the child's
     own row stating how many are outstanding and, where `wait` is
-    genuinely the next move, naming it (commitments 18, 19)."""
+    genuinely the next move, naming it (commitments 18, 19) -- or, where
+    nothing remains live or startable, naming the ruling escape to drop
+    the step instead (commitment 30)."""
     child_id = step.get("child") or f"{wid}.{step['id']}"
     role, tier, open_cmd, finish_form = _dispatch_descriptor(wid, asm, step)
     worktree, branch = _tree_info(wid, st)
@@ -927,7 +934,7 @@ def _dispatch_status(wid, st, asm, step, blocked):
     if configured:
         count, name_wait = _outstanding_state(
             wid, [child_id], st["returns_by_child"], records, counts)
-        lines.append(render.outstanding_line(wid, count, name_wait))
+        lines.append(render.outstanding_line(wid, count, name_wait, step["id"]))
         lines.append("")
     lines.append(f"  {child_id} ({status})")
     if brief_text:
@@ -951,7 +958,9 @@ def _panel_status(wid, st, asm, step, blocked):
     the source of truth, not just the brief that names it. A configured
     repository also gains one line above the panelist rows stating how
     many are outstanding and, where `wait` is genuinely the next move,
-    naming it (commitments 18, 19)."""
+    naming it (commitments 18, 19) -- or, where nothing remains live or
+    startable, naming the ruling escape to drop the step instead
+    (commitment 30)."""
     worktree, branch = _tree_info(wid, st)
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
@@ -964,7 +973,7 @@ def _panel_status(wid, st, asm, step, blocked):
         child_ids = [d[0] for d in descriptors]
         count, name_wait = _outstanding_state(
             wid, child_ids, st["returns_by_child"], records, counts)
-        lines.append(render.outstanding_line(wid, count, name_wait))
+        lines.append(render.outstanding_line(wid, count, name_wait, step["id"]))
         lines.append("")
     for panelist, (child_id, role, tier, open_cmd, finish_form) in zip(
             step["panel"], descriptors):
@@ -1332,20 +1341,39 @@ def cmd_submit(argv):
             + (f" -- close it: spine {wid} close" if st and st["awaiting_close"] else "")))
     asm, step, form = _current_form(st)
     if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
+        escape = f"who is outstanding: spine {wid}"
+        worktree, _branch = _tree_info(wid, st)
+        if _dispatch_configured(worktree):
+            child_ids = [d[0] for d in _panel_descriptors(wid, asm, step)]
+            records = _dispatch_records(wid)
+            counts = _dispatch_start_counts(wid)
+            _, name_wait = _outstanding_state(
+                wid, child_ids, st["returns_by_child"], records, counts)
+            if name_wait:
+                escape = f"spine {wid} wait"
         raise SystemExit(render.refusal(
             step["id"], "a panel step is not submitted -- the panelists' verdicts "
-            "complete it", escape=f"who is outstanding: spine {wid}"))
+            "complete it", escape=escape))
     if runmod.paused(step):
         raise SystemExit(render.refusal(
             step["id"], "paused -- the ask it sent is standing at its parent, not here",
             escape=(f"see it: spine {st.get('parent')}" if st.get("parent")
                    else "no parent left to see it at -- see the blocked note above")))
     if step.get("dispatches"):
+        escape = (f"open its child: spine open {step['dispatches']} "
+                  f"--parent {wid} --step {step['id']}")
+        worktree, _branch = _tree_info(wid, st)
+        if _dispatch_configured(worktree):
+            child_id = step.get("child") or f"{wid}.{step['id']}"
+            records = _dispatch_records(wid)
+            counts = _dispatch_start_counts(wid)
+            _, name_wait = _outstanding_state(
+                wid, [child_id], st["returns_by_child"], records, counts)
+            escape = (f"spine {wid} wait" if name_wait else
+                      f"drop it: spine {wid} amend close {step['id']} --reason ...")
         raise SystemExit(render.refusal(
             step["id"], "a dispatch step is not submitted -- it completes when "
-            "its child closes",
-            escape=f"open its child: spine open {step['dispatches']} "
-                   f"--parent {wid} --step {step['id']}"))
+            "its child closes", escape=escape))
     # A second submit while the first one's proof is still running would start
     # a second runner against the same step, and two runners can both reach
     # exit 0. Refused while the process is alive; once it is gone with no
@@ -3139,12 +3167,23 @@ def cmd_close(argv):
     pending = [s for s in st["steps"] if s["id"] not in st["done"]]
     if pending:
         step = pending[0]
+        drop_it = f"drop it: spine {wid} amend close {step['id']} --reason ..."
         # The way past a pending step depends on what kind it is: a step whose
         # panel is still outstanding has no form to fill yet -- true whether
         # or not it has one at all -- a dispatch step has no form either, and
         # offering the wrong escape is worse than offering none.
         if runmod.panel_outstanding(st, step):
             how = f"its panelists complete it: spine {wid}"
+            worktree, _branch = _tree_info(wid, st)
+            if _dispatch_configured(worktree):
+                pasm = runmod.load_assembly(st["assembly"])
+                child_ids = [d[0] for d in _panel_descriptors(wid, pasm, step)]
+                records = _dispatch_records(wid)
+                counts = _dispatch_start_counts(wid)
+                _, name_wait = _outstanding_state(
+                    wid, child_ids, st["returns_by_child"], records, counts)
+                if name_wait:
+                    how = f"spine {wid} wait"
         elif runmod.paused(step):
             how = (f"its ask is standing at its parent, not here: spine {st.get('parent')}"
                   if st.get("parent") else
@@ -3152,11 +3191,19 @@ def cmd_close(argv):
         elif step.get("dispatches"):
             how = f"open its child: spine open {step['dispatches']} --parent {wid} " \
                   f"--step {step['id']}"
+            worktree, _branch = _tree_info(wid, st)
+            if _dispatch_configured(worktree):
+                child_id = step.get("child") or f"{wid}.{step['id']}"
+                records = _dispatch_records(wid)
+                counts = _dispatch_start_counts(wid)
+                _, name_wait = _outstanding_state(
+                    wid, [child_id], st["returns_by_child"], records, counts)
+                how = f"spine {wid} wait" if name_wait else drop_it
         else:
             how = f"fill its form and submit it: spine {wid} submit"
+        suffix = "" if how == drop_it else f"\n  or {drop_it}"
         raise SystemExit(render.refusal(
-            step["id"], "not complete",
-            escape=f"{how}\n  or drop it: spine {wid} amend close {step['id']} --reason ..."))
+            step["id"], "not complete", escape=f"{how}{suffix}"))
     asm = runmod.load_assembly(st["assembly"])
     # Structural, like `_commit_gate`'s own guard: `_issue_tier` alone is not
     # enough, since `cmd_open` stamps `branch`/`worktree` onto every root
