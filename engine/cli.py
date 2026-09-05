@@ -29,6 +29,11 @@ spine <work-id> submit              hand in the filled response form
 spine <work-id> wait [--for N]      block while the current step's child is
     outstanding -- starting a never-dispatched one and restarting one gone
     without returning, capped -- then print status
+spine <work-id> drive [--for N]     walk the run, pass after pass, through
+    every step shape the engine can resolve on its own -- a gate dispatch or
+    a panel (via `wait`'s own mechanism), a form step already in flight --
+    stopping on an ask, a close form, a spent gate or panelist, a step
+    before the plan segment, or its own bound running out
 spine <work-id> up "<reason>"       pause: ask the parent for a decision this
     run cannot make itself
 spine <work-id> note <kind> <text>  record an observation, block, or decision
@@ -1337,6 +1342,128 @@ def cmd_wait(argv):
             break
         time.sleep(checkrun.WAIT_POLL)
     return cmd_status([wid])  # renders no view of its own (commitment 2)
+
+
+# [drive-for-override]
+# Rationale: `--for <seconds>` overrides `checkrun.DRIVE_BOUND` the same way
+#   `_wait_bound` overrides `checkrun.WAIT_BOUND` -- parse, validate, refuse
+#   on anything short of a whole positive number of seconds. Copied rather
+#   than shared with `_wait_bound` itself, differing only in which constant
+#   is the default: this gate's own "nothing existing in this file is
+#   edited, only added to" makes that duplication the direct and reasonable
+#   consequence of its own scope, not an oversight -- a one-line signature
+#   change to `_wait_bound` to take a default is the alternative, left for
+#   whichever round next touches `_wait_bound` itself to pick with its own
+#   diff in hand.
+def _drive_bound(argv):
+    """The bound this call's own `drive` obeys: the default
+    (`checkrun.DRIVE_BOUND`) unless overridden with `--for <seconds>`."""
+    raw = _opt(argv, "--for")
+    if raw is None:
+        return checkrun.DRIVE_BOUND
+    try:
+        seconds = int(raw)
+    except ValueError:
+        seconds = 0
+    if seconds <= 0:
+        raise SystemExit(render.refusal(
+            "for", f"{raw!r} is not a number of seconds",
+            escape="pass whole seconds -- --for 30"))
+    return seconds
+
+
+# [drive-verb]
+# Rationale: three conditions end the call before it ever starts walking --
+#   an unresolvable work id, a run already closed outright or standing on
+#   `awaiting_close` (the same combined guard `cmd_status` and `cmd_wait`
+#   already use), and, new here, a repository whose palette carries no
+#   `[commands] dispatch` entry at all: `_dispatch_configured` is called
+#   today only from inside already-branched refusal text, never as a
+#   call-ending check on its own, so this is that check's first caller --
+#   without a `dispatch` entry `wait`'s own mechanism starts nothing for any
+#   step, so `drive` would only ever spin to its own bound doing nothing,
+#   and refusing outright says so instead of spinning quietly.
+#
+#   A fourth condition -- the current step's own segment sitting earlier
+#   than `plan` in the run's own assembly (`open`, `understand`;
+#   `execution-state` too, but it is never `current` by construction,
+#   `ASSEMBLY.toml:118-123`) -- is read fresh every pass, the same as every
+#   other branch below, rather than only once before the loop: nothing
+#   about it can become true again once past `plan`, but re-deriving it
+#   costs nothing and keeps this function from carrying two different
+#   reading disciplines side by side. An assembly with no `plan` segment at
+#   all (`run-a-gate`, `give-a-verdict` -- every child a gate-dispatch or
+#   panel step here actually walks) has nothing to compare against, so the
+#   check does not apply to it.
+def cmd_drive(argv):
+    """Walk `wid` through every step shape the engine can resolve on its
+    own, re-deriving the current step fresh every pass exactly as
+    `cmd_status`/`cmd_wait` already do -- never a cached shape -- until one
+    of commitment 9's stop conditions is reached or `bound` runs out: an ask
+    carried up (`paused`), the run standing on its own close form
+    (`awaiting_close`), a gate or panelist spent past `checkrun.MAX_STARTS`
+    with nothing else outstanding for that step, or a form step with
+    nothing dispatched yet -- a shape this gate cannot resolve (no spawn
+    exists for it), so it stops and says the step still needs a hand-typed
+    command rather than crash or spin."""
+    wid = argv[0]
+    bound = _drive_bound(argv[1:])
+    st = runmod.state(wid)
+    if st is None:
+        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+    if not st["open"] or st["awaiting_close"]:
+        return cmd_status([wid])
+    worktree, _branch = _tree_info(wid, st)
+    if not _dispatch_configured(worktree):
+        raise SystemExit(render.refusal(
+            "dispatch", "this repository's palette has no [commands] dispatch "
+            "entry -- drive has nothing of its own to start",
+            escape=f"work it by hand: spine {wid}"))
+    deadline = time.monotonic() + bound
+    while True:
+        if time.monotonic() >= deadline:
+            return cmd_status([wid])
+        st = runmod.state(wid)  # re-folded every pass, never cached (commitment 2)
+        if not st["open"] or st["awaiting_close"]:
+            return cmd_status([wid])
+        asm, step, _ = _current_form(st)
+        seg_order = [s["id"] for s in asm["segment"]]
+        if "plan" in seg_order and \
+                seg_order.index(step["segment"]) < seg_order.index("plan"):
+            raise SystemExit(render.refusal(
+                step["segment"], f"{wid} is standing on the {step['segment']} "
+                f"segment -- drive starts at the plan segment",
+                escape=f"work it by hand: spine {wid}"))
+        if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
+            child_ids = [d[0] for d in _panel_descriptors(wid, asm, step)]
+        elif runmod.paused(step):
+            return cmd_status([wid])
+        elif step.get("dispatches"):
+            child_ids = [step.get("child") or f"{wid}.{step['id']}"]
+        else:
+            if runmod.in_flight(st, step):
+                time.sleep(checkrun.WAIT_POLL)
+                continue
+            # A childless form step with nothing dispatched yet: no spawn
+            # exists for this shape (this gate's own horizon), so there is
+            # nothing left to walk automatically -- stop and say so, the
+            # same room `status` already renders for it.
+            return cmd_status([wid])
+        cmd_wait([wid])  # the spawn/poll/render mechanism, unchanged
+        fresh = runmod.state(wid)  # re-read post-`wait`, never the pre-call snapshot
+        if all(cid in fresh["returns_by_child"] for cid in child_ids):
+            continue  # resolved -- the next pass picks up whatever is now current
+        records = _dispatch_records(wid)      # fresh, never the pre-call descriptors
+        counts = _dispatch_start_counts(wid)  # ditto
+        count, name_wait = _outstanding_state(
+            wid, child_ids, fresh["returns_by_child"], records, counts)
+        if count == 0 and not name_wait:
+            return cmd_status([wid])  # spent -- nothing left for wait to start or poll
+        # `cmd_wait`'s own inner loop returns instantly when nothing it just
+        # tried to spawn or poll is alive (e.g. a spawn attempt failed short
+        # of the cap) -- sleep here so that shape spins harmlessly rather
+        # than busy-looping for the whole of `bound`.
+        time.sleep(checkrun.WAIT_POLL)
 
 
 def cmd_submit(argv):
@@ -3363,7 +3490,7 @@ def main(argv=None):
     verb = argv[1] if len(argv) > 1 else "status"
     verbs = {"status": cmd_status, "submit": cmd_submit, "note": cmd_note,
              "amend": cmd_amend, "close": cmd_close, "trace": cmd_trace, "up": cmd_up,
-             "wait": cmd_wait}
+             "wait": cmd_wait, "drive": cmd_drive}
     if verb not in verbs:
         # `spine <id> sumbit` used to render the room and exit 0: only the exact
         # word is acted on, so a near-miss must not look like a hit.
