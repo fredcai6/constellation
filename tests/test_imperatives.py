@@ -128,6 +128,32 @@ def test_a_panel_step_says_the_verdict_is_the_panels_to_give(workdir, capsys):
     assert "open it:" in out
 
 
+PASSIVE_TAIL = re.compile(r"\b(wait|hold|monitor|expect)\b", re.IGNORECASE)
+# A named command, not a bare co-occurrence: the passive word must sit inside
+# a `spine <something> wait`-shaped construction, mirroring the literal
+# `spine {work-id} wait` string test_promises.py's own regex scans for --
+# "spine" appearing anywhere else in the sentence proves nothing.
+NAMED_WAIT_COMMAND = re.compile(r"\bspine\s+\S+\s+wait\b", re.IGNORECASE)
+
+
+def _ends_on_a_move(text):
+    """The last sentence of an imperative must carry no passive-tail word
+    (wait/hold/monitor/expect) that sits outside a named `spine <work-id>
+    wait` command. Every passive-tail match has to lie inside some
+    named-command match -- a real command elsewhere in the sentence does
+    not excuse a second, unattached passive word. Shared by the real
+    assertion below and its own three coverage cases, so the predicate is
+    exercised once and not re-derived four times."""
+    last_sentence = text.strip().rstrip(".").split(".")[-1]
+    # Strip out the named-command spans first, then check what's left for a
+    # passive word -- reads more plainly than walking both match lists and
+    # confirming span containment, and is equivalent: a passive word left
+    # over after stripping is, by definition, one that sat outside every
+    # named-command match.
+    without_named_commands = NAMED_WAIT_COMMAND.sub("", last_sentence)
+    return not PASSIVE_TAIL.search(without_named_commands)
+
+
 def test_a_brief_imperative_ends_on_a_move_the_reader_makes(workdir):
     """Measured, not stylistic. PANEL's first draft ended "dispatch each
     panelist and wait for its verdict", and a light model did the waiting
@@ -135,12 +161,53 @@ def test_a_brief_imperative_ends_on_a_move_the_reader_makes(workdir):
     was coming to give, and stopped. Two of five runs, the trace showing no
     child ever opened.
 
-    A passive tail on an imperative reads as permission to stop acting, so
-    both of these end on the reader's own move."""
+    A passive tail on an imperative reads as permission to stop acting. This
+    used to be checked by banning the word "wait" outright, but `spine
+    <work-id> wait` is now the real, typeable command that starts a child --
+    the word itself can no longer be the thing forbidden. What was always
+    meant is narrower: the imperative must not *end* on a passive tail, a
+    trailing "wait"/"hold"/"monitor"/"expect" with no move attached. A named
+    command is not a passive tail, so DISPATCH and PANEL naming `spine
+    <work-id> wait` still pass; the old PANEL draft, which trailed off on a
+    bare "wait for its verdict", would not have. The exemption is
+    structural, not a bare substring check -- see `_ends_on_a_move` and its
+    own three coverage cases below, which is what proves that a sentence
+    merely mentioning "spine" alongside a passive word, with no real
+    command attached, still fails, and that a real command does not excuse
+    a second, unattached passive word elsewhere in the same sentence."""
     for name, text in (("DISPATCH", render.DISPATCH), ("PANEL", render.PANEL)):
-        assert "wait" not in text.lower(), (
-            f"{name} tells the reader to wait; nothing is coming unless they act")
+        assert _ends_on_a_move(text), (
+            f"{name} ends on a passive tail; nothing is coming unless they act")
         assert "you " in text.lower(), f"{name} never names who acts"
+
+
+def test_a_passive_tail_beside_the_bare_word_spine_still_fails():
+    """The exemption admits a named command, not co-occurrence: this last
+    sentence contains both a passive-tail word ("wait") and the bare word
+    "spine", but no `spine <work-id> wait`-shaped command -- exactly the
+    "Then wait for spine to notify you" shape this gate's own review caught
+    as a false pass under the old bare-substring check."""
+    assert not _ends_on_a_move("Carry the child through. Then wait for spine to notify you.")
+
+
+def test_a_last_sentence_naming_the_real_spine_wait_command_passes():
+    """The positive case the exemption exists for: a last sentence that
+    correctly ends on a named `spine <work-id> wait` command is admitted,
+    not merely passing by accident of the plain no-passive-word half."""
+    assert _ends_on_a_move("Carry the child through. Then spine <work-id> wait starts it.")
+
+
+def test_a_real_command_does_not_excuse_a_second_dangling_passive_tail():
+    """The regression this gate's second review round caught: a last
+    sentence naming a genuine `spine <work-id> wait` command *and* a
+    separate, unattached passive tail elsewhere in the same sentence. The
+    old bare-OR predicate passed this, because the command's mere presence
+    satisfied one half of the OR regardless of the dangling tail. Fixed,
+    it must fail -- every passive-tail match has to lie inside a
+    named-command match, not just some match existing somewhere."""
+    assert not _ends_on_a_move(
+        "Carry the child through. Run spine <work-id> wait yourself, "
+        "then wait for it to happen")
 
 
 def test_the_implementer_skill_no_longer_repeats_the_room(workdir):

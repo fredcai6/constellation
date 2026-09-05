@@ -186,6 +186,20 @@ def _runner(tier):
     return _palette().get("models", {}).get(tier, "")
 
 
+# [dispatch-configured]
+# Rationale: one source of truth for "does this repository's palette start a
+#   child itself", reused by `_dispatch_child`'s two callers and by the
+#   outstanding-line gating in each -- three inline `"dispatch" in
+#   _palette(...).get("commands", {})` checks could drift; this predicate is
+#   the one place that can't.
+def _dispatch_configured(tree):
+    """Whether `tree`'s own `constellation.toml` names a `dispatch` entry --
+    the same read `_spawn_outstanding`'s own call to `checkrun.spawn_dispatch`
+    already makes through `_palette(tree)`, asked here as a plain bool rather
+    than attempted as a spawn."""
+    return "dispatch" in _palette(tree).get("commands", {})
+
+
 def _current_form(st):
     asm = runmod.load_assembly(st["assembly"])
     step = st["current"]
@@ -694,21 +708,34 @@ def _respawn_cmd(child_id, open_cmd):
 # Rejected: two copies of this, one inlined at each of `_dispatch_status`
 #   and `_panel_status`. A second, identical fork here would be the same
 #   duplication one level up.
+# [dispatch-child-suppresses-not-dispatched-brief]
+# Rationale: a repository whose palette carries a `dispatch` entry has
+#   `wait` starting this child itself -- printing the brief's `open it:`
+#   line there is printing a command the reader must not run (`wait` beat
+#   it to it, or will the moment it is typed). `configured` is threaded
+#   through rather than re-derived here so `_dispatch_status` and
+#   `_panel_status` each compute it once, from the same `worktree` they
+#   already derive, and both `_dispatch_child` and their own outstanding-line
+#   gating read the identical bool.
 def _dispatch_child(wid, child_id, role, tier, open_cmd, finish_form,
-                    worktree, branch, records, is_returned):
+                    worktree, branch, records, is_returned, configured):
     """One child's row: `(status, brief_text)`. `brief_text` is `None` for
     "working" (commitment 14 -- never a manual dispatch command beside a
-    live pid) and for "returned" (renders exactly as it does today);
-    otherwise it carries the `open it:` line for "not dispatched" or the
-    respawn command for "gone without returning". A pure read off
-    `records` -- this call spawns nothing and threads nothing back;
-    `cmd_wait` is the only caller left that starts a child (commitments
-    13-15)."""
+    live pid), for "returned" (renders exactly as it does today), and now
+    for "not dispatched" too when `configured` is true -- that row prints
+    its own word and nothing else, since `spine <work-id> wait` is what
+    starts it, not a hand-typed `open it:` line. An unconfigured repository
+    keeps the "not dispatched" brief exactly as before (commitment 17). A
+    pure read off `records` either way -- this call spawns nothing and
+    threads nothing back; `cmd_wait` is the only caller left that starts a
+    child (commitments 13-15)."""
     runner = _runner(tier)
     if is_returned:
         return "returned", None
     record = records.get(child_id)
     if record is None:
+        if configured:
+            return "not dispatched", None
         return "not dispatched", render.brief(child_id, role, tier, runner, open_cmd,
                                               finish_form, worktree, branch)
     if checkrun.alive(record.get("pid")):
@@ -760,24 +787,55 @@ def _panel_descriptors(wid, asm, step):
     return out
 
 
+# [outstanding-state]
+# Rationale: the same "how many outstanding" read `wait`'s own predicate
+#   already answers (`_wait_outstanding`) is reused here rather than
+#   redefined, so a room's own line and `wait`'s own block are provably the
+#   same population, not two readings that could drift apart. A zero count
+#   is not one state: it arises both when every unresolved child (not yet
+#   in `returns_by_child`) is already gone -- a dead-pid `dispatch-started`
+#   record `wait`'s own pre-loop spawn skips and its poll loop has nothing
+#   to wait for either -- and when at least one unresolved child carries no
+#   record at all, the case `wait`'s own pre-loop spawn genuinely starts.
+#   `name_wait` carries that distinction to the caller; `count` alone
+#   cannot.
+def _outstanding_state(wid, child_ids, returns_by_child):
+    """`(count, name_wait)` for `child_ids`: how many `wait` still has to
+    poll for (`_wait_outstanding`'s own count), and whether typing `wait`
+    would do anything at all."""
+    records = _dispatch_records(wid)
+    count = len(_wait_outstanding(wid, child_ids, returns_by_child))
+    never_dispatched = any(cid not in returns_by_child and cid not in records
+                           for cid in child_ids)
+    return count, (count > 0 or never_dispatched)
+
+
 def _dispatch_status(wid, st, asm, step, blocked):
     """A dispatch step renders a brief, not a form: `wait`, not this
     render, starts this step's child through the repository's own
     `dispatch` palette entry when one is configured (commitments 13-15) --
-    rendering this room only reads whatever `wait` has already done, and
-    shows the same brief `wait` handed that harness (commitment 18). A
-    repository with no such entry configured leaves starting the child to
-    the reader, who copies the same brief into whatever harness they
-    dispatch by hand (commitment 3)."""
+    rendering this room only reads whatever `wait` has already done. A
+    repository whose palette carries no such entry renders byte-for-byte
+    as it always has, brief and all (commitment 17) -- there the reader is
+    the one who starts the child, by hand, off the same brief. A configured
+    repository suppresses that same brief for a "not dispatched" child
+    (commitment 22) and gains one line above the child's own row stating
+    how many are outstanding and, where `wait` is genuinely the next move,
+    naming it (commitments 18, 19)."""
     child_id = step.get("child") or f"{wid}.{step['id']}"
     role, tier, open_cmd, finish_form = _dispatch_descriptor(wid, asm, step)
     worktree, branch = _tree_info(wid, st)
+    configured = _dispatch_configured(worktree)
     status, brief_text = _dispatch_child(
         wid, child_id, role, tier, open_cmd, finish_form, worktree, branch,
-        _dispatch_records(wid), child_id in st["returns_by_child"])
+        _dispatch_records(wid), child_id in st["returns_by_child"], configured)
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.DISPATCH))
     lines.append("")
+    if configured:
+        count, name_wait = _outstanding_state(wid, [child_id], st["returns_by_child"])
+        lines.append(render.outstanding_line(wid, count, name_wait))
+        lines.append("")
     lines.append(f"  {child_id} ({status})")
     if brief_text:
         lines.append(brief_text)
@@ -787,23 +845,36 @@ def _dispatch_status(wid, st, asm, step, blocked):
 
 
 def _panel_status(wid, st, asm, step, blocked):
-    """A panel step renders one brief per panelist -- copied, never
-    composed -- with each panelist's own status (commitment 12). A
-    panelist's role is its own `worker`, not the give-a-verdict assembly's
-    conductor: `_open_child` stamps that worker onto the dispatched child's
-    step as its `filler`, so the panel entry is the source of truth, not
-    just the brief that names it."""
+    """A panel step renders each panelist's own row -- copied, never
+    composed -- with each panelist's own status (commitment 12); a
+    "working" or "returned" panelist carries no brief, and now neither
+    does a "not dispatched" one when the repository's palette carries a
+    `dispatch` entry (commitment 22) -- only a "gone without returning"
+    panelist still carries one, its own respawn brief. A panelist's role
+    is its own `worker`, not the give-a-verdict assembly's conductor:
+    `_open_child` stamps that worker onto the dispatched child's step as
+    its `filler`, so the panel entry is the source of truth, not just the
+    brief that names it. A configured repository also gains one line above
+    the panelist rows stating how many are outstanding and, where `wait`
+    is genuinely the next move, naming it (commitments 18, 19)."""
     worktree, branch = _tree_info(wid, st)
     records = _dispatch_records(wid)
+    configured = _dispatch_configured(worktree)
+    descriptors = _panel_descriptors(wid, asm, step)
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.PANEL))
     lines.append("")
+    if configured:
+        child_ids = [d[0] for d in descriptors]
+        count, name_wait = _outstanding_state(wid, child_ids, st["returns_by_child"])
+        lines.append(render.outstanding_line(wid, count, name_wait))
+        lines.append("")
     for panelist, (child_id, role, tier, open_cmd, finish_form) in zip(
-            step["panel"], _panel_descriptors(wid, asm, step)):
+            step["panel"], descriptors):
         tag = child_id.rsplit(".", 1)[-1]
         status, brief_text = _dispatch_child(
             wid, child_id, role, tier, open_cmd, finish_form, worktree, branch,
-            records, child_id in st["returns_by_child"])
+            records, child_id in st["returns_by_child"], configured)
         lines.append(f"  panelist {tag} ({status})"
                      f" -- criteria: {panelist.get('criteria', '')}")
         if brief_text:
@@ -848,7 +919,24 @@ def _paused_status(wid, st, asm, blocked):
 #   proof is running, and since when. An orphan says the opposite thing and
 #   has to be told apart here rather than rendered as a proof that will never
 #   land: a check whose process is gone and whose result never arrived is
-#   work to redo, not work to wait for.
+#   work to redo, not work to wait for. Its own outstanding line is
+#   unconditional -- never gated on `_dispatch_configured` the way the
+#   dispatch/panel line is -- because a step's proof is spawned through the
+#   check-runner/`HANDBACK` mechanism, a path with nothing to do with
+#   whether `commands.dispatch` is configured: a repository with no
+#   `dispatch` entry at all can still have a proof genuinely in flight. It
+#   never names `wait` as the move either way: `wait` renders this room
+#   immediately without blocking on it, running or dead (commitment 6),
+#   so claiming `wait` is the move would promise a block that never comes.
+#   The running branch's own prose says plainly that nothing notifies the
+#   reader -- three headless gate-conductors in this run read the old text
+#   ("see where it landed: spine <wid>") as a destination rather than an
+#   act, concluded a background process would tell them when the room
+#   changed, and stopped acting; nothing was coming. The fix is not a
+#   softer destination, it is an act with a cadence -- render this room
+#   again, by hand, every minute or two, until it says something else. A
+#   later reader must not "tidy" this back into a bare pointer: that is
+#   the exact shape that already killed three runs.
 def _in_flight_status(wid, st, asm, entry, blocked):
     """What a run whose proof is still running says about itself."""
     running = checkrun.alive(entry.get("pid"))
@@ -856,14 +944,19 @@ def _in_flight_status(wid, st, asm, entry, blocked):
     for c in entry.get("commands") or []:
         lines.append(f"  {c.get('field', 'check')}: {c.get('command', '')}")
     lines.append("")
+    lines.append(render.outstanding_line(wid, 1 if running else 0, False))
+    lines.append("")
     if running:
         lines.append(render.located(
             f"  proof in flight since {entry.get('at', '')} (pid {entry.get('pid')}), "
             f"budget {entry.get('budget')}s -- this step is not done and nothing "
             "was recorded for it. The engine journals the submit itself when the "
-            f"proof passes, and refuses here when it fails.\n"
-            f"  see where it landed: spine {wid}\n"
-            f"  what it is printing: {entry.get('log', '')}"))
+            "proof passes, and refuses here when it fails.\n"
+            f"  what it is printing: {entry.get('log', '')}\n"
+            "  nothing notifies you when that happens -- no message arrives, and "
+            "this room does not change on its own. Run this room's own command "
+            f"again -- spine {wid} -- every minute or two, until it says "
+            "something else."))
     else:
         lines.append(render.located(
             f"  proof started {entry.get('at', '')} (pid {entry.get('pid')}) and its "
