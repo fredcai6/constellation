@@ -36,3 +36,10 @@ dispatch = ["claude", "-p", "{brief}", "--model", "{runner}", "--allowedTools", 
 light = "claude-haiku-4-5-20251001"
 standard = "claude-sonnet-5"
 heavy = "claude-opus-5"
+
+# Every role a form step's filler names, other than the bare `conductor`
+# indirection (reserved to "heavy" structurally, in engine/cli.py's own
+# `_role_tier` -- never a table entry here), mapped to its tier.
+[roles]
+planner = "standard"
+implementer = "standard"

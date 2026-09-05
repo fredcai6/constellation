@@ -196,6 +196,44 @@ def _runner(tier):
     return _palette().get("models", {}).get(tier, "")
 
 
+# [role-tier-conductor-is-structural]
+# Rationale: the heavy-tier reservation is on the `conductor` indirection
+#   itself, whatever it resolves to (`CONSOLIDATE.toml` round-3 key terms
+#   binds this reading to the plan), and never on one spelled name --
+#   checking the bare string before anything unwraps it holds for
+#   `issue-conductor` and `gate-conductor` alike with no second table entry,
+#   and for any future assembly's own conductor value with no change to this
+#   function or its table. `standards/glossary.md`'s own `role` entry is why
+#   a table keyed on resolved role names could not do this instead: a role
+#   is by definition never the literal string `"conductor"`, so a table
+#   keyed on role names could only ever hold this reservation for the one
+#   name whoever built it happened to have in hand.
+# Rejected: reading an assembly's own `conductor` field first and keying the
+#   table on that. It would work for whichever assembly the caller passed in,
+#   but this function takes no assembly and no step -- only the bare
+#   `filler` string -- on purpose (see DIRECTION), so it never has that
+#   field to read.
+def _role_tier(filler):
+    """A step's raw `filler` resolved to a model tier.
+
+    `filler == "conductor"` -- the bare indirection itself -- is always
+    `"heavy"`, checked before anything asks what any assembly's own
+    `conductor` field would unwrap it to. Otherwise `filler` is looked up in
+    `constellation.toml`'s own `[roles]` table; a `filler` that is neither
+    is a refusal naming the missing role, never a spawn under an
+    unspecified or default runner."""
+    if filler == "conductor":
+        return "heavy"
+    roles = _palette().get("roles", {})
+    tier = roles.get(filler)
+    if not tier:
+        raise SystemExit(render.refusal(
+            "role", f"no role named {filler!r} in constellation.toml's [roles] table",
+            escape=("entries: " + ", ".join(sorted(roles))) if roles else
+                   "constellation.toml declares no [roles] at all"))
+    return tier
+
+
 # [dispatch-configured]
 # Rationale: one source of truth for "does this repository's palette start a
 #   child itself", reused by `_dispatch_child`'s two callers and by the
