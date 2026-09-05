@@ -15,7 +15,15 @@ ambiguity the board settled; leave the how to the plan that cuts from this.
 Restate what the issue asked and what the board settled — point at neither.
 State every obligation this run makes as its own numbered commitment: a plan
 round cuts gates against these, and each stays checkable only if it is named
-and countable, not folded into prose. Consolidate's own key-terms and settle
+and countable, not folded into prose. A commitment is one of two things: an
+end state observable from outside the engine -- a room says this, a journal
+carries that entry, an input refuses with this message, a test drives this
+scenario -- or an invariant, what stays unchanged and the test that says so.
+Where the code goes and how it is factored is the plan's and the
+implementer's, reviewed once in the diff: a commitment naming a function, a
+constant or a line is a how wearing a number, and a note about the spec
+itself is not a commitment. Fewer commitments that each say something you
+could watch happen beat more that say where. Consolidate's own key-terms and settle
 fields are not yours to fill or restate — this artifact is the whole of your
 return."""
 

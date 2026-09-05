@@ -53,7 +53,12 @@ any of them is ruled on.
 ride into a `rework` as the fresh implement round's own findings, so a
 blocking call is that round's orders. `accepted` -- true, and the round
 stands anyway; a declared deviation you are keeping is the ordinary case,
-recorded here rather than worked. `beyond` -- real, and outside this gate's
+recorded here rather than worked. A finding that proposes deleting something -- a commitment, a gate, a
+field, a file -- takes `blocking` or `rejected: <reason>` and never
+`accepted`: three runs running, an accepted call on a deletion was read by
+the next round as consent to it, and a deletion the round stands anyway on
+is a deletion nobody made. Keeping the thing is the call that owes the
+argument. `beyond` -- real, and outside this gate's
 spec; it leaves as a triage candidate for the plan to weigh, never as work
 here. `rejected` -- not true of this diff, or not this gate's to answer, and
 the one call that owes a reason: fold it in after a colon, the way `rejected:

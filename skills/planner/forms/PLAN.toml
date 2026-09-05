@@ -7,8 +7,13 @@
 # not an objection to rebut.
 
 imperative = """
-Cut the next gate: purpose, scope, proof, and, when you know them, a model
-override and a direction for what it should teach. Purpose says the result,
+Cut the gate that lands the spec: purpose, scope, proof, and, when you know
+them, a model override and a direction for what it should teach. One gate is
+the default, and a plan that cuts more than one argues the split: a second
+gate earns its place only where one diff would be unreviewable, or where the
+second piece needs a ruling from the first's evidence. Work that is merely
+sequential is one gate; each gate buys its own review rounds, and that is the
+cost a split has to beat. Purpose says the result,
 proof says what verifies it, scope says where -- the how is the
 implementer's, and that is the bar this gate is held to. A fresh-context
 critic must be able to attack it from the spec and the plan alone, and a
