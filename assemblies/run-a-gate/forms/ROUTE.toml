@@ -10,8 +10,11 @@ imperative = """
 The review has returned. Read its findings as written -- a revise is not an
 invitation to argue the verdict you were given -- and say where this round
 goes: back into the diff, or out to close. Then call every finding it
-returned and every deviation the implementer declared, one by one; a `rework`
-carries the ones you call blocking and nothing else."""
+returned, one by one; a `rework` carries the ones you call blocking and
+nothing else. A deviation the implementer declared is already on the record
+in its own form: call one only where you contest it, never to accept it --
+forty-eight of sixty-nine calls across five runs were deviations re-quoted
+and accepted."""
 
 [[field]]
 id = "resolution"
@@ -34,6 +37,17 @@ answers carried back as this gate's own next round. Say the ask in `calls`
 below where it belongs to a finding, since that call is what the ask itself
 carries up."""
 
+[[field]]
+id = "orders"
+kind = "evidence"
+optional = true
+note = """
+Your own words for the next round, where you are sending one back: a ruling
+the rework must hold that no finding says, a boundary you are drawing. It
+rides into the rework's prefill ahead of the blocking findings, as yours.
+`waived: none` where the findings say it all. Never write an order into
+`calls` as if the panel had returned it."""
+
 # `calls` is written last, after the scalar `resolution`, because a plan
 # field renders as a bare `[[calls]]` header and every scalar declared after
 # it would nest inside that array's last block instead of standing as its own
@@ -45,9 +59,9 @@ id = "calls"
 kind = "plan"
 optional = true
 note = """
-One block per finding the review returned and per deviation the implementer
-declared -- every one of them gets a call, and this form is the only place
-any of them is ruled on.
+One block per finding the review returned -- every one of them gets a call,
+and this form is the only place any of them is ruled on -- and per declared
+deviation only where you contest it.
 
 `blocking` -- the spec is not filled while this stands. These and only these
 ride into a `rework` as the fresh implement round's own findings, so a
@@ -69,8 +83,8 @@ that refuted it, the way an issue's `measured` type carries its command.
 Quote what you are calling as it was written rather than numbering it: on a
 `rework` the blocking blocks are literally what the next round arrives
 holding, so a call naming `F1` hands that round the string `F1`. Leave the
-field out only where the review returned no findings and the implementer
-declared no deviations."""
+field out only where the review returned no findings and you contest no
+deviation."""
 
   [[field.item]]
   id = "finding"

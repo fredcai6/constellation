@@ -45,6 +45,17 @@ beside it. Say the ask in `calls` below where it belongs to a finding, since
 that call is what the ask itself carries up."""
 
 [[field]]
+id = "orders"
+kind = "evidence"
+optional = true
+note = """
+Your own words for the next round, where you are sending one back: a ruling
+the rework must hold that no finding says, a boundary you are drawing. It
+rides into the rework's prefill ahead of the blocking findings, as yours.
+`waived: none` where the findings say it all. Never write an order into
+`calls` as if the panel had returned it."""
+
+[[field]]
 id = "spec"
 kind = "artifact"
 optional = true
@@ -73,8 +84,9 @@ kind = "evidence"
 optional = true
 note = """
 What the board's excursion column produced: every excursion dispatched, the
-one question it answered and what its returns said; every decline, and the
-reason given. The row asks; this reports. It is the only path by which a
+one question it answered and what its returns said. `waived: none` where none
+was dispatched -- the one word, not a paragraph saying so; the declines are
+on the board already. The row asks; this reports. It is the only path by which a
 per-row brief reaches the planner, the fresh-context panel, and the next
 reader of the journal — the board stays behind in the work location, and
 these fields are what join the run's prefill. Filled on a release, the same
@@ -123,9 +135,12 @@ note = """
 One block per finding the panel returned -- every one of them gets a call,
 and this form is the only place any of them is ruled on.
 
-`blocking` -- the spec is not filled while this stands. These and only these
-ride into a `rework` as the fresh spec-writer round's own findings, so a
-blocking call is that round's orders. `accepted` -- true, and the round
+`blocking` -- a fresh planner cutting from this spec would cut the wrong
+gate, or could not tell from it what to cut; nothing else is blocking, and a
+finding that is true and neither of those -- wording, a duplicated
+paragraph, a sentence that could be sharper -- is `accepted` and left. These
+and only these ride into a `rework` as the fresh spec-writer round's own
+findings, so a blocking call is that round's orders. `accepted` -- true, and the round
 stands anyway; a finding you are noting rather than acting on, recorded here
 rather than worked. A finding that proposes deleting something -- a commitment, a gate, a
 field, a file -- takes `blocking` or `rejected: <reason>` and never

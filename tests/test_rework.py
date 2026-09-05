@@ -633,13 +633,18 @@ def _understand_round(wid, findings):
     _dispatch_plan_critic(wid, verdict="revise", findings=findings)
 
 
+def _understand_impasse_after():
+    """`understand`'s own `impasse-after`, read off the assembly rather than
+    pinned: 1 since the 2026-09-05 ruling."""
+    return next(s for s in runmod.load_assembly("run-an-issue")["segment"]
+                if s["id"] == "understand")["impasse-after"]
+
+
 def _drive_understand_to_impasse(wid="issue84"):
-    """Two more spec-writer rounds after the first revise, then the third
-    revise -- the one `understand`'s own `impasse-after` (2, ruling
-    2026-09-02: at most three critic dispatches per artifact) turns into a
-    ruling."""
+    """`impasse-after` more spec-writer rounds after the first revise, then
+    the revise after them -- the one the segment turns into a ruling."""
     _drive_understand_to_revise(wid)
-    for n in (1, 2):
+    for n in range(1, _understand_impasse_after() + 1):
         _understand_round(wid, f"gap: still assumes a trailing newline ({n})")
     return wid
 
@@ -656,11 +661,12 @@ def test_understands_third_revise_mints_the_impasse_form_not_another_spec_round(
 
     st = runmod.state(wid)
     assert st["current"]["form"] == "forms/IMPASSE.toml", (
-        f"the third revise minted {st['current']['form']!r} -- the segment "
-        "declares impasse-after = 2, so this round is the ruling")
-    assert "trailing newline (2)" in st["current"]["prefill"]["findings"]
-    # no third panel: another fresh-context reader is the loop, not the way out
+        f"the revise past impasse-after minted {st['current']['form']!r} -- "
+        f"the segment declares impasse-after = {_understand_impasse_after()}, "
+        "so this round is the ruling")
+    assert f"trailing newline ({_understand_impasse_after()})" in st["current"]["prefill"]["findings"]
+    # no further panel: another fresh-context reader is the loop, not the way out
     assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
                    for s in st["steps"]), "the impasse minted a panel"
     asm = runmod.load_assembly("run-an-issue")
-    assert runmod.rework_rounds(st, asm, "understand") == 2
+    assert runmod.rework_rounds(st, asm, "understand") == _understand_impasse_after()

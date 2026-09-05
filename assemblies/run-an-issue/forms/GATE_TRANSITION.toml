@@ -12,10 +12,14 @@ the goal and whether the plan still holds."""
 [[field]]
 id = "findings"
 kind = "evidence"
+optional = true
 note = """
-What this gate taught us. A `replan` carries this straight into the fresh
-plan round as its own `findings` -- the same word PLAN.toml's header uses
-for a rework round's, so name it the way that reader expects."""
+What this gate taught the plan, and only where a `replan` or the next gate
+needs it: a `replan` carries this straight into the fresh plan round as its
+own `findings`, the same word PLAN.toml's header uses for a rework round's.
+`waived: none` otherwise -- nineteen fills of about six hundred words each
+crossed into nothing, since no run ever replanned. Your verification of the
+return belongs in the journal as a note, not here."""
 
 [[field]]
 id = "plan-holds"

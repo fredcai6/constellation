@@ -23,8 +23,9 @@ what it opened."""
 [[question]]
 id = "q1"
 question = ""
-excursion = ""   # the child run that would settle this row now, or the
-                 # reason you decline one — a reason, never a blank. Three
+excursion = ""   # the child run that would settle this row now, or
+                 # `waived: <one clause>` declining one — a clause, never a
+                 # paragraph and never a blank. Three
                  # moves leave the board, one per kind; brief the one you
                  # pick here before you dispatch it: the single question it
                  # answers, what an answer looks like, its budget and its

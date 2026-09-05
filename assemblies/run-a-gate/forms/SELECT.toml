@@ -6,10 +6,14 @@
 # fills it twice has had two rounds read by two panels it chose separately.
 
 imperative = """
-The diff is in. Say which lenses read it, before anybody is dispatched. Two
-are the default and go on the panel unless something about this diff makes
-one of them inert; a third is warranted when the change reaches somewhere
-neither of them looks. Submitting this dispatches nobody -- it mints the
+The diff is in. Say which lenses read it, before anybody is dispatched. On
+a first round two are the default and go on the panel unless something about
+this diff makes one of them inert; a third is warranted when the change
+reaches somewhere neither of them looks. On the round after a rework one
+reader is the default, reading for exactly two things: that each blocking
+finding is answered, and that nothing the rework wrote -- a comment, a
+rationale, a test predicate -- says something the diff itself made false,
+which is the one defect a second round ever found across five runs. Submitting this dispatches nobody -- it mints the
 review step. In a repository whose palette carries a `dispatch` entry, no
 command ever prints there; `wait` is what starts each panelist. Where no
 such entry is configured, the room still prints one command per panelist,
@@ -18,12 +22,11 @@ for you to run by hand."""
 [[field]]
 id = "omitted"
 kind = "evidence"
+optional = true
 note = """
-Which of the two defaults this round leaves off the panel, and what about
-this diff makes it inert -- `waived: none` when both are on it. An omission
-is a real answer here and costs one line; an unstated one is the panel
-quietly shrinking round after round with nothing in the record to say when it
-happened."""
+Which default this round leaves off the panel and what makes it inert, in one
+line. Blank or `waived: none` when nothing is left off -- twenty-six of
+twenty-seven fills were that answer, several as a paragraph."""
 
 [[field]]
 id = "panelists"

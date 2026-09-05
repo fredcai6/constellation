@@ -48,7 +48,7 @@ def test_load_consolidate():
     (`obligations`, then `calls`, both optional now that a rework or an up
     reaches this same form with nothing released to record)."""
     form = forms.load(CONSOLIDATE)
-    assert _ids(form) == ["resolution", "spec", "key-terms", "settle",
+    assert _ids(form) == ["resolution", "orders", "spec", "key-terms", "settle",
                           "obligations", "calls"]
     kinds = _kinds(form)
     assert kinds["spec"] == "artifact"

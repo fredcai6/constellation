@@ -2185,6 +2185,12 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     called = _blocking_calls(fields)
     if called is not None:
         findings = called
+    # The conductor's own `orders` (the route forms' 2026-09-05 field) go
+    # ahead of the findings, marked as the conductor's: a status word there
+    # (`waived: none`) is no order and carries nothing.
+    orders = str((fields or {}).get("orders", "") or "").strip()
+    if orders and forms.leading_word(orders) not in ("waived", "unknown", "working"):
+        findings = f"[conductor] {orders}\n\n{findings}" if findings else f"[conductor] {orders}"
     # The round just judged is the segment's own most recent non-panel step --
     # the same lookup a panelist's own prefill uses (`_open_child`) to find
     # the artifact it is reviewing. Carried under the producing form's own

@@ -27,7 +27,7 @@ import ast
 from engine import cli, run as runmod
 from conftest import REPO
 from test_two_voices import CRITIC, _dispatch_critic, _drive_to_plan_to_execute
-from test_nesting import _fill_plan_route_with_calls
+from test_nesting import _fill_plan_route_with_calls, _fill_plan_to_execute
 from test_verdict_panels import (
     _fill, _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
     _review_step, _select,
@@ -465,3 +465,46 @@ def test_a_plan_revise_holds_the_form_and_the_conductors_rework_mints_the_round_
 
     # and nothing projected: a rework releases nothing to execute
     assert not any(s.get("dispatches") == "run-a-gate" for s in st["steps"])
+
+
+def test_the_conductors_orders_ride_ahead_of_the_blocking_findings(workdir, capsys):
+    """The route forms' `orders` field (2026-09-05): a conductor's own words
+    for the next round cross into the rework's prefill ahead of the blocking
+    findings, marked as the conductor's -- so a ruling no finding says has a
+    channel of its own instead of being written into `calls` as if the panel
+    had returned it. A status word there (`waived: none`) is no order."""
+    wid = _drive_to_plan_to_execute()
+    panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "plan")["panel"]
+    for n in range(1, len(panel) + 1):
+        _dispatch_critic(wid, "plan", verdict="revise",
+                         findings="gap: the proof is untestable", n=n)
+    capsys.readouterr()
+    _fill_plan_to_execute(
+        wid, "rework",
+        calls=('orders = "keep the walk general, not a skip-one"\n\n'
+               '[[calls]]\nfinding = "gap: the proof is untestable"\ncall = "blocking"\n'))
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    st = runmod.state(wid)
+    fresh = next(s for s in st["steps"]
+                if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
+    assert fresh["prefill"]["findings"] == (
+        "[conductor] keep the walk general, not a skip-one\n\ngap: the proof is untestable")
+
+
+def test_a_waived_orders_field_carries_nothing(workdir, capsys):
+    wid = _drive_to_plan_to_execute()
+    panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "plan")["panel"]
+    for n in range(1, len(panel) + 1):
+        _dispatch_critic(wid, "plan", verdict="revise",
+                         findings="gap: the proof is untestable", n=n)
+    capsys.readouterr()
+    _fill_plan_to_execute(
+        wid, "rework",
+        calls=('orders = "waived: none"\n\n'
+               '[[calls]]\nfinding = "gap: the proof is untestable"\ncall = "blocking"\n'))
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    fresh = next(s for s in runmod.state(wid)["steps"]
+                if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
+    assert fresh["prefill"]["findings"] == "gap: the proof is untestable"

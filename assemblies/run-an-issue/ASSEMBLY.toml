@@ -38,15 +38,16 @@ worker = "spec-writer"
 # mints the impasse form instead: the loop itself becomes the thing the
 # conductor rules on. Counted since the last step-form mint, same as `plan`
 # below -- `forms/IMPASSE.toml` is shared with it, worded at the artifact
-# each segment produces rather than at "plan" by name. Two reworks succeed --
-# the first and second rounds each send the spec back for another pass --
-# and the third round's own rework reaches the outlet instead of a fourth
-# (ruling, 2026-09-02: at most three critic dispatches per artifact).
-# Follow-up to that ruling, 2026-09-03: consolidate now holds the plan
-# seam's own shape too -- the panel's two words both release below, and
-# CONSOLIDATE.toml is the conductor's route form, left open on purpose when
-# the plan seam got it.
-impasse-after = 2
+# each segment produces rather than at "plan" by name. One rework succeeds --
+# the first critic round may send the spec back once -- and the second
+# round's own rework reaches the outlet instead of a third (ruling,
+# 2026-09-05: across five runs every real gap a spec panel found came in its
+# second round and a third found wording; the 2026-09-02 ruling of three
+# critic dispatches per artifact is superseded here as at `plan`).
+# Follow-up, 2026-09-03: consolidate holds the plan seam's own shape too --
+# the panel's two words both release below, and CONSOLIDATE.toml is the
+# conductor's route form, left open on purpose when the plan seam got it.
+impasse-after = 1
 impasse-form = "forms/IMPASSE.toml"
 decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no such field
 

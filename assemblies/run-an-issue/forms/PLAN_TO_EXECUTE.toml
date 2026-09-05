@@ -41,6 +41,17 @@ ask in `calls` below where it belongs to a finding, since that call is what
 the ask itself carries up."""
 
 [[field]]
+id = "orders"
+kind = "evidence"
+optional = true
+note = """
+Your own words for the next round, where you are sending one back: a ruling
+the rework must hold that no finding says, a boundary you are drawing. It
+rides into the rework's prefill ahead of the blocking findings, as yours.
+`waived: none` where the findings say it all. Never write an order into
+`calls` as if the panel had returned it."""
+
+[[field]]
 id = "plan"
 kind = "artifact"
 optional = true
