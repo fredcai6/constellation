@@ -167,20 +167,24 @@ the last verdict has returned."""
 #   rather than reaching into `journal`/`checks` itself: this module renders
 #   what it is handed, it does not go read a run.
 # Rejected: always naming `wait` whenever `count` is nonzero and staying
-#   silent otherwise. A room whose only unresolved children are gone reads
-#   count 0 with nothing to gain from typing `wait` -- but a room whose count
-#   is 0 because every unresolved child is simply never-dispatched still has
-#   real work for `wait` to start, so the caller passes that distinction in
+#   silent otherwise. A room whose only unresolved children are gone and
+#   spent reads count 0 with nothing to gain from typing `wait` -- but a
+#   room whose count is 0 because every unresolved child is simply
+#   never-dispatched, or dead-and-not-yet-spent, still has real work for
+#   `wait` to start or restart, so the caller passes that distinction in
 #   explicitly as `name_wait` rather than this function re-deriving it from
 #   `count` alone.
 def outstanding_line(wid, count, name_wait):
     """How many children (or one proof) `wait` still has to poll for, and --
-    only when typing it would actually start or unblock something -- the
-    move that does it. Never claims `wait` is the move when it would do
-    nothing: the in-flight room never does (commitment 6 -- `wait` renders
-    it immediately either way), and a dispatch or panel room does not when
-    every unresolved child in it is already gone (each such child's own row
-    carries its own, different respawn command instead)."""
+    only when typing it would actually start, restart, or unblock something
+    -- the move that does it. Never claims `wait` is the move when it would
+    do nothing: the in-flight room never does (commitment 6 -- `wait`
+    renders it immediately either way), and a dispatch or panel room does
+    not when every unresolved child in it is already gone and spent -- a
+    configured room's gone-but-not-spent child carries no respawn command
+    of its own any more (that is `wait`'s to run now, not a row's own
+    brief), so once a child is spent there is nothing left, on its row or
+    anywhere else, for a reader or `wait` to do about it."""
     line = f"  {count} outstanding"
     if name_wait:
         line += located(f" -- spine {wid} wait starts it")

@@ -49,6 +49,17 @@ BUDGET = 600   # seconds a proof may run before it is broken, absent a declared 
 WAIT_BOUND = 90  # seconds `wait` blocks by default before it renders anyway
 WAIT_POLL = 1    # seconds between `wait`'s own re-folds of the journal
 
+# [max-starts]
+# Rationale: a child that keeps dying without returning must not be
+#   restarted forever -- `MAX_STARTS` is the total count of
+#   `dispatch-started` records a single child may ever accumulate (first
+#   start plus restarts), named here rather than left a bare literal at
+#   `_startable`'s or `_dispatch_child`'s own call sites, the same rule
+#   `WAIT_BOUND` and `WAIT_POLL` already follow. Set to 3: this
+#   specification's own recommendation ("two restarts, three starts
+#   total") taken as written.
+MAX_STARTS = 3   # total dispatch-started records a child may ever accumulate
+
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 

@@ -333,20 +333,18 @@ def test_a_never_dispatched_panelists_row_suppresses_its_brief_when_configured(
 # -- commitments 18/19: an all-gone room names no move, states no lie --------
 
 
-def test_a_dispatch_room_of_only_gone_children_reports_zero_outstanding_and_names_no_wait(
+def test_a_dispatch_room_of_only_gone_not_spent_children_names_wait_to_restart_them(
         bare_workdir, capsys):
-    """A dispatch step's lone child carries a dead-pid `dispatch-started`
-    record and no return -- gone, not outstanding (commitment 3). Typing
-    `wait` there would do nothing: its pre-loop spawn skips a child that
-    already carries a record, and its poll loop has nothing left to wait
-    for either, so the new line must report the count (0) and stop, never
-    naming `wait` as the move. The gone child's own row, a few lines below,
-    still carries the command that actually recovers it (`_respawn_cmd`,
-    unchanged by this gate) -- naming `wait` on the line above it too would
-    print two different, conflicting instructions for the same child,
-    exactly the "text to read rather than an act to perform" failure the
-    line exists to close. Restarting a gone child is a later gate's job,
-    not this one's."""
+    """A dispatch step's lone child carries one dead-pid `dispatch-started`
+    record and no return -- gone, not outstanding (commitment 3), but not
+    yet spent either: its own count (1) has not reached
+    `checkrun.MAX_STARTS`. `wait` will restart it (`_startable` reads true
+    for a dead-and-not-spent record with no `is_returned`), so the room
+    must say so even though `_wait_outstanding`'s own count -- live-pid
+    records only -- still reads 0, exactly the way a never-dispatched
+    child's zero count still names `wait`. `configured` is what suppresses
+    the row's own brief now, so nothing beside it prints a stale, hand-typed
+    respawn command that would collide with `wait`'s own restart."""
     _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
     _mint_dispatch_step(wid="d1", child="d1.g1")
     _record("d1", "d1.g1", _dead_pid())
@@ -356,21 +354,21 @@ def test_a_dispatch_room_of_only_gone_children_reports_zero_outstanding_and_name
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "0 outstanding" in line
-    assert "wait" not in line
+    assert "d1 wait starts it" in line
     assert "d1.g1 (gone without returning)" in out
-    assert "open it:" in out
+    assert "open it:" not in out
 
 
-def test_a_panel_room_of_only_gone_panelists_reports_zero_outstanding_and_names_no_wait(
+def test_a_panel_room_of_only_gone_not_spent_panelists_names_wait_to_restart_them(
         bare_workdir, capsys):
     """The panel-step shape of the case above, with every remaining
-    unresolved panelist gone -- not paired with a live or never-dispatched
-    one, since `test_a_panel_of_three_spawns_only_its_one_genuinely_outstanding_child`
+    unresolved panelist gone-but-not-spent -- not paired with a live or
+    never-dispatched one, since `test_a_panel_of_three_spawns_only_its_one_genuinely_outstanding_child`
     (`test_wait.py`) already covers a room with exactly one genuinely
-    outstanding child (count 1, not 0). Two panelists, both dead-pid
-    records with no return: the room's count is 0 and `wait` is named
-    nowhere on its line, while each panelist's own respawn row still
-    renders unchanged below it."""
+    outstanding child (count 1, not 0). Two panelists, each a single
+    dead-pid record with no return: the room's count is 0 but `wait` is
+    named on its line, since restarting either is exactly what `wait` will
+    do next, and neither panelist's own row carries a brief any more."""
     _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
     wid = "g9"
     journal.append(wid, "run", title="t", assembly="run-a-gate")
@@ -385,10 +383,92 @@ def test_a_panel_room_of_only_gone_panelists_reports_zero_outstanding_and_names_
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "0 outstanding" in line
-    assert "wait" not in line
+    assert "g9 wait starts it" in line
     assert "panelist p1 (gone without returning)" in out
     assert "panelist p2 (gone without returning)" in out
-    assert out.count("open it:") == 2
+    assert "open it:" not in out
+
+
+def test_a_dispatch_room_of_only_gone_and_spent_children_reports_zero_outstanding_and_names_no_wait(
+        bare_workdir, capsys):
+    """The population the retired all-gone test used to name, now precise:
+    a dispatch step's lone child has already accumulated
+    `checkrun.MAX_STARTS` dead-pid `dispatch-started` records with no
+    return -- gone, and spent, so `wait` will not restart it either.
+    Typing `wait` there would do nothing at all, so the line must report
+    the count (0) and stop, naming no move, and the row itself must say
+    plainly that its starts are spent rather than offering any command."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    for _ in range(checkrun.MAX_STARTS):
+        _record("d1", "d1.g1", _dead_pid())
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "wait" not in line
+    assert "d1.g1 (gone without returning -- starts spent)" in out
+    assert "open it:" not in out
+
+
+def test_a_panel_room_of_only_gone_and_spent_panelists_reports_zero_outstanding_and_names_no_wait(
+        bare_workdir, capsys):
+    """The panel-step shape of the case above: both panelists have each
+    already accumulated `checkrun.MAX_STARTS` dead-pid records with no
+    return -- gone and spent, on both, so the room's count is 0 and `wait`
+    is named nowhere on its line, and every row states its own starts are
+    spent instead of carrying a brief."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    wid = "g9"
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work",
+                   panel=[{"worker": "reviewer", "criteria": "c1"},
+                          {"worker": "critic", "criteria": "c2"}])
+    for _ in range(checkrun.MAX_STARTS):
+        _record(wid, f"{wid}.review.p1", _dead_pid(), tag="review.p1")
+        _record(wid, f"{wid}.review.p2", _dead_pid(), tag="review.p2")
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "wait" not in line
+    assert "panelist p1 (gone without returning -- starts spent)" in out
+    assert "panelist p2 (gone without returning -- starts spent)" in out
+    assert "open it:" not in out
+
+
+def test_a_returned_panelist_never_makes_a_gone_and_spent_sibling_name_wait(
+        bare_workdir, capsys):
+    """Round 3's second finding (`plan-aaefb/p3`), proven directly at the
+    exact population its own counter-example named: p1 already returned --
+    a `return` entry, no `dispatch-started` record for it at all -- and p2
+    is gone-and-spent (`checkrun.MAX_STARTS` pre-seeded dead-pid records).
+    `_startable` reads false for p1 on `is_returned` alone, before its
+    (nonexistent) record or count are even inspected, and false for p2 on
+    its own spent count -- so nothing in this room can make `name_wait`
+    true, the one population an uncorrected, duplicated disjunct got
+    wrong."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    wid = "g9"
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work",
+                   panel=[{"worker": "reviewer", "criteria": "c1"},
+                          {"worker": "critic", "criteria": "c2"}])
+    journal.append(wid, "return", step="review", child=f"{wid}.review.p1",
+                   fields={"verdict": "pass"})
+    for _ in range(checkrun.MAX_STARTS):
+        _record(wid, f"{wid}.review.p2", _dead_pid(), tag="review.p2")
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "wait" not in line
 
 
 # -- commitments 18/19: a genuinely outstanding room names the count and wait -
