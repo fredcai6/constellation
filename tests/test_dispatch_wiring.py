@@ -250,9 +250,11 @@ def test_constellation_toml_names_evals_harnesss_own_real_argv():
     root = pathlib.Path(__file__).resolve().parent.parent
     palette = tomllib.loads((root / "constellation.toml").read_text())
 
+    from evals import harness
     assert palette["commands"]["dispatch"] == [
         "claude", "-p", "{brief}", "--model", "{runner}",
         "--allowedTools", "Bash", "Read", "Write", "Edit",
+        "--append-system-prompt", harness.HEADLESS,
     ]
 
 

@@ -31,6 +31,16 @@ from engine import run as runmod
 #   argument at the call site.
 # Rejected: an eval passing a model id straight through to `claude`. That is
 #   the one thing constellation.toml exists to stop leaking into artifacts.
+# [headless]
+# Rationale: the one fact about this harness a brief cannot carry. A headless
+#   `claude -p` is never woken: twelve children across three runs died by
+#   starting a check in the background and ending their turn to wait for a
+#   notification (docs/process-notes/issue99.md note 28). Stated once here and
+#   copied verbatim into constellation.toml's `dispatch` entry, which
+#   tests/test_dispatch_wiring.py holds equal to this argv.
+HEADLESS = 'You are a headless process started by an engine. Nothing will ever notify you: no background task, no timer, no other agent. Run every command in the foreground and read its output before going on; never start a check in the background and never end your turn to wait for anything. Your turn ends only when the room you were handed says your step is done.'
+
+
 def tier_model(tier="light"):
     """The concrete model behind a palette tier."""
     palette = tomllib.load(open(ROOT / "constellation.toml", "rb"))
@@ -126,7 +136,8 @@ def drive(workdir, prompt, timeout=420, tier="light"):
     env = {**os.environ, "CONSTELLATION_SESSION": "eval",
            "PATH": f"{ROOT}:{os.environ.get('PATH', '')}"}
     cmd = ["claude", "-p", prompt, "--model", tier_model(tier),
-           "--allowedTools", "Bash", "Read", "Write", "Edit"]
+           "--allowedTools", "Bash", "Read", "Write", "Edit",
+           "--append-system-prompt", HEADLESS]
     # the model works wherever a real agent would land after `spine open`
     # ran -- inside the run's own worktree once one exists, `workdir` before
     d = run_root(workdir)
