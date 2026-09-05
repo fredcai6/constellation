@@ -174,7 +174,7 @@ the last verdict has returned."""
 #   `wait` to start or restart, so the caller passes that distinction in
 #   explicitly as `name_wait` rather than this function re-deriving it from
 #   `count` alone.
-def outstanding_line(wid, count, name_wait):
+def outstanding_line(wid, count, name_wait, step_id=None):
     """How many children (or one proof) `wait` still has to poll for, and --
     only when typing it would actually start, restart, or unblock something
     -- the move that does it. Never claims `wait` is the move when it would
@@ -183,8 +183,14 @@ def outstanding_line(wid, count, name_wait):
     not when every unresolved child in it is already gone and spent -- a
     configured room's gone-but-not-spent child carries no respawn command
     of its own any more (that is `wait`'s to run now, not a row's own
-    brief), so once a child is spent there is nothing left, on its row or
-    anywhere else, for a reader or `wait` to do about it."""
+    brief). `step_id` is given only by a dispatch or panel room, never by
+    the in-flight room (whose own step has no board row to drop); when it
+    is given and nothing is live or startable, the bare count is replaced
+    by the ruling escape instead -- once a child is spent there is still
+    one thing left for a reader to do about it, dropping the step, and this
+    line is where that gets said."""
+    if step_id is not None and not name_wait:
+        return located(f"  drop it: spine {wid} amend close {step_id} --reason ...")
     line = f"  {count} outstanding"
     if name_wait:
         line += located(f" -- spine {wid} wait starts it")

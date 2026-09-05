@@ -389,14 +389,15 @@ def test_a_panel_room_of_only_gone_not_spent_panelists_names_wait_to_restart_the
     assert "open it:" not in out
 
 
-def test_a_dispatch_room_of_only_gone_and_spent_children_reports_zero_outstanding_and_names_no_wait(
+def test_a_dispatch_room_of_only_gone_and_spent_children_names_the_drop_it_escape(
         bare_workdir, capsys):
     """The population the retired all-gone test used to name, now precise:
     a dispatch step's lone child has already accumulated
     `checkrun.MAX_STARTS` dead-pid `dispatch-started` records with no
     return -- gone, and spent, so `wait` will not restart it either.
-    Typing `wait` there would do nothing at all, so the line must report
-    the count (0) and stop, naming no move, and the row itself must say
+    Typing `wait` there would do nothing at all, so the line names the
+    ruling escape instead of a bare count -- dropping the step is the one
+    thing left for a reader to do about it -- and the row itself must say
     plainly that its starts are spent rather than offering any command."""
     _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
     _mint_dispatch_step(wid="d1", child="d1.g1")
@@ -406,20 +407,21 @@ def test_a_dispatch_room_of_only_gone_and_spent_children_reports_zero_outstandin
     cli.main(["d1"])
     out = capsys.readouterr().out
 
-    line = next(l for l in out.splitlines() if "outstanding" in l)
-    assert "0 outstanding" in line
+    line = next(l for l in out.splitlines() if "amend close" in l)
+    assert "drop it: " in line
+    assert "amend close g1 --reason" in line
     assert "wait" not in line
     assert "d1.g1 (gone without returning -- starts spent)" in out
     assert "open it:" not in out
 
 
-def test_a_panel_room_of_only_gone_and_spent_panelists_reports_zero_outstanding_and_names_no_wait(
+def test_a_panel_room_of_only_gone_and_spent_panelists_names_the_drop_it_escape(
         bare_workdir, capsys):
     """The panel-step shape of the case above: both panelists have each
     already accumulated `checkrun.MAX_STARTS` dead-pid records with no
-    return -- gone and spent, on both, so the room's count is 0 and `wait`
-    is named nowhere on its line, and every row states its own starts are
-    spent instead of carrying a brief."""
+    return -- gone and spent, on both, so the room's line names the ruling
+    escape instead of naming `wait`, and every row states its own starts
+    are spent instead of carrying a brief."""
     _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
     wid = "g9"
     journal.append(wid, "run", title="t", assembly="run-a-gate")
@@ -433,8 +435,9 @@ def test_a_panel_room_of_only_gone_and_spent_panelists_reports_zero_outstanding_
     cli.main([wid])
     out = capsys.readouterr().out
 
-    line = next(l for l in out.splitlines() if "outstanding" in l)
-    assert "0 outstanding" in line
+    line = next(l for l in out.splitlines() if "amend close" in l)
+    assert "drop it: " in line
+    assert "amend close review --reason" in line
     assert "wait" not in line
     assert "panelist p1 (gone without returning -- starts spent)" in out
     assert "panelist p2 (gone without returning -- starts spent)" in out
@@ -451,7 +454,7 @@ def test_a_returned_panelist_never_makes_a_gone_and_spent_sibling_name_wait(
     (nonexistent) record or count are even inspected, and false for p2 on
     its own spent count -- so nothing in this room can make `name_wait`
     true, the one population an uncorrected, duplicated disjunct got
-    wrong."""
+    wrong. The line names the drop-it escape rather than `wait`."""
     _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
     wid = "g9"
     journal.append(wid, "run", title="t", assembly="run-a-gate")
@@ -466,8 +469,8 @@ def test_a_returned_panelist_never_makes_a_gone_and_spent_sibling_name_wait(
     cli.main([wid])
     out = capsys.readouterr().out
 
-    line = next(l for l in out.splitlines() if "outstanding" in l)
-    assert "0 outstanding" in line
+    line = next(l for l in out.splitlines() if "amend close" in l)
+    assert "drop it: " in line
     assert "wait" not in line
 
 
@@ -698,3 +701,201 @@ def test_a_proof_in_flight_says_nothing_notifies_you_and_names_the_cadence(
     assert "does not change on its own" in lowered
     assert "every minute or two" in lowered
     assert "see where it landed" not in lowered
+
+
+# -- commitments 30/31: cmd_submit's and cmd_close's refusals reuse the read --
+
+
+def test_cmd_submits_dispatch_refusal_names_wait_when_the_child_is_startable(
+        bare_workdir, capsys):
+    """A configured repository whose dispatch step's child has never been
+    started: `wait` would start it, so `cmd_submit`'s refusal names `wait`
+    instead of the hand-typed `open its child: spine open ...` -- the exact
+    command commitment 23 forbids a conductor from typing again."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["d1", "submit"])
+    msg = str(e.value)
+
+    assert "d1 wait" in msg
+    assert "open its child" not in msg
+
+
+def test_cmd_submits_dispatch_refusal_names_the_drop_it_escape_when_spent(
+        bare_workdir, capsys):
+    """The same step, but its child is gone and spent: `wait` would restart
+    nothing, so the refusal names the ruling escape -- dropping the step --
+    rather than a command that would do nothing."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    for _ in range(checkrun.MAX_STARTS):
+        _record("d1", "d1.g1", _dead_pid())
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["d1", "submit"])
+    msg = str(e.value)
+
+    assert "drop it: " in msg
+    assert "amend close g1 --reason" in msg
+    assert "wait" not in msg
+    assert "open its child" not in msg
+
+
+def test_cmd_submits_dispatch_refusal_is_unchanged_when_unconfigured(
+        workdir, capsys):
+    """`workdir`'s own `constellation.toml` carries no `dispatch` entry
+    (`_without_dispatch_entry`, conftest.py), so this refusal stays
+    byte-for-byte what it always printed -- commitment 17's rule, an
+    unconfigured repository is untouched by this gate."""
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["d1", "submit"])
+    msg = str(e.value)
+
+    assert "open its child: " in msg
+    assert "amend close" not in msg
+
+
+def test_cmd_submits_panel_refusal_names_wait_when_a_panelist_is_startable(
+        bare_workdir, capsys):
+    """The panel-step half: `wait` genuinely answers "who is outstanding"
+    when a panelist has never been started, so the refusal names it."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_panel_step(wid="g9", worker="reviewer")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g9", "submit"])
+    msg = str(e.value)
+
+    assert "g9 wait" in msg
+
+
+def test_cmd_submits_panel_refusal_stays_who_is_outstanding_when_all_spent(
+        bare_workdir, capsys):
+    """No per-panelist drop mechanism exists, so a panel step's refusal
+    keeps naming "who is outstanding" even once every remaining panelist is
+    spent -- that is still true advice, and this branch does not invent a
+    drop-it escape it has no story for."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    wid = "g9"
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work",
+                   panel=[{"worker": "reviewer", "criteria": "c1"}])
+    for _ in range(checkrun.MAX_STARTS):
+        _record(wid, f"{wid}.review.p1", _dead_pid(), tag="review.p1")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g9", "submit"])
+    msg = str(e.value)
+
+    assert "who is outstanding" in msg
+    assert "wait" not in msg
+
+
+def test_cmd_submits_panel_refusal_is_unchanged_when_unconfigured(
+        workdir, capsys):
+    """The panel-step unconfigured regression."""
+    _mint_panel_step(wid="g9", worker="reviewer")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g9", "submit"])
+    msg = str(e.value)
+
+    assert "who is outstanding" in msg
+
+
+def test_cmd_closes_dispatch_refusal_names_wait_when_the_child_is_startable(
+        bare_workdir, capsys):
+    """`cmd_close`'s "not complete" refusal gets the identical treatment as
+    `cmd_submit`'s dispatch site above."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["d1", "close"])
+    msg = str(e.value)
+
+    assert "d1 wait" in msg
+    assert "open its child" not in msg
+
+
+def test_cmd_closes_refusal_names_the_drop_it_escape_exactly_once_when_spent(
+        bare_workdir, capsys):
+    """The dispatch branch's own `how` becomes the identical drop-it string
+    the function's generic suffix already appends -- asserted to appear
+    exactly once, not twice, since an unguarded concatenation would print
+    the same command twice in one refusal."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    for _ in range(checkrun.MAX_STARTS):
+        _record("d1", "d1.g1", _dead_pid())
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["d1", "close"])
+    msg = str(e.value)
+
+    assert msg.count("amend close g1 --reason") == 1
+    assert "wait" not in msg
+
+
+def test_cmd_closes_dispatch_refusal_is_unchanged_when_unconfigured(
+        workdir, capsys):
+    """The dispatch-branch unconfigured regression -- one generic suffix,
+    the same as it always printed."""
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["d1", "close"])
+    msg = str(e.value)
+
+    assert "open its child: " in msg
+    assert msg.count("amend close") == 1
+
+
+def test_cmd_closes_panel_refusal_names_wait_when_a_panelist_is_startable(
+        bare_workdir, capsys):
+    """The panel-branch half of `cmd_close`'s treatment."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    _mint_panel_step(wid="g9", worker="reviewer")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g9", "close"])
+    msg = str(e.value)
+
+    assert "g9 wait" in msg
+
+
+def test_cmd_closes_panel_refusal_stays_its_panelists_complete_it_when_all_spent(
+        bare_workdir, capsys):
+    """Like `cmd_submit`'s panel site, no per-panelist drop mechanism
+    exists, so this branch keeps its own existing text once every
+    panelist is spent, naming no `wait` that would do nothing."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    wid = "g9"
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work",
+                   panel=[{"worker": "reviewer", "criteria": "c1"}])
+    for _ in range(checkrun.MAX_STARTS):
+        _record(wid, f"{wid}.review.p1", _dead_pid(), tag="review.p1")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g9", "close"])
+    msg = str(e.value)
+
+    assert "its panelists complete it" in msg
+    assert "wait" not in msg
+
+
+def test_cmd_closes_panel_refusal_is_unchanged_when_unconfigured(
+        workdir, capsys):
+    """The panel-branch unconfigured regression."""
+    _mint_panel_step(wid="g9", worker="reviewer")
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g9", "close"])
+    msg = str(e.value)
+
+    assert "its panelists complete it" in msg
