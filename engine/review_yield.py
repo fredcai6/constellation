@@ -45,13 +45,14 @@ def _seam_form(seg):
     return t.get("form") or seg.get("route-form", "")
 
 
-def _seam_label(seg):
+def seam_label(seg):
     """What a human calls this seam: the disposing form's own name where the
     transition declares one (`consolidate`, `plan-to-execute`) -- the form is
     the thing a reader already knows by that name throughout the tree --
     or, where the transition declares neither form nor panel (run-a-gate's
     review, minted at `select`), the segment's own id, which is already the
-    seam's whole identity there."""
+    seam's whole identity there. Public: issue113's run-level round-cap
+    names the seam in its own ask by this same lookup, never a second one."""
     t = seg.get("transition", {})
     if t.get("form"):
         return pathlib.Path(t["form"]).stem.lower().replace("_", "-")
@@ -114,29 +115,38 @@ def _round(returns, done_entry, panel_forms, table):
             "called": calls is not None, "calls": tally}
 
 
+# [seam-round-steps]
+# Rationale: `seam_rounds` and issue113's run-level round-cap both need the
+#   landed rounds at a seam -- one to tally verdicts, the other to walk each
+#   round's own step for its findings text (`cli.py`'s cap-check branch).
+#   Splitting the predicate out is what lets both read one definition of
+#   "a landed round" rather than two copies drifting apart.
+def seam_round_steps(st, seg):
+    """The steps behind a landed round at this seam, in journal order: round
+    one from `skeleton()`'s own mint or `select`'s first panel mint, every
+    later round `_mint_segment_round`/`_mint` (cli.py) minted fresh under its
+    own random tag -- found by segment and the seam's own disposing form,
+    never by a hardcoded id. A round with no returns yet (an outstanding one,
+    on a live run `trace --yield` can reach) is left out -- nothing to
+    report, and nothing yet decided for a cap to count."""
+    form = _seam_form(seg)
+    return [step for step in st["steps"]
+            if step.get("segment") == seg["id"] and step.get("form") == form
+            and step.get("panel") and st["returns"].get(step["id"])]
+
+
 def seam_rounds(st, seg, assembly):
     """Every round this seam's own artifact has been judged at, in journal
-    order: round one from `skeleton()`'s own mint or `select`'s first panel
-    mint, every later round `_mint_segment_round`/`_mint` (cli.py) minted
-    fresh under its own random tag -- found the same way both are, by
-    segment and the seam's own disposing form, never by a hardcoded id.
-    A round with no returns yet (an outstanding one, on a live run `trace
-    --yield` can reach) is left out -- nothing to report."""
-    form = _seam_form(seg)
+    order -- one entry per `seam_round_steps`."""
     rounds = []
-    for step in st["steps"]:
-        if step.get("segment") != seg["id"] or step.get("form") != form or not step.get("panel"):
-            continue
-        returns = st["returns"].get(step["id"], [])
-        if not returns:
-            continue
+    for step in seam_round_steps(st, seg):
         # Each round resolves its own table and its own panel forms from the
         # step it was dispatched on, never the seam's static declaration: a
         # round minted at `select` (run-a-gate's review) writes its panel at
         # runtime, and a round's own step is what says which of the segment's
         # two tables governs it.
         _, table = runmod.deciding_spec(assembly, step)
-        rounds.append(_round(returns, st["done"].get(step["id"]),
+        rounds.append(_round(st["returns"][step["id"]], st["done"].get(step["id"]),
                              runmod.panel_forms(assembly, step), table))
     return rounds
 
@@ -162,5 +172,5 @@ def run_yield(wid):
         for seg in _seam_segments(assembly):
             rounds = seam_rounds(cst, seg, assembly)
             if rounds:
-                entries.append({"label": prefix + _seam_label(seg), "rounds": rounds})
+                entries.append({"label": prefix + seam_label(seg), "rounds": rounds})
     return entries

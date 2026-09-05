@@ -158,17 +158,27 @@ plan-holds = "advance"
     assert sib["prefill"]["purpose"] == "fix the linter"
 
 
-def _drive_to_impasse(pwid, gid):
+def _drive_to_impasse(pwid, gid, rounds=3):
     """Two implement/review rounds, each revised and reworked, followed by a
     third revise that reaches `work`'s own `impasse-after` threshold
     (assemblies/run-a-gate/ASSEMBLY.toml, `impasse-after = 2` -- ruling,
     2026-09-02: at most three critic dispatches per artifact) and mints
     IMPASSE.toml in place of a fourth step-form round -- the same shape
     `test_rework.py`'s own `_drive_gate_to_impasse` drives, adapted to the
-    `_seed_two_gates` parent instead of a full run-an-issue mint."""
+    `_seed_two_gates` parent instead of a full run-an-issue mint.
+
+    `rounds` beyond three (issue113's own C2) rules each fresh IMPASSE
+    `rework` to continue the loop before driving the next review round --
+    `work` declares no `rework-form`, so its own `rework_rounds` never
+    resets once tripped, and every round from the third on reaches this
+    same outlet again unless `review`'s own round-cap intercepts first."""
     child = f"{pwid}.{gid}"
     cli.main(["open", "run-a-gate", "--parent", pwid, "--step", gid])
-    for n in (1, 2, 3):
+    for n in range(1, rounds + 1):
+        if n > 3:
+            _fill(journal.location(child) / "IMPASSE.toml",
+                  f'ruling = "rework"\nwhy = "gap: untestable ({n - 1}) recurs"\n')
+            cli.main([child, "submit"])
         _fill_implement(child)
         cli.main([child, "submit"])
         review = _select(child)
