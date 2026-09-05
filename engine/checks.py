@@ -49,6 +49,16 @@ BUDGET = 600   # seconds a proof may run before it is broken, absent a declared 
 WAIT_BOUND = 90  # seconds `wait` blocks by default before it renders anyway
 WAIT_POLL = 1    # seconds between `wait`'s own re-folds of the journal
 
+# [drive-bound]
+# Rationale: `drive` is not held in the same caller turn `HANDBACK` bounds --
+#   its own scenario is a principal at a terminal who opens a run, works the
+#   understand board, submits consolidate, types `drive`, and comes back
+#   later, not a dispatched conductor mid-turn a harness could strand past
+#   `HANDBACK`. So its default is sized for that wait, not for the harness:
+#   distinctly longer than `WAIT_BOUND` rather than capped at or under it.
+#   `--for <seconds>` overrides it per call, the same as `WAIT_BOUND`.
+DRIVE_BOUND = 3600  # seconds `drive` blocks by default before it renders anyway
+
 # [max-starts]
 # Rationale: a child that keeps dying without returning must not be
 #   restarted forever -- `MAX_STARTS` is the total count of
