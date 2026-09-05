@@ -23,7 +23,9 @@ Every process this file spawns is a short-lived `python3 -c ...` of its own
 choosing, never `claude`.
 """
 
+import json
 import pathlib
+import sys
 import threading
 import time
 
@@ -32,7 +34,7 @@ import pytest
 from engine import checks as checkrun
 from engine import cli, journal
 from engine import run as runmod
-from test_brief import _mint_dispatch_step
+from test_brief import _mint_dispatch_step, _mint_work_step
 from test_wait import (
     _await, _dead_pid, _dispatch_entries, _record, _sleeper, _throwaway_dispatch,
 )
@@ -278,6 +280,152 @@ def test_a_panel_step_with_one_returned_and_one_spent_stops_and_names_the_spent_
     assert "panelist p1 (returned)" in out
     assert "panelist p2 (gone without returning -- starts spent)" in out
     assert not marker.exists()
+
+
+# -- the childless-form-step branch's own three shapes -----------------------
+
+
+def _throwaway_filler_dispatch(root, marker_dir):
+    """`_throwaway_dispatch`, plus the `[roles]`/`[models]` tables
+    `_role_tier`/`_runner` need to resolve a childless form step's own
+    filler -- `_throwaway_dispatch` alone writes only `[commands]`, enough
+    for a dispatch or panel child (whose tier the step's own segment
+    already names) but not for a form filler, resolved off `filler`
+    through `[roles]` instead."""
+    marker_dir = pathlib.Path(marker_dir)
+    script = (
+        "import pathlib, sys, time\n"
+        f"d = pathlib.Path({str(marker_dir)!r})\n"
+        "d.mkdir(parents=True, exist_ok=True)\n"
+        "(d / f'{time.time_ns()}.brief').write_text(sys.argv[1])\n"
+        "time.sleep(2)\n"
+    )
+    entry = [sys.executable, "-c", script, "{brief}"]
+    pathlib.Path(root, "constellation.toml").write_text(
+        '[models]\nstandard = "x"\n\n'
+        '[roles]\nimplementer = "standard"\n\n'
+        "[commands]\ndispatch = " + json.dumps(entry) + "\n")
+
+
+def _form_filler_entries(wid):
+    return [e for e in journal.read(wid) if e.get("kind") == "form-filler-started"]
+
+
+def _filler_record(wid, step_id, pid):
+    log = journal.location(wid) / f"form-filler.{step_id}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    journal.append(wid, "form-filler-started", step=step_id, pid=pid, log=str(log))
+
+
+def test_a_childless_form_step_never_started_gets_spawned_and_resolves(
+        bare_workdir, capsys, monkeypatch):
+    """Case 3 into a submit: a form step whose filler has never been
+    started at all is startable, so `drive`'s own `_drive_form_filler` is
+    what starts it -- proven against a real, journaled `form-filler-started`
+    record, not merely inferred from the run reaching `awaiting_close`. The
+    submit itself is journaled directly, the same `_land_it`-style stand-in
+    `test_a_gate_dispatch_step_never_dispatched_gets_spawned_and_resolves`
+    already uses for a dispatch child's own return -- what matters here is
+    that `drive` notices and stops, not how the form got filled (that is
+    `tests/test_drive_end_to_end.py`'s own job, with a real spawned
+    submit)."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    _mint_work_step(wid="f1", filler="implementer")
+    assert _form_filler_entries("f1") == []
+
+    def _submit_it():
+        time.sleep(0.2)
+        journal.append("f1", "submit", step="g1", fields={})
+    threading.Thread(target=_submit_it, daemon=True).start()
+
+    began = time.monotonic()
+    code = cli.main(["f1", "drive", "--for", "5"])
+    elapsed = time.monotonic() - began
+    capsys.readouterr()
+
+    assert code == 0
+    assert 0.15 < elapsed < 3, f"elapsed {elapsed}"
+    assert _await(marker, 1)
+    started = _form_filler_entries("f1")
+    assert len(started) == 1 and started[0]["step"] == "g1"
+    assert runmod.state("f1")["awaiting_close"]
+
+
+def test_a_childless_form_step_already_alive_resolves_and_drive_advances_past_it(
+        bare_workdir, capsys, monkeypatch):
+    """The working shape: a filler already alive when `drive` starts, whose
+    submit lands mid-call. `drive`'s own loop sleeps and re-derives the
+    current step rather than spawning a second filler on top of the live
+    one -- no fresh marker ever appears."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    _mint_work_step(wid="f1", filler="implementer")
+    proc = _sleeper(5)
+    _filler_record("f1", "g1", proc.pid)
+
+    def _submit_it():
+        time.sleep(0.2)
+        journal.append("f1", "submit", step="g1", fields={})
+    threading.Thread(target=_submit_it, daemon=True).start()
+
+    began = time.monotonic()
+    code = cli.main(["f1", "drive", "--for", "5"])
+    elapsed = time.monotonic() - began
+    capsys.readouterr()
+
+    assert code == 0
+    assert 0.15 < elapsed < 3, f"elapsed {elapsed}"
+    assert not marker.exists()          # already alive: no fresh spawn
+    assert runmod.state("f1")["awaiting_close"]
+    proc.kill()
+    proc.wait()
+
+
+def test_a_childless_form_step_filler_dead_past_max_starts_stops_and_names_it(
+        bare_workdir, capsys):
+    """The spent shape: a filler dead past `checkrun.FORM_FILLER_MAX_STARTS`
+    -- `drive` must stop and render the spent word, not spin retrying a
+    filler that will never come back."""
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    _mint_work_step(wid="f1", filler="implementer")
+    for _ in range(checkrun.FORM_FILLER_MAX_STARTS):
+        _filler_record("f1", "g1", _dead_pid())
+    assert len(_form_filler_entries("f1")) == checkrun.FORM_FILLER_MAX_STARTS
+
+    began = time.monotonic()
+    code = cli.main(["f1", "drive"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert elapsed < 1
+    assert len(_form_filler_entries("f1")) == checkrun.FORM_FILLER_MAX_STARTS
+    assert not marker.exists()
+    assert "spent -- automatic filling exhausted" in out
+
+
+def test_cmd_status_renders_working_for_a_live_filler_pid(bare_workdir, capsys):
+    """`cmd_drive`'s own working shape sleeps rather than calling
+    `cmd_status`, so nothing above reaches `cmd_status`'s own standalone
+    render of the live-pid case -- proven directly here, symmetric to the
+    spent case's own test above, which the working-status render's own
+    committed proof (round 3) never reached."""
+    _mint_work_step(wid="f1", filler="implementer")
+    proc = _sleeper(5)
+    _filler_record("f1", "g1", proc.pid)
+
+    code = cli.main(["f1"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert "form filler:        working" in out
+    assert "fill it, then:" not in out
+    proc.kill()
+    proc.wait()
 
 
 # -- drive's own bound --------------------------------------------------------

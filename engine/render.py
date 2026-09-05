@@ -414,7 +414,8 @@ def drift(measures):
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, onward_to=None,
            returns_from="", triage_notes=(), role="", verdict="",
-           row_returns=None, tier="", runner="", worktree="", branch=""):
+           row_returns=None, tier="", runner="", worktree="", branch="",
+           filler_status=""):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -422,6 +423,17 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     imperative; then the one way to reply -- and `role` rides in the last of
     those, beside the form, because where the posture is written is only
     useful to whoever is about to fill it.
+
+    `filler_status` names a childless form step's own automatic filler,
+    read off `_form_filler_records`/`_form_filler_start_counts` by the
+    caller: `"working"` suppresses the manual "fill it, then submit" line
+    the same way `_dispatch_child`'s configured "working" row carries no
+    brief -- a process already on this form, nothing left to type here.
+    `"spent"` leaves that line in place (a human genuinely has to act now)
+    and adds one word saying automatic filling is exhausted, distinguishing
+    it from the ordinary, untouched form room `""` renders. Never
+    `standalone`'s own concern -- a fresh filler's own brief always reads
+    `""` here, since no record of it exists yet at the moment it is built.
 
     `tier`/`runner`/`worktree`/`branch` turn this same room into a
     standalone brief for a form-step filler who is not this run's own
@@ -519,8 +531,19 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     written_at = posture(role)
     if written_at:
         out.append(f"  your posture:       {written_at}")
-    out.append(f"  your response form: {response_path}")
-    out.append(located(f"  fill it, then:     spine {wid} submit"))
+    if filler_status == "working":
+        # No "fill it, then submit" beside a live pid -- the same
+        # discipline `_dispatch_child`'s configured "working" row already
+        # holds for a dispatched child's own brief, redrawn here since a
+        # childless form step's filler is a process on this same form
+        # rather than a child of its own.
+        out.append("  form filler:        working -- already filling this "
+                   "form, nothing to type here")
+    else:
+        if filler_status == "spent":
+            out.append("  form filler:        spent -- automatic filling exhausted")
+        out.append(f"  your response form: {response_path}")
+        out.append(located(f"  fill it, then:     spine {wid} submit"))
     if not standalone:
         out.append(legal_moves(wid))
     return "\n".join(out)

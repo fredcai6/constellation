@@ -70,6 +70,20 @@ DRIVE_BOUND = 3600  # seconds `drive` blocks by default before it renders anyway
 #   total") taken as written.
 MAX_STARTS = 3   # total dispatch-started records a child may ever accumulate
 
+# [form-filler-max-starts]
+# Rationale: a form-filler process is not a dispatched child -- it fills the
+#   same run's own response form rather than running a whole other assembly
+#   -- so its own restart accounting is kept apart from `MAX_STARTS` even
+#   though the two are read the identical way (a per-key total of
+#   `*-started` records). A single shared constant would tie the two caps
+#   together for no reason: raising one to fit a slow dispatched child would
+#   silently also raise how long a stuck form filler is retried, and the
+#   reverse. Set to 3, `MAX_STARTS`'s own value taken as written for the
+#   same "two restarts, three starts total" reading -- there is no second
+#   recommendation for this shape, and no reason yet to diverge from the
+#   first.
+FORM_FILLER_MAX_STARTS = 3   # total form-filler-started records a step may ever accumulate
+
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
@@ -298,6 +312,87 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
         raise DispatchFailure(DISPATCH_SPAWN_FAILED, str(e)) from e
     return journal.append(wid, "dispatch-started", child=child_id, pid=proc.pid,
                            tree=tree, log=str(pathlib.Path(log).resolve()))
+
+
+# [dispatch-launch]
+# Rationale: a form-filler process is started through the identical
+#   `[commands] dispatch` entry a dispatched child already runs through --
+#   same three placeholders, same malformed/unfilled/launch-failed ways to
+#   fail -- so the substitution loop and the `Popen` call are lifted out
+#   here rather than typed a second time inside `spawn_form_filler`. This
+#   gate's own scope leaves `spawn_dispatch` itself untouched (its own copy
+#   of this same logic is not rewired to call this function), so the two do
+#   not literally share a call site today -- but they share this function's
+#   text, which is the one thing that matters for the rule not to drift:
+#   a future change to the substitution rule (a fourth placeholder, a
+#   different failure mode) has exactly one place to land for a form
+#   filler's own launch, not a second, hand-copied loop that could fall out
+#   of step with `spawn_dispatch`'s.
+# Rejected: rewriting `spawn_dispatch` to call this helper too. The gate
+#   spec that asked for this function is explicit that `spawn_dispatch`
+#   itself, and every one of its existing callers, is untouched this round.
+def _dispatch_launch(commands, brief, runner, tree, log):
+    """Substitute `{brief}`/`{runner}`/`{tree}` into the configured
+    `dispatch` entry and launch it, returning the live `Popen`. Returns
+    `None` when `commands` carries no `dispatch` key at all -- the same
+    "nothing configured" reading `spawn_dispatch` gives. Raises
+    `DispatchFailure` for every other way this can fail: a malformed entry,
+    an unfilled placeholder, or the process itself failing to start --
+    identical to `spawn_dispatch`'s own three failure modes, because this is
+    the same substitution rule applied to a different journal record."""
+    if "dispatch" not in commands:
+        return None
+    entry = commands["dispatch"]
+    if not isinstance(entry, list):
+        raise DispatchFailure(
+            DISPATCH_MALFORMED,
+            f"the dispatch entry must be a list of words, not {type(entry).__name__} "
+            f"-- {entry!r}")
+    values = {"brief": brief, "runner": runner, "tree": tree}
+    argv = []
+    for word in entry:
+        name = _DISPATCH_TOKENS.get(word)
+        if name is None:
+            argv.append(word)
+            continue
+        value = values.get(name)
+        if value is None:
+            raise DispatchFailure(
+                DISPATCH_UNFILLED, f"{word} has no value supplied for this child")
+        argv.append(str(value))
+    try:
+        return _spawn(argv, log, cwd=tree)
+    except OSError as e:
+        raise DispatchFailure(DISPATCH_SPAWN_FAILED, str(e)) from e
+
+
+# [spawn-form-filler]
+# Rationale: keyed by `step`, never `child` -- a form-step filler is not a
+#   child run, it is a process reading and writing this same run's own
+#   response form, and `_form_filler_records`/`_form_filler_start_counts`
+#   (`engine/cli.py`) already read `form-filler-started` on that assumption.
+#   `tree` is not stored on the record the way `dispatch-started` stores it:
+#   a filler never inherits a different tree than the run it is filling out
+#   already carries (`_tree_info` gives the caller that, the same as it
+#   does for every other spawn), so there is no second tree fact worth
+#   journaling here.
+def spawn_form_filler(commands, brief, runner, tree, wid, step_id, log):
+    """Spawn one form-step filler process, through the same `[commands]`
+    `dispatch` entry a dispatched child runs through, and journal the spawn
+    keyed by `step_id` (`form-filler-started`, fields `step`/`pid`/`log`) --
+    never `dispatch-started`, and never keyed by a child id, since this
+    process fills no assembly of its own.
+
+    Returns the journal entry a successful attempt wrote, `None` when
+    `commands` carries no `dispatch` entry at all. Raises `DispatchFailure`
+    for every other way the attempt can fail, identical to
+    `spawn_dispatch`'s own three failure modes -- no journal entry is
+    written on that path either."""
+    proc = _dispatch_launch(commands, brief, runner, tree, log)
+    if proc is None:
+        return None
+    return journal.append(wid, "form-filler-started", step=step_id, pid=proc.pid,
+                           log=str(pathlib.Path(log).resolve()))
 
 
 def _said(result, wid, step_id):

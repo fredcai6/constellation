@@ -1305,11 +1305,27 @@ def _returned_verdict(st, asm):
 #   read is the only thing here that needs it. `form` is threaded through
 #   for the same reason `_current_form`'s whole triple is -- a caller
 #   holding it need not pick it apart to call this.
+#
+#   `filler_status` (gate 3's own new read) is computed here too, on the
+#   same `step["id"]` both callers already hold, rather than as a second
+#   keyword either has to derive by hand: `_form_filler_brief` builds the
+#   room for a filler about to start, before any record of it exists, so
+#   it reads back `""` there and renders the ordinary form -- exactly what
+#   a filler that has not yet run needs to be told. `cmd_status`'s own call
+#   is the one that can actually see a live or spent record.
 def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     """Everything `render.status` needs besides `st`, `form` and
     `response_path` -- `cmd_status`'s own derivation, callable a second time
     by `_form_filler_brief` for a room whose board (if any) resolves against
     `root` instead of whatever cwd minted it."""
+    filler_record = _form_filler_records(wid).get(step["id"])
+    filler_count = _form_filler_start_counts(wid).get(step["id"], 0)
+    if filler_record is not None and checkrun.alive(filler_record.get("pid")):
+        filler_status = "working"
+    elif filler_record is not None and filler_count >= checkrun.FORM_FILLER_MAX_STARTS:
+        filler_status = "spent"
+    else:
+        filler_status = ""
     ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
     returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
     if returns:
@@ -1340,6 +1356,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         "triage_notes": [n for n in st["notes"] if n.get("kind_detail") == "triage"],
         "role": runmod.hat(asm, step, st),
         "row_returns": st["row_returns"],
+        "filler_status": filler_status,
     }
 
 
@@ -1534,6 +1551,64 @@ def _drive_bound(argv):
     return seconds
 
 
+# [drive-form-filler]
+# Rationale: the spawn/poll/stop-spent triad for a childless form step's own
+#   filler, drawn as its own function rather than a fourth inline block
+#   inside `cmd_drive`'s own loop -- that loop already reads three step
+#   shapes (panel, dispatch, this one) side by side, and a block this size
+#   would bury the branch order the loop's own shape depends on. Returns
+#   whether `cmd_drive` should stop (`True`, at the cap with nothing alive)
+#   rather than stopping itself, because only the caller's own loop can
+#   turn that into the right statement -- `return cmd_status(...)`, not a
+#   bare `continue` -- the same split `cmd_drive`'s dispatch/panel branches
+#   already draw between "spent" and "keep walking" a few lines below this
+#   one. Reads `_form_filler_records`/`_form_filler_start_counts` rather
+#   than `_dispatch_records`/`_dispatch_start_counts`: a form-step filler
+#   fills this same run's own response form, never a dispatched child of
+#   its own, so it is addressed by the step it fills (gate 3's own read
+#   half, wired to a real spawn here for the first time).
+# Rejected: reusing `_startable` for the startable/spent split. That
+#   predicate's first clause is `is_returned` -- "has this child already
+#   returned" -- a question with no answer for a form filler, which has no
+#   return of its own at all; the step it stands on simply stops being
+#   current once its response form is submitted. Restating the two clauses
+#   `_startable` actually shares with this shape (dead pid, count against a
+#   cap) directly is clearer than passing a manufactured `False` into a
+#   predicate whose name promises a check this call can never trigger.
+def _drive_form_filler(wid, st, asm, step, form):
+    """One spawn attempt, or a stop signal, for a childless form step's own
+    filler. `True` when this step's own filler is dead and
+    `checkrun.FORM_FILLER_MAX_STARTS` has already been reached -- spent,
+    nothing left for `drive` to start or poll, the caller's cue to render
+    and stop. `False` otherwise: a live pid needs only `cmd_drive`'s own
+    sleep-and-retry (never a fresh spawn on top of a filler already
+    working), and everything else -- never started, or dead and short of
+    the cap -- gets one spawn attempt through the repository's own
+    `dispatch` palette entry, wrapped in the identical
+    `try`/`except checkrun.DispatchFailure` discipline `_spawn_outstanding`
+    already holds: a failure's reason is appended to this step's own log
+    and left there for `cmd_drive`'s own retry next pass, never raised
+    past this call."""
+    record = _form_filler_records(wid).get(step["id"])
+    count = _form_filler_start_counts(wid).get(step["id"], 0)
+    if record is not None and checkrun.alive(record.get("pid")):
+        return False
+    if record is not None and count >= checkrun.FORM_FILLER_MAX_STARTS:
+        return True
+    worktree, _branch = _tree_info(wid, st)
+    tier = _role_tier(step.get("filler", ""))
+    brief_text = _form_filler_brief(wid, st, asm, step, form)
+    log = journal.location(wid) / f"form-filler.{step['id']}.log"
+    log.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        checkrun.spawn_form_filler(_palette(worktree).get("commands", {}), brief_text,
+                                   _runner(tier), worktree, wid, step["id"], log)
+    except checkrun.DispatchFailure as e:
+        with open(log, "a", encoding="utf-8") as f:
+            f.write(f"{e.reason}: {e.detail}\n")
+    return False
+
+
 # [drive-verb]
 # Rationale: three conditions end the call before it ever starts walking --
 #   an unresolvable work id, a run already closed outright or standing on
@@ -1564,10 +1639,9 @@ def cmd_drive(argv):
     of commitment 9's stop conditions is reached or `bound` runs out: an ask
     carried up (`paused`), the run standing on its own close form
     (`awaiting_close`), a gate or panelist spent past `checkrun.MAX_STARTS`
-    with nothing else outstanding for that step, or a form step with
-    nothing dispatched yet -- a shape this gate cannot resolve (no spawn
-    exists for it), so it stops and says the step still needs a hand-typed
-    command rather than crash or spin."""
+    with nothing else outstanding for that step, or a childless form step's
+    own filler spent past `checkrun.FORM_FILLER_MAX_STARTS` -- each stops and
+    renders rather than crash or spin."""
     wid = argv[0]
     bound = _drive_bound(argv[1:])
     st = runmod.state(wid)
@@ -1588,7 +1662,7 @@ def cmd_drive(argv):
         st = runmod.state(wid)  # re-folded every pass, never cached (commitment 2)
         if not st["open"] or st["awaiting_close"]:
             return cmd_status([wid])
-        asm, step, _ = _current_form(st)
+        asm, step, form = _current_form(st)
         seg_order = [s["id"] for s in asm["segment"]]
         if "plan" in seg_order and \
                 seg_order.index(step["segment"]) < seg_order.index("plan"):
@@ -1606,11 +1680,10 @@ def cmd_drive(argv):
             if runmod.in_flight(st, step):
                 time.sleep(checkrun.WAIT_POLL)
                 continue
-            # A childless form step with nothing dispatched yet: no spawn
-            # exists for this shape (this gate's own horizon), so there is
-            # nothing left to walk automatically -- stop and say so, the
-            # same room `status` already renders for it.
-            return cmd_status([wid])
+            if _drive_form_filler(wid, st, asm, step, form):
+                return cmd_status([wid])  # spent -- nothing left to spawn or poll
+            time.sleep(checkrun.WAIT_POLL)
+            continue
         cmd_wait([wid])  # the spawn/poll/render mechanism, unchanged
         fresh = runmod.state(wid)  # re-read post-`wait`, never the pre-call snapshot
         if all(cid in fresh["returns_by_child"] for cid in child_ids):
