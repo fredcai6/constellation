@@ -31,3 +31,10 @@ A review panel reads a new diff each round, so select fires again on every
 rework round: choose for the round in front of you, not the round that just
 failed — a panel inherited unchanged is the foregone pair this beat exists
 to replace.
+
+**Your run is the child your brief names, and only that one.** The run that
+dispatched you has a conductor of its own; its rooms, its adjudication of your
+return, and its close are that conductor's to fill. Never run `spine` on the
+parent's id, never fill a form under its work location, never close it. Your
+`close` is what returns your work there, and that is the whole of what crosses
+upward.
