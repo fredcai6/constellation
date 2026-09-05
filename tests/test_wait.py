@@ -343,13 +343,15 @@ def test_wait_spawns_a_never_dispatched_panelist_then_blocks_on_it(
 
 def test_wait_never_respawns_a_dispatch_child_that_already_returned(
         bare_workdir, capsys):
-    """The guard half `_spawn_outstanding`'s own check cannot make: it reads
-    only `dispatch-started` records and has no notion of a `return` at all,
-    so the `returns_by_child` half lives in `_wait_spawn` beside the call.
-    A child opened by hand (`spine open ... --parent ...`, still legal until
-    gate 4's room-text rewrite) and already returned carries no record --
-    without that half it would read as never-started and `wait` would start
-    a second, redundant process for work already done.
+    """The guard half `_spawn_outstanding`'s own check cannot make on its
+    own: it reads only `dispatch-started` records and has no notion of a
+    `return` at all, so the `returns_by_child` half now lives inside
+    `_startable`, read from `_spawn_outstanding`'s own call to it -- not
+    beside `_wait_spawn`'s own call, which carries no guard of its own at
+    all. A child opened by hand (`spine open ... --parent ...`, still legal
+    until gate 4's room-text rewrite) and already returned carries no
+    record -- without that half it would read as never-started and `wait`
+    would start a second, redundant process for work already done.
 
     Two dispatch steps naming the same child hold the shape open: `g0` has
     the return, so `g1` -- still current, still naming `d1.g1` -- reaches
@@ -481,12 +483,14 @@ def test_a_panel_of_three_spawns_only_its_one_genuinely_outstanding_child(
         bare_workdir, capsys, monkeypatch):
     """Extends `test_brief.py`'s own `_mint_panel_step` shape to three
     panelists, each in a different state: p1 already returned, p2 already
-    carries its own `dispatch-started` record whose pid (999999) reads as
-    dead, p3 is genuinely outstanding. One `wait` must spawn exactly the one
-    outstanding child -- not the returned one, and not the one already
-    started -- leaving exactly one new journal record and one new log file,
-    both keyed to p3's own child id, and the room it renders afterwards must
-    report all three siblings' own state (commitment 11)."""
+    carries `checkrun.MAX_STARTS` `dispatch-started` records whose pid
+    (999999) reads as dead -- gone and spent, so this gate's own restart
+    guard must not touch it either -- p3 is genuinely outstanding. One
+    `wait` must spawn exactly the one startable child -- not the returned
+    one, and not the spent one -- leaving exactly one new journal record
+    and one new log file, both keyed to p3's own child id, and the room it
+    renders afterwards must report all three siblings' own state
+    (commitment 11)."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     marker = bare_workdir / "spawned"
     _throwaway_dispatch(bare_workdir, marker)
@@ -501,22 +505,23 @@ def test_a_panel_of_three_spawns_only_its_one_genuinely_outstanding_child(
     pre_existing_log = journal.location(wid) / "dispatch.review.p2.log"
     pre_existing_log.parent.mkdir(parents=True, exist_ok=True)
     pre_existing_log.write_text("already running\n")
-    journal.append(wid, "dispatch-started", child=f"{wid}.review.p2",
-                   pid=999999, tree=str(bare_workdir), log=str(pre_existing_log))
+    for _ in range(checkrun.MAX_STARTS):
+        journal.append(wid, "dispatch-started", child=f"{wid}.review.p2",
+                       pid=999999, tree=str(bare_workdir), log=str(pre_existing_log))
 
     code = cli.main([wid, "wait", "--for", "1"])
     out = capsys.readouterr().out
 
     assert code == 0
     assert "panelist p1 (returned)" in out
-    assert "panelist p2 (gone without returning)" in out
+    assert "panelist p2 (gone without returning -- starts spent)" in out
     assert "panelist p3 (working)" in out
 
     assert _await(marker, 1)
     started = _dispatch_entries(wid)
-    # exactly one *new* dispatch-started record: p2's own is the pre-seeded one
+    # exactly one *new* dispatch-started record: p2's own are the pre-seeded ones
     new_started = [e for e in started if e["child"] != f"{wid}.review.p2"]
-    assert len(started) == 2
+    assert len(started) == 4
     assert len(new_started) == 1
     assert new_started[0]["child"] == f"{wid}.review.p3"
     assert len(list(marker.iterdir())) == 1
@@ -551,6 +556,134 @@ def test_a_working_childs_row_omits_the_brief_and_every_command(
     assert "brief --" not in out
     assert "open it:" not in out
     assert "runner" not in out
+
+
+# -- gate 4: `wait` restarts a gone-but-not-spent child itself, capped -------
+
+
+def test_wait_restarts_a_dead_pid_dispatch_child_then_blocks_on_its_new_pid(
+        bare_workdir, capsys, monkeypatch):
+    """Commitments 23-27: a single dead-pid `dispatch-started` record with
+    no return is gone but not spent (`checkrun.MAX_STARTS` is 3, and this
+    child carries only one), so `_startable` reads true and `cmd_wait`'s
+    own pre-loop restarts it -- a real, second process, through the same
+    test-configured `dispatch` entry, dropping its own marker file beside
+    (not instead of) the dead record's silence. `wait` then blocks on that
+    new pid exactly as `test_wait_blocks_on_a_live_dispatch_child_and_unblocks_on_its_return`
+    already proves for a first start, and releases on the child's `return`,
+    not the bound -- and since `WAIT_POLL` cycles several times before that
+    return lands, a second, wrongly-repeated restart attempt within this
+    same call would have dropped a second marker file (commitment 25)."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_dispatch(bare_workdir, marker)
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    _record("d1", "d1.g1", _dead_pid())
+    assert len(_dispatch_entries("d1")) == 1
+
+    def _land_it():
+        time.sleep(0.2)
+        journal.append("d1", "return", step="g1", child="d1.g1",
+                       fields={"result": "ok"})
+    threading.Thread(target=_land_it, daemon=True).start()
+
+    began = time.monotonic()
+    code = cli.main(["d1", "wait", "--for", "5"])
+    elapsed = time.monotonic() - began
+    capsys.readouterr()
+
+    assert code == 0
+    assert 0.15 < elapsed < 3, f"elapsed {elapsed}"
+    assert _await(marker, 1)                          # the restart's own marker
+    assert len(list(marker.iterdir())) == 1            # never a second restart attempt
+    assert cli._dispatch_start_counts("d1")["d1.g1"] == 2
+    assert "d1.g1" in runmod.state("d1")["returns_by_child"]
+
+
+def test_wait_restarts_again_at_the_boundary_nearest_the_cap(
+        bare_workdir, capsys, monkeypatch):
+    """The same guard, chased one step further: this child already carries
+    `checkrun.MAX_STARTS - 1` (2) dead-pid records with no return -- gone,
+    and one restart short of spent. `_startable`'s own comparison must read
+    `count < checkrun.MAX_STARTS` (2 < 3, true) rather than a guard written
+    as `count >= checkrun.MAX_STARTS - 1` (2 >= 2, wrongly false) -- the
+    boundary value nearest the cap on the still-restarts side. One `wait`
+    call restarts it a third time, reaching count 3 exactly."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_dispatch(bare_workdir, marker)
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    for _ in range(checkrun.MAX_STARTS - 1):
+        _record("d1", "d1.g1", _dead_pid())
+    assert len(_dispatch_entries("d1")) == checkrun.MAX_STARTS - 1
+
+    code = cli.main(["d1", "wait", "--for", "1"])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert _await(marker, 1)
+    assert len(list(marker.iterdir())) == 1
+    assert cli._dispatch_start_counts("d1")["d1.g1"] == checkrun.MAX_STARTS
+    assert "d1.g1 (working)" in out
+
+
+def test_wait_does_not_restart_a_dispatch_child_already_at_max_starts(
+        bare_workdir, capsys):
+    """The cap's own far side: this child already carries
+    `checkrun.MAX_STARTS` dead-pid records with no return -- gone, and
+    spent. `wait` must not attempt a fourth start at all: no new marker
+    file, no new journal entry, and the render it falls through to
+    (nothing outstanding, nothing startable) happens immediately rather
+    than after any poll cycle, naming this child's starts as spent."""
+    marker = bare_workdir / "spawned"
+    _throwaway_dispatch(bare_workdir, marker)
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    for _ in range(checkrun.MAX_STARTS):
+        _record("d1", "d1.g1", _dead_pid())
+    assert len(_dispatch_entries("d1")) == checkrun.MAX_STARTS
+
+    began = time.monotonic()
+    code = cli.main(["d1", "wait"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert elapsed < 1
+    assert len(_dispatch_entries("d1")) == checkrun.MAX_STARTS
+    assert not marker.exists()
+    assert "d1.g1 (gone without returning -- starts spent)" in out
+
+
+def test_wait_restarts_with_the_resume_command_once_the_runs_already_exists(
+        bare_workdir, capsys, monkeypatch):
+    """The restart-brief mirror of
+    `test_gone_without_returning_offers_the_resume_command_once_the_run_exists`
+    (`tests/test_dispatch_wiring.py`), but proven against the process
+    `wait` actually spawns rather than only the rendered text: this
+    child's run was already opened by hand once before its harness died,
+    so `_respawn_cmd` -- now run unconditionally by `_wait_spawn` -- hands
+    the restarted process `spine {child_id}`, not the brief's original
+    `open it:` line, which would raise `SystemExit` with "already exists"
+    in it the moment anything actually ran it."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_dispatch(bare_workdir, marker)
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    cli.main(["open", "run-a-gate", "--parent", "d1", "--step", "g1"])
+    capsys.readouterr()
+    assert journal.exists("d1.g1")
+    _record("d1", "d1.g1", _dead_pid())
+
+    code = cli.main(["d1", "wait", "--for", "1"])
+    capsys.readouterr()
+
+    assert code == 0
+    assert _await(marker, 1)
+    briefs = list(pathlib.Path(marker).iterdir())
+    assert len(briefs) == 1
+    text = briefs[0].read_text(encoding="utf-8")
+    line = next(l for l in text.splitlines() if "open it:" in l)
+    assert line.split("open it:", 1)[1].strip().split() == [cli.render.spine_cmd(), "d1.g1"]
 
 
 # -- the mechanism itself: blocks, and unblocks three ways -------------------
