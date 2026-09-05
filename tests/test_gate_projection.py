@@ -28,6 +28,13 @@ from test_nesting import (
 )
 
 
+def _plan_impasse_after():
+    """The plan segment's `impasse-after`, read off the assembly rather than
+    pinned (1 since the 2026-09-05 ruling)."""
+    return next(s for s in runmod.load_assembly("run-an-issue")["segment"]
+                if s["id"] == "plan")["impasse-after"]
+
+
 def _drive_to_plan_to_execute(wid="issue17", fill_fn=None):
     """Open a real run-an-issue and drive it through one real plan round and
     a real critic pass, right up to the plan-to-execute form -- the same
@@ -299,10 +306,13 @@ def _drive_to_impasse_with_varying_gates(wid="issue17"):
     _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
         w, purpose="round 1 purpose", scope="round 1 scope"))
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: round 1 is untestable")
-    for n, (purpose, scope) in enumerate(
-            [("round 2 purpose", "round 2 scope"),
-             ("round 3 purpose -- the one the ruling approves",
-              "round 3 scope -- the one the ruling approves")], start=2):
+    # one rework per `impasse-after` (read off the assembly, never pinned),
+    # the last of them the round the ruling approves
+    last = _plan_impasse_after() + 1
+    rounds = [(f"round {n} purpose", f"round {n} scope") for n in range(2, last)]
+    rounds.append((f"round {last} purpose -- the one the ruling approves",
+                   f"round {last} scope -- the one the ruling approves"))
+    for n, (purpose, scope) in enumerate(rounds, start=2):
         st = runmod.state(wid)
         fresh = next(s for s in st["steps"]
                     if s["segment"] == "plan" and s.get("source") == "mint"
@@ -349,11 +359,12 @@ def test_impasse_advance_projects_the_round_the_ruling_approved(workdir, capsys)
     assert [a["id"] for a in adjudications] == ["g1-adjudicate"]
 
     g1 = next(s for s in st["steps"] if s["id"] == "g1")
-    assert g1["prefill"]["purpose"] == "round 3 purpose -- the one the ruling approves"
-    assert g1["prefill"]["scope"] == "round 3 scope -- the one the ruling approves"
+    last = _plan_impasse_after() + 1
+    assert g1["prefill"]["purpose"] == f"round {last} purpose -- the one the ruling approves"
+    assert g1["prefill"]["scope"] == f"round {last} scope -- the one the ruling approves"
     assert g1["prefill"]["proof"] == "true"
-    # not the first round's, and not the middle one's either
-    assert g1["prefill"]["purpose"] not in ("round 1 purpose", "round 2 purpose")
+    # not the first round's, and not any middle one's either
+    assert g1["prefill"]["purpose"] not in {f"round {n} purpose" for n in range(1, last)}
 
 
 def test_a_rework_on_the_transition_still_projects_nothing(workdir, capsys):

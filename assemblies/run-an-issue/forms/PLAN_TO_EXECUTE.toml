@@ -10,12 +10,17 @@
 imperative = """
 The panel has returned. Read its findings as written -- a revise is not an
 invitation to argue the verdict you were given -- and say where this round
-goes: on to execute, or back for another pass. Then call every finding it
-returned, one by one; a `rework` carries the ones you call blocking and
-nothing else. The round that just passed critique already cut the gate
-whole -- purpose, scope, proof, and any model or direction override --
-so a `pass` (or a `revise` you are not sending back) needs nothing retyped,
-only the plan artifact pointed at."""
+goes: on to execute, or back for another pass. One round is the default
+(ruling, 2026-09-05): the gate's own reviewers can run the code the critics
+could only read, and across five runs nothing a plan seam found after its
+first round changed what shipped. Call every finding it returned, one by
+one; a `rework` carries the ones you call blocking and nothing else, and
+blocking means the gate would build the wrong thing or could not be proven
+-- a true finding that is neither rides into the gate as its `direction`,
+not into another planner round. The round that just passed critique already
+cut the gate whole -- purpose, scope, proof, and any model or direction
+override -- so a `pass` (or a `revise` you are not sending back) needs
+nothing retyped, only the plan artifact pointed at."""
 
 [[field]]
 id = "resolution"
@@ -64,9 +69,12 @@ note = """
 One block per finding the panel returned -- every one of them gets a call,
 and this form is the only place any of them is ruled on.
 
-`blocking` -- the plan is not filled while this stands. These and only these
-ride into a `rework` as the fresh planner round's own findings, so a
-blocking call is that round's orders. `accepted` -- true, and the round
+`blocking` -- the gate this plan cut would build the wrong thing, or its
+proof could not show it built the right one; nothing else is blocking, and
+a finding that is true and neither of those is `accepted` and carried into
+the gate's own `direction`. These and only these ride into a `rework` as
+the fresh planner round's own findings, so a blocking call is that round's
+orders. `accepted` -- true, and the round
 stands anyway; a finding you are noting rather than acting on, recorded here
 rather than worked. A finding that proposes deleting something -- a commitment, a gate, a
 field, a file -- takes `blocking` or `rejected: <reason>` and never

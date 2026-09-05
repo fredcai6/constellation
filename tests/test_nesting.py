@@ -347,13 +347,15 @@ key-terms = "waived: none"
 
 
 def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
-    """Three revises landing on the same objection -- the first review plus
-    two reworks -- is the only way a root objection reaches the plan
+    """The first review's revise plus `impasse-after` reworks, each landing on
+    the same objection, is the only way a root objection reaches the plan
     segment's impasse form now that the panel's vocabulary is `pass |
-    revise`, not a third word that jumps there in one, and `impasse-after`
-    is 2 (ruling, 2026-09-02)."""
+    revise`, not a third word that jumps there in one. The count is read off
+    the assembly (1 since the 2026-09-05 ruling: one review cycle by default
+    at this seam), never pinned here."""
     _dispatch_plan_critic(wid, verdict="revise", findings=findings)
-    for _ in range(2):
+    plan = next(s for s in runmod.load_assembly("run-an-issue")["segment"] if s["id"] == "plan")
+    for _ in range(plan["impasse-after"]):
         st = runmod.state(wid)
         fresh = next(s for s in st["steps"]
                     if s["segment"] == "plan" and s.get("source") == "mint"

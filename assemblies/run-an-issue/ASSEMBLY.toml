@@ -144,16 +144,18 @@ step-form = "skills/planner/forms/PLAN.toml"
 rework-form = "skills/planner/forms/REWORK.toml"
 # After this many rework rounds on one artifact, a further revise mints the
 # impasse form instead: the loop itself becomes the thing the conductor rules
-# on. Counted since the last step-form mint, so a replan starts over. Two
-# reworks succeed -- the first and second critic rounds each send the plan
-# back for another pass -- and the third round's own revise reaches the
-# outlet instead of a fourth (ruling, 2026-09-02: at most three critic
-# dispatches per artifact). The count latches: an impasse `rework` (below)
+# on. Counted since the last step-form mint, so a replan starts over. One
+# rework succeeds -- the first critic round may send the plan back once --
+# and the second round's own revise reaches the outlet instead of a third
+# (ruling, 2026-09-05: one review cycle is the default at this seam, a second
+# is sometimes worth it, and a third by structure was a miss; the earlier
+# 2026-09-02 ruling of three critic dispatches per artifact is superseded
+# here and stands elsewhere). The count latches: an impasse `rework` (below)
 # counts the same as an ordinary one, so a ruling that sends the loop back
 # does not buy it a fresh allowance -- `rework_rounds` (engine/run.py) counts
 # every mint since the last step-form mint with no exception for where the
 # mint came from.
-impasse-after = 2
+impasse-after = 1
 impasse-form = "forms/IMPASSE.toml"
 worker = "planner"
 # design-it-twice's three planner entries below name no model of their own,
