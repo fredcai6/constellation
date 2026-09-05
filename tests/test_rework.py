@@ -670,3 +670,45 @@ def test_understands_third_revise_mints_the_impasse_form_not_another_spec_round(
                    for s in st["steps"]), "the impasse minted a panel"
     asm = runmod.load_assembly("run-an-issue")
     assert runmod.rework_rounds(st, asm, "understand") == _understand_impasse_after()
+
+
+# -- 8. `_mint_segment_round`'s fresh transition round carries `filler` too --
+
+
+def test_a_revised_understands_re_minted_transition_carries_its_declared_filler(
+        workdir, capsys):
+    """`understand` has a real interior (a board), so `_mint_segment_round`'s
+    `fresh` transition dict used to set `filler` only inside the branch a
+    segment with an interior never takes -- CONSOLIDATE's own re-minted round
+    carried no `filler` key at all, though the transition declares one.
+    Confirmed against the assembly's own declared value, the same one
+    `skeleton()` gives round one."""
+    wid = _drive_understand_to_revise()
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    fresh = next(s for s in st["steps"]
+                if s.get("source") == "panel" and s["segment"] == "understand")
+    asm = runmod.load_assembly("run-an-issue")
+    seg = next(s for s in asm["segment"] if s["id"] == "understand")
+    assert fresh["filler"] == seg["transition"]["filler"] == "conductor"
+
+
+def test_a_gates_reworked_select_carries_the_conductor_default(workdir, capsys):
+    """`work`'s own transition (`select`) declares no `filler` at all -- its
+    re-minted round used to carry none either, leaving `role_of`/`hat` to
+    guess. Confirmed the re-mint carries the same bare `"conductor"` default
+    `skeleton()` already gives round one's own `select`, minted at `open`."""
+    _mint_n_gates(1)
+    cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
+    child = "issue17.g1"
+    _fill_implement(child, runmod.state(child)["current"]["id"])
+    cli.main([child, "submit"])
+    _dispatch_review(child, verdict="revise", findings="gap: untestable")
+    capsys.readouterr()
+
+    st = runmod.state(child)
+    round_one_select = next(s for s in st["steps"] if s["id"] == "select")
+    fresh_select = next(s for s in st["steps"]
+                        if s.get("source") == "panel" and s["segment"] == "work")
+    assert fresh_select["filler"] == round_one_select["filler"] == "conductor"

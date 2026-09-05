@@ -1320,7 +1320,9 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     `root` instead of whatever cwd minted it."""
     filler_record = _form_filler_records(wid).get(step["id"])
     filler_count = _form_filler_start_counts(wid).get(step["id"], 0)
-    if filler_record is not None and checkrun.alive(filler_record.get("pid")):
+    if step.get("terminal"):
+        filler_status = "terminal"
+    elif filler_record is not None and checkrun.alive(filler_record.get("pid")):
         filler_status = "working"
     elif filler_record is not None and filler_count >= checkrun.FORM_FILLER_MAX_STARTS:
         filler_status = "spent"
@@ -1677,6 +1679,8 @@ def cmd_drive(argv):
         elif step.get("dispatches"):
             child_ids = [step.get("child") or f"{wid}.{step['id']}"]
         else:
+            if step.get("terminal"):
+                return cmd_status([wid])  # its own terminal form -- the principal's, not driven
             if runmod.in_flight(st, step):
                 time.sleep(checkrun.WAIT_POLL)
                 continue
@@ -3288,6 +3292,7 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler=""):
     # terminal step and the panelist's actual ruling never reached its
     # parent.
     fresh = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
+             "filler": t.get("filler", "conductor"),
              "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
              "source": "panel"}
     if t.get("panel"):

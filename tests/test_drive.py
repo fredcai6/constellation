@@ -428,6 +428,100 @@ def test_cmd_status_renders_working_for_a_live_filler_pid(bare_workdir, capsys):
     proc.wait()
 
 
+# -- a re-minted transition round's filler spawns the same as round one's ---
+
+
+def test_a_reworked_selects_filler_still_spawns_with_its_carried_role(
+        bare_workdir, capsys, monkeypatch):
+    """`_mint_segment_round`'s own fix (setting a re-minted transition's
+    `filler` unconditionally, mirroring `skeleton()`) changes what a second
+    round's `select` step carries, never how a childless form step's filler
+    is spawned or rendered -- every reader of `step['filler']` already
+    worked once the key was there. Proven directly: a real second round,
+    minted the same way a revise mints one (`cli._mint_segment_round`),
+    still gets a real filler spawn under the role it carries, and the room
+    still prints its posture line."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    journal.append("g1", "run", title="t", assembly="run-a-gate")
+    asm = runmod.load_assembly("run-a-gate")
+    cli._mint_segment_round(wid="g1", asm=asm, seg_id="work",
+                            prefill={"findings": "gap: untestable"})
+    interior_id = runmod.state("g1")["current"]["id"]
+    journal.append("g1", "submit", step=interior_id,
+                   fields={"change": "x", "deviations": "none"})
+    select_id = next(s["id"] for s in runmod.state("g1")["steps"]
+                     if s.get("source") == "panel" and s["segment"] == "work")
+    assert runmod.state("g1")["current"]["id"] == select_id
+    assert runmod.state("g1")["current"]["filler"] == "conductor"  # the fix itself
+
+    code = cli.main(["g1", "drive", "--for", "1"])
+    capsys.readouterr()
+
+    assert code == 0
+    assert _await(marker, 1)
+    started = _form_filler_entries("g1")
+    assert any(e["step"] == select_id for e in started)
+
+    out_code = cli.main(["g1"])
+    out = capsys.readouterr().out
+    assert out_code == 0
+    assert "your posture:" in out
+
+
+# -- a terminal form step: rendered and left alone, never filled ------------
+
+
+def test_a_run_an_issues_terminal_form_stops_drive_without_a_filler(
+        bare_workdir, capsys):
+    """`run-an-issue`'s own close form (the `execute` segment's terminal
+    transition) is the principal's to fill, never a filler's -- `drive` must
+    stop the instant it is current, before `runmod.in_flight` or
+    `_drive_form_filler` ever runs, spawning nothing and writing no
+    `form-filler-started` record."""
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    journal.append("i1", "run", title="t", assembly="run-an-issue")
+    journal.append("i1", "step", id="execute", segment="execute",
+                   form="forms/CLOSE.toml", filler="conductor", prefill={},
+                   anchor=True, terminal=True, validates="", source="mint")
+
+    began = time.monotonic()
+    code = cli.main(["i1", "drive"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert elapsed < 1
+    assert not marker.exists()
+    assert _form_filler_entries("i1") == []
+    assert "principal" in out
+
+
+def test_a_run_a_gates_terminal_form_stops_drive_without_a_filler(
+        bare_workdir, capsys):
+    """The tier-2 half of the same guard: `run-a-gate`'s own `close`
+    transition, standing on its own `terminal` step."""
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    journal.append("g1", "run", title="t", assembly="run-a-gate")
+    journal.append("g1", "step", id="close", segment="close",
+                   form="forms/GATE_CLOSE.toml", filler="conductor", prefill={},
+                   anchor=True, terminal=True, validates="", source="mint")
+
+    began = time.monotonic()
+    code = cli.main(["g1", "drive"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert elapsed < 1
+    assert not marker.exists()
+    assert _form_filler_entries("g1") == []
+    assert "principal" in out
+
+
 # -- drive's own bound --------------------------------------------------------
 
 
