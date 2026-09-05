@@ -244,6 +244,34 @@ def posture(role):
     return f"{path} -- read it before you start" if path else ""
 
 
+# [dispatch-lines]
+# Rationale: `render.brief` and `render.status`'s own standalone-brief branch
+#   say the identical four things about a child -- who it is, what posture
+#   it reads, what tier and runner it runs under, which tree it inherits --
+#   and a wording change to any of those lines used to have to land twice,
+#   by hand, in step. One function, two callers, so it lands once or not at
+#   all. `written_at` is taken as a parameter rather than computed here
+#   (`posture(role)`) because `render.status` already prints its own,
+#   differently-worded posture line for every room and must not print a
+#   second one beside it -- its own call leaves this at the default and lets
+#   that pre-existing line stand alone.
+def _dispatch_lines(role, tier, runner, worktree="", branch="", written_at=""):
+    """The role/posture/tier/runner/tree lines `render.brief` builds for
+    every child, unchanged -- extracted so `render.status`'s standalone
+    brief can print the identical text rather than a second, hand-typed
+    copy of it."""
+    lines = [f"    role         {role or '(unset)'}"]
+    if written_at:
+        lines.append(f"    posture      {written_at}")
+    lines += [
+        f"    tier         {tier or '(unset)'}",
+        f"    runner       {runner or '(unresolved -- check constellation.toml [models])'}",
+    ]
+    if worktree:
+        lines.append(f"    tree         {worktree}" + (f" -- branch {branch}" if branch else ""))
+    return lines
+
+
 def brief(child_id, role, tier, runner, open_cmd, finish_form, worktree="", branch=""):
     """One dispatch's whole brief, shared by a gate dispatch and a panelist
     so the two never render this as two drifting copies: who the child will
@@ -253,19 +281,8 @@ def brief(child_id, role, tier, runner, open_cmd, finish_form, worktree="", bran
     and the branch it is on. This is the text a conductor hands its harness
     -- nothing else should be needed to start.
     """
-    lines = [
-        f"  brief -- {child_id}",
-        f"    role         {role or '(unset)'}",
-    ]
-    written_at = posture(role)
-    if written_at:
-        lines.append(f"    posture      {written_at}")
-    lines += [
-        f"    tier         {tier or '(unset)'}",
-        f"    runner       {runner or '(unresolved -- check constellation.toml [models])'}",
-    ]
-    if worktree:
-        lines.append(f"    tree         {worktree}" + (f" -- branch {branch}" if branch else ""))
+    lines = [f"  brief -- {child_id}"]
+    lines += _dispatch_lines(role, tier, runner, worktree, branch, written_at=posture(role))
     lines.append(f"    open it:     {located(open_cmd)}")
     close_cmd = located(f"spine {child_id} close")
     if finish_form:
@@ -397,7 +414,7 @@ def drift(measures):
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, onward_to=None,
            returns_from="", triage_notes=(), role="", verdict="",
-           row_returns=None):
+           row_returns=None, tier="", runner="", worktree="", branch=""):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -405,6 +422,15 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     imperative; then the one way to reply -- and `role` rides in the last of
     those, beside the form, because where the posture is written is only
     useful to whoever is about to fill it.
+
+    `tier`/`runner`/`worktree`/`branch` turn this same room into a
+    standalone brief for a form-step filler who is not this run's own
+    `status` caller: given any of `tier`, `runner` or `worktree`, the
+    identical role/tier/runner/tree text `render.brief` prints for a
+    dispatched child prints here too, by way of `_dispatch_lines`, and
+    `legal_moves` -- a room's own `note`/`amend` escape hatch, not a
+    filler's -- is left off. `role`'s own posture line is unaffected either
+    way: it is this function's, not `_dispatch_lines`'s, in both cases.
     """
     wid = st["id"]
     out = preamble(st, blocked, position)
@@ -485,12 +511,18 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append(_pairs(list(in_hand.items())))
         out.append("")
 
+    standalone = bool(tier or runner or worktree)
+    if standalone:
+        out.extend(_dispatch_lines(role, tier, runner, worktree, branch))
+        out.append("")
+
     written_at = posture(role)
     if written_at:
         out.append(f"  your posture:       {written_at}")
     out.append(f"  your response form: {response_path}")
     out.append(located(f"  fill it, then:     spine {wid} submit"))
-    out.append(legal_moves(wid))
+    if not standalone:
+        out.append(legal_moves(wid))
     return "\n".join(out)
 
 

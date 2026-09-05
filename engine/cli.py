@@ -289,9 +289,35 @@ def _load_form(asm, ref, wid, step_id):
     return forms.load(path)
 
 
-def _response_path(st, step):
+def _response_path(st, step, *, root=None):
+    """Where this step's own response form lands -- resolved fresh against
+    `journal.location(st["id"], root)` rather than any path frozen earlier,
+    so a caller whose process starts somewhere else (`_form_filler_brief`,
+    off the tree `_tree_info` names) still gets an absolute, correct path.
+    `root=None` is `cmd_status`'s own case: resolve the same way it always
+    has."""
     name = pathlib.Path(step["form"]).stem + ".toml"
-    return journal.location(st["id"]) / name
+    return journal.location(st["id"], root) / name
+
+
+# [board-path]
+# Rationale: mirrors `_response_path` exactly, for the same reason: a
+#   board's own path is stored once, at `_mint` time, against whatever cwd
+#   minted it (`engine/cli.py`'s two `journal.location(wid)` calls with no
+#   `root` override) and never re-resolved -- correct for `cmd_status`,
+#   whose caller is standing in that same tree, and wrong for a standalone
+#   brief built for a filler whose process starts elsewhere. The stored
+#   string is trusted only for its filename; the location itself is always
+#   re-derived fresh.
+def _board_path(wid, st, step, root=None):
+    """This step's own board path, re-resolved against `root` (or, when
+    `root` is `None`, `journal.location`'s own default -- the same reading
+    `st["boards"][...]` already gives `cmd_status` today). `None` for a
+    segment that carries no board at all."""
+    stored = st["boards"].get(step["segment"])
+    if not stored:
+        return None
+    return journal.location(wid, root) / pathlib.Path(stored).name
 
 
 _WORKTREES_DIR = ".worktrees"  # sibling of the top-level checkout's tracked tree
@@ -687,6 +713,32 @@ def _dispatch_start_counts(wid):
     return counts
 
 
+# [form-filler-records]
+# Rationale: a form-step filler is addressed by the step it fills, never a
+#   child id -- there is no child, only a process reading and writing the
+#   same run's own response form -- so `form-filler-started` (`step`, `pid`,
+#   `log`) is keyed by `step` the way `_dispatch_records` keys its own
+#   record by `child`. Nothing appends this kind of entry yet (gate 4's
+#   horizon): this is the read half of commitment 7's contract, proven on
+#   its own before any real spawn writes one.
+def _form_filler_records(wid):
+    """Every step id that already carries a `form-filler-started` record on
+    `wid`'s own journal, mapped to that record -- the same "latest record"
+    shape `_dispatch_records` gives per child, keyed by step instead."""
+    return {e.get("step"): e for e in journal.read(wid) if e.get("kind") == "form-filler-started"}
+
+
+def _form_filler_start_counts(wid):
+    """`{step_id: count}` -- how many `form-filler-started` records `wid`'s
+    own journal carries for each step that has ever had a filler started at
+    all; the same total shape `_dispatch_start_counts` gives per child."""
+    counts = {}
+    for e in journal.read(wid):
+        if e.get("kind") == "form-filler-started":
+            counts[e.get("step")] = counts.get(e.get("step"), 0) + 1
+    return counts
+
+
 # [startable]
 # Rationale: `IMPASSE.toml`'s own ruling on this gate's third round names
 #   the shape every prior round's gap shared -- "a guard whose halves live
@@ -899,6 +951,50 @@ def _dispatch_descriptor(wid, asm, step):
     dispatched = runmod.load_assembly(step["dispatches"])
     open_cmd = f"spine open {step['dispatches']} --parent {wid} --step {step['id']}"
     return dispatched.get("conductor", ""), _tier(step, asm), open_cmd, _finishing(dispatched)
+
+
+# [form-filler-brief]
+# Rationale: a dispatch step's child is a whole other run, briefed once and
+#   opened as a process elsewhere; a form-step filler is not -- it is this
+#   same run, standing on this same step, except that whoever fills it may
+#   be a process `wait` starts rather than the caller reading `status`
+#   directly. That filler needs the identical room `cmd_status` renders for
+#   a live conductor standing on this step, plus the four lines (role,
+#   tier, runner, tree) a spawned process needs and a live one already
+#   knows from its own surroundings -- which is exactly `render.status`'s
+#   new standalone-brief parameters. `tier` is read off the step's own raw
+#   `filler` through `_role_tier`, not off `hat`'s unwrapped name: the two
+#   are different answers to different questions (a model tier for
+#   `filler == "conductor"` is always `heavy`, resolved before anything
+#   unwraps it; the posture and role line shown are `hat`'s own answer, the
+#   assembly's real conductor). `worktree`/`branch` come from `_tree_info`,
+#   never cwd, because the filler's own process is not presumed to be
+#   standing in this run's tree the way `cmd_status`'s caller is. Both the
+#   response form and the board -- if this segment carries one -- are
+#   re-resolved against that same tree via `_response_path`/`_board_path`'s
+#   shared `root` parameter, for the identical reason: a path frozen at
+#   mint time against some other cwd is not this filler's to trust.
+# Rejected: computing `role` a second way here rather than reading it off
+#   `_room_kwargs`. `_room_kwargs` already derives it via `runmod.hat`, the
+#   same call `cmd_status` makes for a live conductor standing on the
+#   identical step -- a second, hand-written call here could drift from it
+#   for no reason.
+def _form_filler_brief(wid, st, asm, step, form):
+    """The room a form-step filler stands in: `cmd_status`'s own room,
+    off the shared `_room_kwargs` derivation, plus the role/tier/runner/tree
+    lines a spawned process needs and `cmd_status`'s own live caller does
+    not. No caller yet (gate 4's horizon) -- this is the contract alone."""
+    worktree, branch = _tree_info(wid, st)
+    root = pathlib.Path(worktree)
+    tier = _role_tier(step.get("filler", ""))
+    runner = _runner(tier)
+    dest = _response_path(st, step, root=root)
+    if not dest.exists():
+        forms.materialize(form, dest, work_id=wid,
+                          submit=render.located(f"spine {wid} submit"))
+    kwargs = _room_kwargs(wid, st, asm, step, form, dest, root=root)
+    return render.status(st, form, dest, tier=tier, runner=runner,
+                         worktree=worktree, branch=branch, **kwargs)
 
 
 def _panel_descriptors(wid, asm, step):
@@ -1195,6 +1291,58 @@ def _returned_verdict(st, asm):
     return ""
 
 
+# [room-kwargs]
+# Rationale: `cmd_status`'s own derivation of everything `render.status`
+#   needs beyond `st`/`form`/`response_path` themselves -- the returned
+#   child's fields folded flat, the board (now via `_board_path`, re-derived
+#   fresh rather than trusted from whatever cwd minted it), prefill, in-hand
+#   fields, the returned verdict, blocks, position, triage notes, the role,
+#   row returns -- lifted out here so `_form_filler_brief` can build the
+#   identical room off the same derivation rather than a second hand-copy
+#   of it. `dest` is a parameter, not recomputed, because both callers
+#   already have it (`cmd_status` from its own `_response_path` call,
+#   `_form_filler_brief` from its own with `root` given) and `in_hand`'s
+#   read is the only thing here that needs it. `form` is threaded through
+#   for the same reason `_current_form`'s whole triple is -- a caller
+#   holding it need not pick it apart to call this.
+def _room_kwargs(wid, st, asm, step, form, dest, root=None):
+    """Everything `render.status` needs besides `st`, `form` and
+    `response_path` -- `cmd_status`'s own derivation, callable a second time
+    by `_form_filler_brief` for a room whose board (if any) resolves against
+    `root` instead of whatever cwd minted it."""
+    ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
+    returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
+    if returns:
+        # Every structured value the summary can carry, spelled out rather
+        # than left as a raw list -- str() on a list prints Python reprs, not
+        # something a conductor can act on. A field's own form answer (e.g.
+        # CLOSE.toml's `triage`) is a string that already overrode the
+        # summary's list by the time it lands here, so only a survivor gets
+        # rendered; the isinstance check is what tells the two apart.
+        for key, fn in (("checks", render.checks), ("cycles", render.cycles),
+                        ("amends", render.amends), ("triage", render.triage)):
+            if isinstance(returns.get(key), list):
+                returns[key] = "; ".join(fn(returns[key])) or "none"
+    # Rendered whenever the segment has a board; `validates` decides only
+    # whether submit refuses on it. The ideas board is read at every cycle
+    # and refused at none.
+    board = _board_state(_board_path(wid, st, step, root))
+    prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
+    return {
+        "prefill": prefill,
+        "returns": returns,
+        "returns_from": step.get("child", ""),
+        "verdict": _returned_verdict(st, asm),
+        "blocked": runmod.blocks(st),
+        "position": runmod.position(st, asm),
+        "board": board,
+        "in_hand": forms.in_hand(dest) if dest.exists() else None,
+        "triage_notes": [n for n in st["notes"] if n.get("kind_detail") == "triage"],
+        "role": runmod.hat(asm, step, st),
+        "row_returns": st["row_returns"],
+    }
+
+
 def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -1222,32 +1370,8 @@ def cmd_status(argv):
     if not dest.exists():
         forms.materialize(form, dest, work_id=wid,
                           submit=render.located(f"spine {wid} submit"))
-    ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
-    returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
-    if returns:
-        # Every structured value the summary can carry, spelled out rather
-        # than left as a raw list -- str() on a list prints Python reprs, not
-        # something a conductor can act on. A field's own form answer (e.g.
-        # CLOSE.toml's `triage`) is a string that already overrode the
-        # summary's list by the time it lands here, so only a survivor gets
-        # rendered; the isinstance check is what tells the two apart.
-        for key, fn in (("checks", render.checks), ("cycles", render.cycles),
-                        ("amends", render.amends), ("triage", render.triage)):
-            if isinstance(returns.get(key), list):
-                returns[key] = "; ".join(fn(returns[key])) or "none"
-    # Rendered whenever the segment has a board; `validates` decides only
-    # whether submit refuses on it. The ideas board is read at every cycle
-    # and refused at none.
-    board = _board_state(st["boards"].get(step["segment"]))
-    prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
-    print(render.status(st, form, dest, prefill=prefill,
-                        returns=returns, returns_from=step.get("child", ""),
-                        verdict=_returned_verdict(st, asm),
-                        blocked=runmod.blocks(st),
-                        position=runmod.position(st, asm), board=board,
-                        in_hand=forms.in_hand(dest) if dest.exists() else None,
-                        triage_notes=[n for n in st["notes"] if n.get("kind_detail") == "triage"],
-                        role=runmod.hat(asm, step, st), row_returns=st["row_returns"]))
+    kwargs = _room_kwargs(wid, st, asm, step, form, dest)
+    print(render.status(st, form, dest, **kwargs))
     return 0
 
 
