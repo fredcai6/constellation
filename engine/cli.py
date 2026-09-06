@@ -1826,6 +1826,7 @@ def cmd_submit(argv):
     # the submit computes it again.
     _check_plan(asm, form, fields)
     _check_vocabulary(asm, step, form, fields)
+    _check_calls(form, fields)
     _check_artifact(wid, form, fields)
     outcome = _outcome(asm, step, fields, st)
     _check_release_artifacts(form, fields, outcome)
@@ -1892,6 +1893,13 @@ def complete_submit(wid, step_id, fields, ran):
     outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=ran or None)
+    # A `beyond` call is a triage candidate by every route form's own words;
+    # journaling it as the note kind CLOSE.toml already asks for is what
+    # carries it there without the conductor retyping it (`[beyond-calls]`).
+    for candidate in _beyond_calls(fields):
+        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
+                       kind_detail="triage", text=candidate, about="",
+                       step=step["id"])
     _measure_artifacts(wid, step, form, fields)
 
     # A transition marked `carries` folds its fields into the run's own
@@ -1956,6 +1964,51 @@ def _decided_here(asm, step):
     stricter terms -- one field, one enforcer.
     """
     return runmod.deciding_spec(asm, step)[1].get("decides")
+
+
+# [call-vocabulary]
+# Rationale: `_check_vocabulary` reaches a form's own `[[field]]` entries and
+#   stops there, so the one value in the tree the engine acts on from inside a
+#   `kind = "plan"` row -- a per-finding `call` -- was never checked against
+#   anything. `_blocking_calls` compares `leading_word(...) == "blocking"`, so
+#   a call the vocabulary does not contain (a typo, `accept`, `blocking-ish`)
+#   read as not-blocking and the finding it belonged to was silently dropped
+#   from the round's orders, while `review_yield` tallied the bogus word into
+#   the yield table without comment. That is the silent-default class the
+#   verdict fold was made to refuse rather than guess at, and the lesson was
+#   applied there and not here.
+# Rejected: enforcing every plan item whose note happens to contain ` | `.
+#   That is exactly the mistake `[field-vocabulary]` names -- deriving an enum
+#   from punctuation alone turns an ordinary prose note into an enum nothing
+#   declared and no one can see. An item earns enforcement the same way a
+#   field does, by declaring `kind = "decision"`, which is why the three route
+#   forms' `call` items now do.
+def _check_calls(form, fields):
+    """A per-finding call the engine cannot act on refuses instead of
+    releasing the step -- the same rule `_check_vocabulary` holds a decision
+    field to, applied to a decision item inside a `kind = "plan"` row.
+
+    Read off the item's own declared vocabulary rather than a list written
+    here, so a route form that reworded its calls cannot leave this enforcing
+    the old one."""
+    for f in form["fields"]:
+        rows = fields.get(f["id"])
+        if f.get("kind") != "plan" or not isinstance(rows, list):
+            continue
+        for item in f.get("item", []):
+            vocab = forms.enforced_vocabulary(item)
+            if not vocab:
+                continue
+            allowed = [alt.split("<")[0].strip().lower() for alt in vocab]
+            for row in rows:
+                if not isinstance(row, dict) or item["id"] not in row:
+                    continue
+                word = forms.leading_word(row[item["id"]])
+                if word not in allowed:
+                    raise SystemExit(render.refusal(
+                        f'{f["id"]}.{item["id"]}',
+                        f"{word or 'empty'!r} is not a call this step can act on",
+                        escape="one of: " + " | ".join(vocab)))
 
 
 def _check_vocabulary(asm, step, form, fields):
@@ -2169,6 +2222,37 @@ def _blocking_calls(fields):
     return "\n\n".join(
         str(r.get("finding", "")).strip() for r in rows
         if isinstance(r, dict) and forms.leading_word(r.get("call", "")) == "blocking")
+
+
+# [beyond-calls]
+# Rationale: every route form says a `beyond` finding "leaves as a triage
+#   candidate", and until now nothing carried it: the conductor was expected
+#   to remember, several rounds later at the close form, what it had called
+#   beyond and retype it there. That is the transcription bug `[gate-projection]`
+#   already refused once -- "a second typing is a second chance to drift from
+#   what the panel actually judged" -- and the evidence that it leaks is in
+#   the archives, where a planner with no triage channel of its own put a
+#   triage candidate in `direction` instead.
+#   The destination already exists and is already wired: a `triage` note is
+#   journaled by `cmd_note`, rendered into every room, collected by `trace`,
+#   and asked for by name on CLOSE.toml, whose own header promises the engine
+#   appends "the run's triage notes -- the candidates raised". So a beyond
+#   call becomes one of those notes at submit, and reaches the close form the
+#   way every other candidate already does.
+# Rejected: a new prefill key carried to the close step. It would arrive only
+#   at close, so nothing between here and there could see it, and the run's
+#   own room would stop showing a candidate the moment it was called -- the
+#   note mechanism shows it from the submit that raised it onward.
+def _beyond_calls(fields):
+    """The findings a submitted `calls` table called `beyond`, verbatim -- the
+    triage candidates this submit raises. `[]` where the submit carried no
+    such table, which is every seam with no route form."""
+    rows = (fields or {}).get("calls")
+    if not isinstance(rows, list):
+        return []
+    return [str(r.get("finding", "")).strip() for r in rows
+            if isinstance(r, dict) and forms.leading_word(r.get("call", "")) == "beyond"
+            and str(r.get("finding", "")).strip()]
 
 
 # [seam-findings-history]

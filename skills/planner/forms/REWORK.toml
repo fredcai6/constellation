@@ -51,7 +51,13 @@ note = "Tier override for this gate: light | standard | heavy. Omit for the asse
 [[field]]
 id = "direction"
 optional = true
-note = "What this gate is expected to teach the next plan round, when you know it."
+note = """
+A question this gate is expected to answer for the next plan round, when you
+have one. The gate's own close form is asked to answer it in `residue`, so
+write something answerable or leave it out -- `waived: none` is the ordinary
+case for a run's last gate. Not a place for anything else you noticed: a
+candidate for later is the conductor's `beyond` at the review that follows,
+and the shape of the gates after this one is `horizon`."""
 
 [[field]]
 id = "horizon"
