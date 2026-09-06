@@ -28,6 +28,7 @@ from test_nesting import (
     _fill_plan,
     _fill_spec,
     _mint_n_gates,
+    _response,
     _work_the_board,
     _write_plan_artifact,
 )
@@ -83,7 +84,7 @@ def test_revise_mints_rework_form_with_findings_as_prefill(workdir, capsys):
     child = f"{wid}.{fresh['id']}"
     cli.main([child])
     capsys.readouterr()
-    assert (runmod.journal.location(child) / "REWORK.toml").exists()
+    assert _response(child).exists()
 
 
 # -- 2. a replan mints the step-form ------------------------------------------
@@ -117,7 +118,7 @@ def test_a_replan_restarts_the_rework_count(workdir, capsys):
     _dispatch_plan_critic(wid, verdict="pass")
     capsys.readouterr()
     _write_plan_artifact(runmod.journal.location(wid) / "plan.md")
-    _fill(runmod.journal.location(wid) / "PLAN_TO_EXECUTE.toml", '''
+    _fill(_response(wid), '''
 resolution = "pass"
 plan = "%s/plan.md"
 ''' % runmod.journal.location(wid))
@@ -164,7 +165,7 @@ def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdi
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
     child_loc = runmod.journal.location(child)
     _write_plan_artifact(child_loc / "plan.md")
-    _fill(child_loc / "REWORK.toml", '''
+    _fill(_response(child), '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -259,7 +260,7 @@ def test_the_plan_segments_measures_fold_into_the_parent_each_round(workdir, cap
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
     rework_art = runmod.journal.location(rework_child) / "plan.md"
     rework_art.write_text("one two three four five six seven eight nine ten eleven twelve\n")
-    _fill(runmod.journal.location(rework_child) / "REWORK.toml", '''
+    _fill(_response(rework_child), '''
 plan = "%s"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -285,7 +286,7 @@ key-terms = "waived: none"
 def _fill_rework(wid):
     loc = runmod.journal.location(wid)
     _write_plan_artifact(loc / "plan.md")
-    _fill(loc / "REWORK.toml", '''
+    _fill(_response(wid), '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -362,7 +363,7 @@ def test_an_unhandled_ruling_refuses_rather_than_releasing_the_step(workdir, cap
     wid = _drive_to_impasse()
     capsys.readouterr()
     before = len(runmod.journal.read(wid))
-    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+    _fill(_response(wid),
           'ruling = "keep going"\nwhy = "it is nearly there"\n')
     with pytest.raises(SystemExit) as e:
         cli.main([wid, "submit"])
@@ -376,7 +377,7 @@ def test_an_unhandled_ruling_refuses_rather_than_releasing_the_step(workdir, cap
 def test_advance_takes_the_plan_to_its_transition_over_a_live_revise(workdir, capsys):
     wid = _drive_to_impasse()
     capsys.readouterr()
-    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+    _fill(_response(wid),
           'ruling = "advance"\nwhy = "both rounds landed on the proof"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -390,7 +391,7 @@ def test_advance_takes_the_plan_to_its_transition_over_a_live_revise(workdir, ca
 def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
     wid = _drive_to_impasse()
     capsys.readouterr()
-    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+    _fill(_response(wid),
           'ruling = "rework"\nwhy = "round three changes the proof, not the prose"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -410,7 +411,7 @@ def test_up_pauses_the_plan_impasse_rather_than_releasing(workdir, capsys):
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
     why = "the plan may be solving the wrong problem"
-    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+    _fill(_response(wid),
           'ruling = "up"\nwhy = "%s"\n' % why)
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -440,7 +441,7 @@ def test_up_pauses_the_understand_impasse_rather_than_releasing(workdir, capsys)
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
     why = "the spec may be answering the wrong question"
-    _fill(runmod.journal.location(wid) / "IMPASSE.toml",
+    _fill(_response(wid),
           'ruling = "up"\nwhy = "%s"\n' % why)
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -498,7 +499,7 @@ def test_a_gates_advance_mints_its_transition_and_the_round_is_disposed_of(workd
     child = _drive_gate_to_impasse()
     capsys.readouterr()
     before = len(runmod.state(child)["steps"])
-    _fill(runmod.journal.location(child) / "IMPASSE.toml",
+    _fill(_response(child),
           'ruling = "advance"\nwhy = "both reviews landed on the spec"\n')
     cli.main([child, "submit"])
     capsys.readouterr()
@@ -517,7 +518,7 @@ def test_a_gates_advance_mints_its_transition_and_the_round_is_disposed_of(workd
 def test_a_gates_rework_mints_the_step_form_again(workdir, capsys):
     child = _drive_gate_to_impasse()
     capsys.readouterr()
-    _fill(runmod.journal.location(child) / "IMPASSE.toml",
+    _fill(_response(child),
           'ruling = "rework"\nwhy = "round three rewrites the check, not the diff"\n')
     cli.main([child, "submit"])
     capsys.readouterr()
@@ -601,8 +602,8 @@ def test_a_gates_impasse_step_is_filled_by_its_conductor(workdir, capsys):
 #   reuses `_dispatch_plan_critic` unchanged. What differs is the round
 #   itself: `understand` declares no `dispatches`, so a revise refills the
 #   segment's step-form (SPEC.toml) as a local step, filled directly at
-#   `.agent-work/<wid>/SPEC.toml` -- never a dispatched child the way a plan
-#   round, or a gate's implement round, are.
+#   `.agent-work/<wid>/SPEC.<step-id>.toml` -- never a dispatched child the
+#   way a plan round, or a gate's implement round, are.
 # See: `_drive_to_impasse` and `_drive_gate_to_impasse` above, the same
 #   shape for `plan`'s dispatched round and `work`'s undispatched one.
 

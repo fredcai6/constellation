@@ -19,7 +19,7 @@ import pytest
 
 from engine import cli, journal, run as runmod
 
-from test_nesting import _fill_open
+from test_nesting import _fill_open, _response
 from test_verdict_panels import _fill_implement, _fill_review, _fill_route, _open_panelist, _select
 from test_verdict_route import _route_with_calls
 
@@ -72,7 +72,7 @@ def _drive_to_close(child):
     cli.main([panelist, "close"])
     _fill_route(child, "close")
     cli.main([child, "submit"])
-    _fill(journal.location(child) / "GATE_CLOSE.toml", 'residue = "waived: none"\n')
+    _fill(_response(child), 'residue = "waived: none"\n')
     cli.main([child, "submit"])
     cli.main([child, "close"])
 
@@ -117,7 +117,7 @@ def test_up_stands_the_ask_at_the_parent_and_resumes_to_a_real_close(workdir, ca
 
     # -- the parent answers, and the answer resumes the child ---------------
     answer = "narrow the scope to src/parser.c and drop the rest"
-    _fill(journal.location("issue1") / "ASK.toml", 'answer = "%s"\n' % answer)
+    _fill(_response("issue1"), 'answer = "%s"\n' % answer)
     cli.main(["issue1", "submit"])
     capsys.readouterr()
 
@@ -142,7 +142,7 @@ def test_up_stands_the_ask_at_the_parent_and_resumes_to_a_real_close(workdir, ca
     assert pst["returns_by_child"].get(child), "no return reached the parent"
     assert pst["current"]["id"] == "g1-adjudicate", "the adjudication step is not reachable"
 
-    _fill(journal.location("issue1") / "GATE_TRANSITION.toml", '''
+    _fill(_response("issue1"), '''
 findings = "the narrowed scope landed cleanly"
 plan-holds = "advance"
 ''')
@@ -176,7 +176,7 @@ def _drive_to_impasse(pwid, gid, rounds=3):
     cli.main(["open", "run-a-gate", "--parent", pwid, "--step", gid])
     for n in range(1, rounds + 1):
         if n > 3:
-            _fill(journal.location(child) / "IMPASSE.toml",
+            _fill(_response(child),
                   f'ruling = "rework"\nwhy = "gap: untestable ({n - 1}) recurs"\n')
             cli.main([child, "submit"])
         _fill_implement(child)
@@ -204,7 +204,7 @@ def test_up_from_impasse_carries_why_into_the_ask(workdir, capsys):
     capsys.readouterr()
 
     why = "the spec asks for something no proof can check"
-    _fill(journal.location(child) / "IMPASSE.toml",
+    _fill(_response(child),
           'ruling = "up"\nwhy = "%s"\n' % why)
     cli.main([child, "submit"])
     capsys.readouterr()
@@ -260,7 +260,7 @@ def test_resuming_a_child_whose_journal_is_gone_notes_rather_than_fabricates_one
     shutil.rmtree(journal.location(child))
     assert not journal.exists(child)
 
-    _fill(journal.location("issue3") / "ASK.toml", 'answer = "too late -- already gone"\n')
+    _fill(_response("issue3"), 'answer = "too late -- already gone"\n')
     cli.main(["issue3", "submit"])  # must not raise, and must not fabricate a journal
     capsys.readouterr()
 
@@ -309,7 +309,7 @@ def test_bare_up_at_the_route_position_resolves_to_work_and_pauses_in_one_call(
     # `_current_form` resolves to but this call never touches its form
     pre = runmod.state(child)["current"]
     assert pre["form"] == "forms/ROUTE.toml" and pre["segment"] == "review"
-    route_path = journal.location(child) / "ROUTE.toml"
+    route_path = _response(child)
     assert not route_path.exists() or "resolution" not in route_path.read_text()
 
     cli.main([child, "up", "the spec never says what src/ means here"])
@@ -333,7 +333,7 @@ def test_bare_up_at_the_route_position_resolves_to_work_and_pauses_in_one_call(
     # round in `work`, and the drive to a real close still lands the return
     # on the live dispatch/adjudicate pair, `g2` untouched throughout -----
     answer = "narrow src/ to src/parser.c only"
-    _fill(journal.location("issue10") / "ASK.toml", 'answer = "%s"\n' % answer)
+    _fill(_response("issue10"), 'answer = "%s"\n' % answer)
     cli.main(["issue10", "submit"])
     capsys.readouterr()
 
@@ -583,7 +583,7 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdi
     # -- the actual resume: answer the ask, and the fresh round must be
     # what `current` resolves to next, not the untouched `select` it was
     # reordered ahead of at the pause moment ------------------------------
-    _fill(journal.location("gzp") / "ASK.toml", 'answer = "narrow the purpose"\n')
+    _fill(_response("gzp"), 'answer = "narrow the purpose"\n')
     cli.main(["gzp", "submit"])
     capsys.readouterr()
 
@@ -616,7 +616,7 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_an_issue(work
         "self-mint landed behind its own untouched sibling -- current is %r" % (cur,))
     assert consolidate["id"] not in st["done"]
 
-    _fill(journal.location("iss1") / "ASK.toml", 'answer = "define done as EOF handling"\n')
+    _fill(_response("iss1"), 'answer = "define done as EOF handling"\n')
     cli.main(["iss1", "submit"])
     capsys.readouterr()
 
@@ -657,7 +657,7 @@ def test_bare_up_at_work_1_with_a_reachable_parent_also_outranks_the_sibling(
     assert ask["form"] == "skills/gate-conductor/forms/ASK.toml"
     assert ask["resumes"] == child
 
-    _fill(journal.location("issue20") / "ASK.toml",
+    _fill(_response("issue20"),
           'answer = "narrow the scope to src/parser.c"\n')
     cli.main(["issue20", "submit"])
     capsys.readouterr()

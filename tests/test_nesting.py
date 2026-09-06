@@ -19,6 +19,17 @@ def _fill(path, text):
     path.write_text(text)
 
 
+def _response(wid):
+    """Where the step now current at `wid` takes its answer -- asked of the
+    engine rather than spelled, since the name is the engine's to choose.
+    `_response_path` folded the step id into the live filename (#118) so
+    that spelling it here would have been wrong exactly when it mattered:
+    the fixtures that hardcoded it never saw a second round at the same
+    seam land on top of the first."""
+    st = runmod.state(wid)
+    return cli._response_path(st, st["current"])
+
+
 def _write_plan_artifact(path, text="1. approach: adjust the loop bound.\n"
                                     "2. risk: none identified once tested.\n"):
     """The real file an artifact-kind `plan` field must point at (#45):
@@ -37,7 +48,7 @@ def _fill_open(wid):
     issue = pathlib.Path(f".agent-work/{wid}/issue.md")
     _fill(issue, "The parser drops the last record of a file with no "
                  "trailing newline.\n")
-    _fill(pathlib.Path(f".agent-work/{wid}/OPEN.toml"), f'''
+    _fill(_response(wid), f'''
 issue = "{issue}"
 
 authority = """
@@ -69,7 +80,7 @@ def _fill_spec(wid):
     loc = pathlib.Path(f".agent-work/{wid}")
     (loc / "spec.md").write_text(
         "1. Fix the parser to handle EOF with no trailing newline.\n")
-    _fill(loc / "SPEC.toml", 'spec = "%s/spec.md"\n' % loc)
+    _fill(_response(wid), 'spec = "%s/spec.md"\n' % loc)
 
 
 def _fill_consolidate(wid, resolution="pass", calls=""):
@@ -87,7 +98,7 @@ def _fill_consolidate(wid, resolution="pass", calls=""):
                  'settle = "waived: none"\n') % wid
     if calls:
         body += "\n" + calls
-    _fill(pathlib.Path(f".agent-work/{wid}/CONSOLIDATE.toml"), body)
+    _fill(_response(wid), body)
 
 
 def _fill_consolidate_route_with_calls(wid, resolution, *calls):
@@ -100,7 +111,7 @@ def _fill_consolidate_route_with_calls(wid, resolution, *calls):
 
 def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing newline",
                scope="src/parser.c only", proof="true", model="", direction=""):
-    """Fill PLAN.toml at `wid`'s own work location -- `journal.location`,
+    """Fill PLAN.toml at `wid`'s own current step -- `journal.location`,
     not string interpolation, so a dotted child id (`issue17.plan-1`, the
     first round's own dispatch) nests instead of colliding with a literal
     dot in a directory name. Also what a `replan` mints locally, since that
@@ -114,7 +125,7 @@ def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing new
     if direction:
         extra += 'direction = "%s"\n' % direction
     _write_plan_artifact(loc / "plan.md")
-    _fill(loc / "PLAN.toml", '''
+    _fill(_response(wid), '''
 plan = "%s/plan.md"
 purpose = "%s"
 scope = "%s"
@@ -162,7 +173,7 @@ def _fill_plan_to_execute(wid, resolution="pass", calls=""):
         body += '\nplan = ".agent-work/%s/plan.md"\n' % wid
     if calls:
         body += "\n" + calls
-    _fill(pathlib.Path(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml"), body)
+    _fill(_response(wid), body)
 
 
 def _fill_plan_route_with_calls(wid, resolution, *calls):
@@ -173,19 +184,19 @@ def _fill_plan_route_with_calls(wid, resolution, *calls):
 
 
 def _fill_implement(wid, step_id):
-    _fill(journal.location(wid) / "IMPLEMENT.toml", '''
+    _fill(_response(wid), '''
 change = "adjusted the loop bound in src/parser.c"
 deviations = "waived: none"
 ''')
 
 
 def _fill_gate_close(wid):
-    _fill(journal.location(wid) / "GATE_CLOSE.toml",
+    _fill(_response(wid),
           'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "nothing surprising"\n')
 
 
 def _fill_review(wid, verdict="pass", findings="none: waived: clean"):
-    _fill(journal.location(wid) / "REVIEW.toml", '''
+    _fill(_response(wid), '''
 verify = "read the diff line by line"
 findings = "%s"
 verdict = "%s"
@@ -195,7 +206,7 @@ verdict = "%s"
 def _fill_route(wid, resolution):
     """The conductor's own half of the review step: where the round the panel
     just judged goes next."""
-    _fill(journal.location(wid) / "ROUTE.toml", 'resolution = "%s"\n' % resolution)
+    _fill(_response(wid), 'resolution = "%s"\n' % resolution)
 
 
 SELECT_PANEL = ('omitted = "waived: none"\n\n[[panelists]]\n'
@@ -209,7 +220,7 @@ def _select_panel(wid, body=SELECT_PANEL):
     their round is disposed of on. Every drive through a gate goes through
     it, including the fresh round after a rework, so the lenses are chosen
     again rather than inherited."""
-    _fill(journal.location(wid) / "SELECT.toml", body)
+    _fill(_response(wid), body)
     cli.main([wid, "submit"])
 
 
@@ -239,14 +250,14 @@ def _dispatch_review(child_wid, verdict="pass", findings="none: waived: clean",
 
 
 def _fill_gate_transition(wid):
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+    _fill(_response(wid), '''
 findings = "the fix landed cleanly, no follow-on scope"
 plan-holds = "advance"
 ''')
 
 
 def _fill_gate_transition_drop(wid, gate_id):
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+    _fill(_response(wid), '''
 findings = "no longer needed"
 plan-holds = "drop %s"
 ''' % gate_id)
@@ -254,7 +265,7 @@ plan-holds = "drop %s"
 
 def _fill_gate_transition_remint(wid, purpose="a corrected gate", scope="src/ only",
                                  proof="true"):
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+    _fill(_response(wid), '''
 findings = "the spec was wrong, needs a redo"
 plan-holds = "remint"
 
@@ -266,14 +277,14 @@ proof = "%s"
 
 
 def _fill_gate_transition_replan(wid, findings="the cut was wrong from the start"):
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+    _fill(_response(wid), '''
 findings = "%s"
 plan-holds = "replan"
 ''' % findings)
 
 
 def _fill_gate_transition_remint_no_spec(wid):
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+    _fill(_response(wid), '''
 findings = "reconsidering, but not sure what yet"
 plan-holds = "remint"
 ''')
@@ -311,7 +322,7 @@ def _mint_n_gates(n, wid="issue17"):
 
 
 def _fill_close(wid):
-    _fill(journal.location(wid) / "CLOSE.toml", '''
+    _fill(_response(wid), '''
 disposition = "merged to main"
 triage = "waived: none"
 residue = "waived: none"
@@ -321,7 +332,7 @@ residue = "waived: none"
 def _fill_critic(wid, verdict, findings="none: waived: clean"):
     """The plan panel declares CRITIC.toml, which has no `verify` field -- a
     critic judges the plan's soundness, not what it exercised."""
-    _fill(journal.location(wid) / "CRITIC.toml",
+    _fill(_response(wid),
           'findings = "%s"\nverdict = "%s"\n'
           % (findings, verdict))
 
@@ -334,7 +345,7 @@ def _fill_plan_rework(wid, purpose="fix the parser to handle EOF without a trail
     step."""
     loc = journal.location(wid)
     _write_plan_artifact(loc / "plan.md")
-    _fill(loc / "REWORK.toml", '''
+    _fill(_response(wid), '''
 plan = "%s/plan.md"
 purpose = "%s"
 scope = "%s"
@@ -426,7 +437,7 @@ def _replan_to_next_gate(wid, step_id, purpose="a second gate", scope="scope 2",
     and drive the fresh plan round it opens through to its own projected
     gate -- the real route to a second gate now that one plan round cuts
     exactly one."""
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+    _fill(_response(wid), '''
 findings = "landed clean; more of the issue remains"
 plan-holds = "replan"
 ''')
@@ -753,7 +764,7 @@ def test_an_undeclared_outcome_refuses_and_a_declared_one_carries_its_reason(
     capsys.readouterr()
 
     before = len(journal.read("issue17"))
-    _fill(journal.location("issue17") / "GATE_TRANSITION.toml", '''
+    _fill(_response("issue17"), '''
 findings = "the fix landed"
 plan-holds = "the plan holds, carry on"
 ''')
@@ -775,7 +786,7 @@ plan-holds = "the plan holds, carry on"
     assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
 
     # and a declared word with its reason after it is performed, reason kept
-    _fill(journal.location("issue17") / "GATE_TRANSITION.toml", '''
+    _fill(_response("issue17"), '''
 findings = "the cut was wrong from the start"
 plan-holds = "replan, the gates were cut along the wrong seam"
 ''')

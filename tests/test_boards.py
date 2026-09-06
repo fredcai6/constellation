@@ -7,6 +7,7 @@ import pytest
 
 from engine import boards, cli
 from gitremote import init_checkout
+from test_nesting import _response
 
 
 def _write(path, text):
@@ -173,7 +174,7 @@ def test_validate_against_real_seeded_board(tmp_path, monkeypatch, capsys):
     issue = pathlib.Path(".agent-work/issue17/issue.md")
     issue.write_text("The parser drops the last record of a file with no "
                      "trailing newline.\n")
-    open_form = pathlib.Path(".agent-work/issue17/OPEN.toml")
+    open_form = _response("issue17")
     open_form.write_text(f"""issue = "{issue}"
 authority = \"\"\"
 Principal: Tommy.\"\"\"
@@ -385,7 +386,7 @@ def _open_with_board(tmp_path, monkeypatch, seeds):
     issue = pathlib.Path(".agent-work/issue42/issue.md")
     issue.write_text("The parser drops the last record of a file with no "
                      "trailing newline.\n")
-    open_form = pathlib.Path(".agent-work/issue42/OPEN.toml")
+    open_form = _response("issue42")
     open_form.write_text(f'issue = "{issue}"\nauthority = """\nPrincipal: Tommy."""\n'
                          + seeds)
     cli.main(["issue42", "submit"])

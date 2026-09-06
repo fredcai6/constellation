@@ -17,7 +17,7 @@ import subprocess
 from engine import cli, journal, render, run as runmod
 from test_nesting import (
     _dispatch_and_close_child, _fill, _fill_gate_close, _fill_implement,
-    _mint_first_gate,
+    _mint_first_gate, _response,
 )
 
 
@@ -68,7 +68,7 @@ def test_the_continue_command_actually_lands_on_the_unblocked_step(workdir, caps
     r = subprocess.run(cmd, capture_output=True, text=True, env={},
                        cwd=pathlib.Path.cwd(), timeout=20)
     assert r.returncode == 0, r.stdout + r.stderr
-    assert "GATE_TRANSITION.toml" in r.stdout, r.stdout
+    assert _response("issue17").name in r.stdout, r.stdout
     assert "returns from issue17.g1" in r.stdout, r.stdout
 
 
@@ -97,7 +97,7 @@ def test_a_panelist_returns_to_the_gate_not_the_run(workdir, capsys):
     review = runmod.state("issue17.g1")["current"]["id"]
     cli.main(["open", "give-a-verdict", "--parent", "issue17.g1", "--step", f"{review}.p1"])
     panelist = f"issue17.g1.{review}.p1"
-    _fill(journal.location(panelist) / "REVIEW.toml",
+    _fill(_response(panelist),
           'verify = "ran it"\nfindings = "none: waived: clean"\n'
           'verdict = "pass"\n')
     cli.main([panelist, "submit"])
@@ -129,7 +129,7 @@ def test_a_root_run_awaiting_close_claims_no_dispatcher(workdir, capsys):
     from test_nesting import _replan_to_next_gate
     _replan_to_next_gate("issue17", "g1-adjudicate")  # sequential: cuts "g2"
     _dispatch_and_close_child("issue17", "g2")
-    _fill(journal.location("issue17") / "GATE_TRANSITION.toml",
+    _fill(_response("issue17"),
           'findings = "waived: nothing"\nplan-holds = "advance"\n')
     cli.main(["issue17", "submit"])
     from test_nesting import _fill_close

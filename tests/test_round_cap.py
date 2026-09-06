@@ -17,7 +17,7 @@ from test_nesting import (
     _dispatch_and_close_child, _dispatch_and_close_plan, _dispatch_plan_critic,
     _fill, _fill_consolidate, _fill_critic, _fill_open, _fill_plan,
     _fill_plan_rework, _fill_plan_route_with_calls, _fill_plan_to_execute,
-    _work_the_board,
+    _response, _work_the_board,
 )
 from test_pause_gate import _drive_to_impasse, _seed_two_gates
 
@@ -108,7 +108,7 @@ def _drive_plan_seam_to_its_cap(wid="issue113c1"):
         cli.main([wid, "submit"])  # releases, projects this gate
 
         _dispatch_and_close_child(wid, f"g{gate}")
-        _fill(journal.location(wid) / "GATE_TRANSITION.toml",
+        _fill(_response(wid),
               'findings = "landed clean; more of the issue remains"\n'
               'plan-holds = "replan"\n')
         cli.main([wid, "submit"])  # refills plan for the next gate
@@ -178,7 +178,7 @@ def test_round_cap_answer_buys_one_round_then_asks_again(workdir, capsys):
     capsys.readouterr()
 
     answer = "narrow both gates to src/parser.c and drop the rest"
-    _fill(journal.location(wid) / "ASK.toml", 'answer = "%s"\n' % answer)
+    _fill(_response(wid), 'answer = "%s"\n' % answer)
     cli.main([wid, "submit"])
     capsys.readouterr()
 

@@ -11,6 +11,7 @@ import tomllib
 import pytest
 
 from engine import checks, cli, forms, journal, render, run as runmod, tomlw
+from test_nesting import _response
 
 
 def _open(wid="issue17"):
@@ -65,7 +66,7 @@ def test_a_malformed_plan_field_refuses_before_anything_is_recorded(bare_workdir
     """A plan field of the wrong shape used to journal the submit and then die
     minting, leaving a run that looked advanced with no work in it."""
     _open()
-    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+    _response("issue17").write_text(
         f'issue = "{_issue_file()}"\nauthority = "Tommy."\n'
         'questions = "not a list of blocks"\n')
     capsys.readouterr()
@@ -87,14 +88,14 @@ def _pass_spec(wid="issue17"):
     prove what it alone still checks: the board, not the spec."""
     loc = pathlib.Path(f".agent-work/{wid}")
     (loc / "spec.md").write_text("1. placeholder commitment.\n")
-    (loc / "SPEC.toml").write_text('spec = "%s/spec.md"\n' % loc)
+    _response(wid).write_text('spec = "%s/spec.md"\n' % loc)
     cli.main([wid, "submit"])
     panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "understand")["panel"]
     for n in range(1, len(panel) + 1):
         tag = f"understand.p{n}"
         cli.main(["open", "give-a-verdict", "--parent", wid, "--step", tag])
         panelist = f"{wid}.{tag}"
-        (journal.location(panelist) / "CRITIC.toml").write_text(
+        _response(panelist).write_text(
             'findings = "none: waived: clean"\n'
             'verdict = "pass"\n')
         cli.main([panelist, "submit"])
@@ -113,7 +114,7 @@ def _critic_step(wid="c1"):
 
 
 def _fill_critic(wid, verdict):
-    pathlib.Path(f".agent-work/{wid}/CRITIC.toml").write_text(
+    _response(wid).write_text(
         'findings = "none: waived: clean"\n'
         f'verdict = "{verdict}"\n')
 
@@ -181,7 +182,7 @@ def test_an_unhandled_mints_value_refuses_instead_of_minting_nothing(bare_workdi
 
     monkeypatch.setattr(forms, "load", third_thing)
     _open()
-    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+    _response("issue17").write_text(
         f'issue = "{_issue_file()}"\nauthority = "Tommy."\n\n[[questions]]\n'
         'question = "which inputs drop the last record?"\ntype = "fact"\n')
     capsys.readouterr()
@@ -246,7 +247,7 @@ def test_a_hanging_check_refuses_instead_of_wedging_the_turn(bare_workdir, monke
     pathlib.Path("constellation.toml").write_text('[models]\nstandard = "x"\n')
     cli.main(["open", "run-a-gate", "--id", "g1"])
     journal.append("g1", "prefill", fields={"proof": "sleep 30"})
-    pathlib.Path(".agent-work/g1/IMPLEMENT.toml").write_text(
+    _response("g1").write_text(
         'change = "c"\ndeviations = "waived: none"\n')
 
     with pytest.raises(SystemExit) as e:
@@ -265,7 +266,7 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(bare_workdir, capsys
                    child="issue17.g1", source="mint")
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     child = "issue17.g1"
-    pathlib.Path(f".agent-work/issue17/g1/IMPLEMENT.toml").write_text(
+    _response(child).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([child, "submit"])
     # select the panel, then drive it for real: one panelist, a pass verdict
@@ -274,17 +275,17 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(bare_workdir, capsys
     review = runmod.state(child)["current"]["id"]
     cli.main(["open", "give-a-verdict", "--parent", child, "--step", f"{review}.p1"])
     panelist = f"{child}.{review}.p1"
-    pathlib.Path(f".agent-work/issue17/g1/{review}/p1/REVIEW.toml").write_text(
+    _response(panelist).write_text(
         'verify = "read it"\nfindings = "none: waived: clean"\n'
         'verdict = "pass"\n')
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
     # a pass releases nothing on its own now: the round is disposed of on the
     # review step's own conductor form, which is what walks the gate to close
-    pathlib.Path(f".agent-work/issue17/g1/ROUTE.toml").write_text(
+    _response(child).write_text(
         'resolution = "close"\n')
     cli.main([child, "submit"])
-    pathlib.Path(f".agent-work/issue17/g1/GATE_CLOSE.toml").write_text(
+    _response(child).write_text(
         'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])
 
@@ -324,7 +325,7 @@ def test_status_names_the_board_it_will_validate(bare_workdir, capsys):
     """The board was invisible in status while the imperative claimed it was
     already worked -- the room description lying about the room."""
     _open()
-    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+    _response("issue17").write_text(
         f'issue = "{_issue_file()}"\nauthority = "T."\n'
         '[[questions]]\nquestion = "q?"\ntype = "fact"\n')
     cli.main(["issue17", "submit"])
@@ -343,12 +344,12 @@ def test_every_refusal_states_an_escape_that_works(bare_workdir):
     nonsensical for a lookup. Printing an escape that does not work is worse
     than printing none."""
     _open()
-    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+    _response("issue17").write_text(
         f'issue = "{_issue_file()}"\nauthority = "T."\n'
         '[[questions]]\nquestion = "q?"\ntype = "fact"\n')
     cli.main(["issue17", "submit"])
     _pass_spec()
-    pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
+    _response("issue17").write_text(
         'resolution = "pass"\n\nspec = ".agent-work/issue17/spec.md"\n'
         'key-terms = "waived: none"\nsettle = "waived: none"\n')
 
@@ -408,7 +409,7 @@ def test_a_crash_is_never_a_refusal(bare_workdir):
     with pytest.raises(SystemExit):
         cli.main(["issue17", "amend"])            # was IndexError
 
-    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text('issue = "unclosed\n')
+    _response("issue17").write_text('issue = "unclosed\n')
     with pytest.raises(SystemExit) as e:
         cli.main(["issue17", "submit"])           # was TOMLDecodeError
     assert "not valid TOML" in str(e.value)
@@ -432,7 +433,7 @@ def test_a_field_in_hand_is_not_mistaken_for_an_answer(bare_workdir, capsys):
     still in hand. Submitting it would record work-in-progress as an answer,
     and the next reader could not tell the difference."""
     cli.main(["open", "run-a-gate", "--id", "g1"])
-    pathlib.Path(".agent-work/g1/IMPLEMENT.toml").write_text(
+    _response("g1").write_text(
         'change = "working: still tracing the EOF branch"\n'
         'deviations = "waived: none"\n')
     capsys.readouterr()
@@ -448,7 +449,7 @@ def test_a_field_in_hand_is_not_mistaken_for_an_answer(bare_workdir, capsys):
     assert "still in hand" in out and "still tracing the EOF branch" in out
 
     # finishing it is one edit
-    pathlib.Path(".agent-work/g1/IMPLEMENT.toml").write_text(
+    _response("g1").write_text(
         'change = "traced it; flushed at capacity"\ndeviations = "waived: none"\n')
     cli.main(["g1", "submit"])
     assert "work-1" in runmod.state("g1")["done"]
@@ -530,7 +531,7 @@ def test_a_form_field_carrying_an_escape_sequence_folds(bare_workdir, capsys):
     defect was silent -- the step stayed current, which invited the retry
     that corrupted the file a second time."""
     _open()
-    pathlib.Path(".agent-work/issue17/OPEN.toml").write_text(
+    _response("issue17").write_text(
         f'issue = "{_issue_file()}"\n'
         'authority = "Tommy. Terms are matched on \\bword\\b boundaries."\n'
         '\n[[questions]]\nquestion = "q?"\ntype = "fact"\n')
@@ -783,7 +784,7 @@ def _gate_with_proof(proof, wid="g1"):
     pathlib.Path("constellation.toml").write_text('[models]\nstandard = "x"\n')
     cli.main(["open", "run-a-gate", "--id", wid])
     journal.append(wid, "prefill", fields={"proof": proof})
-    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+    _response(wid).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     return wid
 

@@ -30,7 +30,7 @@ import pytest
 
 from engine import cli, forms, journal, run as runmod
 from conftest import REPO
-from test_nesting import _write_plan_artifact
+from test_nesting import _response, _write_plan_artifact
 from test_explore import _to_rework
 
 CRITIC = "skills/critic/forms/CRITIC.toml"
@@ -49,7 +49,7 @@ def _fill_open(wid):
     issue = f".agent-work/{wid}/issue.md"
     _fill(issue, "The parser drops the last record of a file with no "
                  "trailing newline.\n")
-    _fill(f".agent-work/{wid}/OPEN.toml", f'''
+    _fill(_response(wid), f'''
 issue = "{issue}"
 
 authority = """
@@ -76,7 +76,7 @@ def _work_the_board(wid):
 def _fill_spec(wid):
     loc = pathlib.Path(f".agent-work/{wid}")
     (loc / "spec.md").write_text("1. settled.\n")
-    _fill(loc / "SPEC.toml", 'spec = "%s/spec.md"\n' % loc)
+    _fill(_response(wid), 'spec = "%s/spec.md"\n' % loc)
 
 
 def _fill_consolidate(wid, settle="waived: none", resolution="pass", calls=""):
@@ -87,13 +87,13 @@ def _fill_consolidate(wid, settle="waived: none", resolution="pass", calls=""):
                  'settle = "%s"\n') % (wid, settle)
     if calls:
         body += "\n" + calls
-    _fill(f".agent-work/{wid}/CONSOLIDATE.toml", body)
+    _fill(_response(wid), body)
 
 
 def _fill_plan_form(wid):
     loc = journal.location(wid)
     _write_plan_artifact(loc / "plan.md")
-    _fill(loc / "PLAN.toml", '''
+    _fill(_response(wid), '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -133,7 +133,7 @@ def _fill_rework_form(wid, findings_addressed="accepted: made gate 1 testable",
     is the dispatched child's own id -- a revise round dispatches too."""
     loc = journal.location(wid)
     _write_plan_artifact(loc / "plan.md")
-    _fill(loc / "REWORK.toml", '''
+    _fill(_response(wid), '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -154,13 +154,13 @@ def _fill_plan_to_execute(wid, resolution="pass"):
     if resolution in ("pass", "revise"):
         _write_plan_artifact(f".agent-work/{wid}/plan.md")
         body += '\nplan = ".agent-work/%s/plan.md"\n' % wid
-    _fill(f".agent-work/{wid}/PLAN_TO_EXECUTE.toml", body)
+    _fill(_response(wid), body)
 
 
 def _fill_verdict(wid, verdict, findings="none: waived: clean"):
     """The plan panel declares CRITIC.toml, so that is the form on disk -- a
     critic reads a plan with the critic's form, not the reviewer's."""
-    _fill(journal.location(wid) / "CRITIC.toml", '''
+    _fill(_response(wid), '''
 findings = "%s"
 verdict = "%s"
 ''' % (findings, verdict))
@@ -480,7 +480,7 @@ def test_the_room_names_a_returned_panels_non_pass_verdict(workdir, capsys):
     cli.main(["open", "explore-an-idea", "--title", "t"])
     out = capsys.readouterr().out
     ewid = out.split()[1]
-    _fill(f".agent-work/{ewid}/OPEN.toml",
+    _fill(_response(ewid),
          'idea = "x"\nauthority = "Tommy"\n[[seeds]]\nidea = "the itch"\n')
     cli.main([ewid, "submit"])
     capsys.readouterr()

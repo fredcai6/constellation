@@ -12,7 +12,7 @@ import re
 import pytest
 
 from engine import cli, journal
-from test_nesting import _dispatch_and_close_child, _fill, _mint_first_gate
+from test_nesting import _dispatch_and_close_child, _fill, _mint_first_gate, _response
 from test_rework import _drive_gate_to_impasse
 from test_verdict_panels import _fill_route
 
@@ -103,13 +103,13 @@ def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
     test_pause_gate.py for that path."""
     child = _drive_gate_to_impasse()  # issue17.g1, four revises deep
     capsys.readouterr()
-    _fill(journal.location(child) / "IMPASSE.toml",
+    _fill(_response(child),
           'ruling = "advance"\nwhy = "the diff stands as it is over the live revise"\n')
     cli.main([child, "submit"])
     capsys.readouterr()
     _fill_route(child, "close")
     cli.main([child, "submit"])
-    _fill(journal.location(child) / "GATE_CLOSE.toml",
+    _fill(_response(child),
           'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])
     cli.main([child, "close"])

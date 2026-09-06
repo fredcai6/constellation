@@ -57,7 +57,7 @@ def workdir(tmp_path):
 def seed_open(workdir, wid, seeds):
     """Fill the minted OPEN.toml the way a conductor does, one block per seed."""
     loc = harness.run_root(workdir) / ".agent-work" / wid
-    p = loc / "OPEN.toml"
+    p = harness.response_path(workdir, wid)
     head, mark, block = p.read_text().partition("[[questions]]")
     # `issue` is `kind = "artifact"`: #45's `_check_artifact` (engine/cli.py)
     # refuses a value that is not a readable path, so the seed has to point

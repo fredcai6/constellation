@@ -16,7 +16,7 @@ miss exactly that branch -- `engine/` is checked like any other root.
 
 from engine import cli, journal, run as runmod
 from conftest import REPO
-from test_nesting import _write_plan_artifact
+from test_nesting import _response, _write_plan_artifact
 from test_two_voices import CRITIC, _dispatch_and_close_plan, _dispatch_panel, _drive_to_plan_to_execute
 
 
@@ -103,7 +103,7 @@ def test_a_conductor_typing_resolution_pass_still_projects_the_gate(workdir, cap
     capsys.readouterr()
 
     _write_plan_artifact(f".agent-work/{wid}/plan.md")
-    (journal.location(wid) / "PLAN_TO_EXECUTE.toml").write_text('''
+    _response(wid).write_text('''
 plan = ".agent-work/%s/plan.md"
 resolution = "pass"
 ''' % wid)

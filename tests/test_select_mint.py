@@ -18,7 +18,7 @@ import tomllib
 
 from engine import cli, forms, journal, run as runmod
 from conftest import REPO
-from test_nesting import _fill, _fill_implement, _select_panel
+from test_nesting import _fill, _fill_implement, _response, _select_panel
 from test_verdict_panels import _fill_review
 
 GATE = REPO / "assemblies" / "run-a-gate" / "ASSEMBLY.toml"
@@ -43,7 +43,7 @@ def test_select_mints_the_panel_and_the_route_form_as_one_step(workdir, capsys):
     _open_and_implement()
     capsys.readouterr()
 
-    _fill(journal.location("g1") / "SELECT.toml", '''
+    _fill(_response("g1"), '''
 omitted = "waived: none"
 
 [[panelists]]
@@ -105,7 +105,7 @@ def test_an_omitted_lens_is_not_dispatched_and_its_reason_is_recorded(workdir, c
     _open_and_implement()
     capsys.readouterr()
 
-    _fill(journal.location("g1") / "SELECT.toml", '''
+    _fill(_response("g1"), '''
 omitted = "test adequacy: this diff adds no code path, only prose in a form note"
 
 [[panelists]]
@@ -161,7 +161,7 @@ def _drive_gate_through(gid, rounds):
         _fill_review(panelist, "revise", f"gap: the spec asks for something untestable ({n})")
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
-        _fill(journal.location(gid) / "ROUTE.toml", 'resolution = "rework"\n')
+        _fill(_response(gid), 'resolution = "rework"\n')
         cli.main([gid, "submit"])
     return gid
 
@@ -214,7 +214,7 @@ def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, ca
     assert not impasse.get("panel")
     capsys.readouterr()
 
-    _fill(journal.location("g1") / "IMPASSE.toml",
+    _fill(_response("g1"),
           'ruling = "rework"\nwhy = "round three rewrites the check, not the diff"\n')
     cli.main(["g1", "submit"])
     capsys.readouterr()
@@ -243,7 +243,7 @@ def test_the_next_revise_after_an_impasse_rework_re_latches_immediately(workdir,
     rather than building it."""
     _drive_gate_through("g1", 3)
     capsys.readouterr()
-    _fill(journal.location("g1") / "IMPASSE.toml",
+    _fill(_response("g1"),
           'ruling = "rework"\nwhy = "one more pass, on the same proof"\n')
     cli.main(["g1", "submit"])
     capsys.readouterr()
@@ -261,7 +261,7 @@ def test_the_next_revise_after_an_impasse_rework_re_latches_immediately(workdir,
     _fill_review(panelist, "revise", "gap: still off by one (latch)")
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
-    _fill(journal.location("g1") / "ROUTE.toml", 'resolution = "rework"\n')
+    _fill(_response("g1"), 'resolution = "rework"\n')
     cli.main(["g1", "submit"])
     capsys.readouterr()
 

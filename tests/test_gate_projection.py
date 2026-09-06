@@ -24,6 +24,7 @@ from test_nesting import (
     _fill_plan,
     _fill_plan_rework,
     _fill_plan_to_execute,
+    _response,
     _work_the_board,
 )
 
@@ -128,7 +129,7 @@ def test_the_critics_read_the_horizon_the_implementer_never_sees(workdir, capsys
     cli.main([wid, "submit"])
     def _fill_with_horizon(w):
         (journal.location(w) / "plan.md").write_text("the plan document.\n")
-        _fill(journal.location(w) / "PLAN.toml", '''
+        _fill(_response(w), '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -199,7 +200,7 @@ def test_an_artifact_field_holding_prose_inline_is_refused_not_measured_zero(wor
 
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
     child = f"{wid}.plan-1"
-    _fill(journal.location(child) / "PLAN.toml", '''
+    _fill(_response(child), '''
 plan = "the approach is to adjust the loop bound and add a regression test"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -235,7 +236,7 @@ def test_an_artifact_field_answered_waived_is_not_refused(workdir, capsys):
 
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
     child = f"{wid}.plan-1"
-    _fill(journal.location(child) / "PLAN.toml", '''
+    _fill(_response(child), '''
 plan = "waived: no plan document for this trivial gate"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -262,7 +263,7 @@ def test_a_release_with_a_blank_plan_is_refused(workdir, capsys):
     check that lets a `rework`/`up` leave the field blank is what proves a
     release cannot."""
     wid = _drive_to_plan_to_execute()
-    _fill(journal.location(wid) / "PLAN_TO_EXECUTE.toml", 'resolution = "pass"\n')
+    _fill(_response(wid), 'resolution = "pass"\n')
     with pytest.raises(SystemExit) as e:
         cli.main([wid, "submit"])
     assert "plan" in str(e.value)
@@ -341,7 +342,7 @@ def test_impasse_advance_projects_the_round_the_ruling_approved(workdir, capsys)
     fields, not the first round's or the middle one's."""
     wid = _drive_to_impasse_with_varying_gates()
     capsys.readouterr()
-    _fill(journal.location(wid) / "IMPASSE.toml",
+    _fill(_response(wid),
           'ruling = "advance"\nwhy = "all three rounds landed on the proof"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()

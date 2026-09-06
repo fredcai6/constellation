@@ -5,7 +5,6 @@ nothing in context, runs one command, and can act. These evals hand a light
 model a work id and no engine knowledge, and check the journal afterwards.
 """
 
-import pathlib
 import shutil
 
 import pytest
@@ -47,7 +46,7 @@ def test_an_agent_gets_past_a_refusal_using_only_the_escape_it_was_given(workdir
     # a proof that cannot pass, so submit really does refuse and the
     # refusal names the one way past it
     harness.prefill(workdir, "g2", proof="false")
-    (pathlib.Path(workdir) / ".agent-work/g2/IMPLEMENT.toml").write_text(
+    harness.response_path(workdir, "g2").write_text(
         'change = "did the work"\ndeviations = "waived: none"\n')
 
     r = harness.drive(workdir, (
@@ -76,7 +75,7 @@ def test_an_agent_reports_a_block_rather_than_inventing_an_answer(workdir):
 
     st = harness.state(workdir, "g3")
     recorded = (harness.journal_text(workdir, "g3")
-                + harness.form_text(workdir, "g3", "IMPLEMENT.toml")).lower()
+                + harness.form_text(workdir, "g3")).lower()
     honest = any(k in recorded for k in
                  ("blocked", "unknown:", "working:", "waived:", "no access"))
     submitted = "work-1" in st["done"]

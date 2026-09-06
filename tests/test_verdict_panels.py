@@ -18,6 +18,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
+from test_nesting import _response
 
 
 def _fill(path, text):
@@ -25,12 +26,12 @@ def _fill(path, text):
 
 
 def _fill_implement(wid):
-    _fill(journal.location(wid) / "IMPLEMENT.toml",
+    _fill(_response(wid),
          'change = "adjusted the bound"\ndeviations = "waived: none"\n')
 
 
 def _fill_review(wid, verdict, findings="none: waived: clean"):
-    _fill(journal.location(wid) / "REVIEW.toml", '''
+    _fill(_response(wid), '''
 verify = "read the diff line by line"
 findings = "%s"
 verdict = "%s"
@@ -41,7 +42,7 @@ def _fill_route(wid, resolution):
     """The conductor's own half of the review step: where the round the panel
     just judged goes next. `rework` refills `work` with the panel's findings;
     `close` releases the round and the gate walks on."""
-    _fill(journal.location(wid) / "ROUTE.toml", 'resolution = "%s"\n' % resolution)
+    _fill(_response(wid), 'resolution = "%s"\n' % resolution)
 
 
 DEFAULT_LENS = "spec-fit: does the work fill the specification, whole and only"
@@ -54,7 +55,7 @@ def _select(wid, *criteria):
     of the beat: the readers are chosen again rather than inherited."""
     blocks = "".join('\n[[panelists]]\nworker = "reviewer"\nmodel = "standard"\n'
                      'criteria = "%s"\n' % c for c in (criteria or (DEFAULT_LENS,)))
-    _fill(journal.location(wid) / "SELECT.toml", 'omitted = "waived: none"\n' + blocks)
+    _fill(_response(wid), 'omitted = "waived: none"\n' + blocks)
     cli.main([wid, "submit"])
     return runmod.state(wid)["current"]["id"]
 
@@ -309,12 +310,12 @@ def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
 
     st = runmod.state(child)
     assert st["current"]["form"] == "forms/IMPASSE.toml"
-    _fill(journal.location(child) / "IMPASSE.toml",
+    _fill(_response(child),
           'ruling = "advance"\nwhy = "the diff stands as it is over the live revise"\n')
     cli.main([child, "submit"])
     _fill_route(child, "close")
     cli.main([child, "submit"])
-    _fill(journal.location(child) / "GATE_CLOSE.toml",
+    _fill(_response(child),
           'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])
     cli.main([child, "close"])
@@ -478,7 +479,7 @@ def test_a_dispatched_reviewer_asks_mid_verdict_resumes_once_and_the_verdict_sur
     panelist_state = runmod.state(panelist)
     assert panelist_state["open"], "up must pause the reviewer's own run, not close it"
 
-    (journal.location("gpx") / "ASK.toml").write_text(
+    _response("gpx").write_text(
         'answer = "yes -- the touched file is in scope, note it in the diff summary"\n')
     cli.main(["gpx", "submit"])
     capsys.readouterr()
@@ -518,7 +519,7 @@ def test_a_critic_panelist_asks_mid_verdict_and_resumes_into_its_own_form(workdi
     cli.main([panelist, "up", "is this in scope for the plan under review?"])
     capsys.readouterr()
 
-    (journal.location("gcz") / "ASK.toml").write_text('answer = "yes, it is in scope"\n')
+    _response("gcz").write_text('answer = "yes, it is in scope"\n')
     cli.main(["gcz", "submit"])
     capsys.readouterr()
 

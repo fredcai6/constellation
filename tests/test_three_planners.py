@@ -40,6 +40,7 @@ from test_nesting import (
     _fill_consolidate,
     _fill_open,
     _fill_plan,
+    _response,
     _work_the_board,
     _write_plan_artifact,
 )
@@ -139,7 +140,7 @@ def test_a_rework_round_dispatches_a_single_planner(workdir, capsys):
     for n in range(1, len(panel) + 1):
         cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
         critic = f"{wid}.{step_id}.p{n}"
-        _fill(journal.location(critic) / "CRITIC.toml",
+        _fill(_response(critic),
               'findings = "gap: needs another look"\n'
               'verdict = "revise"\n')
         cli.main([critic, "submit"])
@@ -149,7 +150,7 @@ def test_a_rework_round_dispatches_a_single_planner(workdir, capsys):
     # both of the panel's own words release now (ruling 3, 2026-09-02): the
     # step holds open for the conductor's own route form, which is what
     # actually sends the round back
-    _fill(journal.location(wid) / "PLAN_TO_EXECUTE.toml", 'resolution = "rework"\n')
+    _fill(_response(wid), 'resolution = "rework"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -160,7 +161,7 @@ def test_a_rework_round_dispatches_a_single_planner(workdir, capsys):
     child = f"{wid}.{fresh['id']}"
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
     _write_plan_artifact(journal.location(child) / "plan.md")
-    _fill(journal.location(child) / "REWORK.toml", '''
+    _fill(_response(child), '''
 plan = "%s/plan.md"
 purpose = "fix the parser"
 scope = "src/parser.c only"
