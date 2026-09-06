@@ -113,21 +113,53 @@ def hat(assembly, step, st):
 # [rework-rounds]
 # Rationale: the count is of rounds on one artifact, not rounds in the run --
 #   `skills/issue-conductor/SKILL.md` conditions its stopping rule on repetition
-#   against the same thing. A step-form mint is a replan, which is a new
-#   artifact, so it restarts the count; a rework-form mint is another pass at
-#   the same one.
-# Rejected: counting `source == "mint"` regardless of form. Simpler, and it
-#   cannot be walked around by replanning -- but it counts effort rather than
-#   repetition, which is not what the rule is about.
+#   against the same thing. Which mint is which is a fact the engine holds at
+#   mint time and used to throw away: `_perform`'s own verbs already draw the
+#   line (`rework` is another pass at the same artifact, `refill` is a fresh
+#   one -- "the plan recut", "a fresh first cut"), so `_mint_segment_round`
+#   journals `sent_back` and this reads it back.
+# Rejected: deriving it from which form got minted, which is what this did
+#   before -- a step-form mint restarting the count, a rework-form mint
+#   spending it. That only works where a segment declares two forms, so it
+#   silently did nothing at the two segments that declare one: `run-a-gate`'s
+#   `work`, correctly, since every refill there really is another pass at the
+#   same diff -- and `run-an-issue`'s `understand`, wrongly. On issue96's run
+#   the understand round was withdrawn whole by a principal's ruling twice in
+#   an hour, and the count read those replacements as repeats: the outlet
+#   fired having seen no second attempt at anything. The old docstring
+#   justified the one-form case by naming `work` alone, which is the segment
+#   it is true of; the reasoning was written for one segment and generalised
+#   to two.
+# Rejected: giving `understand` a rework-form so the old derivation works
+#   there. It needs a whole second form, and a second outcome value so
+#   something still mints the step-form -- machinery to carry a fact the verb
+#   already states.
+def _rounds(st, seg_id):
+    """This segment's own rounds, in journal order -- the steps that carry a
+    `sent_back` count, which is every round `skeleton` seeds or
+    `_mint_segment_round` mints and nothing else. A transition, an impasse
+    ruling and an amended-in step are not rounds and carry none."""
+    return [s for s in st["steps"] if s.get("segment") == seg_id and "sent_back" in s]
+
+
 def rework_rounds(st, assembly, seg_id):
     """How many times this segment has been sent back to the same artifact.
 
-    A segment that declares a rework-form distinguishes the two send-backs it
-    has: a rework is another pass at the same artifact, a replan is a new one,
-    so the step-form restarts the count. A segment with no rework-form --
-    run-a-gate's work -- has only one, and every mint of its step-form counts.
-    Either way the opening step is `source=open` and is not a send-back.
+    The current round's own count, journaled when it was minted: another pass
+    at the same artifact is one more, a fresh artifact starts over at zero,
+    and the opening round is zero because it was never sent back. Which of
+    those a mint is comes from the verb that minted it, not from which form
+    it took, so a segment declaring one form counts the same as one declaring
+    two.
+
+    `assembly` is read only by the fallback below.
     """
+    rounds = _rounds(st, seg_id)
+    if rounds:
+        return rounds[-1]["sent_back"]
+    # A journal opened before `sent_back` existed carries no round that has
+    # it. Deriving the old way keeps a run that was already in flight when
+    # this landed counting as it did -- removable once no such run is open.
     seg = next((s for s in assembly["segment"] if s["id"] == seg_id), {})
     rework, step = seg.get("rework-form", ""), seg.get("step-form", "")
     n = 0
@@ -177,7 +209,8 @@ def skeleton(assembly):
         if form and seg.get("interior") in ("steps", "board"):
             step = {"id": seg["id"] + "-1", "segment": seg["id"],
                     "filler": seg.get("worker", "conductor"), "anchor": False,
-                    "terminal": False, "validates": "", "source": "open"}
+                    "terminal": False, "validates": "", "source": "open",
+                    "sent_back": 0}  # never sent back: it is the first cut
             # [plan-round-is-a-dispatch]
             # Rationale: a segment can declare a `dispatches` target beside its
             #   own step-form -- run-an-issue's plan segment is the first. The

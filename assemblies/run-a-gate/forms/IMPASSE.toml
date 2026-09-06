@@ -1,18 +1,19 @@
 # Step: impasse. Owned by run-a-gate; filled by whoever conducts the gate.
 # Minted in place of the next implement round once the review has
-# sent the same diff back `impasse-after` times -- counted on the conductor's
+# sent the same diff back `impasse-after` times (`sent-back` in the orders
+# says how many) -- counted on the conductor's
 # own rework, since that is the hand the round is actually sent back by. It
 # carries no panel: one more fresh-context reader is the loop, not the way
 # out of it.
 
 imperative = """
-The review has sent this diff back three times. Rule on the loop, not on the
-findings: three reviews landing on the same thing means the gate spec, not the
-diff, is what keeps failing. `arrival` in your orders reads `rework-rounds`
-here always -- the panel's verdict is `pass | revise`, so a root objection
-arrives as a revise finding, not a third word, and only three you yourself
-sent back reach you here. Say which way this gate goes, and what the three
-rounds had in common."""
+The review has sent this diff back as many times as this segment allows --
+`sent-back` in your orders is how many. Rule on the loop, not on the findings:
+reviews landing on the same thing means the gate spec, not the diff, is what
+keeps failing. `arrival` reads `rework-rounds` here always -- the panel's
+verdict is `pass | revise`, so a root objection arrives as a revise finding,
+not a third word, and only rounds you yourself sent back reach you here. Say
+which way this gate goes, and what those rounds had in common."""
 
 [[field]]
 id = "ruling"
@@ -21,7 +22,7 @@ note = """
 advance | rework | up. `advance` closes the gate on the diff as it stands, over
 a live revise — the review's findings remain the record that says you did, and
 your parent adjudicates them. `rework` is another implement round, and is the
-answer only when you can name what it changes that the last three did not. `up`
+answer only when you can name what it changes that the sent-back rounds did not. `up`
 pauses this gate rather than closing it: your ruling stands as an ask at the
 run that dispatched you, and this gate resumes -- with whatever it answers, as
 this gate's own next round -- once it does. The right move when the spec, not
@@ -31,5 +32,5 @@ the diff, is what is wrong."""
 id = "why"
 kind = "evidence"
 note = """
-What the three reviews had in common, and what that says about the spec. Name
-the field or the claim the findings kept landing on."""
+What the reviews that sent this diff back had in common, and what that says
+about the spec. Name the field or the claim the findings kept landing on."""
