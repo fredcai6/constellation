@@ -94,7 +94,7 @@ decides = "verdict"     # the panel's own merged verdict; no conductor form subm
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "simplicity: what can be deleted"
+  criteria = "simplicity: argue for the smaller version and name what to delete -- anything added beside an existing thing rather than through it is the first suspect"
 
 [[segment]]
 id = "close"

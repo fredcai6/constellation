@@ -49,7 +49,9 @@ anything else, and a change to a form is real work.
 stays; structure that audits an agent's behavior goes.** When a change would add a check on
 what an agent did, look first for the field or imperative that would have shaped what it did
 instead. `docs/V2_DESIGN.md` states the thesis in full, along with the corollary that settles
-calls the thesis alone cannot.
+calls the thesis alone cannot. A second test decides whether a mechanism is ours rather than
+merely legitimate: name which of the five in
+`standards/approach.md` the mechanism serves.
 
 That test decides what belongs in the system. A second question decides what is worth doing
 now: **does fixing this change what an agent does at a step, or what a human sees when it
@@ -59,9 +61,10 @@ correct is not sufficient, which is what `standards/issue.md` says from the othe
 Adding guidance is not free: before writing more, ask whether a consolidation pass is due —
 what the repo already carries that it no longer needs.
 
-`standards/glossary.md` is the single largest file in corpus. Its growth is the intended
-mechanism rather than drift — new terms enter it through the key-terms field precisely so a
-meaning is written down once instead of reconstructed per reader. Pairs that can look like
+`standards/glossary.md` fixes one name for one thing. A term enters it once it has crossed to
+the human and the human has used it back: the key-terms field proposes a term, and that
+acknowledgement admits it. The file holds shared understanding, so its length tracks how much
+of the vocabulary is genuinely shared rather than coined in passing. Pairs that can look like
 padding at a glance — `run-an-issue` and `run-a-gate` each carrying their own `IMPASSE.toml`,
 and `run-an-issue/forms/CLOSE.toml` beside `run-a-gate/forms/GATE_CLOSE.toml` — read that
 length because each answers the same question at two different tiers in deliberately
@@ -95,9 +98,11 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 | Document | Source of truth for |
 |---|---|
 | `docs/AGENT_GUIDE.md` | this guide — purpose, layout, documentation map |
+| `docs/PURPOSE.md` | what Constellation is for, what measures its machinery, and what good enough means |
 | `docs/V2_DESIGN.md` | the founding design: thesis, rulings, and the reasoning behind them. A starting point, not a target sheet; where it and the tree differ, the tree is right and the passage goes. |
 | `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
 | `docs/DERIVED_IS_CODE.md` | why nothing generated is committed |
+| `standards/approach.md` | how Tommy builds, in any repository: the five, and the two rules at the human seam |
 | `standards/prose.md` | how this repo writes |
 | `standards/glossary.md` | one name for one thing |
 | `standards/issue.md` | what an issue and an epic are |

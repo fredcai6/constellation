@@ -7,9 +7,9 @@
 
 imperative = """
 The diff is in. Say which lenses read it, before anybody is dispatched. On
-a first round two are the default and go on the panel unless something about
-this diff makes one of them inert; a third is warranted when the change
-reaches somewhere neither of them looks. On the round after a rework one
+a first round three are the default and go on the panel unless something
+about this diff makes one of them inert; a fourth is warranted when the
+change reaches somewhere none of them looks. On the round after a rework one
 reader is the default, reading for exactly two things: that each blocking
 finding is answered, and that nothing the rework wrote -- a comment, a
 rationale, a test predicate -- says something the diff itself made false,
@@ -34,23 +34,26 @@ kind = "plan"
 mints = "panelists"
 note = """
 One block per reader this round dispatches, minted onto the review step as
-its panel the moment this releases. The two defaults are written out here
+its panel the moment this releases. The three defaults are written out here
 rather than left to be remembered, because they are what you copy in:
-spec-fit -- "does the work fill the specification, whole and only"; and test
+spec-fit -- "does the work fill the specification, whole and only"; test
 adequacy -- "are these the right tests, or could the work be substantially
-wrong while they pass". Both are worker `reviewer` at model `standard`. Add a
-block where the diff reaches somewhere neither lens looks, and name above the
-one you dropped. Every block needs all three values: `worker` and `model` are
+wrong while they pass"; and simplicity -- "argue for the smaller diff and name
+what to delete -- anything added beside an existing thing rather than through
+it is the first suspect". All three are worker `reviewer` at model `standard`,
+and simplicity is a first-round default only: a rework round keeps its single
+reader. Add a block where the diff reaches somewhere none of these lenses
+looks, and name above the one you dropped. Every block needs all three values: `worker` and `model` are
 the hand and the tier the brief dispatches under, and a block missing either
 renders a brief nobody can run."""
 
   [[field.item]]
   id = "worker"
-  note = "The role that reads -- `reviewer` for both defaults."
+  note = "The role that reads -- `reviewer` for all three defaults."
 
   [[field.item]]
   id = "model"
-  note = "The tier the brief dispatches under -- `standard` for both defaults."
+  note = "The tier the brief dispatches under -- `standard` for all three defaults."
 
   [[field.item]]
   id = "criteria"

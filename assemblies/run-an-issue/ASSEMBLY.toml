@@ -120,7 +120,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "simplicity: what can be deleted"
+  criteria = "simplicity: argue for the smaller version and name what to delete -- anything added beside an existing thing rather than through it is the first suspect"
 
 # A board with no transition of its own: nothing here stands the run on a
 # step, so `skeleton` mints none for it (no `form`, no `panel`) -- it exists
@@ -249,7 +249,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "intent-fit: does the plan serve the spec it was built on"
+  criteria = "intent-fit: does the plan serve the spec it was built on, and does the gate serve the one commitment in standards/approach.md its purpose names"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"
@@ -261,7 +261,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "simplicity: what can be deleted"
+  criteria = "simplicity: argue for the smaller version and name what to delete -- anything added beside an existing thing rather than through it is the first suspect"
 
 # The plan-to-execute transition's `projects` mints this interior: one
 # dispatch step and one GATE_TRANSITION step, projected from the plan round

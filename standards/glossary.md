@@ -1,7 +1,8 @@
 # Glossary
 
-One name for one thing. New terms enter through the key-terms field on understanding and plan
-forms; coining a synonym for a term below is a defect.
+One name for one thing. New terms are proposed through the key-terms field on
+understanding and plan forms, and enter here once they have crossed to the human and the human
+has used one back. Coining a synonym for a term below is a defect.
 
 - **run** — one instantiated pass through an assembly, addressed by its work id, recorded in
   its journal.

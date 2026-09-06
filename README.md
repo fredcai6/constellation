@@ -28,6 +28,7 @@ just with the work package riding along.
 ```text
 constellation/
   README.md           this page
+  docs/PURPOSE.md     what this is for and who it is for
   docs/V2_DESIGN.md   founding design — thesis and rulings; a starting point, not a target sheet
   engine/             the secretary: rail, forms, journal, install copy
   assemblies/         run templates: run-an-issue, run-a-gate, explore-an-idea, and one per excursion
