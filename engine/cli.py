@@ -137,6 +137,54 @@ def _check_artifact(wid, form, fields):
                 "value is a file's location, not its content"))
 
 
+# [per-step-name]
+# Rationale: two files in a work location belong to a round rather than to a
+#   run -- the response form the round is answered on, and the artifact the
+#   round produces -- and both used to be named for the run alone, so every
+#   round of a seam wrote over the one before it. #118 was that defect on the
+#   form half. The artifact half never had an issue number because agents
+#   worked around it by hand: issue80 and issue99 both have findings citing a
+#   `spec-r2.md` a conductor invented, which leaves a stale `spec.md` beside
+#   it and no convention saying which is current.
+#   One rule, used by both, so a work location reads the same way whichever
+#   file you are looking at and neither can drift from the other.
+# Rejected: an incrementing suffix (`spec.2.md`). The step id is already the
+#   round's own name, it is what the journal indexes by, and it makes the
+#   copy answerable to a step rather than to a position in a sequence
+#   nothing else counts.
+def _per_step_name(path, step_id):
+    """`<stem>.<step-id><suffix>` -- the one name a file a round owns takes.
+    `SPEC.toml` at step `understand-a4d19` is `SPEC.understand-a4d19.toml`,
+    and the `spec.md` that round wrote is `spec.understand-a4d19.md`."""
+    path = pathlib.Path(path)
+    return f"{path.stem}.{step_id}{path.suffix}"
+
+
+# [archive-artifact]
+# Rationale: an artifact field names a file the agent wrote, not one the
+#   engine materialized -- `_check_artifact` only reads it and this function
+#   only measures it -- so nothing kept the round's own copy and a rework
+#   writing to the same path overwrote the spec it was reworking. The word
+#   count journaled here says how the artifact moved and never what it said.
+#   Taken at submit, beside the measurement, because that is the moment the
+#   file stops being the round's working copy and becomes its answer.
+# Rejected: asking the agent to name the file per round. That is the `-r2`
+#   convention already invented twice, and it is a second thing to get right
+#   in a form that has enough to say.
+# Rejected: moving it rather than copying. The path the submitted field names
+#   has to keep resolving -- a later reader follows the journaled value, and
+#   the next round works from the file it points at.
+def _archive_artifact(root, value, step_id):
+    """Keep this round's copy of the artifact it produced, beside it and
+    named for the round. A no-op for a path that is not there: a null answer
+    (`waived:`) names no file, and an unreadable one has already been refused
+    by `_check_artifact` before anything reached here."""
+    src = root / value
+    if not src.is_file():
+        return
+    shutil.copy2(src, src.with_name(_per_step_name(src, step_id)))
+
+
 def _measure_artifacts(wid, step, form, fields):
     """Record each artifact field's prose length, so a later round can say how
     the artifact moved. Recorded, never enforced -- the engine has no opinion
@@ -151,6 +199,7 @@ def _measure_artifacts(wid, step, form, fields):
     for f in form.get("fields", []):
         if f.get("kind") != "artifact" or not isinstance(fields.get(f["id"]), str):
             continue
+        _archive_artifact(root, fields[f["id"]], step["id"])
         words = _prose_words(root / fields[f["id"]])
         if words:
             journal.append(wid, "measure", segment=step["segment"], step=step["id"],
@@ -321,15 +370,16 @@ def _load_form(asm, ref, wid, step_id):
 #   record and not the collision.
 def _response_path(st, step, *, root=None):
     """Where this step's own response form lands -- named for the step as
-    well as the form (`<form-stem>.<step-id>.toml`), so two rounds at one
+    well as the form by `_per_step_name`, the same rule the artifact copy
+    beside it takes, so two rounds at one
     seam, or two seams sharing one form, never resolve to the same file.
     Resolved fresh against `journal.location(st["id"], root)` rather than
     any path frozen earlier, so a caller whose process starts somewhere else
     (`_form_filler_brief`, off the tree `_tree_info` names) still gets an
     absolute, correct path. `root=None` is `cmd_status`'s own case: resolve
     the same way it always has."""
-    stem = pathlib.Path(step["form"]).stem
-    return journal.location(st["id"], root) / f"{stem}.{step['id']}.toml"
+    return journal.location(st["id"], root) / _per_step_name(
+        step["form"], step["id"])
 
 
 # [board-path]
