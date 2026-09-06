@@ -21,7 +21,11 @@ the steps that lead to them.
 
 **A gate is dispatched from the brief `status` renders, not composed.** An
 unresolved field in a brief is something to fix upstream, never a gap to
-paper over with a guess.
+paper over with a guess. In a repository whose palette carries a `dispatch`
+entry, no command prints at a dispatch or panel seam: `wait` starts each
+child, and your job there is running it and reading what comes back. Where no
+such entry is configured, the room prints one command per child, and running
+them is yours.
 
 **Dispositions are yours, not the panel's.** A panel returns findings;
 each finding's disposition is your ruling, made at a gate's adjudication
