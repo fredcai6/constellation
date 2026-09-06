@@ -198,7 +198,7 @@ def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
                 lines.append(ESCAPES_REFUSED)
             lines.append(_slot(field["id"], _is_short(field)))
         lines.append("")
-    dest_path.write_text("\n".join(lines).rstrip() + "\n")
+    dest_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
 
 def _clean(v):

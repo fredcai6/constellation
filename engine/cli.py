@@ -94,7 +94,7 @@ def _prose_words(path):
     has. Counting everything cannot tell those apart, and the count an agent
     is shown decides what it thinks it should cut."""
     try:
-        text = pathlib.Path(path).read_text()
+        text = pathlib.Path(path).read_text(encoding="utf-8")
     except OSError:
         return 0
     out, fenced = [], False
@@ -130,7 +130,7 @@ def _check_artifact(wid, form, fields):
         if not isinstance(value, str) or forms.leading_word(value) in ("waived", "unknown"):
             continue
         try:
-            pathlib.Path(root / value).read_text()
+            pathlib.Path(root / value).read_text(encoding="utf-8")
         except OSError:
             raise SystemExit(render.refusal(
                 fid, f"{value!r} is not a readable path -- an artifact field's "
@@ -414,7 +414,8 @@ def _git(cwd, *args):
     failure, so the caller has one shape to check rather than two."""
     try:
         return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
-                              text=True, timeout=GIT_TIMEOUT)
+                              text=True, encoding="utf-8", errors="replace",
+                              timeout=GIT_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as e:
         return subprocess.CompletedProcess(args, 1, "", str(e))
 
@@ -427,7 +428,8 @@ def _gh(cwd, *args):
     pull request against whatever `origin` happens to point at."""
     try:
         return subprocess.run(["gh", *args], cwd=str(cwd), capture_output=True,
-                              text=True, timeout=GIT_TIMEOUT)
+                              text=True, encoding="utf-8", errors="replace",
+                              timeout=GIT_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as e:
         return subprocess.CompletedProcess(args, 1, "", str(e))
 
@@ -3211,7 +3213,7 @@ def _seed_board(template, dest, rows):
     instructions belong at the artifact, not in a doc read once.
     """
     from engine import tomlw
-    text = template.read_text().rstrip()
+    text = template.read_text(encoding="utf-8").rstrip()
     table = re.search(r"^\[\[(\w+)\]\]", text, re.M)
     head, sep, example = text.partition(table.group(0))
     quoted = "\n".join(
@@ -3227,7 +3229,7 @@ def _seed_board(template, dest, rows):
         row = {"id": f"{prefix}{i+1}", "status": blank.get("status", "open"), **r}
         body += tomlw.table(table.group(1), row) + "\n"
     dest.write_text(f"{head.rstrip()}\n\n# --- the columns, and what they mean ---\n"
-                    f"{quoted}\n\n# --- the board ---\n\n{body}")
+                    f"{quoted}\n\n# --- the board ---\n\n{body}", encoding="utf-8")
 
 
 # [up-target]
@@ -3909,7 +3911,8 @@ def cmd_close(argv):
     # for a lesson rather than a field (#16).
     yield_table = render.review_yield(review_yield.run_yield(wid))
     if yield_table:
-        (journal.location(wid) / "YIELD.md").write_text(yield_table + "\n")
+        (journal.location(wid) / "YIELD.md").write_text(yield_table + "\n",
+                                                        encoding="utf-8")
         print(yield_table + "\n")
     print(f"closed {wid}\n")
     result = cmd_status([wid])

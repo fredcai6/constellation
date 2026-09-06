@@ -428,6 +428,7 @@ def _run(cmd, cwd, budget):
     """(exit, output) for one check; exit `None` when it outran the budget."""
     try:
         r = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
                            timeout=budget, cwd=cwd)
     except subprocess.TimeoutExpired:
         return None, ""
