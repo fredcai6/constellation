@@ -17,9 +17,12 @@ restated there."""
 id = "plan"
 kind = "artifact"
 note = """
-The plan document, in this run's work location (.agent-work/<work-id>/).
-Point at it — never retype it: the imperative above says what belongs in
-it and what stays here instead."""
+The plan document this round edited, in this run's work location
+(.agent-work/<work-id>/): this segment's own, never one an earlier plan
+segment left behind describing a different gate. Point at it, never retype
+it -- the imperative above says what belongs in it. A round that changed only
+the fields below and wrote no document of its own says `waived: fields only`
+rather than naming the last true path another round wrote."""
 
 [[field]]
 id = "purpose"
