@@ -430,8 +430,10 @@ def _run(cmd, cwd, budget):
         r = subprocess.run(cmd, shell=True, capture_output=True, text=True,
                            encoding="utf-8", errors="replace",
                            timeout=budget, cwd=cwd)
-    except subprocess.TimeoutExpired:
-        return None, ""
+    except subprocess.TimeoutExpired as e:
+        # What it printed before it was killed is the only account of a proof
+        # that outran its budget, and `run` hands it back on the exception.
+        return None, ((e.stdout or "") + (e.stderr or ""))[-4000:]
     return r.returncode, (r.stdout + r.stderr)[-4000:]
 
 
@@ -460,13 +462,37 @@ def _overran(wid, step_id, fid, cmd, budget):
                 f"spine {wid} amend close {step_id} --reason ..."))
 
 
+# [proof-output-reaches-the-log]
+# Rationale: #117 -- a failing proof left 232 bytes behind, all of them the
+#   refusal, and which check failed was unrecoverable. On a failing exit the
+#   output was never lost -- `_run` captures it and `main` journals it -- so
+#   what was missing is the output at the path the in-flight room actually
+#   names, which is the only place a reader is told to look. A proof killed at
+#   its budget did lose it outright, and `_run` now takes it off the timeout
+#   too. Every attempt writes its own header here,
+#   whatever the exit, because the log is opened for append (`_spawn`) and a
+#   passing attempt after a failing one otherwise reads as the failure still
+#   standing -- the second half of #117, where the log contradicts the
+#   journal.
+# Rejected: truncating the log at the start of each attempt. `_spawn` is
+#   shared with the dispatched-child path, where the accumulated log is the
+#   record, so the fix has to make attempts distinguishable rather than make
+#   the earlier one disappear.
+def _attempt(fid, cmd, code, output):
+    """Print one attempt into the log: what ran, how it ended, and what it
+    printed. `code` is `None` for a proof that outran its budget."""
+    ended = "no result" if code is None else f"exited {code}"
+    print(f"--- {journal.stamp()} {fid}: `{cmd}` {ended} ---", flush=True)
+    print(output if output else "(it printed nothing)", flush=True)
+
+
 def _refuse(payload, text):
     """Leave the refusal where the caller reads it, and print it into the log
     so a check that was already handed back still says why it failed
     somewhere a person can find it."""
     pathlib.Path(payload["result"]).write_text(
         json.dumps({"refusal": text}), encoding="utf-8")
-    print(text)
+    print(text, flush=True)
     return 1
 
 
@@ -480,6 +506,7 @@ def main(argv):
     ran = []
     for fid, cmd in payload["commands"]:
         code, output = _run(cmd, payload["cwd"], budget)
+        _attempt(fid, cmd, code, output)
         if code is None:
             journal.append(wid, "check", step=step_id, command=cmd, exit=-1,
                            output=f"no result after {budget}s")

@@ -103,6 +103,13 @@ def _open_for_append(path: pathlib.Path, attempts=5, delay=0.05):
             time.sleep(delay)
 
 
+def stamp() -> str:
+    """The one timestamp shape this repo writes: UTC, to the second. A
+    journal entry's `at` and a check log's own attempt header are the same
+    instant written the same way, so a reader lines them up by eye."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def append(work_id: str, kind: str, *, root: pathlib.Path = None, **data) -> dict:
     """Append one [[entry]] block; return the entry as written.
 
@@ -112,7 +119,7 @@ def append(work_id: str, kind: str, *, root: pathlib.Path = None, **data) -> dic
     """
     stamps = {
         "kind": kind,
-        "at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "at": stamp(),
         "session": os.environ.get("CONSTELLATION_SESSION", str(os.getpid())),
     }
     entry = {**stamps, **data}  # caller-supplied keys win over stamps

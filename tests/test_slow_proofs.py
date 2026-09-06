@@ -245,3 +245,45 @@ def test_a_budget_that_is_not_seconds_refuses_before_anything_runs(bare_workdir)
     assert "'15m'" in str(e.value) and "seconds" in str(e.value)
     assert "submit" not in _kinds("g1")
     assert "check" not in _kinds("g1")
+
+
+def _log(wid="g1", step="work-1"):
+    return pathlib.Path(checks.in_flight_log(wid, step)).read_text(encoding="utf-8")
+
+
+def test_a_failed_proof_leaves_what_it_printed_where_the_room_says(
+        bare_workdir, monkeypatch):
+    """#117: the refusal used to be the whole of what a failure left behind,
+    so which check failed was unrecoverable at the one path the in-flight
+    room tells a reader to open."""
+    monkeypatch.setattr(checks, "HANDBACK", 1)
+    _gate("echo the-failing-case; exit 4")
+    with pytest.raises(SystemExit):        # it fails inside the handback
+        cli.main(["g1", "submit"])
+    _await("g1", "check")
+
+    log = _log()
+    assert "the-failing-case" in log      # what the proof itself printed
+    assert "exited 4" in log              # and how it ended, in one header
+
+
+def test_a_passing_attempt_is_told_apart_from_the_failure_before_it(
+        bare_workdir, monkeypatch):
+    """#117's second half: the log is appended to, never truncated, so a
+    passing attempt has to be distinguishable from the failing one above it
+    or the file goes on saying the step failed after the journal says it
+    passed."""
+    monkeypatch.setattr(checks, "HANDBACK", 1)
+    _gate("test -f ok && echo it-passes || { echo it-fails; exit 4; }")
+    with pytest.raises(SystemExit):        # it fails inside the handback
+        cli.main(["g1", "submit"])
+    _await("g1", "check")
+
+    pathlib.Path("ok").write_text("", encoding="utf-8")
+    cli.main(["g1", "submit"])
+    _await("g1", "submit")
+
+    log = _log()
+    assert "exited 4" in log and "exited 0" in log          # a header per attempt
+    assert log.index("it-fails") < log.index("it-passes")   # in the order they ran
+    assert log.index("exited 4") < log.index("exited 0")    # the pass is the last word
