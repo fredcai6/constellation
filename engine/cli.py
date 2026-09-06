@@ -3382,7 +3382,8 @@ def _amend_add(wid, st, argv, reason):
         sid = f"{seg}-a{secrets.token_hex(2)}"
         step = {"id": sid, "segment": seg, "filler": t.get("filler", "conductor"),
                 "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
-                "validates": t.get("validates", ""), "source": "amend"}
+                "validates": t.get("validates", ""),
+                "carries": t.get("carries", False), "source": "amend"}
         # The segment's `route-form` is the same fallback `_mint_transition`
         # reads, for the same reason and from the same place: a segment whose
         # transition step is minted rather than declared carries no `form` on
@@ -3530,9 +3531,15 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     # segment's one terminal step -- without it `cmd_close` found no
     # terminal step and the panelist's actual ruling never reached its
     # parent.
+    # `validates` and `carries` are read off the transition for the same
+    # reason `anchor`/`terminal` are: `skeleton()` (engine/run.py) gives round
+    # one both keys, every reader of them is a bare `step.get(...)`, and a
+    # fresh round that omitted them skipped the guards its assembly declares
+    # with no refusal and no journal trace (#110).
     fresh = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
              "filler": t.get("filler", "conductor"),
              "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
+             "validates": t.get("validates", ""), "carries": t.get("carries", False),
              "source": "panel"}
     if t.get("panel"):
         fresh["panel"] = t["panel"]

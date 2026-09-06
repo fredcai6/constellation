@@ -686,6 +686,26 @@ def test_a_revised_understands_re_minted_transition_carries_its_declared_filler(
     assert fresh["filler"] == seg["transition"]["filler"] == "conductor"
 
 
+def test_a_revised_understands_re_minted_transition_carries_its_declared_guards(
+        workdir, capsys):
+    """#110: the same `fresh` dict that used to drop `filler` also dropped
+    `validates` and `carries`. Both are read as a bare `step.get(...)`, so a
+    re-minted CONSOLIDATE skipped the board check on release and folded no
+    spec into the run's prefill -- silently, with nothing refused and nothing
+    journaled. Confirmed against the assembly's own declared values, the same
+    ones `skeleton()` gives round one."""
+    wid = _drive_understand_to_revise()
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    fresh = next(s for s in st["steps"]
+                 if s.get("source") == "panel" and s["segment"] == "understand")
+    t = next(s for s in runmod.load_assembly("run-an-issue")["segment"]
+             if s["id"] == "understand")["transition"]
+    assert fresh["validates"] == t["validates"] == "board"
+    assert t["carries"] is True and fresh["carries"] is True
+
+
 def test_a_gates_reworked_select_carries_the_conductor_default(workdir, capsys):
     """`work`'s own transition (`select`) declares no `filler` at all -- its
     re-minted round used to carry none either, leaving `role_of`/`hat` to
