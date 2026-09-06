@@ -2,11 +2,11 @@
 passes.
 
 Two defects the live proof run found by driving the system, neither caught
-by the suite: (1) the plan segment's design-it-twice panel (ruling 10)
-declared no `model` of its own and sat on a segment that declared none
-either, so `_panel_status`'s `panelist.get("model") or seg.get("model", "")`
-resolved to `""` -- the brief printed `tier (unset)` and `runner
-(unresolved)`, and nothing could dispatch the round. (2) CONSOLIDATE.toml
+by the suite: (1) the plan segment's design-it-twice panel (ruling 10, since
+shelved -- #96) declared no `model` of its own and sat on a segment that
+declared none either, so `_panel_status`'s `panelist.get("model") or
+seg.get("model", "")` resolved to `""` -- the brief printed `tier (unset)`
+and `runner (unresolved)`, and nothing could dispatch the round. (2) CONSOLIDATE.toml
 declared `obligations` (`kind = "plan"`, an array-of-tables) before
 `resolution` (`kind = "decision"`, a scalar) -- `forms.materialize` writes a
 plan field as a bare `[[obligations]]` header, and TOML nests any later
@@ -34,8 +34,9 @@ MODELS = tomllib.loads((ROOT / "constellation.toml").read_text()).get("models", 
 
 def _panel_entries(asm):
     """Every panelist, paired with the top-level segment that owns it -- the
-    same segment `_panel_status` looks up by the step's own `segment` id,
-    for both a segment's own panel (design-it-twice) and its transition's."""
+    same segment `_panel_status` looks up by the step's own `segment` id, for
+    both a segment's own panel (design-it-twice's own, before it was shelved
+    -- #96, was the tree's one example) and its transition's."""
     for seg in asm.get("segment", []):
         for panelist in seg.get("panel", []):
             yield seg, panelist

@@ -223,15 +223,6 @@ def skeleton(assembly):
                 step["dispatches"] = seg["dispatches"]
             else:
                 step["form"] = form
-            # [interior-panel]
-            # Rationale: a panel is not only a transition's -- design-it-twice
-            #   (ruling 10) declares one on the segment itself, read here so
-            #   round one's interior step carries it too. `_mint_segment_round`
-            #   mints every later round and does not read `segment.panel`, so a
-            #   rework round stays single-planner; re-arguing a settled
-            #   alternative belongs to round one only.
-            if seg.get("panel"):
-                step["panel"] = seg["panel"]
             steps.append(step)
         t = seg.get("transition", {})
         panel = t.get("panel")
@@ -447,11 +438,15 @@ def voice_outcomes(returns, panel_forms):
 #   any voice is the whole panel's result, naming the voice, ahead of any
 #   ranking among the clean words and regardless of precedence among them.
 # [quiet-needs-every-voice-quiet]
-# Rationale: quiet is the design-it-twice panel's own case -- every voice's
-#   form declares no vocabulary at all. One voice's form declaring a
-#   vocabulary takes the whole panel out of quiet eligibility even where
-#   that voice's own return is clean, so a no-vocabulary voice paired with a
-#   vocabulary voice folds to the vocabulary voice's clean word, not quiet.
+# Rationale: quiet is what a panel folds to only once every voice's own form
+#   declares no vocabulary at all -- design-it-twice's rival-planner panel
+#   (ruling 10, shelved #96) was the tree's one worked example of this before
+#   its `[[segment.panel]]` was deleted; the fold itself is unchanged, so a
+#   future panel-only round with no verdict field still reaches it. One
+#   voice's form declaring a vocabulary takes the whole panel out of quiet
+#   eligibility even where that voice's own return is clean, so a
+#   no-vocabulary voice paired with a vocabulary voice folds to the
+#   vocabulary voice's clean word, not quiet.
 def verdict_fold(returns, panel_forms, table):
     """Fold a panel's returns to one panel-wide outcome: `("clean", word)`,
     `("refused", tag)`, or `("quiet", None)` -- three per-voice outcomes
@@ -613,11 +608,14 @@ def _two_voices_fold(st, step, returns):
     voices = panel_forms(assembly, step)
     kind, word = verdict_fold(returns, voices, spec)
     if kind == "clean":
-        # `None` -- no row at all -- is the interior case: a design panel
-        # (ruling 10) sits on a step whose own segment declares an impasse
-        # ruling, not a verdict, so no verdict word ever resolves there and
-        # the form completes the step exactly as it always has. Inert either
-        # way is what holds.
+        # `None` -- no row at all -- is the fold's own inert default: a step
+        # whose own segment declares an impasse ruling rather than a verdict
+        # for that word, so no verdict word ever resolves there and the form
+        # completes the step exactly as it always has. design-it-twice's
+        # interior panel (ruling 10, shelved #96) was the tree's one worked
+        # example of this; nothing mints that step any more, but the branch
+        # still holds for any future panel-only round shaped the same way.
+        # Inert either way is what holds.
         return declared_does(spec, word) in (None, "release"), False
     return True, kind == "refused" and _voice_form(voices, word) is None
 

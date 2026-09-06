@@ -54,10 +54,10 @@ has used one back. Coining a synonym for a term below is a defect.
   the whole panel's own outcome, naming that voice, ahead of any clean word a co-panelist
   returned. Printed at every surface that reports a panel round as **unreadable**.
 - **quiet** — one of `verdict_fold`'s three per-voice/panel outcomes: a voice's own form
-  declares no `verdict` field at all — design-it-twice's rival-planner panel is this case. A
-  panel folds to quiet only once every voice is quiet; one voice whose form declares a
-  vocabulary takes the whole panel out of quiet eligibility even where that voice's own return
-  is itself clean.
+  declares no `verdict` field at all — design-it-twice's rival-planner panel (shelved, #96) was
+  the tree's one worked example. A panel folds to quiet only once every voice is quiet; one
+  voice whose form declares a vocabulary takes the whole panel out of quiet eligibility even
+  where that voice's own return is itself clean.
 - **unreadable** — the word `verdict_record` (`engine/run.py`) prints for a **refused**
   outcome, at every surface that reports a panel round — the room's own line, the close
   summary, the review yield — followed by the refusing voice's own tag, e.g. `unreadable p2`.
@@ -318,13 +318,15 @@ has used one back. Coining a synonym for a term below is a defect.
   the command that regenerates it. Four kinds, each its own form: prior art, prototype,
   picture, rival.
 - **rival** — a design produced against an incumbent under one named constraint, to test
-  whether the incumbent holds. Design-it-twice, without the count.
-- **design-it-twice** — ruling 10: a plan segment's first round dispatches the planner and two
-  more, each under a constraint chosen to open a different path; the conductor picks or merges
-  before the critic panel reads any of them. Read once, on round one, from a `panel` declared
-  on the segment itself rather than its transition; a rework round re-argues nothing, so it
-  never reads it. `criteria` is the shared field a verdict panel and this one both carry — a
-  criterion when the sibling judges, a constraint when it authors.
+  whether the incumbent holds — the same move design-it-twice (shelved, #96) once ran
+  unconditionally on every plan segment's first round, here named at one board row instead,
+  without the count.
+- **design-it-twice** — ruling 10, shelved (#96): a plan segment's first round once dispatched
+  the planner and two more, each under a constraint chosen to open a different path, with the
+  conductor picking or merging before the critic panel read any of them, from a `panel`
+  declared on the segment itself rather than its transition. Deleted from
+  `assemblies/run-an-issue/ASSEMBLY.toml`: every plan round, first and rework alike, now
+  dispatches the one planner `_mint_segment_round` already mints for round two onward.
 - **ideas board** — the explore segment's board: a tree of ideas and threads grown and shaped
   across cycles, never drained. An open row is the point; the human's converge releases.
 - **cycle** — one firing of the explore transition: consolidate the board, then the human says

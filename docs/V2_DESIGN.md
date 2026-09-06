@@ -15,7 +15,7 @@ command check that verifies work is audit-shaped by the raw thesis, yet it stays
 escape is one step. When the thesis alone cannot settle a call, the corollary settles it.
 
 The valuable, model-portable part of Constellation is the choreography — understand → refine →
-criticize, cross-review with recorded evidence, design-it-twice, fresh context at boundaries.
+criticize, cross-review with recorded evidence, fresh context at boundaries.
 Every recorded win comes from that side. Every recorded machinery failure comes from the other
 side: enforcement refusing legitimate work. v2 rebuilds the system so the choreography is nearly
 all that remains.
@@ -53,7 +53,7 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | understand · review | critic subagents, cold | `CRITIC` | completeness and ambiguity: findings classed gap / beyond; `pass | revise` | route |
 | understand · route | issue-conductor | the transition form | back to do 1 when information is missing; back to do 2 when it is there and the spec needs amending; forward when the spec is sufficient; up when the issue itself is wrong | the gate cycle |
 | **gate cycle** · route | engine | — | every obligation in the spec has a disposition → close; otherwise → plan | plan, or close |
-| **plan** · do | subagent, the planner — on the first round, two more planners beside it, each under a constraint the conductor picked to open a different path | `PLAN` (first cut), `REWORK` (a revise) | the **next gate** from the spec and what has landed, plus a coarse horizon | review |
+| **plan** · do | subagent, the planner | `PLAN` (first cut), `REWORK` (a revise) | the **next gate** from the spec and what has landed, plus a coarse horizon | review |
 | plan · review | critic subagents, cold | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap / beyond; `pass | revise` | route |
 | plan · route | issue-conductor | `PLAN_TO_EXECUTE`; `IMPASSE` after three | pass → the **gate spec** (purpose, scope, proof, model, direction) minted as a dispatch and its review step; revise → back to do; up → an ask for help; after three rounds a ruling | execute |
 | **execute** · do | subagent, the gate-conductor, as a `run-a-gate` child | the spec as prefill | the **gate report** — the diff on the worktree, residue, and the engine's record of cycles, verdict, checks, amends | review |
@@ -360,7 +360,7 @@ each conductor dispatches the tier below and judges at its transitions:
                   a reader with no tracker; the engine is the verdict here,
                   validating the board
 [plan]*           the next gate, fully specified, and a coarse horizon of
-                  what likely follows; design-it-twice lives here
+                  what likely follows
 <plan→execute>    critic panel reads the spec and the next gate; revise
                   refills plan, pass mints one gate dispatch and its
                   adjudication step
@@ -526,12 +526,17 @@ as prefill; sometimes it is a decision to end the run. Either is the level above
 ask never skips a level: a gate asks its issue-conductor, an issue run asks its
 epic-conductor or the human.
 
-**10. Design-it-twice is two more planners, not a field.** On the first plan round the
-conductor dispatches the planner and, beside it, two more, each under a constraint the
-conductor thinks might open a different path; it reads three plans and picks or merges before
-the critics read one. Later rounds run one planner — re-arguing a settled alternative is
-accretion. This is separate from the replaceability lens, which is a critic's question about
-an uncertain component: if we distrust this choice, how hard is it to replace?
+**10. Design-it-twice is shelved (#96).** The ruling once read: two more planners, not a field
+— on the first plan round the conductor dispatches the planner and, beside it, two more, each
+under a constraint the conductor thinks might open a different path, reading three plans and
+picking or merging before the critics read one. Every real round ran one planner already —
+`_mint_segment_round` never read the segment's panel — so the three-sibling shape bought a
+second cut only on round one, and nothing distinguished that round as the one worth the extra
+two dispatches. Every plan round now runs the single planner. Rival (the excursion kind) still
+argues one design against an incumbent under a named constraint, at whichever board row calls
+for it, rather than on every first cut unconditionally. This is separate from the
+replaceability lens, which is a critic's question about an uncertain component: if we distrust
+this choice, how hard is it to replace?
 
 **11. The reviewer lenses that exist.** Spec-fit — does the work fill the spec — and test
 adequacy — are these the right tests, or could the work be substantially wrong while they
@@ -554,10 +559,9 @@ world, spike it, picture it — and its `move` column the three worked in place:
 trace one case, and **run the evidence loop** (v1 `diagnose`), which makes the break happen on
 demand and then runs hypothesis → test until the cause is shown, never guessed. The mandate is
 per row, not per form: *name the excursion that would settle this row now, or decline with a
-reason.* The plan form carries none — `PLAN.toml`'s `design-it-twice` argues a rival against a
-commitment already made, which is a different move from settling an open question before one.
-Consolidate's `settle` reports what the column produced, so the answers reach the planner and
-the cold panel.
+reason.* The plan form carries none — a `rival` excursion argues a design against a commitment
+already made, which is a different move from settling an open question before one. Consolidate's
+`settle` reports what the column produced, so the answers reach the planner and the cold panel.
 
 ### Vocabulary: the glossary and how terms flow
 

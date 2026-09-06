@@ -301,12 +301,14 @@ def _current_form(st):
     asm = runmod.load_assembly(st["assembly"])
     step = st["current"]
     # [panel-before-dispatch]
-    # Rationale: round one's own design panel (ruling 10) is the first step
-    #   in the tree to carry both `dispatches` and `panel` -- checking
-    #   `dispatches` first silently rendered it as a single-child brief,
-    #   discoverable only once and then stuck, since a second open at the
-    #   same untagged address refuses. `cmd_close`'s own pending-step
-    #   guidance already checks panel first for the identical reason.
+    # Rationale: design-it-twice's round-one panel (ruling 10, shelved #96)
+    #   was the first step in the tree to carry both `dispatches` and
+    #   `panel` -- checking `dispatches` first silently rendered it as a
+    #   single-child brief, discoverable only once and then stuck, since a
+    #   second open at the same untagged address refuses. The order stays
+    #   correct for any future step that carries both, so it is left as is;
+    #   `cmd_close`'s own pending-step guidance already checks panel first
+    #   for the identical reason.
     if runmod.panel_outstanding(st, step):
         return asm, step, None  # rendered as N commands; the outcome is mechanical
     if runmod.paused(step):
@@ -3618,16 +3620,21 @@ def _act_on_verdicts(pwid, step_id):
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     t = seg.get("transition", {})
     # [panel-owner]
-    # Rationale: a panel is not only a transition's now (ruling 10) -- an
-    #   interior step's own design panel authors, it does not decide, and
-    #   the segment it sits in still declares `decides` for its impasse
-    #   ruling. `_decided_here`'s segment fallback exists for that direct
-    #   submit, not for a synthesised panel verdict, so this reads `decides`
-    #   only when `step` really is the transition, never falling back.
-    # Rejected: calling `_decided_here` here as before. Its fallback made an
-    #   interior design panel's merged "pass" get checked against the
-    #   segment's own outcome table (advance | rework | up) -- a value that
-    #   table never declares, so closing the last planner sibling refused.
+    # Rationale: a panel is not only a transition's own step -- run-a-gate's
+    #   review panel is named at `select` (`_PANEL_MINT`, cli.py:2682) as a
+    #   step in its own right, `form` set to the segment's `route-form`,
+    #   while `review`'s own `[segment.transition]` declares no form at all;
+    #   `step.get("form") == t.get("form")` is false there, so this leaves
+    #   `field` empty and does nothing -- the minted `ROUTE.toml` step is
+    #   what routes the round, a conductor's own submit, not a synthesised
+    #   panel verdict. `_decided_here`'s segment fallback exists for that
+    #   direct submit, not for a panel step minted apart from its
+    #   transition, so this reads `decides` only when `step` really is the
+    #   transition (plan-to-execute, consolidate), never falling back.
+    # Rejected: calling `_decided_here` here as before. Its fallback made a
+    #   panel step minted apart from its transition have its merged verdict
+    #   checked against the segment's own outcome table -- a value that
+    #   table never declares, so closing the panel's own step refused.
     field = t.get("decides") if step.get("form") == t.get("form") else ""
     outcome = _outcome(asm, step, {field: verdict}, pst) if field else None
     if not outcome:
@@ -3659,11 +3666,12 @@ def _summary(st):
     # panel-only review rules on a diff, and skipping them wrote the empty
     # string into the close summary of every run three critics had judged.
     # The last panel-bearing step in journal order wins, and this loop --
-    # unlike the review yield's -- reaches the design-it-twice panel too,
-    # whose planners are dispatched under a form declaring no verdict at
-    # all. That round settled nothing about a verdict, so it reports `""`:
-    # neither the tuple the fold hands back nor a clean word carried
-    # forward from some earlier panel this one has superseded.
+    # unlike the review yield's -- would also reach a panel whose voices are
+    # dispatched under a form declaring no verdict at all, design-it-twice's
+    # rival-planner panel (ruling 10, shelved #96) having been the tree's one
+    # worked example. Such a round settles nothing about a verdict, so it
+    # reports `""`: neither the tuple the fold hands back nor a clean word
+    # carried forward from some earlier panel this one has superseded.
     verdict = ""
     asm = runmod.load_assembly(st["assembly"]) if st.get("assembly") else None
     for s in st["steps"]:
