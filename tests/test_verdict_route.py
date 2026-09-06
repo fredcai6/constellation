@@ -27,7 +27,7 @@ import ast
 from engine import cli, run as runmod
 from conftest import REPO
 from test_two_voices import CRITIC, _dispatch_critic, _drive_to_plan_to_execute
-from test_nesting import _fill_plan_route_with_calls, _fill_plan_to_execute
+from test_nesting import _fill_plan_route_with_calls, _fill_plan_to_execute, _response
 from test_verdict_panels import (
     _fill, _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
     _review_step, _select,
@@ -82,7 +82,7 @@ def _route_with_calls(wid, resolution, *calls):
     pair. `_fill_route` is the same submit with no table at all, which is
     what every other caller of the `rework` verb looks like."""
     blocks = "".join('\n[[calls]]\nfinding = "%s"\ncall = "%s"\n' % c for c in calls)
-    _fill(runmod.journal.location(wid) / "ROUTE.toml",
+    _fill(_response(wid),
           'resolution = "%s"\n' % resolution + blocks)
 
 

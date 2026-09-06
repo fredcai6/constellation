@@ -17,6 +17,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
+from test_nesting import _response
 
 
 def _fill(path, text):
@@ -27,7 +28,7 @@ def _fill_open(wid):
     issue = f".agent-work/{wid}/issue.md"
     _fill(issue, "The parser drops the last record of a file with no "
                  "trailing newline.\n")
-    _fill(f".agent-work/{wid}/OPEN.toml", f'''
+    _fill(_response(wid), f'''
 issue = "{issue}"
 
 authority = """
@@ -49,7 +50,7 @@ def _fill_spec(wid):
     loc = pathlib.Path(f".agent-work/{wid}")
     (loc / "spec.md").write_text(
         "1. Fix the parser to handle EOF with no trailing newline.\n")
-    _fill(loc / "SPEC.toml", 'spec = "%s/spec.md"\n' % loc)
+    _fill(_response(wid), 'spec = "%s/spec.md"\n' % loc)
 
 
 def _fill_consolidate(wid, resolution="pass", calls=""):
@@ -60,7 +61,7 @@ def _fill_consolidate(wid, resolution="pass", calls=""):
                  'settle = "waived: none"\n') % wid
     if calls:
         body += "\n" + calls
-    _fill(f".agent-work/{wid}/CONSOLIDATE.toml", body)
+    _fill(_response(wid), body)
 
 
 def _fill_consolidate_route_with_calls(wid, resolution, *calls):
@@ -69,7 +70,7 @@ def _fill_consolidate_route_with_calls(wid, resolution, *calls):
 
 
 def _fill_critic(wid, verdict, findings="none: waived: clean"):
-    _fill(journal.location(wid) / "CRITIC.toml", '''
+    _fill(_response(wid), '''
 findings = "%s"
 verdict = "%s"
 ''' % (findings, verdict))
@@ -139,7 +140,7 @@ def test_the_board_renders_beside_the_spec_writer_step_not_only_the_transition(
     cli.main([wid])
     out = capsys.readouterr().out
     assert "UNDERSTAND.toml" in out
-    assert "SPEC.toml" in out   # the current step's own response form
+    assert str(_response(wid)) in out   # the current step's own response form
 
 
 # -- 2. the spec-writer's returns reach the critic panel ---------------------
@@ -296,7 +297,7 @@ def test_a_release_with_a_blank_spec_is_refused(workdir, capsys):
     _dispatch_panel(wid, "understand", verdict="pass")
     capsys.readouterr()
 
-    _fill(f".agent-work/{wid}/CONSOLIDATE.toml", 'resolution = "pass"\n')
+    _fill(_response(wid), 'resolution = "pass"\n')
     with pytest.raises(SystemExit) as e:
         cli.main([wid, "submit"])
     assert "spec" in str(e.value)

@@ -31,7 +31,7 @@ import tomllib
 
 from engine import cli, journal, render, review_yield, run as runmod
 from gitremote import stub_gh
-from test_nesting import _dispatch_and_close_plan, _fill_close, _fill_gate_close
+from test_nesting import _dispatch_and_close_plan, _fill_close, _fill_gate_close, _response
 from test_two_voices import _dispatch_critic, _fill_consolidate, _fill_open, _fill_spec
 from test_verdict_panels import (
     _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
@@ -44,8 +44,8 @@ CRITIC = "skills/critic/forms/CRITIC.toml"
 GONE = "skills/critic/forms/CRITIC_RENAMED_AWAY.toml"
 
 
-def _fill(wid, name, text):
-    pathlib.Path(f".agent-work/{wid.replace('.', '/')}/{name}").write_text(text)
+def _fill(path, text):
+    path.write_text(text)
 
 
 # -- run-an-issue's consolidate: a two-voices seam, three critics -----------
@@ -145,14 +145,13 @@ def _to_the_spec_panel(capsys):
     the whole ruling."""
     cli.main(["open", "explore-an-idea", "--title", "memory graph"])
     wid = capsys.readouterr().out.split()[1]
-    _fill(wid, "OPEN.toml", 'idea = "x"\nauthority = "Tommy"\n'
+    _fill(_response(wid), 'idea = "x"\nauthority = "Tommy"\n'
                             '[[seeds]]\nidea = "the itch"\n')
     cli.main([wid, "submit"])
-    _fill(wid, "CYCLE.toml", 'consolidation = "c"\ndecision = "converge"\n')
+    _fill(_response(wid), 'consolidation = "c"\ndecision = "converge"\n')
     cli.main([wid, "submit"])
     pathlib.Path("SPEC.md").write_text("1. the spec.\n")
-    _fill(wid, "SPEC.toml",
-          'spec = "SPEC.md"\nrivals = "waived: none"\nkey-terms = "waived: none"\n')
+    _fill(_response(wid), 'spec = "SPEC.md"\nrivals = "waived: none"\nkey-terms = "waived: none"\n')
     cli.main([wid, "submit"])
     return wid, runmod.state(wid)["current"]["id"]
 
@@ -160,7 +159,7 @@ def _to_the_spec_panel(capsys):
 def _dispatch_spec_critic(wid, step_id, n, verdict, findings="gap: no point"):
     cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
     critic = f"{wid}.{step_id}.p{n}"
-    _fill(critic, "CRITIC.toml", f'findings = "{findings}"\nverdict = "{verdict}"\n')
+    _fill(_response(critic), f'findings = "{findings}"\nverdict = "{verdict}"\n')
     cli.main([critic, "submit"])
     cli.main([critic, "close"])
     return critic
@@ -207,8 +206,7 @@ def test_a_refusal_at_the_panel_only_seam_mints_nothing_and_still_closes(workdir
     assert cli._summary(st)["verdict"] == "unreadable p1"
     assert review_yield.run_yield(wid) == []
 
-    _fill(wid, "CLOSE.toml",
-          'confirmed = "Tommy: yes, cut it"\nrouted = "issue 81"\n'
+    _fill(_response(wid), 'confirmed = "Tommy: yes, cut it"\nrouted = "issue 81"\n'
           'residue = "waived: none"\n')
     cli.main([wid, "submit"])
     assert runmod.state(wid)["awaiting_close"]

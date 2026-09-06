@@ -30,6 +30,7 @@ from test_nesting import (
     _fill_consolidate,
     _fill_open,
     _fill_plan,
+    _response,
     _work_the_board,
 )
 from test_rework import _fresh_mint, _plan_measures
@@ -100,7 +101,7 @@ def test_two_rounds_produce_a_drift_the_rooms_renders(workdir, capsys):
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
     rework_art = journal.location(rework_child) / "plan.md"
     rework_art.write_text("one two three four five six seven eight nine ten eleven twelve\n")
-    _fill(journal.location(rework_child) / "REWORK.toml", '''
+    _fill(_response(rework_child), '''
 plan = "%s"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
@@ -154,7 +155,7 @@ def test_a_rework_rounds_dispatched_planner_receives_the_prior_horizon(workdir, 
     child = f"{wid}.plan-1.p3"
     loc = journal.location(child)
     (loc / "plan.md").write_text("one two three\n")
-    _fill(loc / "PLAN.toml", '''
+    _fill(_response(child), '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"

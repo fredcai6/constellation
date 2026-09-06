@@ -24,6 +24,7 @@ import pytest
 from engine import checks as checkrun
 from engine import cli, journal, render
 from test_brief import _mint_dispatch_step, _mint_panel_step
+from test_nesting import _response
 from test_wait import _throwaway_dispatch, _dispatch_entries, _record, _dead_pid, _gate
 
 
@@ -627,7 +628,7 @@ def test_a_live_in_flight_proof_reports_one_outstanding_in_both_worlds(
         _throwaway_dispatch(root, root / "spawned")
     assert cli._dispatch_configured(root) == (fixture_name == "bare_workdir")
     journal.append(wid, "prefill", fields={"proof": "sleep 30"})
-    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+    _response(wid).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -688,7 +689,7 @@ def test_a_proof_in_flight_says_nothing_notifies_you_and_names_the_cadence(
     monkeypatch.setattr(checkrun, "HANDBACK", 1)
     wid = _gate()
     journal.append(wid, "prefill", fields={"proof": "sleep 30"})
-    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+    _response(wid).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()

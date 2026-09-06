@@ -48,7 +48,7 @@ def test_response_path_with_no_root_resolves_exactly_as_today(bare_workdir):
     st = runmod.state("v1")
     step = next(s for s in st["steps"] if s["id"] == "g1")
 
-    assert cli._response_path(st, step) == journal.location("v1") / "IMPLEMENT.toml"
+    assert cli._response_path(st, step) == journal.location("v1") / "IMPLEMENT.g1.toml"
 
 
 def test_response_path_with_root_resolves_against_that_root(bare_workdir, tmp_path):
@@ -59,7 +59,7 @@ def test_response_path_with_root_resolves_against_that_root(bare_workdir, tmp_pa
     other = tmp_path / "elsewhere"
     got = cli._response_path(st, step, root=other)
 
-    assert got == journal.location("v1", other) / "IMPLEMENT.toml"
+    assert got == journal.location("v1", other) / "IMPLEMENT.g1.toml"
     assert got != cli._response_path(st, step)
     assert str(other) in str(got)
 

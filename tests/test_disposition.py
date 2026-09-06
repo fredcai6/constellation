@@ -23,7 +23,7 @@ engine does at a real adjudication, not a unit in isolation.
 from engine import boards, journal, run as runmod
 from engine import cli
 from test_execution_state import _execution_state_path, _mint_first_gate_with_obligation
-from test_nesting import _dispatch_and_close_child, _fill, _fill_gate_transition
+from test_nesting import _dispatch_and_close_child, _fill, _fill_gate_transition, _response
 
 
 def _fill_gate_transition_with_disposition(wid, obligation="o1", disposition="satisfied"):
@@ -31,7 +31,7 @@ def _fill_gate_transition_with_disposition(wid, obligation="o1", disposition="sa
     disposing one obligation -- root-verified against what the gate that
     just closed actually returned, the one moment in the run this is
     known."""
-    _fill(journal.location(wid) / "GATE_TRANSITION.toml", '''
+    _fill(_response(wid), '''
 findings = "the fix landed cleanly, root-verified against the child's returns"
 plan-holds = "advance"
 

@@ -11,6 +11,7 @@ import pytest
 from engine import cli
 from engine import run as runmod
 from gitremote import init_checkout
+from test_nesting import _response
 
 
 def _spine(*args):
@@ -24,8 +25,8 @@ def _spine(*args):
     return buf.getvalue(), code
 
 
-def _fill(wid, name, text):
-    pathlib.Path(f".agent-work/{wid.replace('.', '/')}/{name}").write_text(text)
+def _fill(path, text):
+    path.write_text(text)
 
 
 def _write_spec_md(wid):
@@ -49,7 +50,7 @@ def explore(tmp_path, monkeypatch):
     init_checkout(tmp_path)
     out, _ = _spine("open", "explore-an-idea", "--title", "memory graph")
     wid = out.split()[1]
-    _fill(wid, "OPEN.toml", 'idea = "x"\nauthority = "Tommy"\n'
+    _fill(_response(wid), 'idea = "x"\nauthority = "Tommy"\n'
                             '[[seeds]]\nidea = "the itch"\n[[seeds]]\nidea = "for whom"\n')
     _spine(wid, "submit")
     return wid
@@ -76,7 +77,7 @@ def test_excursion_returns_under_its_row_and_completes_nothing(explore):
     child = out.split()[1]
     assert child == f"{explore}.i1"
     assert runmod.state(child)["prefill"] == {"idea": "the itch"}
-    _fill(child, "PRIOR_ART.toml", 'findings = "f"\nsearched = "s"\nverdict = "v"\nregenerate = "r"\n')
+    _fill(_response(child), 'findings = "f"\nsearched = "s"\nverdict = "v"\nregenerate = "r"\n')
     _spine(child, "submit")
     _spine(child, "close")
     st = runmod.state(explore)
@@ -112,7 +113,7 @@ def test_an_excursion_from_no_such_row_is_refused(explore):
 
 
 def test_an_undeclared_outcome_is_refused_naming_the_declared_ones(explore):
-    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "maybe"\n')
+    _fill(_response(explore), 'consolidation = "c"\ndecision = "maybe"\n')
     _, code = _spine(explore, "submit")
     assert "cycle | converge | shelve" in str(code)
     assert _current(explore)["id"] == "explore", "the refusal advanced the run"
@@ -120,7 +121,7 @@ def test_an_undeclared_outcome_is_refused_naming_the_declared_ones(explore):
 
 def test_cycle_refills_the_transition_with_the_board_untouched(explore):
     before = pathlib.Path(f".agent-work/{explore}/IDEAS.toml").read_text()
-    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "cycle"\nflavor = "compare"\n')
+    _fill(_response(explore), 'consolidation = "c"\ndecision = "cycle"\nflavor = "compare"\n')
     _spine(explore, "submit")
     cur = _current(explore)
     assert cur["segment"] == "explore" and cur["form"] == "forms/CYCLE.toml"
@@ -129,13 +130,13 @@ def test_cycle_refills_the_transition_with_the_board_untouched(explore):
 
 
 def test_converge_releases_to_spec_and_the_word_may_carry_prose(explore):
-    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "converge -- Tommy: yes, go"\n')
+    _fill(_response(explore), 'consolidation = "c"\ndecision = "converge -- Tommy: yes, go"\n')
     _spine(explore, "submit")
     assert _current(explore)["form"] == "forms/SPEC.toml"
 
 
 def test_shelve_skips_spec_loudly(explore):
-    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "shelve"\n')
+    _fill(_response(explore), 'consolidation = "c"\ndecision = "shelve"\n')
     _spine(explore, "submit")
     st = runmod.state(explore)
     assert st["current"]["form"] == "forms/CLOSE.toml"
@@ -143,17 +144,17 @@ def test_shelve_skips_spec_loudly(explore):
 
 
 def _to_rework(explore):
-    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "converge"\n')
+    _fill(_response(explore), 'consolidation = "c"\ndecision = "converge"\n')
     _spine(explore, "submit")
     _write_spec_md(explore)
-    _fill(explore, "SPEC.toml", 'spec = "SPEC.md"\nrivals = "waived: none"\nkey-terms = "waived: none"\n')
+    _fill(_response(explore), 'spec = "SPEC.md"\nrivals = "waived: none"\nkey-terms = "waived: none"\n')
     _spine(explore, "submit")
     panel = _current(explore)["id"]
     # Three fresh-context readers, one per criterion; one revise among them refills.
     for n, verdict in enumerate(("revise", "pass", "pass"), start=1):
         out, _ = _spine("open", "give-a-verdict", "--parent", explore, "--step", f"{panel}.p{n}")
         critic = out.split()[1]
-        _fill(critic, "CRITIC.toml", f'findings = "gap: no point"\nverdict = "{verdict}"\n')
+        _fill(_response(critic), f'findings = "gap: no point"\nverdict = "{verdict}"\n')
         _spine(critic, "submit")
         _spine(critic, "close")
     assert _current(explore)["form"] == "forms/REWORK.toml"
@@ -169,14 +170,14 @@ def _to_rework(explore):
 def test_re_explore_goes_back_to_the_board_and_a_fresh_spec_waits(explore):
     _to_rework(explore)
     _write_spec_md(explore)
-    _fill(explore, "REWORK.toml", 'spec = "SPEC.md"\ndispositions = "F1 re-explore"\nnext = "re-explore"\n')
+    _fill(_response(explore), 'spec = "SPEC.md"\ndispositions = "F1 re-explore"\nnext = "re-explore"\n')
     _spine(explore, "submit")
     st = runmod.state(explore)
     assert st["current"]["segment"] == "explore"
     pending = [s for s in st["steps"] if s["id"] not in st["done"]]
     assert [s["segment"] for s in pending] == ["explore", "spec", "spec", "close"]
     assert pending[1]["form"] == "forms/SPEC.toml", "the fresh round is a first cut, not a rework"
-    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "converge"\n')
+    _fill(_response(explore), 'consolidation = "c"\ndecision = "converge"\n')
     _spine(explore, "submit")
     assert _current(explore)["form"] == "forms/SPEC.toml"
 
@@ -184,7 +185,7 @@ def test_re_explore_goes_back_to_the_board_and_a_fresh_spec_waits(explore):
 def test_resubmit_releases_to_the_panel(explore):
     _to_rework(explore)
     _write_spec_md(explore)
-    _fill(explore, "REWORK.toml", 'spec = "SPEC.md"\ndispositions = "F1 edit"\nnext = "resubmit"\n')
+    _fill(_response(explore), 'spec = "SPEC.md"\ndispositions = "F1 edit"\nnext = "resubmit"\n')
     _spine(explore, "submit")
     assert _current(explore).get("panel"), "resubmit did not land on the panel"
 
@@ -192,7 +193,7 @@ def test_resubmit_releases_to_the_panel(explore):
 def test_amend_add_transition_takes_the_panel_the_assembly_declares_today(explore):
     """A run copies its skeleton at open; when the template later grows a
     panelist, `amend add --transition` is how the live run catches up."""
-    _fill(explore, "CYCLE.toml", 'consolidation = "c"\ndecision = "converge"\n')
+    _fill(_response(explore), 'consolidation = "c"\ndecision = "converge"\n')
     _spine(explore, "submit")
     _spine(explore, "amend", "close", "spec", "--reason", "re-minting with today's panel")
     _spine(explore, "amend", "add", "--segment", "spec", "--transition", "--reason", "today's panel")
@@ -212,8 +213,7 @@ def test_round_cap_undeclared_never_pauses_the_spec_seam(explore):
     _to_rework(explore)  # round 1, landed
     for n in range(2, 8):  # rounds 2..7, six more landed rounds
         _write_spec_md(explore)
-        _fill(explore, "REWORK.toml",
-              'spec = "SPEC.md"\ndispositions = "F1 edit"\nnext = "resubmit"\n')
+        _fill(_response(explore), 'spec = "SPEC.md"\ndispositions = "F1 edit"\nnext = "resubmit"\n')
         _spine(explore, "submit")
         panel = _current(explore)["id"]
         assert _current(explore).get("panel"), f"round {n} did not reach a fresh panel"
@@ -221,7 +221,7 @@ def test_round_cap_undeclared_never_pauses_the_spec_seam(explore):
             out, _ = _spine("open", "give-a-verdict", "--parent", explore,
                             "--step", f"{panel}.p{p}")
             critic = out.split()[1]
-            _fill(critic, "CRITIC.toml", f'findings = "gap: round {n}"\nverdict = "{verdict}"\n')
+            _fill(_response(critic), f'findings = "gap: round {n}"\nverdict = "{verdict}"\n')
             _spine(critic, "submit")
             _spine(critic, "close")
         assert _current(explore)["form"] == "forms/REWORK.toml", (

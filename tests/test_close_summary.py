@@ -13,13 +13,12 @@ from gitremote import read_archived, stub_gh
 from test_nesting import (
     _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _drive_plan_to_impasse,
     _fill, _fill_close, _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
-    _mint_first_gate, _work_the_board,
+    _mint_first_gate, _response, _work_the_board,
 )
 
 
 def _fill_implement(wid, change, deviations):
-    _fill(journal.location(wid) / "IMPLEMENT.toml",
-          'change = "%s"\ndeviations = "%s"\n' % (change, deviations))
+    _fill(_response(wid), 'change = "%s"\ndeviations = "%s"\n' % (change, deviations))
 
 
 def test_gate_close_summary_carries_the_last_implement_round(workdir):

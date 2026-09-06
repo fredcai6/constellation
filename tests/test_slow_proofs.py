@@ -20,6 +20,7 @@ import time
 import pytest
 
 from engine import checks, cli, journal, run as runmod
+from test_nesting import _response
 
 
 def _gate(proof, wid="g1", **spec):
@@ -28,7 +29,7 @@ def _gate(proof, wid="g1", **spec):
     pathlib.Path("constellation.toml").write_text('[models]\nstandard = "x"\n')
     cli.main(["open", "run-a-gate", "--id", wid])
     journal.append(wid, "prefill", fields={"proof": proof, **spec})
-    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+    _response(wid).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     return wid
 

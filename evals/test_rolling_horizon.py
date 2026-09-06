@@ -96,7 +96,7 @@ def seed_open(workdir, wid):
     resolves in one edit and the run has a real, but tiny, spec to cut a
     one-gate plan from. Small on purpose: this eval measures whether the
     cycle turns, not whether a light model can plan a large change."""
-    p = harness.run_root(workdir) / ".agent-work" / wid / "OPEN.toml"
+    p = harness.response_path(workdir, wid)
     p.write_text('''issue = "issue-rolling-horizon"
 
 authority = """

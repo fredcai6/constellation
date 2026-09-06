@@ -289,15 +289,47 @@ def _load_form(asm, ref, wid, step_id):
     return forms.load(path)
 
 
+# [response-path-by-step]
+# Rationale: the live response path was named for the step's *form*
+#   (`pathlib.Path(step["form"]).stem`), and `cmd_status` materialized one
+#   only `if not dest.exists()`. Those two are right together only while a
+#   form is filled once per run. At a seam they are not: round two opened
+#   round one's *filled* form, and a conductor that edited the fields it
+#   thought of carried the rest forward as this round's record (#118 -- six
+#   occurrences on the issue96 run, twice landing a decision the round had
+#   not made).
+# Worse, two live processes could be handed the same path. `drive` spawns a
+#   form-filler per step and never ends one; a filler that outlived its own
+#   round would write the live form and submit, landing a stale ruling on
+#   whatever step was current (measured once on the issue96 run, 34 minutes
+#   after its round had closed).
+# Naming by step makes both impossible by construction rather than by a
+#   guard. Two fillers can never resolve to one file. A stale filler writes a
+#   path nobody reads, and its `spine submit` resolves the current step's own
+#   file -- blank, so it refuses in the words that already exist, or
+#   correctly filled by the agent that owns it. It also gives a re-spawned
+#   filler the right behaviour for free: a fresh step is a fresh path (new
+#   work), while a filler restarted on the *same* step gets the same path and
+#   picks up the in-progress form (adopting it). No flag, no option, no
+#   declaration.
+# Rejected: refusing a submit from a process whose step is no longer current
+#   (via an env var stamped at spawn). It fixes the same defect with a new
+#   refusal, and the engine defending its own checklist is what drove CLI
+#   failure rates up before. Prefer mechanism over a guard.
+# Rejected: archiving the file on submit (`1587ce5`). It clears the path
+#   between rounds but leaves the two fillers sharing it, so it fixes the
+#   record and not the collision.
 def _response_path(st, step, *, root=None):
-    """Where this step's own response form lands -- resolved fresh against
-    `journal.location(st["id"], root)` rather than any path frozen earlier,
-    so a caller whose process starts somewhere else (`_form_filler_brief`,
-    off the tree `_tree_info` names) still gets an absolute, correct path.
-    `root=None` is `cmd_status`'s own case: resolve the same way it always
-    has."""
-    name = pathlib.Path(step["form"]).stem + ".toml"
-    return journal.location(st["id"], root) / name
+    """Where this step's own response form lands -- named for the step as
+    well as the form (`<form-stem>.<step-id>.toml`), so two rounds at one
+    seam, or two seams sharing one form, never resolve to the same file.
+    Resolved fresh against `journal.location(st["id"], root)` rather than
+    any path frozen earlier, so a caller whose process starts somewhere else
+    (`_form_filler_brief`, off the tree `_tree_info` names) still gets an
+    absolute, correct path. `root=None` is `cmd_status`'s own case: resolve
+    the same way it always has."""
+    stem = pathlib.Path(step["form"]).stem
+    return journal.location(st["id"], root) / f"{stem}.{step['id']}.toml"
 
 
 # [board-path]
@@ -1830,37 +1862,6 @@ def cmd_submit(argv):
     return cmd_status([wid])
 
 
-# [archive-response]
-# Rationale: the live response path is named for the step's *form*
-#   (`_response_path`), not for the round filling it, and `cmd_status`
-#   materializes only `if not dest.exists()`. Those two are correct together
-#   only while a form is filled once per run. At a seam they are not: round
-#   two opened round one's filled form, and a conductor that edited the
-#   fields it thought of carried the rest forward as this round's record
-#   (#118) -- six times on the issue96 run, twice landing a record the round
-#   had not decided. Renaming on submit makes the existing guard right
-#   rather than working around it: the file leaves the live path at the one
-#   moment it stops being the answer.
-# Rejected: naming the live path per round (`PLAN_TO_EXECUTE.2.toml`). It
-#   fixes the same defect, and changes every path a brief hands a filler and
-#   every doc that shows one, to no further gain.
-# Rejected: deleting rather than renaming. The journal already holds the
-#   fields, so the file is not the record -- but it is the only copy of what
-#   the filler actually wrote, prose and all, and it costs a suffix to keep.
-def _archive_response(st, step):
-    """Move a submitted response form aside so the next round at the same
-    seam materializes a blank one. The live path is named for the form, not
-    the round, so without this a re-minted round opens the round before it,
-    already filled."""
-    dest = _response_path(st, step)
-    if not dest.exists():
-        return
-    n = 1
-    while dest.with_name(f"{dest.stem}.{n}{dest.suffix}").exists():
-        n += 1
-    dest.rename(dest.with_name(f"{dest.stem}.{n}{dest.suffix}"))
-
-
 # [complete-submit]
 # Rationale: a submit is not one journal entry -- it mints the next step,
 #   folds a `carries` transition's fields into the run's prefill, and performs
@@ -1891,7 +1892,6 @@ def complete_submit(wid, step_id, fields, ran):
     outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=ran or None)
-    _archive_response(st, step)
     _measure_artifacts(wid, step, form, fields)
 
     # A transition marked `carries` folds its fields into the run's own

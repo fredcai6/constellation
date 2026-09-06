@@ -97,6 +97,31 @@ def spine(workdir, *args):
                           text=True, timeout=60)
 
 
+# [response-path-by-step]
+# Rationale: `_response_path` (engine/cli.py) now names a step's response
+#   form for the step as well as the form, so a fixture spelling `OPEN.toml`
+#   is exactly the #118 defect these evals would otherwise carry into a real
+#   drive -- silently, since a stale path just never gets read rather than
+#   raising. Resolving it is a pure read with no side effect on the run, so
+#   it takes the same `os.chdir` shape `state()` already uses to call the
+#   engine in-process, rather than shelling out to `spine` and parsing the
+#   room it prints back -- one fewer subprocess, and nothing to keep in sync
+#   with `render.status`'s own wording.
+def response_path(workdir, work_id):
+    """Where `work_id`'s current step takes its answer -- asked of the
+    engine (`_response_path`, engine/cli.py) rather than spelled, the same
+    move `tests/test_nesting.py`'s own `_response` makes for the fast
+    suite."""
+    from engine import cli as clim
+    cwd = os.getcwd()
+    try:
+        os.chdir(run_root(workdir))
+        st = runmod.state(work_id)
+        return clim._response_path(st, st["current"]).resolve()
+    finally:
+        os.chdir(cwd)
+
+
 # [drive-budget]
 # Rationale: 240s was the default until a measured run took 289 and was
 #   killed mid-step. A killed `claude` leaves the journal standing on the
@@ -250,6 +275,9 @@ def prefill(workdir, work_id, **fields):
         os.chdir(cwd)
 
 
-def form_text(workdir, work_id, name):
-    p = run_root(workdir) / ".agent-work" / work_id.replace(".", "/") / name
+def form_text(workdir, work_id):
+    """The text of `work_id`'s own current response form -- named for the
+    step now (#118), so read through `response_path` rather than a filename
+    a caller supplies."""
+    p = response_path(workdir, work_id)
     return p.read_text() if p.exists() else ""

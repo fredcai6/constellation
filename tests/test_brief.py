@@ -21,6 +21,7 @@ import subprocess
 
 from engine import cli, journal, render
 from conftest import REPO
+from test_nesting import _response
 
 
 def _mint_dispatch_step(wid="d1", child="d1.g1"):
@@ -197,7 +198,8 @@ def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(workdir
     # and the file it names is the one actually materialized
     cli.main(["open", "give-a-verdict", "--parent", "i1", "--step", "plan.p1"])
     loc = journal.location("i1.plan.p1")
-    assert (loc / "CRITIC.toml").exists()
+    live = _response("i1.plan.p1")
+    assert live.parent == loc and live.name.startswith("CRITIC.") and live.exists()
     assert not (loc / "REVIEW.toml").exists()
 
 

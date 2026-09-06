@@ -11,6 +11,7 @@ import tomllib
 import pytest
 
 from engine import cli, journal, run as runmod
+from test_nesting import _response
 
 
 def test_open_mints_the_skeleton(bare_workdir, capsys):
@@ -68,13 +69,13 @@ def test_status_is_a_room_description(bare_workdir, capsys):
     # every legal move is spelled out; the agent never guesses a verb
     assert "spine issue17 submit" in out
     assert "spine issue17 note" in out
-    assert ".agent-work/issue17/OPEN.toml" in out
+    assert str(_response("issue17")) in out
 
 
 def test_response_form_is_materialized_and_parses(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     capsys.readouterr()
-    dest = pathlib.Path(".agent-work/issue17/OPEN.toml")
+    dest = _response("issue17")
     assert dest.exists()
     tomllib.load(open(dest, "rb"))  # always valid TOML, even blank
 
@@ -115,7 +116,7 @@ move = "ask"
 def test_submit_advances_and_seeds_the_board(bare_workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     capsys.readouterr()
-    _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
+    _fill_open(_response("issue17"))
 
     cli.main(["issue17", "submit"])
     out = capsys.readouterr().out
@@ -136,7 +137,7 @@ def test_submit_advances_and_seeds_the_board(bare_workdir, capsys):
 
 def test_the_journal_is_the_only_state(bare_workdir):
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
-    _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
+    _fill_open(_response("issue17"))
     cli.main(["issue17", "submit"])
 
     # every fact above is recoverable from the file alone
@@ -185,14 +186,14 @@ def _pass_spec(wid):
     prove what it alone still checks: the board, not the spec."""
     loc = pathlib.Path(f".agent-work/{wid}")
     (loc / "spec.md").write_text("1. placeholder commitment.\n")
-    (loc / "SPEC.toml").write_text('spec = "%s/spec.md"\n' % loc)
+    _response(wid).write_text('spec = "%s/spec.md"\n' % loc)
     cli.main([wid, "submit"])
     panel = next(s for s in runmod.state(wid)["steps"] if s["id"] == "understand")["panel"]
     for n in range(1, len(panel) + 1):
         tag = f"understand.p{n}"
         cli.main(["open", "give-a-verdict", "--parent", wid, "--step", tag])
         panelist = f"{wid}.{tag}"
-        (journal.location(panelist) / "CRITIC.toml").write_text(
+        _response(panelist).write_text(
             'findings = "none: waived: clean"\n'
             'verdict = "pass"\n')
         cli.main([panelist, "submit"])
@@ -212,12 +213,12 @@ def test_consolidate_refuses_an_unworked_board(bare_workdir, capsys):
     wiring was missing once, and a form that lies about the engine is the
     worst failure available to a system whose doctrine lives in forms."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
-    _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
+    _fill_open(_response("issue17"))
     cli.main(["issue17", "submit"])
     _pass_spec("issue17")
     capsys.readouterr()
 
-    pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
+    _response("issue17").write_text(
         'resolution = "pass"\n\nspec = ".agent-work/issue17/spec.md"\n'
         'key-terms = "waived: none"\nsettle = "waived: none"\n')
 
@@ -233,10 +234,10 @@ def test_the_board_escape_is_one_step(bare_workdir, capsys):
     """deferred: <reason> passes in a single edit -- the corollary that makes
     this check legal at all."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
-    _fill_open(pathlib.Path(".agent-work/issue17/OPEN.toml"))
+    _fill_open(_response("issue17"))
     cli.main(["issue17", "submit"])
     _pass_spec("issue17")
-    pathlib.Path(".agent-work/issue17/CONSOLIDATE.toml").write_text(
+    _response("issue17").write_text(
         'resolution = "pass"\n\nspec = ".agent-work/issue17/spec.md"\n'
         'key-terms = "waived: none"\nsettle = "waived: none"\n')
 

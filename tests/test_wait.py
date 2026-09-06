@@ -43,6 +43,7 @@ import pytest
 
 from engine import checks as checkrun
 from engine import cli, journal
+from test_nesting import _response
 from engine import run as runmod
 from test_brief import _mint_dispatch_step, _mint_panel_step
 from test_explore import explore, _spine
@@ -192,7 +193,7 @@ def test_a_proof_in_flight_renders_immediately(bare_workdir, capsys, monkeypatch
     monkeypatch.setattr(checkrun, "HANDBACK", 1)
     wid = _gate()
     journal.append(wid, "prefill", fields={"proof": "sleep 30"})
-    pathlib.Path(f".agent-work/{wid}/IMPLEMENT.toml").write_text(
+    _response(wid).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -222,7 +223,7 @@ def test_a_childless_form_step_renders_immediately(bare_workdir, capsys):
     assert elapsed < 1
     assert "run-a-gate \u00b7 work (1 of 3)" in out
     assert "Make the change the gate spec above describes" in out
-    assert "your response form: .agent-work/g1/IMPLEMENT.toml" in out
+    assert f"your response form: {_response(wid)}" in out
 
 
 def test_a_palette_with_no_dispatch_entry_renders_immediately(bare_workdir, capsys):

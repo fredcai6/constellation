@@ -129,12 +129,12 @@ def test_a_reviewer_returns_a_grounded_verdict(workdir):
                     purpose="Add input validation to `parse_line` so it rejects empty "
                             "strings.",
                     scope="src/parser.py only", proof="true")
-    (pathlib.Path(workdir) / ".agent-work/g2/IMPLEMENT.toml").write_text(
+    harness.response_path(workdir, "g2").write_text(
         'change = "Renamed parse_line to parseLine for style consistency. No '
         'validation logic was added."\n'
         'deviations = "waived: none"\n')
     harness.spine(workdir, "g2", "submit")  # proof "true"; the gate stands on select
-    (pathlib.Path(workdir) / ".agent-work/g2/SELECT.toml").write_text(
+    harness.response_path(workdir, "g2").write_text(
         'omitted = "waived: none"\n\n[[panelists]]\n'
         'worker = "reviewer"\nmodel = "standard"\n'
         'criteria = "spec-fit: does the work fill the specification, whole and only"\n')
