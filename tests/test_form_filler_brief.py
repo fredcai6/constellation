@@ -399,3 +399,56 @@ def test_form_filler_brief_resolves_absolute_paths_for_a_run_nested_in_a_worktre
     assert path.is_absolute()
     assert str(wt.resolve()) in str(path)
     assert path.exists()
+
+
+# -- the room says what the form already holds (#26) -------------------------
+
+
+def _room(wid):
+    """The room text `cmd_status` renders, built the way the file's other
+    tests build it: mint, materialize, then render off `_room_kwargs`."""
+    st, asm, step, form = _current(wid)
+    dest = _materialized(st, step, form, wid)
+    return dest, render.status(st, form, str(dest),
+                               **cli._room_kwargs(wid, st, asm, step, form, dest))
+
+
+def test_a_form_that_already_carries_answers_says_so(workdir):
+    """#26: a stopped agent's response form is adopted by whoever stands on
+    the step next -- deliberate (`_response_path`), and silent until now, so
+    a panelist read a complete critique of a superseded artifact as its own
+    blank form."""
+    _mint_work_step()
+    dest, _ = _room("v1")
+    dest.write_text('change = "the diff"\ndeviations = "waived: none"\n',
+                    encoding="utf-8")
+
+    _, text = _room("v1")
+
+    assert "already answered on this form: change, deviations" in text
+    assert "read it before you add to it" in text
+
+
+def test_a_form_carrying_only_working_markers_says_nothing(workdir):
+    """The filter is the subtle half: `parse` keeps a `working:` value, and
+    `in_hand` is what reports those. Reporting them twice, in two vocabularies,
+    would say the step is further along than it is."""
+    _mint_work_step()
+    dest, _ = _room("v1")
+    dest.write_text('change = "working: still reading"\n', encoding="utf-8")
+
+    _, text = _room("v1")
+
+    assert "already answered on this form" not in text
+    assert "still in hand on this form" in text
+
+
+def test_a_form_not_yet_materialized_carries_no_answers(workdir):
+    """The absent-file case reaches the same empty answer as an unfilled one,
+    so the room says nothing either way."""
+    _mint_work_step()
+    st, asm, step, form = _current("v1")
+    dest = cli._response_path(st, step)
+
+    assert not dest.exists()
+    assert cli._room_kwargs("v1", st, asm, step, form, dest)["answered"] == []

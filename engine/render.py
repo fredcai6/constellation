@@ -412,7 +412,7 @@ def drift(measures):
 
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
-           position=None, board=None, in_hand=None, onward_to=None,
+           position=None, board=None, in_hand=None, answered=(), onward_to=None,
            returns_from="", triage_notes=(), role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
            filler_status=""):
@@ -524,6 +524,13 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     if in_hand:
         out.append("  still in hand on this form")
         out.append(_pairs(list(in_hand.items())))
+        out.append("")
+
+    if answered:
+        out.append("  already answered on this form: " + ", ".join(answered))
+        out.append("    read it before you add to it")
+        out.append("    an earlier round's agent, or one that stopped, may have"
+                   " written these")
         out.append("")
 
     standalone = bool(tier or runner or worktree)

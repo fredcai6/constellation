@@ -1432,6 +1432,9 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     # and refused at none.
     board = _board_state(_board_path(wid, st, step, root))
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
+    # One read of the response form: what is still marked `working:` and what
+    # already carries an answer are two derivations of the same parse.
+    filled = forms.filled_or_empty(dest)
     return {
         "prefill": prefill,
         "returns": returns,
@@ -1440,7 +1443,8 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         "blocked": runmod.blocks(st),
         "position": runmod.position(st, asm),
         "board": board,
-        "in_hand": forms.in_hand(dest) if dest.exists() else None,
+        "in_hand": forms.in_hand(filled),
+        "answered": forms.answered(filled),
         "triage_notes": [n for n in st["notes"] if n.get("kind_detail") == "triage"],
         "role": runmod.hat(asm, step, st),
         "row_returns": st["row_returns"],

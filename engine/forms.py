@@ -239,15 +239,39 @@ def parse(dest_path):
                          "  fix the file and submit again; nothing was recorded")
 
 
-def in_hand(dest_path):
+def answered(filled):
+    """Field ids this form already carries an answer for -- anything filled
+    that is not a `working:` marker. Takes what `parse` returned, so the room
+    reads the file once for this and `in_hand` both.
+
+    A form is materialized once and adopted by whoever stands on the step
+    next, which is deliberate (`_response_path`, engine/cli.py: a filler
+    restarted on the same step picks up its own in-progress form). The room
+    said nothing about it, so an agent that inherited a stopped agent's work
+    read a complete answer as its own blank form (#26). This is what the room
+    reports instead of guessing who wrote what, which it cannot know.
+    """
+    return [k for k, v in filled.items()
+            if not str(v).strip().startswith("working:")]
+
+
+def filled_or_empty(dest_path):
+    """What `parse` returned, or `{}` for a file that is absent or that the
+    agent broke while filling it -- a form nobody can read carries no answers
+    to report, and the refusal that says so belongs to `submit`, not here."""
+    if not dest_path.exists():
+        return {}
+    try:
+        return parse(dest_path)
+    except SystemExit:
+        return {}
+
+
+def in_hand(filled):
     """Fields the agent marked `working:` -- what is still open on this form.
 
     A status nobody renders is a status nobody sets, so this is what makes the
     marker worth writing: it shows up in `status` and in the rail's nudge.
     """
-    try:
-        filled = parse(dest_path)
-    except SystemExit:
-        return {}
     return {k: str(v).strip()[len("working:"):].strip()
             for k, v in filled.items() if str(v).strip().startswith("working:")}
