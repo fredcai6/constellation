@@ -1,18 +1,20 @@
 # Step: impasse. Owned by run-an-issue; filled by the conductor. Minted once
-# a segment has been sent back `impasse-after` times: three reviews landing
-# on the same artifact means the artifact, not the round, is what keeps
-# failing. Shared by `understand` (the spec-writer's spec) and `plan` (the
+# a segment has been sent back `impasse-after` times -- `sent-back` in the
+# orders says how many, since the two segments sharing this form need not
+# allow the same number: reviews landing on the same artifact mean the
+# artifact, not the round, is what keeps failing. Shared by `understand` (the spec-writer's spec) and `plan` (the
 # planner's plan) rather than forked into two near-duplicates named after
 # each artifact -- both segments read it worded at "the artifact" instead.
 # `arrival` in the orders reads `rework-rounds` here always -- the panel's
 # verdict is `pass | revise`, so a root objection arrives as a revise finding
 # like any other, and only a repeated one reaches you here. It carries no
-# panel: a fourth fresh-context reader is the loop, not the way out.
+# panel: one more fresh-context reader is the loop, not the way out.
 
 imperative = """
-Three reviews have sent this artifact back. Rule on the loop, not on the
-findings: three reviews finding the same kind of thing means the artifact is
-not the one under repair. Say which way this run goes, and why."""
+This artifact has been sent back as many times as this segment allows --
+`sent-back` in your orders is how many. Rule on the loop, not on the findings:
+reviews finding the same kind of thing means the artifact is not the one under
+repair. Say which way this run goes, and why."""
 
 [[field]]
 id = "ruling"
@@ -21,7 +23,7 @@ note = """
 advance | rework | up. `advance` takes the artifact to its transition as it
 stands, over a live objection — the findings remain the record that says you
 did. `rework` runs another round, and is the answer only when you can name
-what that round changes that the last three did not. `up` pauses this
+what that round changes that the sent-back rounds did not. `up` pauses this
 segment rather than closing the run: your ruling and its reason stand as an
 ask one tier up, and this segment resumes -- with whatever the ask answers,
 as this round's own next orders -- once it does. The right move when the
@@ -33,4 +35,4 @@ kind = "evidence"
 note = """
 What the panel landed on, and what that says about the artifact. The run's own
 record is the evidence: name the field or the claim the findings kept landing
-on across the three rounds."""
+on across the sent-back rounds."""

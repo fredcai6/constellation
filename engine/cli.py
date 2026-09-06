@@ -2459,7 +2459,9 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "refill" and tseg.get("interior") == "board":
             _mint_transition(wid, tseg, prefill=fields)
         elif word == "refill":
-            _mint_segment_round(wid, asm, tseg["id"], prefill=fields)
+            # A refill is a fresh artifact -- "the plan recut", "a fresh
+            # first cut" -- so the send-back count starts over.
+            _mint_segment_round(wid, asm, tseg["id"], prefill=fields, restarts=True)
         elif word == "transition":
             _mint_transition(wid, tseg)
         elif word == "rework":
@@ -2476,7 +2478,13 @@ def _perform(wid, asm, seg, does, fields, step):
             if outlet:
                 journal.append(wid, "step", id=f"{tseg['id']}-a{secrets.token_hex(2)}",
                                segment=tseg["id"], form=outlet, filler="conductor",
-                               prefill={**judged, "arrival": "rework-rounds"},
+                               # The count the outlet fired on, so the room
+                               # states it and the form need not name a number
+                               # that goes stale the next time `impasse-after`
+                               # changes -- which is how it last went stale.
+                               prefill={**judged, "arrival": "rework-rounds",
+                                        "sent-back": str(runmod.rework_rounds(
+                                            runmod.state(wid), asm, tseg["id"]))},
                                anchor=False, terminal=False, validates="", source="mint")
                 continue
             _mint_segment_round(wid, asm, tseg["id"],
@@ -2729,7 +2737,9 @@ def _settle_execution(wid, asm):
         return
     plan = next((s for s in asm["segment"] if s["id"] == "plan"), None)
     if plan:
-        _mint_segment_round(wid, asm, plan["id"])
+        # The board still has open rows, so the plan is recut rather than
+        # reworked: a fresh artifact, and a fresh count.
+        _mint_segment_round(wid, asm, plan["id"], restarts=True)
 
 
 # [mints]
@@ -3401,13 +3411,21 @@ def _amend_reorder(wid, st, step_id, reason, before):
 #   already reads whichever form its dispatch step names; teaching it a
 #   second shape to reach the same form would be a second thing to keep in
 #   sync with the planner's skill for no behaviour gained.
-def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler=""):
+def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
+                        restarts=False):
     """Mint one fresh round of a segment: its step-form (or the form the
     caller names -- a revise passes the segment's rework form) as a fresh
     interior step, plus its transition's panel -- both read from the
     assembly, never copied from whatever minted last. The shared move a
     revise and a replan both need: the segment reopened for another pass,
     carrying the same challenge that judges it.
+
+    `restarts` says which kind of round this is, and only the caller knows:
+    a `rework` is another pass at the artifact standing (the default), a
+    `refill` is a fresh one. It is journaled as `sent_back` so
+    `run.rework_rounds` reads the fact rather than inferring it from which
+    form was minted -- see `[rework-rounds]` (engine/run.py) for the case
+    that inference got wrong.
 
     Two independent random tags, not one shared: a transition's id defaults
     to its segment's id (run-an-issue's "plan" names both), and
@@ -3429,9 +3447,12 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler=""):
     #   here.
     has_interior = seg.get("interior") in ("steps", "board")
     if has_interior:
+        prior = runmod._rounds(runmod.state(wid), seg_id)
+        sent_back = 0 if restarts else (prior[-1]["sent_back"] + 1 if prior else 1)
         step = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
                 "filler": seg.get("worker", "conductor"), "prefill": prefill or {},
-                "anchor": False, "terminal": False, "validates": "", "source": "mint"}
+                "anchor": False, "terminal": False, "validates": "", "source": "mint",
+                "sent_back": sent_back}
         # `form` is set either way -- a replan's dispatch carries its own
         # step-form even though that names the child assembly's own default
         # and so overrides nothing. `rework_rounds` (run.py) reads this
