@@ -285,5 +285,11 @@ def test_a_passing_attempt_is_told_apart_from_the_failure_before_it(
 
     log = _log()
     assert "exited 4" in log and "exited 0" in log          # a header per attempt
-    assert log.index("it-fails") < log.index("it-passes")   # in the order they ran
-    assert log.index("exited 4") < log.index("exited 0")    # the pass is the last word
+    i_fail, i_pass = log.index("exited 4"), log.index("exited 0")
+    assert i_fail < i_pass                                  # the pass is the last word
+    # each attempt's own printed output falls between its header and the
+    # next one -- a bare `log.index("it-passes")` is no good here, since the
+    # header quotes the whole command and that command's text contains both
+    # words regardless of which branch actually ran
+    assert "it-fails" in log[i_fail:i_pass]
+    assert "it-passes" in log[i_pass:]
