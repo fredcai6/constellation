@@ -1830,6 +1830,37 @@ def cmd_submit(argv):
     return cmd_status([wid])
 
 
+# [archive-response]
+# Rationale: the live response path is named for the step's *form*
+#   (`_response_path`), not for the round filling it, and `cmd_status`
+#   materializes only `if not dest.exists()`. Those two are correct together
+#   only while a form is filled once per run. At a seam they are not: round
+#   two opened round one's filled form, and a conductor that edited the
+#   fields it thought of carried the rest forward as this round's record
+#   (#118) -- six times on the issue96 run, twice landing a record the round
+#   had not decided. Renaming on submit makes the existing guard right
+#   rather than working around it: the file leaves the live path at the one
+#   moment it stops being the answer.
+# Rejected: naming the live path per round (`PLAN_TO_EXECUTE.2.toml`). It
+#   fixes the same defect, and changes every path a brief hands a filler and
+#   every doc that shows one, to no further gain.
+# Rejected: deleting rather than renaming. The journal already holds the
+#   fields, so the file is not the record -- but it is the only copy of what
+#   the filler actually wrote, prose and all, and it costs a suffix to keep.
+def _archive_response(st, step):
+    """Move a submitted response form aside so the next round at the same
+    seam materializes a blank one. The live path is named for the form, not
+    the round, so without this a re-minted round opens the round before it,
+    already filled."""
+    dest = _response_path(st, step)
+    if not dest.exists():
+        return
+    n = 1
+    while dest.with_name(f"{dest.stem}.{n}{dest.suffix}").exists():
+        n += 1
+    dest.rename(dest.with_name(f"{dest.stem}.{n}{dest.suffix}"))
+
+
 # [complete-submit]
 # Rationale: a submit is not one journal entry -- it mints the next step,
 #   folds a `carries` transition's fields into the run's prefill, and performs
@@ -1860,6 +1891,7 @@ def complete_submit(wid, step_id, fields, ran):
     outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=ran or None)
+    _archive_response(st, step)
     _measure_artifacts(wid, step, form, fields)
 
     # A transition marked `carries` folds its fields into the run's own
