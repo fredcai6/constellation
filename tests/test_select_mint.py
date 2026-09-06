@@ -222,8 +222,15 @@ def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, ca
     st = runmod.state("g1")
     fresh = st["current"]
     assert fresh["form"] == "skills/implementer/forms/IMPLEMENT.toml"
-    # the ruling's own prefill, carried forward -- not re-derived findings
-    assert fresh["prefill"] == impasse["prefill"]
+    # The ruling's own prefill, carried forward -- not re-derived findings.
+    # Stated as three claims rather than one equality: the equality also
+    # pinned the conductor's `why` being dropped, which is #107's defect, and
+    # a fresh round now arrives holding the ruling that created it, ahead of
+    # the findings that caused the impasse.
+    assert fresh["prefill"]["findings"].endswith(impasse["prefill"]["findings"])
+    assert fresh["prefill"]["findings"].startswith("[conductor] ")
+    assert ({k: v for k, v in fresh["prefill"].items() if k != "findings"}
+            == {k: v for k, v in impasse["prefill"].items() if k != "findings"})
     # the ruling walked out of the wall rather than into it: the guard
     # returned no outlet for a step with no panel, so a third round was
     # minted where a further panel-judged rework would have hit the outlet
