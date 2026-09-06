@@ -2284,6 +2284,51 @@ def _seam_findings_history(wid, seg):
     return "\n\n".join(blocks)
 
 
+# [impasse-ruling-carries]
+# Rationale: #107 -- the impasse form is the one form in the assembly written
+#   for a conductor to rule on a *pattern* rather than a round ("Rule on the
+#   loop, not on the findings"), and its `ruling` note makes a `rework`
+#   legitimate only where the conductor "can name what that round changes
+#   that the last three did not". `why` is where that naming goes, and
+#   nothing read it: the impasse step is minted with no panel, deliberately
+#   (a fourth fresh-context reader is the loop, not the way out), so
+#   `_panel_judged_rework`'s guard returned nothing and `_perform` fell back
+#   to the impasse step's *own* prefill -- the findings it was minted with.
+#   The round the ruling created therefore arrived holding exactly what the
+#   round before it held. From the reworking planner's seat an impasse rework
+#   and an ordinary one were indistinguishable, which is close to engineering
+#   a fourth identical round out of the mechanism whose whole purpose is
+#   escaping the third.
+#   The sibling path already did this right and is what makes it a defect
+#   rather than intent: an impasse `up` hands the same submit's fields to
+#   `_pause_gate`, so the conductor's reasoning reaches the tier above. Same
+#   form, same submit, one plumbed and one not.
+# Rejected: changing the `panel` guard itself. Carrying the ruling is a
+#   different question from re-deriving the panel's findings -- the guard is
+#   right about the second -- so the branch returns the ruling rather than
+#   the guard learning a second job (#107's own breadcrumb says the same).
+# Rejected: reading the ruling out of the journal at the next round's mint.
+#   The fields are in hand here, and a second reader of the same submit is a
+#   second thing to keep in step with the form.
+def _impasse_ruled_rework(step, fields):
+    """The prefill an impasse ruling's own `rework` mints its round with: the
+    findings that caused the impasse, with the conductor's `why` ahead of
+    them and marked as the conductor's -- `_panel_judged_rework`'s own
+    `orders` idiom, applied to the one deciding step that carries no panel.
+
+    `None` where the ruling wrote no `why` the next round can act on, which
+    leaves the carry-what-caused-it behaviour this had before exactly as it
+    was."""
+    carried = step.get("prefill") or {}
+    why = str((fields or {}).get("why", "") or "").strip()
+    if not why or forms.leading_word(why) in ("waived", "unknown", "working"):
+        return None
+    ruled = f"[conductor] {why}"
+    findings = str(carried.get("findings", "") or "").strip()
+    return {**carried,
+            "findings": f"{ruled}\n\n{findings}" if findings else ruled}
+
+
 # [panel-judged-rework]
 # Rationale: a rework decided at a transition its own panel returned to is
 #   the same act whichever voice decided it -- the merged verdict resolving
@@ -2311,9 +2356,12 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     `impasse-after` rounds have already landed on this artifact, so a
     conductor rules on the loop rather than the run finishing around it.
 
-    `(None, "")` where `step` is not that transition -- an impasse ruling's
-    own `rework` carries the prefill that caused it and never spends the
-    count, which is what makes the outlet a way out rather than a wall.
+    Where `step` is not that transition the outlet is always `""` -- an
+    impasse ruling's own `rework` never spends the count, which is what makes
+    the outlet a way out rather than a wall -- and the prefill is
+    `_impasse_ruled_rework`'s: what caused the impasse, with the conductor's
+    own `why` ahead of it (#107), or `None` where the ruling wrote no `why`
+    the round can act on, which is the plain carry this had before.
 
     The guard is `step.get("panel")` alone, and that is the whole question:
     is *this deciding step* a two-voices panel transition. `panel` is written
@@ -2326,7 +2374,7 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     decision minted with no `panel` key at all, under every caller.
     """
     if not step.get("panel"):
-        return None, ""
+        return _impasse_ruled_rework(step, fields), ""
     st = runmod.state(wid)
     findings = "\n\n".join(
         f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
