@@ -27,7 +27,8 @@ from engine import boards, journal, run as runmod
 from engine import cli
 from test_nesting import (
     _dispatch_and_close_child, _dispatch_and_close_plan, _dispatch_plan_critic,
-    _fill, _fill_gate_transition, _fill_open, _fill_plan_to_execute, _response, _work_the_board,
+    _fill, _fill_gate_transition, _fill_gate_transition_drop, _fill_open, _fill_plan_to_execute,
+    _response, _work_the_board,
 )
 
 
@@ -186,3 +187,60 @@ def test_board_lookup_finds_the_right_file_with_two_board_segments_present(workd
     # the obligation landed on execution-state, not understand
     assert any(r.get("obligation") == "Obligation, not a question." for r in execution_rows)
     assert all("obligation" not in r for r in understand_rows)
+
+
+# -- dropping the last pending gate settles the board too --------------------
+
+
+def test_dropping_the_last_pending_gate_still_refills_plan_over_an_open_obligation(
+        workdir, capsys):
+    """THE FIX (#95): `drop <gate-id>`'s outcome used to `close` alone, so
+    dropping the run's last pending gate emptied execute's worklist without
+    ever touching `advance` -- the one outcome that used to read the
+    execution-state board. The run walked to CLOSE.toml reporting itself
+    done while the seeded obligation sat `open`, undisposed. `does = "close;
+    settle"` reads the board on the drop route too: closing the last
+    pending gate still finds the obligation open and refills plan for
+    another round, the same shape
+    `test_an_undisposed_obligation_refills_plan_rather_than_closing` pins for
+    the advance route."""
+    _mint_first_gate_with_obligation()
+    capsys.readouterr()
+
+    # a second pending gate, minted the way `test_nesting._mint_n_gates`
+    # seeds gates beyond the first -- direct journal entries in the exact
+    # shape the plan segment's own mint produces, since a second *real* gate
+    # would take a second plan round this fixture never drives.
+    journal.append("issue17", "step", id="g2", segment="execute", dispatches="run-a-gate",
+                   prefill={"purpose": "gate 2 purpose", "scope": "gate 2 scope",
+                            "proof": "true"},
+                   child="issue17.g2", anchor=False, terminal=False, source="mint")
+    journal.append("issue17", "step", id="g2-adjudicate", segment="execute",
+                   form="forms/GATE_TRANSITION.toml", filler="conductor",
+                   child="issue17.g2", anchor=False, terminal=False, validates="",
+                   source="mint")
+
+    rows = boards.rows(_execution_state_path("issue17"))
+    assert len(rows) == 1 and rows[0]["status"] == "open"  # seeded, undisposed
+
+    _dispatch_and_close_child("issue17", "g1")
+    capsys.readouterr()
+    assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
+
+    # g1 can't name itself (test_nesting.py::
+    # test_drop_on_a_gate_not_pending_refuses_and_names_pending) -- g2 is the
+    # only other pending gate, so dropping it empties execute's worklist
+    _fill_gate_transition_drop("issue17", "g2")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    amends = [e for e in journal.read("issue17") if e["kind"] == "amend"]
+    assert {a["step"] for a in amends} == {"g2", "g2-adjudicate"}  # the drop still lands
+
+    st = runmod.state("issue17")
+    # a fresh plan round was minted -- not the terminal close step
+    assert st["current"]["segment"] == "plan"
+    assert st["current"]["form"] != "forms/CLOSE.toml"
+    fresh_plan = next(s for s in st["steps"]
+                      if s["segment"] == "plan" and s.get("source") == "mint")
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact

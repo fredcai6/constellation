@@ -268,9 +268,16 @@ decides = "plan-holds"
   value = "remint"
   does = "remint gate-spec"     # mints a fresh dispatch/adjudication pair from gate-spec
 
+  # `settle` beside `close` because a drop is the other way this segment
+  # empties. The execution-state board's one read hung on `advance`, a gate
+  # committing -- so a run whose last pending gate was dropped rather than
+  # advanced reached its terminal step with rows still open, reporting itself
+  # done on obligations nothing had disposed (#95). `_settle_execution`
+  # refuses nothing and mints nothing where every row is settled, so a drop
+  # with a clean board walks on exactly as it did.
   [[segment.outcome]]
   value = "drop <gate-id>"
-  does = "close"     # closes the named not-done step and everything paired with it
+  does = "close; settle"     # closes the named not-done step and everything paired with it, then reads the board
 
   [[segment.outcome]]
   value = "replan"
