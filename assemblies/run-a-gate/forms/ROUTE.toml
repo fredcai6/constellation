@@ -59,32 +59,44 @@ id = "calls"
 kind = "plan"
 optional = true
 note = """
-One block per finding the review returned -- every one of them gets a call,
-and this form is the only place any of them is ruled on -- and per declared
-deviation only where you contest it.
+One block per finding the review returned -- every one of them gets a
+call, and this form is the only place any of them is ruled on -- and per
+declared deviation only where you contest it. A deviation you are
+keeping is the ordinary case and takes `accepted` like any other row.
 
-`blocking` -- the spec is not filled while this stands. These and only these
-ride into a `rework` as the fresh implement round's own findings, so a
-blocking call is that round's orders. `accepted` -- true, and the round
-stands anyway; a declared deviation you are keeping is the ordinary case,
-recorded here rather than worked. A finding that proposes deleting something -- a commitment, a gate, a
-field, a file -- takes `blocking` or `rejected: <reason>` and never
-`accepted`: three runs running, an accepted call on a deletion was read by
-the next round as consent to it, and a deletion the round stands anyway on
-is a deletion nobody made. Keeping the thing is the call that owes the
-argument. `beyond` -- real, and outside this gate's
-spec; it leaves as a triage candidate for the plan to weigh, never as work
-here. `rejected` -- not true of this diff, or not this gate's to answer, and
-the one call that owes a reason: fold it in after a colon, the way `rejected:
-the path it names is covered at line 40` reads. A `rejected` call on a
-finding that claims something about what the code does names the command
-that refuted it, the way an issue's `measured` type carries its command.
+`blocking` -- the spec is not filled while this stands. `accepted` --
+you are not acting on it, and you owe no reason why. The rubber stamp,
+and the call most findings should take: the round stands, nothing
+carries, and the record is that you called it. A finding that proposes
+deleting something -- a commitment, a gate, a field, a file -- takes
+`blocking` or `rejected: <reason>` and never `accepted`: three runs
+running, an accepted call on a deletion was read by the next round as
+consent to it, and a deletion the round stands anyway on is a deletion
+nobody made. Keeping the thing is the call that owes the argument.
 
-Quote what you are calling as it was written rather than numbering it: on a
-`rework` the blocking blocks are literally what the next round arrives
-holding, so a call naming `F1` hands that round the string `F1`. Leave the
-field out only where the review returned no findings and you contest no
-deviation."""
+`beyond` -- real, and outside what this gate set out to do. It is
+journaled as a triage note when you submit and reaches the close form
+from there, so it leaves as a candidate without anyone retyping it, and
+never as work here. `rejected` -- not true of this diff, or not this
+gate's to answer, and the one call that owes a reason: fold it in after
+a colon, the way `rejected: the path it names is covered at line 40`
+reads. A `rejected` call on a finding that claims something about what
+the code does names the command that refuted it, the way an issue's
+`measured` type carries its command.
+
+Where each call goes is the whole vocabulary. A `rework` carries the
+blocking ones and nothing else, so a blocking call is that round's
+orders. An `up` carries the whole table -- every call beside its finding
+-- to the tier the ask stands at. A `beyond` is journaled as a triage
+note the moment you submit, and arrives at this run's close form for
+routing into an issue. `accepted` and `rejected` go nowhere by design:
+the record is that you called them.
+
+Quote what you are calling as it was written rather than numbering it:
+on a `rework` the blocking blocks are literally what the next round
+arrives holding, so a call naming `F1` hands that round the string `F1`.
+Leave the field out only where the review returned no findings and you
+contest no deviation."""
 
   [[field.item]]
   id = "finding"
@@ -94,4 +106,5 @@ implementer declared it -- quoted, never summarised."""
 
   [[field.item]]
   id = "call"
+  kind = "decision"
   note = "blocking | accepted | beyond | rejected: <reason>"

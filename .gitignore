@@ -15,3 +15,4 @@ map/
 # the next run, so neither is a record of anything the repo needs to keep.
 .coverage
 .pytest_cache/
+.claude/worktrees/

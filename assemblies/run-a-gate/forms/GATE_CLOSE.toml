@@ -16,6 +16,9 @@ parent cannot read from it."""
 id = "residue"
 kind = "evidence"
 note = """
-What the parent should know that no recorded field carries — observations
+What the parent should know that no recorded field carries. Answer this
+gate's own `direction` first where its orders carry one -- that field is a
+question the plan asked this gate on the next plan round's behalf, and this
+is the only place it is ever answered. Then anything else: observations
 noted for triage, a surprise in the terrain, a check that passes but smells.
 Or waived: none."""

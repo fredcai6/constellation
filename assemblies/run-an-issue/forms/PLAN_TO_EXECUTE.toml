@@ -16,8 +16,8 @@ could only read, and across five runs nothing a plan seam found after its
 first round changed what shipped. Call every finding it returned, one by
 one; a `rework` carries the ones you call blocking and nothing else, and
 blocking means the gate would build the wrong thing or could not be proven
--- a true finding that is neither rides into the gate as its `direction`,
-not into another planner round. The round that just passed critique already
+-- a true finding that is neither is `accepted`, which costs you one word
+and sends the round on. The round that just passed critique already
 cut the gate whole -- purpose, scope, proof, and any model or direction
 override -- so a `pass` (or a `revise` you are not sending back) needs
 nothing retyped, only the plan artifact pointed at."""
@@ -77,36 +77,46 @@ id = "calls"
 kind = "plan"
 optional = true
 note = """
-One block per finding the panel returned -- every one of them gets a call,
-and this form is the only place any of them is ruled on.
+One block per finding the panel returned -- every one of them gets a
+call, and this form is the only place any of them is ruled on.
 
 `blocking` -- the gate this plan cut would build the wrong thing, or its
-proof could not show it built the right one; nothing else is blocking, and
-a finding that is true and neither of those is `accepted` and carried into
-the gate's own `direction`. These and only these ride into a `rework` as
-the fresh planner round's own findings, so a blocking call is that round's
-orders. `accepted` -- true, and the round
-stands anyway; a finding you are noting rather than acting on, recorded here
-rather than worked. A finding that proposes deleting something -- a commitment, a gate, a
-field, a file -- takes `blocking` or `rejected: <reason>` and never
-`accepted`: three runs running, an accepted call on a deletion was read by
-the next round as consent to it, and a deletion the round stands anyway on
-is a deletion nobody made. Keeping the thing is the call that owes the
-argument. `beyond` -- real, and outside what this plan set out to
-do; it leaves as a triage candidate, never as work here. `rejected` -- not
-true of this plan, or below the bar a plan is held to (purpose says the
-result, proof says what verifies it, scope says where; how is the
-implementer's, and a finding about how is rejected on that bar alone) --
-and the one call that owes a reason: fold it in after a colon, the way
-`rejected: the how is the implementer's, not this plan's` reads. A
-`rejected` call on a finding that claims something about what the code does
-names the command that refuted it, the way an issue's `measured` type
-carries its command.
+proof could not show it built the right one; nothing else is blocking,
+and a finding that is true and neither of those is `accepted`.
+`accepted` -- you are not acting on it, and you owe no reason why. The
+rubber stamp, and the call most findings should take: the round stands,
+nothing carries, and the record is that you called it. A finding that
+proposes deleting something -- a commitment, a gate, a field, a file --
+takes `blocking` or `rejected: <reason>` and never `accepted`: three
+runs running, an accepted call on a deletion was read by the next round
+as consent to it, and a deletion the round stands anyway on is a
+deletion nobody made. Keeping the thing is the call that owes the
+argument.
 
-Quote what you are calling as it was written rather than numbering it: on a
-`rework` the blocking blocks are literally what the next round arrives
-holding, so a call naming `F1` hands that round the string `F1`. Leave the
-field out only where the panel returned no findings."""
+`beyond` -- real, and outside what this plan set out to do. It is
+journaled as a triage note when you submit and reaches the close form
+from there, so it leaves as a candidate without anyone retyping it, and
+never as work here. `rejected` -- not true of this plan, or below the
+bar a plan is held to (purpose says the result, proof says what verifies
+it, scope says where; how is the implementer's, and a finding about how
+is rejected on that bar alone) -- and the one call that owes a reason:
+fold it in after a colon, the way `rejected: the how is the
+implementer's, not this plan's` reads. A `rejected` call on a finding
+that claims something about what the code does names the command that
+refuted it, the way an issue's `measured` type carries its command.
+
+Where each call goes is the whole vocabulary. A `rework` carries the
+blocking ones and nothing else, so a blocking call is that round's
+orders. An `up` carries the whole table -- every call beside its finding
+-- to the tier the ask stands at. A `beyond` is journaled as a triage
+note the moment you submit, and arrives at this run's close form for
+routing into an issue. `accepted` and `rejected` go nowhere by design:
+the record is that you called them.
+
+Quote what you are calling as it was written rather than numbering it:
+on a `rework` the blocking blocks are literally what the next round
+arrives holding, so a call naming `F1` hands that round the string `F1`.
+Leave the field out only where the panel returned no findings."""
 
   [[field.item]]
   id = "finding"
@@ -114,4 +124,5 @@ field out only where the panel returned no findings."""
 
   [[field.item]]
   id = "call"
+  kind = "decision"
   note = "blocking | accepted | beyond | rejected: <reason>"
