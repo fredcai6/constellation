@@ -31,7 +31,7 @@ import tomllib
 
 from engine import cli, journal, render, review_yield, run as runmod
 from gitremote import stub_gh
-from test_nesting import _dispatch_and_close_plan, _fill_close, _fill_gate_close, _response
+from test_nesting import _fill_close, _fill_gate_close, _response
 from test_two_voices import _dispatch_critic, _fill_consolidate, _fill_open, _fill_spec
 from test_verdict_panels import (
     _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
@@ -470,41 +470,57 @@ def test_a_missing_panel_form_on_a_superseded_step_does_not_walk_the_run_backwar
     assert runmod.state(wid)["closed"]
 
 
-# -- the design-it-twice panel: quiet, and quiet is not a stale word -------
+# -- a quiet panel: quiet is not a stale word --------------------------------
 
 
 def test_the_design_panels_own_round_reports_nothing_rather_than_a_stale_word(
         workdir, capsys, monkeypatch):
-    """Covering item 13. run-an-issue's rival planners are dispatched under
-    PLAN.toml, which declares no `verdict` field at all, so their round folds
-    to `("quiet", None)` -- not a refusal, and not a word.
+    """Covering item 13. A panel whose voices are dispatched under a form
+    declaring no `verdict` field at all folds to `("quiet", None)` -- not a
+    refusal, and not a word. design-it-twice's rival-planner panel (ruling
+    10, shelved -- #96) was the tree's one live example of this shape,
+    dispatched under PLAN.toml; the panel-only step here is hand-built into
+    the journal directly instead (the same way the missing-panel-form test
+    above builds its own run), since nothing left in the tree mints one.
 
     `_summary` is the one site that reaches it: `seam_rounds` visits only
-    segments `_seam_segments` admits, and the design panel is an interior
-    step at neither a paneled transition nor a route-form segment, so the
-    review yield structurally never sees a quiet round. `_summary` has no
-    such filter -- it walks every panel-bearing step in journal order with
-    the last one winning -- and this run closes with the design panel as its
-    last judged round, which is an ordinary journal order rather than a
-    contrived one (a rival-planner round recurs on every rework).
+    segments `_seam_segments` admits, and a panel-only interior step is
+    neither a paneled transition nor a route-form segment, so the review
+    yield structurally never sees a quiet round. `_summary` has no such
+    filter -- it walks every panel-bearing step in journal order with the
+    last one winning -- and this run closes with the hand-built quiet panel
+    as its last judged round, which is an ordinary journal order rather than
+    a contrived one (a rival-planner round recurred on every rework, before
+    it was shelved).
 
     Two failures are available at that combination and this rules out both:
     rendering the `("quiet", None)` tuple as a string, and carrying the
     understand panel's own clean `pass` forward past a round that settled
     nothing about a verdict."""
-    wid = _to_the_consolidate_panel()
+    wid = "issue13"
+    journal.append(wid, "run", title="t", assembly="run-an-issue")
+    journal.append(wid, "step", id="understand", segment="understand", anchor=True,
+                   form="forms/CONSOLIDATE.toml",
+                   panel=[{"form": CRITIC}, {"form": CRITIC}, {"form": CRITIC}])
+    journal.append(wid, "step", id="plan-1", segment="plan",
+                   panel=[{"form": "skills/planner/forms/PLAN.toml"}])
+    journal.append(wid, "step", id="close", segment="close", anchor=True,
+                   terminal=True, form="forms/CLOSE.toml")
     for n in (1, 2, 3):
-        _dispatch_critic(wid, "understand", verdict="pass", n=n)
-    _fill_consolidate(wid, resolution="pass")
-    cli.main([wid, "submit"])
-    capsys.readouterr()
+        journal.append(wid, "return", step="understand", child=f"{wid}.understand.p{n}",
+                       fields={"findings": "waived: clean", "verdict": "pass"})
+    journal.append(wid, "submit", step="understand",
+                   fields={"resolution": "pass", "spec": f".agent-work/{wid}/spec.md",
+                           "key-terms": "waived: none", "settle": "waived: none"})
 
     st = runmod.state(wid)
     assert st["current"]["id"] == "plan-1"
     assert cli._summary(st)["verdict"] == "pass", \
         "the understand panel's own clean word is the stale one available here"
 
-    _dispatch_and_close_plan(wid, "plan-1")
+    # the design panel's own single dispatch returns with no `verdict` field
+    # at all (PLAN.toml declares none) -- quiet, and the step completes on it
+    journal.append(wid, "return", step="plan-1", child=f"{wid}.plan-1.p1", fields={})
     capsys.readouterr()
 
     st = runmod.state(wid)
@@ -512,13 +528,11 @@ def test_the_design_panels_own_round_reports_nothing_rather_than_a_stale_word(
     assert cli._summary(st)["verdict"] == ""
 
     # and it survives the close, which is where the tuple would have been
-    # rendered as a string if anything rendered it at all
-    st = runmod.state(wid)
-    for s in st["steps"]:
-        if s["id"] not in st["done"] and not s.get("terminal"):
-            journal.append(wid, "amend", action="close", segment=s["segment"],
-                           step=s["id"], reason="this test's subject is the design panel",
-                           anchor=s.get("anchor", False))
+    # rendered as a string if anything rendered it at all. This run has no
+    # real worktree behind it (built straight into the journal, the same as
+    # the missing-panel-form test above), so `close` leaves its record in
+    # place rather than archiving it -- `state()["closed"]` is what the
+    # sibling test above reads for the identical reason.
     _fill_close(wid)
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -526,9 +540,8 @@ def test_the_design_panels_own_round_reports_nothing_rather_than_a_stale_word(
     stub_gh(monkeypatch)
     cli.main([wid, "close"])
     capsys.readouterr()
-    # an issue-tier run archives its own journal on close, so the record it
-    # actually wrote is read back from there
-    archived = pathlib.Path(workdir) / ".agent-work" / "archive" / wid / "journal.toml"
-    entries = tomllib.loads(archived.read_text())["entry"]
+    st = runmod.state(wid)
+    assert st["closed"]
+    entries = tomllib.loads((journal.location(wid) / "journal.toml").read_text())["entry"]
     closed = next(e for e in entries if e.get("kind") == "closed")
     assert closed["summary"]["verdict"] == ""

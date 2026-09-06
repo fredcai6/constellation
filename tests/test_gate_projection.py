@@ -137,7 +137,7 @@ proof = "true"
 horizon = "next: a regression test gate, once this one lands"
 key-terms = "waived: none"
 ''' % journal.location(w))
-    _dispatch_and_close_plan(wid, fill_fn=_fill_with_horizon)  # design-it-twice: three siblings
+    _dispatch_and_close_plan(wid, fill_fn=_fill_with_horizon)  # round one's single planner
     capsys.readouterr()
 
     cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])

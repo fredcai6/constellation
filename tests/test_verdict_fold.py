@@ -98,11 +98,12 @@ def test_case_7_form_declares_no_verdict_field_resolves_quiet_never_refused():
 
 
 def test_case_7_multi_voice_panel_folds_to_quiet_when_every_form_is_wordless():
-    # The single-voice case above is not the whole rule: a design-it-twice
-    # panel -- every voice dispatched under a form with no `verdict` field
-    # at all -- must fold panel-wide to quiet too, not just a lone voice.
-    # A fold that only recognized quiet for a single-voice panel would pass
-    # the case above but fail this one.
+    # The single-voice case above is not the whole rule: a multi-voice panel
+    # -- every voice dispatched under a form with no `verdict` field at all,
+    # design-it-twice's rival-planner panel (shelved, #96) having been the
+    # tree's one worked example -- must fold panel-wide to quiet too, not
+    # just a lone voice. A fold that only recognized quiet for a single-voice
+    # panel would pass the case above but fail this one.
     returns = [_ret("w.step.p1", verdict="anything"), _ret("w.step.p2", fields={})]
     outcome = runmod.verdict_fold(returns, [NO_VERDICT_FORM, NO_VERDICT_FORM], PASS_REVISE_TABLE)
     assert outcome == ("quiet", None)

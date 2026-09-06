@@ -602,8 +602,8 @@ def _panel_verdict_taught(asm, panel):
     naming no form of its own (`{}`) mimics.
 
     `None` where no voice's form declares a `verdict` field at all --
-    design-it-twice's rival-planner panel is this case, and has nothing to
-    check."""
+    design-it-twice's rival-planner panel (shelved, #96) was this case, and
+    has nothing to check."""
     vocabs = []
     for entry in panel:
         pasm, ref = runmod._panelist_form_ref(asm, entry)

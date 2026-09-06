@@ -276,10 +276,8 @@ def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdi
     prefill = runmod.state(f"{wid}.plan.p1")["prefill"]
     assert prefill["spec"] == f".agent-work/{wid}/spec.md"      # the understanding crossed
     # the artifact still rides -- the segment's own most recent non-panel
-    # step is `plan-1` whichever way it was filled, and the fields that
-    # land in `done` are whichever design-panel sibling's return closed
-    # last (`_act_on_verdicts`, engine/cli.py) -- p3, dispatched third
-    assert prefill["plan"] == f".agent-work/{wid}/plan-1/p3/plan.md"
+    # step is `plan-1`'s single dispatch, so its own artifact is what lands
+    assert prefill["plan"] == f".agent-work/{wid}/plan-1/plan.md"
     assert prefill["criteria"].startswith("intent-fit")
 
 

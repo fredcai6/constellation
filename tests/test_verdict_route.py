@@ -24,7 +24,7 @@ already does, and its fixtures are reused here rather than re-declared.
 
 import ast
 
-from engine import cli, run as runmod
+from engine import cli, journal, run as runmod
 from conftest import REPO
 from test_two_voices import CRITIC, _dispatch_critic, _drive_to_plan_to_execute
 from test_nesting import _fill_plan_route_with_calls, _fill_plan_to_execute, _response
@@ -254,8 +254,10 @@ def test_run_a_gates_review_plan_to_executes_and_consolidates_own_folds_all_move
 
 def test_an_interior_design_panel_still_completes_on_its_own_form():
     """The other half of the same promise, and the one a table walk could
-    quietly break: ruling 10's design panel sits on an *interior* step, whose
-    segment declares an impasse `ruling` and no verdict word at all. No row
+    quietly break: a panel can sit on an *interior* step whose own segment
+    declares an impasse `ruling` and no verdict word at all -- design-it-twice's
+    round-one panel (ruling 10, shelved #96) was the tree's one live example,
+    read here as a hand-built step since nothing mints one any more. No row
     resolves, so nothing acts, so the step holds for its form -- pass and
     revise alike, exactly as the literal `pass` check left it.
 
@@ -269,6 +271,36 @@ def test_an_interior_design_panel_still_completes_on_its_own_form():
     for verdict in ("pass", "revise"):
         assert runmod._holds_for_its_form(
             st, step, [{"child": "w.plan.p1", "fields": {"verdict": verdict}}])
+
+
+def test_an_interior_step_with_panel_and_form_stays_open_for_the_conductor(workdir):
+    """Relocated from the old test_three_planners.py (#96): not this gate's
+    own change -- `two_voices` (engine/run.py) is computed per-step, not
+    per-transition, so this already holds for any step, round or transition
+    alike. Pinned here as DESIRED behaviour rather than relied on silently:
+    no interior step in the shipped tree carries both a `panel` and a `form`
+    -- design-it-twice's own round-one step (ruling 10, shelved #96) carried
+    a `panel` with no `form` beside it -- so nothing exercises this
+    combination through a real assembly, and this stays a synthetic journal
+    rather than a driven one."""
+    wid = "synthetic"
+    journal.append(wid, "run", title="t", assembly="run-an-issue")
+    journal.append(wid, "step", id="s1", segment="plan", panel=[{"criteria": "a"},
+                   {"criteria": "b"}], form="skills/planner/forms/PLAN.toml",
+                   filler="conductor", anchor=False, terminal=False, validates="",
+                   source="open")
+
+    journal.append(wid, "return", step="s1", child=f"{wid}.s1.p1", fields={})
+    st = runmod.state(wid)
+    assert "s1" not in st["done"]  # one of two panelists in -- unsurprising yet
+
+    journal.append(wid, "return", step="s1", child=f"{wid}.s1.p2", fields={})
+    st = runmod.state(wid)
+    # both panelists in, neither carried a `verdict` field -- the merged
+    # verdict defaults to "pass", and two_voices holds the step open for the
+    # conductor's own form submission rather than completing it here
+    assert "s1" not in st["done"]
+    assert st["current"]["id"] == "s1"
 
 
 # -- the vocabulary comparison itself is gone from the routing branches -----

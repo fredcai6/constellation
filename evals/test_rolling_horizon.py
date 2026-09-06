@@ -6,8 +6,8 @@ dispatched_from_a_board_row.py`, and it is why this file drives the real CLI
 instead of asserting on the assembly's TOML.
 
 This pins DESIRED behaviour, not current: the whole new cycle -- a spec
-crystallized and passed by a cold critic panel, a one-gate plan cut by
-round one's three siblings and passed by a second panel, the gate itself
+crystallized and passed by a cold critic panel, a one-gate plan cut by a
+single planner and passed by its own critic panel, the gate itself
 dispatched from a projection of that plan, its adjudication disposing the
 spec's own obligations, and the engine settling the run closed because
 every obligation now carries a disposition -- is the thing this wave
@@ -29,17 +29,21 @@ fan them out, but the room is exactly as sufficient either way.
 Sizing the drive: a smaller slice of this same cycle (board through the
 spec's own cold panel) has measured 96s, 289s and 348s in this repo, on the
 excursion eval's own drive. This test walks the whole cycle -- that same
-segment, plus a design-it-twice round and its own second panel, plus the
+segment, plus the plan segment's own round and its critic panel, plus the
 gate itself and its review, plus adjudication and close -- so 300s is not
 the number to reuse: two hand runs of this exact test, both driving
-correctly the whole way (three planner siblings, a real revise round on a
-genuine finding, three more critics), still had not reached the gate's own
-review by 300s. The drive budget below is sized from that measurement, not
-the smaller one; it is why the assertions below -- mirroring the excursion
-eval's own -- separate "cut off before the run ever closed, so this
-measured nothing conclusive" from a real finding. A drive that is merely
-slow is retried; a drive that finished on its own and still did not close,
-or closed with an obligation left open, is not.
+correctly the whole way under design-it-twice's three-sibling round one
+(ruling 10, shelved -- #96) -- three planner siblings, a real revise round
+on a genuine finding, three more critics -- still had not reached the
+gate's own review by 300s. The drive budget below is sized from that
+heavier measurement, not the smaller one; design-it-twice's removal only
+lightens the cycle further (one planner dispatch where three ran before),
+so the budget stays a safe upper bound rather than a stale one. It is why
+the assertions below -- mirroring the excursion eval's own -- separate "cut
+off before the run ever closed, so this measured nothing conclusive" from a
+real finding. A drive that is merely slow is retried; a drive that finished
+on its own and still did not close, or closed with an obligation left open,
+is not.
 """
 
 import os
@@ -157,8 +161,8 @@ def execution_state(workdir, wid):
 def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
     """Open a run, seed one small ask, and drive a single light model
     through the whole thing by hand -- board, spec, its cold panel, the
-    plan segment's own design-it-twice round and its panel, the one gate
-    that plan projects, its adjudication, and the settle that follows.
+    plan segment's own round and its critic panel, the one gate that plan
+    projects, its adjudication, and the settle that follows.
 
     What is asserted, and why each is the actual claim and not a proxy for
     it:
@@ -211,11 +215,13 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
 
     # Rationale: mirrors the excursion eval's own split, but on `closed`
     #   rather than on whether a gate was ever minted -- measured directly:
-    #   a real drive of this same prompt and tier reached g1's own review
-    #   panelist (spec, its cold panel, the plan segment's own three-sibling
-    #   round and its own second panel, the gate dispatched and its
-    #   implement step submitted) and was still short of `closed` at the
-    #   budget below.
+    #   a real drive of this same prompt and tier, under design-it-twice's
+    #   three-sibling round one (ruling 10, shelved -- #96), reached g1's own
+    #   review panelist (spec, its cold panel, the plan segment's own
+    #   three-sibling round and its own second panel, the gate dispatched and
+    #   its implement step submitted) and was still short of `closed` at the
+    #   budget below. The single-planner round this gate leaves standing is
+    #   only lighter, so the same budget still bounds it.
     #   A run that has not reached `closed` yet says nothing about whether
     #   the cycle is sound -- everything observed up to the cut was correct
     #   -- so cut-off-and-not-closed is retried rather than failed; only a
