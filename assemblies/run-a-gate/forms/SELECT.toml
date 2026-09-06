@@ -38,7 +38,8 @@ its panel the moment this releases. The three defaults are written out here
 rather than left to be remembered, because they are what you copy in:
 spec-fit -- "does the work fill the specification, whole and only"; test
 adequacy -- "are these the right tests, or could the work be substantially
-wrong while they pass"; and simplicity -- "argue for the smaller diff and name
+wrong while they pass, and does anything watch the important thing pass
+through the whole project rather than only its pieces"; and simplicity -- "argue for the smaller diff and name
 what to delete -- anything added beside an existing thing rather than through
 it is the first suspect". All three are worker `reviewer` at model `standard`,
 and simplicity is a first-round default only: a rework round keeps its single

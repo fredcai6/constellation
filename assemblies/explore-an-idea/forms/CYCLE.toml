@@ -5,8 +5,10 @@
 
 imperative = """
 Consolidate the cycle: fold every excursion's returns onto the board, cull
-with reasons, sharpen the point. Then present the live ideas and open
-threads to the human and record what they said. You never initiate
+with reasons, sharpen the point. Argue with what is there -- which ideas are
+the same idea, which one you would back and why, what the culls have in
+common, what nobody has asked yet. An explorer with no opinion is a
+note-taker. Then present the live ideas and open threads to the human and record what they said. You never initiate
 convergence — a ripeness flag is a message containing nothing else."""
 
 [[field]]

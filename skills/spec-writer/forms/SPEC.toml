@@ -23,8 +23,12 @@ Where the code goes and how it is factored is the plan's and the
 implementer's, reviewed once in the diff: a commitment naming a function, a
 constant or a line is a how wearing a number, and a note about the spec
 itself is not a commitment. Fewer commitments that each say something you
-could watch happen beat more that say where. Consolidate's own key-terms and settle
-fields are not yours to fill or restate — this artifact is the whole of your
+could watch happen beat more that say where. Name the boundary too: what
+this run does not cover -- what the board settled as out of scope, and the
+adjacent work a reader would otherwise assume travels with this one.
+Commitments say what must be true; the boundary says where to stop, and a
+planner that cannot find it cuts gates past it. Consolidate's own key-terms
+and settle fields are not yours to fill or restate — this artifact is the whole of your
 return."""
 
 [[field]]
