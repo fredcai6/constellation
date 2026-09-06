@@ -30,6 +30,7 @@ from test_nesting import (
     _fill,
     _fill_consolidate,
     _fill_open,
+    _response,
     _work_the_board,
     _write_plan_artifact,
 )
@@ -99,7 +100,7 @@ def test_a_rework_round_also_dispatches_a_single_planner(workdir, capsys):
     child = f"{wid}.{fresh['id']}"
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
     _write_plan_artifact(journal.location(child) / "plan.md")
-    _fill(journal.location(child) / "REWORK.toml", '''
+    _fill(_response(child), '''
 plan = "%s/plan.md"
 purpose = "fix the parser"
 scope = "src/parser.c only"
