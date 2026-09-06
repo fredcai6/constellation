@@ -1,7 +1,10 @@
 # Constellation v2 Design
 
-**Status:** the design of record, rulings by Tommy, last folded in 2026-08-29. This document
-says what the system is and what it is ruled to become. History lives in git.
+**Status:** the founding design, rulings by Tommy, last folded in 2026-08-29. Epic #55 closed
+on 2026-09-06, and everything this document ruled the system *to become* has either landed or
+been superseded by a later ruling — so it no longer says what is coming. It says why the system
+is shaped as it is, and the thesis below is still the test every keep/kill call is made against.
+Where it and the tree differ, the tree is right and the passage goes. History lives in git.
 
 ## Thesis
 
