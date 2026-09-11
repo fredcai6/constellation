@@ -68,7 +68,10 @@ an empty spec on a remint is refused."""
 
   [[field.item]]
   id = "purpose"
-  note = "What this gate accomplishes, and why the plan needs it."
+  note = """
+What later gates and the run's conclusion will take as true once this gate
+lands -- a claim someone could test, not a summary of what changed. Second,
+which of the five in `standards/approach.md` it serves."""
 
   [[field.item]]
   id = "scope"
@@ -79,11 +82,12 @@ an empty spec on a remint is refused."""
   kind = "check"
   note = """
 A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised -- one check per commitment. Write the
-exact string you ran, never a description of it: this field is shell-executed
-in the dispatched child, so prose becomes a command and fails there, after the
-work is done. Reference the command palette (constellation.toml) rather than
-hardcoding where it applies."""
+covers less than `scope` promised -- one check per commitment. It exercises
+purpose's claim too: a proof that passes while purpose is false has proved
+the wrong thing. Write the exact string you ran, never a description of it:
+this field is shell-executed in the dispatched child, so prose becomes a
+command and fails there, after the work is done. Reference the command
+palette (constellation.toml) rather than hardcoding where it applies."""
 
   [[field.item]]
   id = "budget"

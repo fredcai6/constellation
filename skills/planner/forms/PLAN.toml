@@ -13,9 +13,9 @@ the default, and a plan that cuts more than one argues the split: a second
 gate earns its place only where one diff would be unreviewable, or where the
 second piece needs a ruling from the first's evidence. Work that is merely
 sequential is one gate; each gate buys its own review rounds, and that is the
-cost a split has to beat. Purpose says the result,
-proof says what verifies it, scope says where -- the how is the
-implementer's, and that is the bar this gate is held to. A fresh-context
+cost a split has to beat. Purpose says what the run
+takes as true, proof says what verifies it, scope says where -- the how is
+the implementer's, and that is the bar this gate is held to. A fresh-context
 critic must be able to attack it from the spec and the plan alone, and a
 fresh-context implementer must be able to execute it from the gate spec
 alone. `standards/approach.md`, under the engine root the brief named, is
@@ -36,7 +36,10 @@ it and what stays here instead."""
 
 [[field]]
 id = "purpose"
-note = "What this gate accomplishes, and why the plan needs it."
+note = """
+What later gates and the run's conclusion will take as true once this gate
+lands -- a claim someone could test, not a summary of what changed. Second,
+which of the five in `standards/approach.md` it serves."""
 
 [[field]]
 id = "scope"
@@ -46,11 +49,13 @@ note = "Where the change lives, and what is out of bounds."
 id = "proof"
 note = """
 A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised -- one check per commitment. Write the
-exact string to run, never a description of it: this field rides into the
-dispatched child as its own `proof`, shell-executed there, so prose becomes a
-command and fails only after the work is done. Reference the command palette
-(constellation.toml) rather than hardcoding where it applies."""
+covers less than `scope` promised -- one check per commitment. It exercises
+purpose's claim too: a proof that passes while purpose is false has proved
+the wrong thing. Write the exact string to run, never a description of it:
+this field rides into the dispatched child as its own `proof`, shell-executed
+there, so prose becomes a command and fails only after the work is done.
+Reference the command palette (constellation.toml) rather than hardcoding
+where it applies."""
 
 [[field]]
 id = "budget"

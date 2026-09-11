@@ -11,3 +11,6 @@ reach into a gate's own latitude: implementation detail below gate grain
 belongs to the gate that will do the work, not to the plan that names it. A
 spec that reads as the wrong problem is not yours to fix by planning around
 it — that is a finding, not an improvisation.
+
+A gate is cut for what the run takes from it, and the proof is where that
+claim meets the tree.
