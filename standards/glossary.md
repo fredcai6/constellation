@@ -346,7 +346,7 @@ has used one back. Coining a synonym for a term below is a defect.
 - **flavor** — a cycle's mode, the human's pick: `shotgun` diverges, `compare` weighs a few
   seriously, `refine` hardens one.
 - **execution state** — run-an-issue's second board, seeded once (consolidate's `obligations`
-  field) from the spec's own numbered commitments and worked in place afterward: the gate claims
+  field) from the spec's own keyed commitments and worked in place afterward: the gate claims
   the rows it settles at its close, and its adjudication accepts or contests each claim onto the
   row. `execute`'s `advance` reads it at every gate's
   commit — an open row refills the plan segment for another round, every row disposed mints

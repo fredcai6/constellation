@@ -17,22 +17,29 @@ purpose down to why this issue exists, and from this issue down to what it
 builds. Draw it from the issue body and the board's own rows on why -- never
 invent it. Four or five lines, the opening of the artifact, not a section.
 Restate what the issue asked and what the board settled — point at neither.
-State every obligation this run makes as its own numbered commitment: a plan
-round cuts gates against these, and each stays checkable only if it is named
-and countable, not folded into prose. A commitment is one of two things: an
-end state observable from outside the engine -- a room says this, a journal
-carries that entry, an input refuses with this message, a test drives this
-scenario -- or an invariant, what stays unchanged and the test that says so.
-Where the code goes and how it is factored is the plan's and the
-implementer's, reviewed once in the diff: a commitment naming a function, a
-constant or a line is a how wearing a number, and a note about the spec
-itself is not a commitment. Fewer commitments that each say something you
-could watch happen beat more that say where. Name the boundary too: what
-this run does not cover -- what the board settled as out of scope, and the
-adjacent work a reader would otherwise assume travels with this one.
-Commitments say what must be true; the boundary says where to stop, and a
-planner that cannot find it cuts gates past it. Consolidate's own key-terms
-and settle fields are not yours to fill or restate — this artifact is the whole of your
+State every obligation this run makes as its own keyed commitment: a short,
+stable key -- say `c-registry-shared`, lowercase words, no sequence number --
+that never changes when the list is edited, so a reference to it survives a
+rework; renumbering was how a rework broke the cross-references it was
+fixing. A plan round cuts gates against these keys, and each stays checkable
+only if it is named and countable, not folded into prose. A commitment is
+one of two things: an end state observable from outside the engine -- a room
+says this, a journal carries that entry, an input refuses with this message,
+a test drives this scenario -- or an invariant, what stays unchanged and the
+test that says so. A bar that is a number carries where it was measured and
+at what n; a number from a spike is provisional until re-measured at the
+size it will be judged at. Where the code goes and how it is factored is the
+plan's and the implementer's, reviewed once in the diff: a commitment naming
+a function, a constant or a line is a how wearing a number, and a note about
+the spec itself is not a commitment. Fewer commitments that each say
+something you could watch happen beat more that say where. Name the
+boundary too: what this run does not cover -- what the board settled as out
+of scope, and the adjacent work a reader would otherwise assume travels with
+this one. Commitments say what must be true; the boundary says where to
+stop, and a planner that cannot find it cuts gates past it. A spec that runs
+past that size names the half that goes back up rather than cutting gates
+for it. Consolidate's own key-terms and settle fields are not yours to fill
+or restate — this artifact is the whole of your
 return."""
 
 [[field]]

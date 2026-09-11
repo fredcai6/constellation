@@ -1,5 +1,5 @@
 # Board: execution state. Owned by run-an-issue; seeded once, from the
-# spec's own numbered commitments, when consolidate releases
+# spec's own keyed commitments, when consolidate releases
 # (CONSOLIDATE.toml's `obligations` field). Worked in place afterward: the
 # gate that settles a row claims its disposition at close (GATE_CLOSE.toml's
 # `claims`), the issue-conductor accepts or contests the claim in
@@ -15,7 +15,7 @@
 
 [[obligation]]
 id = "o1"
-obligation = ""  # the spec's own numbered commitment, verbatim.
+obligation = ""  # the spec's own commitment, verbatim, cited by key.
 status = "open"  # open | satisfied | deferred: <reason> | invalidated: <reason>
                  # | handed-off: <reason> | rejected: <reason>
 gate = ""        # the gate that disposed this row -- filled beside status,
