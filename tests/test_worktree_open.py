@@ -195,6 +195,79 @@ def test_push_runs_from_the_toplevel_checkout_so_a_relative_remote_resolves(work
     assert upstream == "origin/issue42"
 
 
+# -- the cut point (#67): a worktree's branch is cut from the remote's own
+#    default, not whatever the checkout happens to be standing on ---------
+
+
+def _push_and_diverge(workdir, remote):
+    """Give the bare `origin` a real default branch that is ahead of the
+    checkout's own current branch -- the shape #67's third finding names: a
+    root run opened while the checkout stands on some other branch than the
+    remote's default. Pushes the checkout's one commit as `main`, advances
+    `main` on the remote from a throwaway clone (never through `workdir`
+    itself, which must not see the second commit locally), then moves
+    `workdir` onto an unrelated branch that never saw it. Returns the
+    remote's new tip."""
+    _git(workdir, "push", "-q", "origin", "HEAD:main")
+    _git(remote, "symbolic-ref", "HEAD", "refs/heads/main")
+    clone = workdir.parent / f"{workdir.name}-clone"
+    _git(workdir.parent, "clone", "-q", str(remote), str(clone))
+    (clone / "extra.txt").write_text("more\n")
+    _git(clone, "add", "-A")
+    _git(clone, "commit", "-q", "-m", "second")
+    _git(clone, "push", "-q", "origin", "main")
+    remote_tip = _git(clone, "rev-parse", "HEAD").stdout.strip()
+    _git(workdir, "checkout", "-q", "-b", "chore/local-only")
+    return remote_tip
+
+
+def test_root_open_cuts_the_branch_from_the_remote_default_when_it_is_ahead(
+        workdir, capsys):
+    remote = workdir.parent / f"{workdir.name}-remote.git"
+    remote_tip = _push_and_diverge(workdir, remote)
+    local_tip = _git(workdir, "rev-parse", "HEAD").stdout.strip()
+    assert local_tip != remote_tip  # the checkout's own branch never saw it
+
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    out = capsys.readouterr().out
+
+    cut_tip = _git(workdir, "rev-parse", "issue17").stdout.strip()
+    assert cut_tip == remote_tip  # cut from the remote's tip, not the checkout's own HEAD
+
+    run_entry = next(e for e in journal.read("issue17") if e["kind"] == "run")
+    assert run_entry["from"] == f"origin/main@{remote_tip[:8]}"
+    assert f"origin/main@{remote_tip[:8]}" in out  # said in the room's own header
+
+
+def test_from_flag_overrides_the_remote_default(workdir, capsys):
+    remote = workdir.parent / f"{workdir.name}-remote.git"
+    _push_and_diverge(workdir, remote)
+    local_tip = _git(workdir, "rev-parse", "HEAD").stdout.strip()
+
+    cli.main(["open", "run-an-issue", "--issue", "18", "--title", "t",
+             "--from", "chore/local-only"])
+
+    cut_tip = _git(workdir, "rev-parse", "issue18").stdout.strip()
+    assert cut_tip == local_tip  # --from wins over the remote's own default
+
+    run_entry = next(e for e in journal.read("issue18") if e["kind"] == "run")
+    assert run_entry["from"] == f"chore/local-only@{local_tip[:8]}"
+
+
+def test_root_open_falls_back_to_head_when_the_remote_has_no_default_branch_yet(
+        workdir):
+    # the ordinary fixture shape: `origin` exists but nothing has ever been
+    # pushed to it, so there is no remote default branch to cut from
+    head = _git(workdir, "rev-parse", "HEAD").stdout.strip()
+
+    cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
+
+    cut_tip = _git(workdir, "rev-parse", "issue19").stdout.strip()
+    assert cut_tip == head
+    run_entry = next(e for e in journal.read("issue19") if e["kind"] == "run")
+    assert run_entry["from"] == f"HEAD@{head[:8]}"
+
+
 # -- _open_child is untouched -------------------------------------------
 
 

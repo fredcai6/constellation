@@ -124,6 +124,8 @@ def preamble(st, blocked=(), position=None):
     out = [head]
     if st.get("title"):
         out.append(f"  {wid}: {st['title']}")
+    if st.get("from"):
+        out.append(f"  worktree cut from {st['from']}")
     out.append("")
     for b in blocked:
         out.append(f"  BLOCKED — {b.get('text','')}".rstrip())

@@ -52,6 +52,19 @@ def agent_work_roots() -> list[pathlib.Path]:
     return roots + _worktree_agent_work_dirs()
 
 
+def searched_roots() -> str:
+    """Where `root_for` just looked for a work id it could not find, said in
+    one line -- `agent_work_roots`'s own list, since a refusal that named
+    different roots than the search actually walked would point a caller
+    somewhere the lookup never went. `"none here"` when this cwd carries
+    neither a `.agent-work` of its own nor a `.worktrees` holding one --
+    ruling 8's own case, and #67's second finding: a subagent's cwd resets
+    between bash calls, so a bare `spine <id> note ...` run from the wrong
+    directory must say where it looked rather than read as lost work."""
+    roots = agent_work_roots()
+    return ", ".join(str(r) for r in roots) if roots else "none here"
+
+
 def root_for(work_id: str) -> pathlib.Path:
     """Where an existing work id's `.agent-work` actually lives: this
     checkout's own, tried first, then each sibling worktree's. Found in

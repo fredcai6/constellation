@@ -12,6 +12,11 @@ never wherever the dispatching shell happens to be standing, or g4's later
 archive move cannot find it.
 """
 
+import pathlib
+import subprocess
+
+import pytest
+
 from engine import cli, journal, rail, render, run as runmod
 from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_plan, \
     _dispatch_and_close_plan, _dispatch_plan_critic, _select_panel, \
@@ -39,6 +44,48 @@ def _open_one_gate(wid, issue, proof):
     _dispatch_plan_critic(wid)
     _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
+
+
+# -- an unknown id says where it looked, and refuses loudly (#67) -----------
+
+
+def test_unknown_id_from_a_bare_cwd_says_none_here_and_refuses_nonzero(
+        tmp_path, monkeypatch):
+    """A subagent's cwd resets between bash calls, so a bare `spine <id>
+    note ...` from a conductor thread that never `cd`'d anywhere lands in a
+    directory with no `.agent-work` and no `.worktrees` -- the exact shape
+    that used to read as a silently lost note. `none here` says the search
+    space was empty, not merely that this one id was not in it."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as e:
+        cli.main(["xyz", "note", "observation", "text"])
+    msg = str(e.value)
+    assert "none here" in msg
+    assert "run this from the checkout or the worktree" in msg
+
+
+def test_unknown_id_names_the_agent_work_roots_actually_present(
+        workdir, capsys, monkeypatch):
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    capsys.readouterr()
+    monkeypatch.chdir(workdir)  # back at the top level; issue17 lives in its worktree
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["nope", "note", "observation", "text"])
+    msg = str(e.value)
+    assert "none here" not in msg
+    assert str(pathlib.Path(".worktrees", "issue17", ".agent-work")) in msg
+
+
+def test_a_subprocess_run_from_a_bare_cwd_exits_nonzero(tmp_path):
+    """Driven end to end, not just through `runmod.state`'s own return: the
+    real failure mode is a caller's `&&` chain, so the exit code has to be
+    the process's own, not merely a Python exception a test harness caught."""
+    r = subprocess.run([render.spine_cmd(), "xyz", "note", "observation", "text"],
+                       cwd=tmp_path, capture_output=True, text=True, timeout=20)
+    assert r.returncode != 0
+    # an uncaught SystemExit with a message writes it to stderr, never stdout
+    assert "none here" in r.stderr
 
 
 # -- the read side: an id resolves from the top level -------------------

@@ -43,7 +43,10 @@ spine <work-id> amend reorder <step-id> --before <step-id> --reason "..."
 spine <work-id> amend waive <step-id> --reason "..."   waive the panelists
     still outstanding on a step; the step stands, its own form still yours
 spine <work-id> close               terminal: legal once every step is done
-spine open <assembly> --title T [--issue N]
+spine open <assembly> --title T [--issue N] [--from <ref>]   an issue-tier
+    open cuts its worktree's branch from the remote's default branch, fresh
+    -- --from overrides the cut point, for a root run opened on purpose
+    against work still in flight on some other branch
 spine open <assembly> --parent <id> --step <step-id>   open a dispatched child
 spine open <assembly> --parent <id> --row <row-id>     open an excursion from
     a board row -- the row is the brief, its return lands under the row, and
@@ -67,6 +70,34 @@ def _check_id(wid):
         raise SystemExit(render.refusal("work id", f"{wid!r} is not a usable name -- "
                                         "letters, digits, and dots between parts"))
     return wid
+
+
+# [named-search]
+# Rationale: a subagent's cwd resets between bash calls (#67's second
+#   finding), so a bare `spine <id> note ...` run from the wrong directory
+#   used to read "no run named", which looks exactly like a typo'd id and
+#   nothing like a lost note. Naming the roots the lookup actually walked
+#   (`journal.searched_roots`) tells the two apart without widening the
+#   search itself -- ruling 8 fixes the id as the address, never inferred
+#   from cwd, and that holds in this direction too: the fix is a refusal
+#   that says where it looked, not a wider look.
+# Rejected: searching beyond the cwd's own roots (climbing to a parent
+#   directory, say, or scanning `$HOME`). That is the inference ruling 8
+#   refuses, aimed at a different word for the same reason -- an id found by
+#   guessing the caller's real location is not addressed by the id any
+#   more.
+def _no_run(wid):
+    """The refusal every verb raises when `runmod.state`/`journal.exists`
+    finds no such work id: where the search looked, so a caller reads a
+    wrong cwd off the message instead of guessing the id was misspelled --
+    and a nonzero exit (`SystemExit`'s own, on a non-empty message), so a
+    caller chained with `&&` stops rather than reading a run that never
+    resolved."""
+    raise SystemExit(render.located(
+        f"no run named {wid}\n"
+        f"  looked in: {journal.searched_roots()}\n"
+        f"  run this from the checkout or the worktree that holds {wid}\n"
+        f"  open runs: spine"))
 
 
 def mint_id(issue=None, kind="issue"):
@@ -471,6 +502,55 @@ def _toplevel_checkout(cwd):
     return (pathlib.Path(cwd) / r.stdout.strip()).resolve().parent
 
 
+# [cut-point]
+# Rationale: a worktree cut from whatever branch the top-level checkout
+#   happened to be on (#67) is cut from a commit that predates the run and
+#   can never see work still in flight on some other local branch. The
+#   remote's default branch is what a fresh clone would stand on, so it is
+#   the one point every collaborator's next checkout actually agrees on --
+#   fetched fresh (never trusted from a stale local `refs/remotes/origin/
+#   HEAD`) so the sha it names is both current and one this checkout
+#   actually holds the objects for, ready for `worktree add` to build on.
+#   `--from` overrides it outright for the case #67 names: a root run
+#   opened on purpose to exercise work still in flight on some other
+#   branch, which is not a mistake for this to second-guess.
+# Rejected: `refs/remotes/origin/HEAD` read locally with no fetch. It is
+#   only ever written by `git clone` (or a deliberate `git remote set-head`)
+#   -- absent here, and stale the moment the remote's own default branch
+#   moves on -- so trusting it silently reintroduces the exact staleness
+#   this exists to fix.
+def _resolve_cut_point(top, from_ref):
+    """What to cut the new worktree's branch from, as `(ref, sha)`: `--from`
+    wins outright; otherwise the remote's default branch, fetched fresh;
+    otherwise this checkout's own `HEAD`, when there is no remote default
+    branch to ask for yet -- a bare remote before anything has been pushed
+    to it."""
+    if from_ref:
+        r = _git(top, "rev-parse", "--verify", f"{from_ref}^{{commit}}")
+        if r.returncode != 0:
+            raise SystemExit(render.refusal(
+                "from", f"{from_ref!r} does not resolve to a commit -- "
+                f"{(r.stderr or r.stdout).strip()}",
+                escape=f"pass a ref {top} already has -- a local branch, a "
+                       f"tag, or a sha, fetched first if it is the remote's"))
+        return from_ref, r.stdout.strip()
+    symref = _git(top, "ls-remote", "--symref", "origin", "HEAD")
+    branch = ""
+    if symref.returncode == 0:
+        for line in symref.stdout.splitlines():
+            if line.startswith("ref:") and line.rstrip().endswith("HEAD"):
+                branch = line.split()[1].removeprefix("refs/heads/")
+                break
+    if branch:
+        fetched = _git(top, "fetch", "origin", branch)
+        if fetched.returncode == 0:
+            sha = _git(top, "rev-parse", "FETCH_HEAD")
+            if sha.returncode == 0:
+                return f"origin/{branch}", sha.stdout.strip()
+    head = _git(top, "rev-parse", "HEAD")
+    return "HEAD", head.stdout.strip()
+
+
 # [push-before-journal]
 # Rationale: the branch and worktree are made and pushed before anything is
 #   journaled. A push failure then leaves nothing behind to clean up beyond
@@ -479,7 +559,7 @@ def _toplevel_checkout(cwd):
 # Rejected: journaling the run first and pushing after -- a failed push
 #   would then leave a run that `journal.exists` calls real, and `--id`
 #   would have to be swapped for a retry instead of just repeated.
-def _open_root_worktree(wid, assembly, title):
+def _open_root_worktree(wid, assembly, title, from_ref=""):
     top = _toplevel_checkout(pathlib.Path.cwd())
     if top is None:
         raise SystemExit(render.refusal(
@@ -489,8 +569,9 @@ def _open_root_worktree(wid, assembly, title):
         raise SystemExit(render.refusal(
             "remote", "the checkout has no remote",
             escape=f"add one: git -C {top} remote add origin <url>"))
+    ref, sha = _resolve_cut_point(top, from_ref)
     worktree = top / _WORKTREES_DIR / wid
-    made = _git(top, "worktree", "add", "-b", wid, str(worktree))
+    made = _git(top, "worktree", "add", "-b", wid, str(worktree), sha)
     if made.returncode != 0:
         raise SystemExit(render.refusal(
             "branch", f"could not create {wid}'s worktree -- "
@@ -508,7 +589,7 @@ def _open_root_worktree(wid, assembly, title):
             "push", f"push failed -- {(pushed.stderr or pushed.stdout).strip()}",
             escape=f"the branch and worktree just made are already removed -- "
                    f"retry: spine open {assembly} --id {wid} --title \"{title}\""))
-    return worktree
+    return worktree, f"{ref}@{sha[:8]}"
 
 
 def _commit_open(wid, worktree):
@@ -558,20 +639,22 @@ def cmd_open(argv):
         return _open_child(assembly, parent, _opt(argv, "--step"), _opt(argv, "--row"))
     title = _opt(argv, "--title") or ""
     issue = _opt(argv, "--issue")
+    from_ref = _opt(argv, "--from") or ""
     wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue, kind=assembly.rsplit("-", 1)[-1]))
     if journal.exists(wid):
         raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
     on_issue_tier = _issue_tier(asm)
     landed = ""
+    cut_point = ""
     if on_issue_tier:
-        worktree = _open_root_worktree(wid, assembly, title)
+        worktree, cut_point = _open_root_worktree(wid, assembly, title, from_ref)
         os.chdir(worktree)  # the work location this mints lands inside the worktree
         landed = (f"\n  now inside the worktree -- if this shell has not followed:\n"
                   f"  cd {worktree}\n")
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""), branch=wid,
-                   worktree=str(pathlib.Path.cwd()))
+                   worktree=str(pathlib.Path.cwd()), **{"from": cut_point})
     for step in runmod.skeleton(asm):
         journal.append(wid, "step", **step)
     if on_issue_tier:
@@ -630,7 +713,7 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     """
     pst = runmod.state(parent)
     if pst is None:
-        raise SystemExit(render.located(f"no run named {parent}\n  open runs: spine"))
+        _no_run(parent)
     proot = journal.root_for(parent)
     if row_id:
         return _open_excursion(assembly, parent, pst, row_id, proot)
@@ -1497,7 +1580,7 @@ def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     if not st["open"] or st["awaiting_close"]:
         print(render.status(st, {}, "", position=runmod.position(st, None),
                             onward_to=_onward(st)))
@@ -1627,7 +1710,7 @@ def cmd_wait(argv):
     bound = _wait_bound(argv[1:])
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     if not st["open"] or st["awaiting_close"]:
         return cmd_status([wid])
     asm, step, _ = _current_form(st)
@@ -1781,7 +1864,7 @@ def cmd_drive(argv):
     bound = _drive_bound(argv[1:])
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     if not st["open"] or st["awaiting_close"]:
         return cmd_status([wid])
     worktree, _branch = _tree_info(wid, st)
@@ -3367,7 +3450,7 @@ def cmd_up(argv):
     wid, reason = argv[0], " ".join(argv[1:])
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     if not st["open"] or st["awaiting_close"]:
         raise SystemExit(render.located(f"{wid} has no current step to rule up"))
     cur = st["current"]
@@ -3409,7 +3492,7 @@ def cmd_note(argv):
         raise SystemExit(f"no note kind {kind!r} -- one of: {', '.join(NOTE_KINDS)}")
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     # `note resumed n1` names the block it clears; the rest of the words are
     # the note. Counting existing notes to pick an id collides when two
     # sessions note at once, and a shared id would clear the wrong block.
@@ -3432,7 +3515,7 @@ def cmd_amend(argv):
         raise SystemExit(render.refusal("reason", "amend needs --reason"))
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     if action == "add":
         return _amend_add(wid, st, argv[2:], reason)
     if action == "close":
@@ -3965,7 +4048,7 @@ def cmd_close(argv):
     wid = argv[0]
     st = runmod.state(wid)
     if st is None:
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     if st.get("closed"):
         raise SystemExit(f"{wid} is already closed")
     pending = [s for s in st["steps"] if s["id"] not in st["done"]]
@@ -4123,7 +4206,7 @@ def cmd_trace(argv):
     """
     wid = argv[0]
     if not journal.exists(wid):
-        raise SystemExit(render.located(f"no run named {wid}\n  open runs: spine"))
+        _no_run(wid)
     # Relative to this run's own `.agent-work` -- not a literal cwd-relative
     # one -- since a traced run's tree may be a worktree's rather than here.
     agent_work = journal.root_for(wid) / ".agent-work"

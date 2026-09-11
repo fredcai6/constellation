@@ -717,6 +717,11 @@ def state(work_id):
                       parent_step=e.get("parent_step", ""), model=e.get("model", ""),
                       row=e.get("row", ""), branch=e.get("branch", ""),
                       worktree=e.get("worktree", ""))
+            # "from" is a keyword, so it cannot ride the `update(...)` call
+            # above as an ordinary argument -- set by subscript instead. Only
+            # a root run's own opening entry ever carries one (#67): the cut
+            # point a worktree was branched from, `"<ref>@<sha>"`.
+            st["from"] = e.get("from", "")
         elif kind == "step":
             raw_steps.append(dict(e))
         elif kind == "submit":

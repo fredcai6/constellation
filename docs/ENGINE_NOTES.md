@@ -60,6 +60,29 @@ dispatched child works in whatever repository it was sent to, not this one
 `install.py`'s sense) on every dispatch, and a `standards/...` citation
 resolves from that path rather than the child's own cwd.
 
+## A worktree run has two copies of the engine, and a stated cut point
+
+`spine` resolves its own engine from `__file__`, so `<top-level>/spine` loads
+`<top-level>/engine/` and `<worktree>/spine` loads the worktree's own copy —
+the moment an issue-tier run's worktree exists, an edit to the engine lands
+in whichever tree an agent is standing in, and a command run from that tree
+executes whichever copy it resolved from. A run is driven through the
+top-level binary; that is correct, and the principal's own ruling that a run
+does not convert itself mid-flight, holding by construction rather than by
+discipline (#67).
+
+A root run's worktree branch is cut from the remote's default branch, not
+whatever the top-level checkout's current branch happens to be — resolved
+fresh (`git ls-remote --symref origin HEAD`, then fetched) rather than
+trusted from a possibly stale local ref, so the branch a fresh clone would
+stand on is the branch the worktree is cut from. `--from <ref>` overrides
+this outright, for a root run opened on purpose against work still in
+flight on some other branch. With no remote default yet to ask for — a bare
+remote before anything has been pushed to it — the cut point falls back to
+the checkout's own `HEAD`. The run's own journal entry carries the cut
+point as `from = "<ref>@<sha>"`, and the room's own header line for the run
+says it, so an agent reads where its tree came from without going to look.
+
 ## A check runs in a process of its own, always
 
 `submit` never runs a proof itself. It spawns `engine/checks.py` detached and

@@ -696,7 +696,7 @@ def test_readmes_git_claim_matches_what_cmd_open_actually_refuses_on():
     assert '"the checkout has no remote"' in src
     # cmd_open only calls the function that raises those refusals when the
     # assembly is issue-tier -- the guard README's scoping claim rests on.
-    assert "if on_issue_tier:\n        worktree = _open_root_worktree" in src
+    assert "if on_issue_tier:\n        worktree, cut_point = _open_root_worktree" in src
     para = README.split("An issue run needs a git checkout")[1].split("\n\n")[0]
     assert "remote" in para
     assert "issue" in para  # scoped to the issue tier, not stated as a blanket engine requirement
