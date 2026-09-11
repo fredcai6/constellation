@@ -9,6 +9,7 @@ the wiring that would make a real harness's name matter is next gate's job.
 import json
 import os
 import pathlib
+import subprocess
 import sys
 import time
 
@@ -63,7 +64,7 @@ def test_placeholders_land_whole_and_untouched_words_pass_through(
     assert entry is not None
     assert capsys.readouterr() == ("", "")   # nothing leaked to the test's own streams
 
-    assert _await_exit(entry["pid"]) is True   # wait past the process's own exit ...
+    assert _await_exit(entry["pid"]) is False   # wait past the process's own exit ...
     content = log.read_text(encoding="utf-8")  # ... so every write it made is flushed
     assert "stderr-marker" in content
     json_line = next(l for l in content.splitlines() if l.startswith("{"))
@@ -91,7 +92,7 @@ def test_cwd_is_set_to_tree_even_when_the_entry_never_mentions_tree(bare_workdir
 
     entry = checks.spawn_dispatch(commands, "brief", "runner", str(tree), wid, "c1", log)
 
-    assert _await_exit(entry["pid"]) is True
+    assert _await_exit(entry["pid"]) is False
     content = log.read_text(encoding="utf-8")
     json_line = next(l for l in content.splitlines() if l.startswith("{"))
     payload = json.loads(json_line)
@@ -144,8 +145,21 @@ def test_a_nonzero_exit_is_still_a_successful_spawn(bare_workdir):
     assert started[0]["child"] == "c1" and started[0]["pid"] == entry["pid"]
     assert started[0]["at"]                                   # a start time was stamped
 
-    assert _await_exit(entry["pid"]) is True                  # alive() now reads it as gone
+    assert _await_exit(entry["pid"]) is False                  # alive() now reads it as gone
 
+
+def test_a_zombie_reads_as_not_alive(bare_workdir):
+    """Exited but never waited on: `os.kill(pid, 0)` still succeeds on it,
+    and `alive` must not."""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "raise SystemExit(3)"],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    time.sleep(0.1)  # long enough to have exited; nothing has reaped it
+    try:
+        assert checks.alive(proc.pid) is False
+    finally:
+        proc.wait()
 
 # -- the three failure inputs ---------------------------------------------------
 

@@ -411,9 +411,27 @@ def alive(pid):
     """Is the process that was running this check still there? A pid the
     caller may not signal is someone else's and is alive; anything this
     cannot answer reads as alive, because reporting a running proof as an
-    orphan is the worse of the two mistakes."""
+    orphan is the worse of the two mistakes. A zombie is an answerable case
+    and answers "exited"."""
+    pid = int(pid)
+    # A child that exited but was never waited on is a zombie: `os.kill(pid, 0)`
+    # still succeeds on it, which read a finished harness as `working` and made
+    # a spawn test's answer depend on whether unrelated code had reaped it
+    # first (#101). Reap it if it is ours, then read its state where /proc
+    # says it; the state letter follows the parenthesised command name, whose
+    # own parentheses are why the last `)` is the anchor.
     try:
-        os.kill(int(pid), 0)
+        os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        pass
+    try:
+        stat = open(f"/proc/{pid}/stat", encoding="utf-8").read()
+        if stat[stat.rfind(")") + 2] in ("Z", "X"):
+            return False
+    except (OSError, ValueError, IndexError):
+        pass
+    try:
+        os.kill(pid, 0)
     except ProcessLookupError:
         return False
     except (OSError, ValueError, TypeError):

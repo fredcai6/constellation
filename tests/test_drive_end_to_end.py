@@ -24,18 +24,12 @@ That panel is real too, but its own panelist is never meant to resolve:
 this test's one dispatch entry does nothing for a dispatch child's own
 brief (which never carries a "your response form:" line -- that wording is
 `_form_filler_brief`'s alone), so the spawned stand-in exits almost at
-once -- but a process this test's own code never calls `.wait()` on reads
-as alive to `checkrun.alive` (`os.kill(pid, 0)`) until *some* later `Popen`
-call opportunistically reaps it (`subprocess._cleanup`, the same gotcha
-`test_wait.py`'s own `_throwaway_dispatch` docstring names), and nothing
-here ever makes a later one once the panelist is never restarted. So this
-test does not lean on the panel ever resolving or going spent -- proven
-directly, with a real dead pid, in `test_drive.py`'s own cases instead --
-it leans only on `drive`'s own bound, `checkrun.WAIT_BOUND` pinned small
-so one nested `wait` call blocking on that "forever working" panelist
-cannot itself outrun `drive`'s own `--for`, exactly as
-`test_for_overrides_the_default_bound` already pins it for the same
-reason.
+once. `checkrun.alive` reads that exit as gone (a zombie answers "exited",
+#101), so `drive` restarts the panelist up to `checkrun.MAX_STARTS` and
+then stops on its own with the child spent -- before its `--for` bound,
+which is why the elapsed time is asserted short rather than long. The
+panel never resolving is proven directly, with a real dead pid, in
+`test_drive.py`'s own cases; here it is only what ends the drive.
 """
 
 import json
@@ -112,7 +106,9 @@ def test_drive_fills_and_submits_two_real_childless_form_steps(
     capsys.readouterr()
 
     assert code == 0
-    assert 8 <= elapsed < 15, f"elapsed {elapsed}"
+    assert elapsed < 8, f"elapsed {elapsed}"   # stopped spent, not on the bound
+    panel_starts = [e for e in journal.read(wid) if e.get("kind") == "dispatch-started"]
+    assert len(panel_starts) == checkrun.MAX_STARTS
 
     filler_entries = {e["step"]: e for e in journal.read(wid)
                       if e.get("kind") == "form-filler-started"}
