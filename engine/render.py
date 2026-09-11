@@ -18,13 +18,23 @@ from engine import run as runmod
 WIDTH = 74
 
 
+def engine_root():
+    """The directory `spine` and `engine/` resolve from -- `ROOT` in
+    `install.py`'s sense, computed from `__file__` the same way every other
+    root lookup in this tree is. A form's `standards/...` citation is
+    repo-relative and install copies `standards/` verbatim, so this is where
+    that citation resolves; named in every brief so a dispatched child
+    working in some other repository has the path, not just the relative
+    name."""
+    return str(pathlib.Path(__file__).resolve().parent.parent)
+
+
 def spine_cmd():
-    """This engine's own runnable path -- computed from `__file__`, the same
-    trick `engine/install.py` and `engine/run.py` already use to find the
-    repo root. A dispatched child has no shell of its own and nothing on
-    PATH, so the bare word `spine` is not a command it can run; its own copy
-    (install is a copy, never a rewrite) sits right beside this file."""
-    return str(pathlib.Path(__file__).resolve().parent.parent / "spine")
+    """This engine's own runnable path. A dispatched child has no shell of
+    its own and nothing on PATH, so the bare word `spine` is not a command
+    it can run; its own copy (install is a copy, never a rewrite) sits right
+    beside this file."""
+    return str(pathlib.Path(engine_root()) / "spine")
 
 
 def located(text):
@@ -256,10 +266,16 @@ def posture(role):
 #   second one beside it -- its own call leaves this at the default and lets
 #   that pre-existing line stand alone.
 def _dispatch_lines(role, tier, runner, worktree="", branch="", written_at=""):
-    """The role/posture/tier/runner/tree lines `render.brief` builds for
-    every child, unchanged -- extracted so `render.status`'s standalone
+    """The role/posture/tier/runner/tree/root lines `render.brief` builds
+    for every child, unchanged -- extracted so `render.status`'s standalone
     brief can print the identical text rather than a second, hand-typed
-    copy of it."""
+    copy of it.
+
+    `root` is printed unconditionally, beside `tree`: it is where every
+    form's repo-relative `standards/...` citation resolves from, and unlike
+    `tree` it is never empty -- in Constellation itself root and tree are
+    the same directory, so the line is redundant there and harmless; in a
+    host repository they differ, and the line is the fix."""
     lines = [f"    role         {role or '(unset)'}"]
     if written_at:
         lines.append(f"    posture      {written_at}")
@@ -269,6 +285,7 @@ def _dispatch_lines(role, tier, runner, worktree="", branch="", written_at=""):
     ]
     if worktree:
         lines.append(f"    tree         {worktree}" + (f" -- branch {branch}" if branch else ""))
+    lines.append(f"    root         {engine_root()}")
     return lines
 
 
@@ -278,7 +295,8 @@ def brief(child_id, role, tier, runner, open_cmd, finish_form, worktree="", bran
     be, what it runs under, the command that mints it, what finishing means
     for the assembly it is about to run, and -- a child inherits its
     parent's tree rather than making one of its own -- which tree that is
-    and the branch it is on. This is the text a conductor hands its harness
+    and the branch it is on, plus the engine root a form's `standards/...`
+    citation resolves from. This is the text a conductor hands its harness
     -- nothing else should be needed to start.
     """
     lines = [f"  brief -- {child_id}"]
@@ -441,7 +459,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     `tier`/`runner`/`worktree`/`branch` turn this same room into a
     standalone brief for a form-step filler who is not this run's own
     `status` caller: given any of `tier`, `runner` or `worktree`, the
-    identical role/tier/runner/tree text `render.brief` prints for a
+    identical role/tier/runner/tree/root text `render.brief` prints for a
     dispatched child prints here too, by way of `_dispatch_lines`, and
     `legal_moves` -- a room's own `note`/`amend` escape hatch, not a
     filler's -- is left off. `role`'s own posture line is unaffected either

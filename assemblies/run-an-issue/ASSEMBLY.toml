@@ -228,7 +228,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "intent-fit: does the plan serve the spec it was built on, and does the gate serve the one commitment in standards/approach.md its purpose names"
+  criteria = "intent-fit: does the plan serve the spec it was built on, and does the gate serve the one commitment its purpose names, in standards/approach.md under the engine root the brief named"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"

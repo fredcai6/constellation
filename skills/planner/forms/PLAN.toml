@@ -18,8 +18,9 @@ proof says what verifies it, scope says where -- the how is the
 implementer's, and that is the bar this gate is held to. A fresh-context
 critic must be able to attack it from the spec and the plan alone, and a
 fresh-context implementer must be able to execute it from the gate spec
-alone. `standards/approach.md` is what this project builds by; name in
-`purpose` which of its five this gate serves, and cut the gate that serves it
+alone. `standards/approach.md`, under the engine root the brief named, is
+what this project builds by; name in `purpose` which of its five this gate
+serves, and cut the gate that serves it
 and nothing beside it. Sketch the horizon behind it -- coarsely, and only as
 far as you can actually commit to before the ground shifts. The plan document itself
 carries the approach and the risks that would change it; this gate's

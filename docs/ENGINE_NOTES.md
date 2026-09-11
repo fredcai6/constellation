@@ -47,6 +47,12 @@ Install is a copy, so the installed tree keeps the same shape — if that ever
 requires rewriting paths inside files, the shapes have diverged and the fix
 is the layout, never an installer.
 
+A form's `standards/...` citation is one such repo-relative path, and a
+dispatched child works in whatever repository it was sent to, not this one
+— so `render.brief` names the engine root (`render.engine_root`, `ROOT` in
+`install.py`'s sense) on every dispatch, and a `standards/...` citation
+resolves from that path rather than the child's own cwd.
+
 ## A check runs in a process of its own, always
 
 `submit` never runs a proof itself. It spawns `engine/checks.py` detached and

@@ -105,6 +105,23 @@ def test_dispatch_brief_carries_every_ingredient(workdir, capsys):
     assert parts[1:] == ["open", "run-a-gate", "--parent", "d1", "--step", "g1"]
 
 
+def test_dispatch_brief_names_the_engine_root(workdir, capsys):
+    """A form's `standards/...` citation is repo-relative and install copies
+    `standards/` verbatim, so it resolves against the engine root -- not a
+    dispatched child's own cwd, which may be some other repository entirely.
+    The brief names that root, beside `tree`, as an absolute path."""
+    _mint_dispatch_step()
+    capsys.readouterr()
+
+    cli.main(["d1"])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if l.strip().startswith("root "))
+    root = line.split("root", 1)[1].strip()
+    assert root == render.engine_root()
+    assert pathlib.Path(root).is_absolute()
+
+
 def test_panel_brief_carries_every_ingredient(workdir, capsys):
     _mint_panel_step(worker="reviewer")
     capsys.readouterr()
