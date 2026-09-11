@@ -422,6 +422,26 @@ def _git(cwd, *args):
         return subprocess.CompletedProcess(args, 1, "", str(e))
 
 
+# [stage-exclude]
+# Rationale: this repository's own ignore file keeps `.agent-work`,
+#   `.worktrees`, `.code-map` and `map` out of *its* commits, but a run's
+#   own commits land in whatever repository it opened against -- and that
+#   repository's own ignore file is not this engine's to depend on. A host
+#   with no entry for `.agent-work` stages the whole record on every commit
+#   `git add -A` alone makes (51 files of it, once, in the wild): the rule
+#   in `docs/DERIVED_IS_CODE.md` is that nothing derived is ever committed,
+#   so the engine holds the exclusion itself, as a pathspec, rather than
+#   trust a file it does not own.
+def _git_add_tracked(cwd):
+    """Stage everything except the engine's own derived trees. A commit
+    made here never carries `.agent-work` (the run's record), `.worktrees`
+    (nested issue-tier worktrees), `.code-map` or `map` (the code map),
+    whether or not the repository being committed to ignores them itself."""
+    excludes = [f":(exclude){name}" for name in
+                (".agent-work", ".worktrees", ".code-map", "map")]
+    _git(cwd, "add", "-A", "--", ".", *excludes)
+
+
 def _gh(cwd, *args):
     """One `gh` call against an explicit directory -- the same never-raises
     shape as `_git`, so `cmd_close` has one kind of failure to check for
@@ -493,9 +513,10 @@ def _open_root_worktree(wid, assembly, title):
 
 def _commit_open(wid, worktree):
     """The commit `open` makes once the run's own work area exists inside
-    the worktree. `.agent-work` is gitignored, so the ordinary case stages
-    nothing -- a journaled no-op, not a failure the agent has to explain."""
-    _git(worktree, "add", "-A")
+    the worktree. `.agent-work` is excluded from what it stages, so the
+    ordinary case stages nothing -- a journaled no-op, not a failure the
+    agent has to explain."""
+    _git_add_tracked(worktree)
     made = _git(worktree, "commit", "-m", f"open {wid}")
     if made.returncode != 0:
         journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
@@ -2776,15 +2797,30 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
 #   string that names nothing real is exactly what a non-issue-tier run
 #   carries, so a truthiness check would pass on the one case it exists to
 #   catch.
+def _gate_subject(gate_id, purpose):
+    """The gate's own commit subject: `<gate_id>: ` followed by the first
+    line of `purpose`, markdown emphasis stripped and a redundant leading
+    `<gate_id>.`-style label dropped when the purpose already opens with
+    one. A plan's purpose field is prose for a human reading the spec, not
+    a commit subject, and sometimes carries both a label and emphasis
+    meant for that reading rather than this one."""
+    first = purpose.splitlines()[0] if purpose else ""
+    first = first.replace("**", "").replace("__", "").lstrip("#").strip()
+    label = f"{gate_id}."
+    if first.startswith(label):
+        first = first[len(label):].strip()
+    return f"{gate_id}: {first}"
+
+
 def _commit_gate(wid, asm, step):
-    """One commit for the gate that just advanced: `git add -A` staged
-    against the run's own worktree, on its own branch, the message naming
-    the gate and its spec purpose and carrying the gate's own work id as a
-    trailer. Nothing staged is the ordinary case wherever a gate's proof
-    left no tracked diff -- a journaled no-op, never a refusal and never an
-    empty commit. Neither guard below ever reaches `git`: each is the same
-    shape of no-op, so a run this verb cannot commit for advances instead
-    of stopping on an escape it has no way to take."""
+    """One commit for the gate that just advanced: staged against the run's
+    own worktree, on its own branch, the message naming the gate and its
+    spec purpose and carrying the gate's own work id as a trailer. Nothing
+    staged is the ordinary case wherever a gate's proof left no tracked
+    diff -- a journaled no-op, never a refusal and never an empty commit.
+    Neither guard below ever reaches `git`: each is the same shape of
+    no-op, so a run this verb cannot commit for advances instead of
+    stopping on an escape it has no way to take."""
     child = step.get("child", "")
     if not _issue_tier(asm):
         journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
@@ -2804,8 +2840,8 @@ def _commit_gate(wid, asm, step):
                 if s.get("child") == child and s.get("dispatches")), None)
     gate_id = gate["id"] if gate else child
     purpose = (gate.get("prefill") or {}).get("purpose", "") if gate else ""
-    _git(worktree, "add", "-A")
-    message = f"{gate_id}: {purpose}\n\nWork-Id: {child or wid}"
+    _git_add_tracked(worktree)
+    message = f"{_gate_subject(gate_id, purpose)}\n\nWork-Id: {child or wid}"
     made = _git(worktree, "commit", "-m", message)
     if made.returncode != 0:
         journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",

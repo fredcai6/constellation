@@ -39,6 +39,13 @@ lives — what `type` means, never self-answering a decision, how to carry
 options to a principal — and a board is worked across many turns by agents
 who may arrive fresh. Instructions live at the artifact.
 
+## A gate's commit stages everything but the engine's own derived trees
+
+`_commit_gate` and `_commit_open` stage the worktree with `.agent-work`,
+`.worktrees`, `.code-map` and `map` excluded by pathspec, so the record and
+the engine's own machinery never land in a commit regardless of whether the
+host repository's own `.gitignore` says so.
+
 ## Imports and entry point
 
 `engine/` is a package; modules import as `from engine import x`. The `spine`

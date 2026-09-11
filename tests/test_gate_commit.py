@@ -98,6 +98,59 @@ def test_advance_with_nothing_staged_is_a_journaled_no_op_never_a_refusal_or_emp
     assert any(n.get("about") == "commit" for n in notes)
 
 
+# -- the record is excluded by the engine, never by trust in a .gitignore --
+
+
+def test_no_gitignore_entry_for_agent_work_still_keeps_it_out_of_the_commit(
+        workdir, capsys):
+    """`init_checkout` writes `.agent-work/` and `.worktrees/` into the
+    checkout's own `.gitignore` -- overwritten here with something that
+    names neither, the shape a real host repository was found in (#issue20:
+    51 files of `.agent-work` landed in a gate's commit because the host's
+    own `.gitignore` never covered it). The engine's own pathspec exclusion
+    is what has to keep the record out from here, not the ignore file."""
+    _mint_first_gate()
+    capsys.readouterr()
+    worktree = workdir / ".worktrees" / "issue17"
+    (worktree / ".gitignore").write_text("*.log\n")
+
+    _dispatch_and_close_child_with_diff("issue17", "g1")
+    capsys.readouterr()
+
+    _fill_gate_transition("issue17")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    stat = _git(worktree, "show", "--stat", "HEAD").stdout
+    assert ".agent-work" not in stat
+    assert "src.txt" in stat
+
+
+# -- one commit per gate, not one for the gate and one for its record ------
+
+
+def test_one_commit_lands_across_a_gates_close_and_its_adjudicate(workdir, capsys):
+    """A gate's own close (the child `run-a-gate` closing, returning to the
+    parent) and the parent's own adjudicate (`execute`'s `advance`, which
+    `commit`s) are the two places a commit could come from. Only the second
+    one does -- this counts commits on the branch across both and asserts
+    there is exactly one, not the pair a real run once produced (#issue20)."""
+    _mint_first_gate()
+    capsys.readouterr()
+    worktree = workdir / ".worktrees" / "issue17"
+    before = _git(worktree, "rev-list", "--count", "HEAD").stdout.strip()
+
+    _dispatch_and_close_child_with_diff("issue17", "g1")  # the gate's own close
+    capsys.readouterr()
+
+    _fill_gate_transition("issue17")
+    cli.main(["issue17", "submit"])  # the parent's adjudicate
+    capsys.readouterr()
+
+    after = _git(worktree, "rev-list", "--count", "HEAD").stdout.strip()
+    assert int(after) - int(before) == 1
+
+
 # -- GATE_CLOSE no longer asks for what the engine now does itself ---------
 
 
@@ -182,3 +235,47 @@ def test_commit_journals_a_no_op_on_an_issue_tier_run_with_no_branch_or_worktree
 
     notes = [e for e in journal.read("issue18") if e["kind"] == "note"]
     assert any(n.get("about") == "commit" for n in notes)
+
+
+# -- the subject is prose stripped for git, not the plan's markdown verbatim
+
+
+def test_gate_subject_strips_markdown_and_a_redundant_leading_label():
+    """A plan's purpose field is written for a human reading the spec and
+    sometimes carries both markdown emphasis and its own gate id as a label
+    (`**g8. Break the thing.**`) -- neither belongs in a commit subject,
+    which already names the gate id itself."""
+    assert cli._gate_subject("g8", "**g8. Break the thing.**") == "g8: Break the thing."
+
+
+def test_gate_subject_reaches_the_real_commit_message(workdir, capsys):
+    """End to end: a gate whose plan purpose carries the markdown and label
+    `_gate_subject` strips lands a clean subject on the real commit."""
+    from test_nesting import (
+        _fill_open, _work_the_board, _fill_consolidate, _dispatch_and_close_plan,
+        _dispatch_plan_critic, _fill_plan_to_execute, _fill_plan,
+    )
+    wid = "issue17"
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
+        w, purpose="**g1. Break the thing.**"))
+    _dispatch_plan_critic(wid)
+    _fill_plan_to_execute(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    worktree = workdir / ".worktrees" / wid
+
+    _dispatch_and_close_child_with_diff(wid, "g1")
+    capsys.readouterr()
+
+    _fill_gate_transition(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    message = _git(worktree, "log", "-1", "--format=%B").stdout
+    assert message.startswith("g1: Break the thing.\n")
