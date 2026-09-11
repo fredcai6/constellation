@@ -2,7 +2,7 @@
 many findings, and how the conductor called each -- read off the journal
 this run and everything it dispatched already hold, never tabulated by
 hand. `docs/DERIVED_IS_CODE.md` is the rule; issue #16's first cut is this
-module -- `docs/process-notes/issue84.md` note 25's table, by hand, is the
+module -- `docs/process-notes/archive/issue84.md` note 25's table, by hand, is the
 defect this replaces.
 
 A seam is a panel-bearing transition: a segment whose transition declares a
