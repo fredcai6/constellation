@@ -15,7 +15,9 @@
 imperative = """
 Reach common understanding of this ask with your principal, relentlessly,
 one question at a time. A row cleared is not the goal; the goal is that you
-and your principal would describe the problem in the same words. Before you
+and your principal would describe the problem in the same words. Ask early
+why this issue exists and what it serves in the parent's or epic's purpose --
+the spec's chain of purpose is written from these rows. Before you
 consolidate, walk the tree: every capability has a use case under it, every
 constraint and assumption was tested or confirmed, every answer was asked
 what it opened."""

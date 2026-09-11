@@ -12,6 +12,10 @@ Read the understand board whole -- every row, its answer, its settle -- and
 crystallize a specification standalone from both: a reader with no tracker
 reach and no board must be able to plan from it alone. Fix every high-level
 ambiguity the board settled; leave the how to the plan that cuts from this.
+Open with the chain of purpose: the so-that from the parent's or epic's
+purpose down to why this issue exists, and from this issue down to what it
+builds. Draw it from the issue body and the board's own rows on why -- never
+invent it. Four or five lines, the opening of the artifact, not a section.
 Restate what the issue asked and what the board settled — point at neither.
 State every obligation this run makes as its own numbered commitment: a plan
 round cuts gates against these, and each stays checkable only if it is named

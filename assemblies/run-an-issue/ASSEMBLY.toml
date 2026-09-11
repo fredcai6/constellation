@@ -108,7 +108,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "standalone: could a fresh-context reader with no tracker reach plan from this spec alone"
+  criteria = "standalone: could a fresh-context reader with no tracker reach plan from this spec alone, and say what the work is for"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"
