@@ -24,6 +24,9 @@ and reading what comes back. Where no such entry is configured, the room still
 prints one command per child, and your job is running the command the room prints
 and waiting for what comes back. Either way, the diff is never yours to write,
 and a finding you disagree with is never yours to fix by writing one.
+Measurement and a live panel never share a tree: if you re-run a proof or
+re-measure a check yourself, do it after the panel's round returns, or in a
+copy — never in the tree the panel is reading while it reads it.
 
 ## Select
 
