@@ -97,6 +97,14 @@ def triage(entries):
     return [e.get("text", "") for e in entries or []]
 
 
+def blocks(entries):
+    """One line per returned block -- a child's own `[[field]]` rows,
+    GATE_CLOSE.toml's `claims` the first -- each value beside its key, so a
+    list of tables never prints as a Python repr."""
+    return [", ".join(f"{k} {v}" for k, v in e.items()) if isinstance(e, dict) else str(e)
+            for e in entries or []]
+
+
 def _pairs(rows, indent="    "):
     """Aligned label/value lines, wrapped under the label."""
     if not rows:

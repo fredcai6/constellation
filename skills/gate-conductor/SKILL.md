@@ -41,3 +41,9 @@ return, and its close are that conductor's to fill. Never run `spine` on the
 parent's id, never fill a form under its work location, never close it. Your
 `close` is what returns your work there, and that is the whole of what crosses
 upward.
+
+**The obligations your gate was cut against are yours to claim at close.**
+Your orders carry them by row id, and GATE_CLOSE.toml's `claims` takes each
+one with its word and the root that shows it — a test, an artifact, a
+command's output. The issue-conductor accepts or contests what you claim and
+re-derives none of it, so the root is the claim.

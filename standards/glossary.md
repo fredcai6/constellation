@@ -334,12 +334,15 @@ has used one back. Coining a synonym for a term below is a defect.
 - **flavor** — a cycle's mode, the human's pick: `shotgun` diverges, `compare` weighs a few
   seriously, `refine` hardens one.
 - **execution state** — run-an-issue's second board, seeded once (consolidate's `obligations`
-  field) from the spec's own numbered commitments and worked in place afterward: a gate's own
-  adjudication disposes the rows it settles. `execute`'s `advance` reads it at every gate's
+  field) from the spec's own numbered commitments and worked in place afterward: the gate claims
+  the rows it settles at its close, and its adjudication accepts or contests each claim onto the
+  row. `execute`'s `advance` reads it at every gate's
   commit — an open row refills the plan segment for another round, every row disposed mints
   nothing and the run walks on. Unvalidated, like the ideas board: the engine reads dispositions
   and refuses nothing.
 - **obligation** — one row on the execution-state board: a spec commitment, and the disposition
   it settles to — `satisfied | deferred | invalidated | handed-off | rejected`, each with a
-  reason folded into the status the way `deferred: <reason>` already reads elsewhere. `open`
-  until disposed; no word here is checked against anything.
+  reason folded into the status the way `deferred: <reason>` already reads elsewhere. The gate
+  cut against it claims the word at close, with the root that shows it (`GATE_CLOSE.toml`'s
+  `claims`); the issue-conductor accepts or contests the claim (`GATE_TRANSITION.toml`'s
+  `dispositions`). `open` until disposed; no word here is checked against anything.

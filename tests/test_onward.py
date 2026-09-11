@@ -130,6 +130,7 @@ def test_a_root_run_awaiting_close_claims_no_dispatcher(workdir, capsys):
     _replan_to_next_gate("issue17", "g1-adjudicate")  # sequential: cuts "g2"
     _dispatch_and_close_child("issue17", "g2")
     _fill(_response("issue17"),
+          'purpose-holds = "g2\'s claim holds; re-ran its check"\n'
           'findings = "waived: nothing"\nplan-holds = "advance"\n')
     cli.main(["issue17", "submit"])
     from test_nesting import _fill_close

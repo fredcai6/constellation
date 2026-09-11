@@ -12,6 +12,7 @@ OPEN = "assemblies/run-an-issue/forms/OPEN.toml"
 CONSOLIDATE = "assemblies/run-an-issue/forms/CONSOLIDATE.toml"
 IMPLEMENT = "skills/implementer/forms/IMPLEMENT.toml"
 GATE_TRANSITION = "assemblies/run-an-issue/forms/GATE_TRANSITION.toml"
+GATE_CLOSE = "assemblies/run-a-gate/forms/GATE_CLOSE.toml"
 REVIEW = "skills/reviewer/forms/REVIEW.toml"
 GATE_IMPASSE = "assemblies/run-a-gate/forms/IMPASSE.toml"
 UNDERSTAND = "skills/interrogator/forms/UNDERSTAND.toml"
@@ -77,22 +78,44 @@ def test_load_implement():
 
 def test_load_gate_transition():
     form = forms.load(GATE_TRANSITION)
-    assert _ids(form) == ["findings", "plan-holds", "dispositions", "gate-spec"]
+    assert _ids(form) == ["purpose-holds", "findings", "plan-holds", "dispositions",
+                          "gate-spec"]
     kinds = _kinds(form)
     # `plan-holds` is a decision because the engine acts on its value, and that
     # kind is what makes its note's alternatives enforced -- see
-    # forms.enforced_vocabulary. `findings` is prose the engine only records.
-    # `dispositions` is a plan field like `gate-spec` -- the engine mints its
-    # rows onto the execution-state board rather than acting on the field
-    # itself, so it carries no enforced vocabulary either (#56).
+    # forms.enforced_vocabulary. `purpose-holds` and `findings` are prose the
+    # engine only records: the wide question is shaped by the field, never
+    # checked by the engine. `dispositions` is a plan field like `gate-spec`
+    # -- the engine mints its rows onto the execution-state board rather than
+    # acting on the field itself, so it carries no enforced vocabulary either
+    # (#56); it opens holding the gate's own `claims`, for the conductor to
+    # accept or contest.
+    assert kinds["purpose-holds"] == "evidence"
     assert kinds["findings"] == "evidence"
     assert kinds["plan-holds"] == "decision"
     assert kinds["dispositions"] == "plan"
     assert kinds["gate-spec"] == "plan"
+    dispositions = next(f for f in form["fields"] if f["id"] == "dispositions")
+    assert dispositions["drafted-by"] == "claims"
+    assert [it["id"] for it in dispositions["item"]] == ["obligation", "disposition", "root"]
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True
     assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof",
                                                  "budget", "model"]
+
+
+def test_load_gate_close():
+    form = forms.load(GATE_CLOSE)
+    # `residue` first: a scalar after a `[[claims]]` block would parse into
+    # the last claim's own table (test_reachable_briefs pins the rule).
+    assert _ids(form) == ["residue", "claims"]
+    claims = next(f for f in form["fields"] if f["id"] == "claims")
+    # The gate's claims return up; nothing is minted at the gate tier, so the
+    # field carries no `mints` -- the parent's `dispositions` does that.
+    assert claims["kind"] == "plan"
+    assert claims["optional"] is True
+    assert "mints" not in claims
+    assert [it["id"] for it in claims["item"]] == ["obligation", "disposition", "root"]
 
 
 def test_load_defaults_kind_and_note_and_optional():
@@ -171,7 +194,28 @@ def test_materialize_header_defaults_work_id_from_parent_dir(tmp_path):
     assert "spine issue42.g1 submit" in first_line
 
 
-@pytest.mark.parametrize("path", [OPEN, CONSOLIDATE, IMPLEMENT, GATE_TRANSITION])
+def test_materialize_writes_drafted_blocks_in_place_of_the_example(tmp_path):
+    """A plan field handed `drafts` opens holding the child's returned blocks,
+    one per row and every declared item present -- a key the child never
+    returned is an empty slot -- while every other plan field keeps its
+    blank example. The answer starts as the claim: leaving a block accepts
+    it, changing its word contests it."""
+    form = forms.load(GATE_TRANSITION)
+    dest = tmp_path / "GATE_TRANSITION.toml"
+    forms.materialize(form, dest, drafts={"dispositions": [
+        {"obligation": "o1", "disposition": "satisfied", "root": "tests/test_x.py passes"},
+        {"obligation": "o2", "disposition": "deferred: the next gate's"}]})
+    text = dest.read_text()
+    with open(dest, "rb") as f:
+        parsed = tomllib.load(f)
+    assert [b["obligation"] for b in parsed["dispositions"]] == ["o1", "o2"]
+    assert parsed["dispositions"][0]["root"] == "tests/test_x.py passes"
+    assert parsed["dispositions"][1]["root"] == ""
+    assert text.count("Repeat this block per item") == 1  # gate-spec's example alone
+    assert "Written from the return's `claims`" in text
+
+
+@pytest.mark.parametrize("path", [OPEN, CONSOLIDATE, IMPLEMENT, GATE_TRANSITION, GATE_CLOSE])
 def test_materialize_output_always_parses(tmp_path, path):
     form = forms.load(path)
     dest = tmp_path / "OUT.toml"

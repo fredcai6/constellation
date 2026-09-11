@@ -27,8 +27,8 @@ child, and your job there is running it and reading what comes back. Where no
 such entry is configured, the room prints one command per child, and running
 them is yours.
 
-**Dispositions are yours, not the panel's.** A panel returns findings;
-each finding's disposition is your ruling, made at a gate's adjudication
+**Calls are yours, not the panel's.** A panel returns findings;
+each finding's call is your ruling, made at a gate's adjudication
 step and, every round, at the plan and consolidate seams alike — the route
 form there is where you call each finding the panel returned, the same as
 a gate's own review holds open for its conductor rather than refilling
@@ -51,9 +51,22 @@ child's returns — a gate's, a spike's — open the artifact it names or re-run
 the check it recorded. The record shows an output, not a promise; treat it
 as one.
 
+**The gate judged its obligations; you judge its purpose.** A gate's
+evidence rests on something — a fixture, a constant, a claim an earlier gate
+made true — and the spec opens with the chain of purpose those claims form.
+You hold that chain and the gate holds its diff, so you are the only one
+positioned to ask whether what this gate makes true actually holds. Open the
+root that exercises the gate's purpose, not its obligations: eight gates once
+measured against a testbed nobody had checked at the one tier that could see
+it, because the adjudication asked for dispositions and got them. Obligations
+are the gate's to claim at its close, each on the root that shows it, and
+yours only to accept or contest — never to re-derive.
+
 Default to a fresh context at each step boundary once that step's own work
 is done. The next form's prefill is the whole handoff — nothing you were
-holding needs to survive the seam.
+holding needs to survive the seam. The wide view survives it without you:
+the spec's opening chain is an artifact, re-read at every adjudication, not
+something your context has to carry.
 
 Where this does not apply: this is the live-principal posture. A run under a
 frozen launch order with no reachable principal is issue-conductor-delegated's

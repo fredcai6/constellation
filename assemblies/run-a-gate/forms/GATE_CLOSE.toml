@@ -1,16 +1,19 @@
 # Anchor: close. Owned by run-a-gate; filled by whoever conducts the gate.
 # Everything on this form returns — stamped into the parent's waiting gate
-# transition. The engine appends the mechanical record itself: how many steps
-# landed, the implement/review cycle count, the final verdict, the change and
-# deviations from the last implement step, the check outputs, the model tier
-# dispatched under, this run's amend summary (segment, reason, anchor touched
-# or not), and every triage note raised here.
+# transition, where `claims` opens the issue-conductor's own `dispositions`
+# blocks already written, for it to accept or contest. The engine appends
+# the mechanical record itself: how many steps landed, the implement/review
+# cycle count, the final verdict, the change and deviations from the last
+# implement step, the check outputs, the model tier dispatched under, this
+# run's amend summary (segment, reason, anchor touched or not), and every
+# triage note raised here.
 
 imperative = """
-Close the gate. The engine commits the work itself once the parent accepts
-this return -- one commit, on the issue's own branch, for the gate that just
-proved out. The rest of the record returns mechanically; add only what the
-parent cannot read from it."""
+Close the gate. Claim the obligations this gate was cut against, each on
+the root that shows it. The engine commits the work itself once the parent
+accepts this return -- one commit, on the issue's own branch, for the gate
+that just proved out. The rest of the record returns mechanically; add only
+what the parent cannot read from it."""
 
 [[field]]
 id = "residue"
@@ -22,3 +25,30 @@ question the plan asked this gate on the next plan round's behalf, and this
 is the only place it is ever answered. Then anything else: observations
 noted for triage, a surprise in the terrain, a check that passes but smells.
 Or waived: none."""
+
+[[field]]
+id = "claims"
+kind = "plan"
+optional = true
+note = """
+The obligations this gate was cut against, one block each, by the row id
+your orders' `obligations` carries (o1, o2 ...). Each claim is yours to
+make: the word, and the root that shows it -- the test, the artifact, the
+command and its output, not the reviewers' verdict. The issue-conductor
+accepts or contests each claim and re-derives none, so a root it cannot
+open is a claim it cannot accept. Leave blank where this gate was cut
+against none."""
+
+  [[field.item]]
+  id = "obligation"
+  note = "The obligation's row id on the execution-state board, e.g. o1."
+
+  [[field.item]]
+  id = "disposition"
+  note = """
+satisfied | deferred: <reason> | invalidated: <reason> | handed-off:
+<reason> | rejected: <reason>"""
+
+  [[field.item]]
+  id = "root"
+  note = "What shows the word: a test, an artifact path, a command and its output."

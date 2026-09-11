@@ -143,6 +143,7 @@ def test_up_stands_the_ask_at_the_parent_and_resumes_to_a_real_close(workdir, ca
     assert pst["current"]["id"] == "g1-adjudicate", "the adjudication step is not reachable"
 
     _fill(_response("issue1"), '''
+purpose-holds = "the narrowed fix reads EOF cleanly; re-ran the gate's check"
 findings = "the narrowed scope landed cleanly"
 plan-holds = "advance"
 ''')

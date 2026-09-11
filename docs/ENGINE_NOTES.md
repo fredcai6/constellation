@@ -10,7 +10,11 @@ parent's fold treats a `return` for a step exactly as it treats a `submit`:
 that step is done. Nothing polls, nothing collects, and no conductor reads a
 child's journal to find out what happened. This is the whole nesting
 mechanism, and it is why prefill-down/returns-up needed no machinery beyond
-one entry kind.
+one entry kind. A returned list of blocks can also open the parent's next
+form already written: a `plan` field declaring `drafted-by = "<returned
+field>"` materializes holding those blocks (GATE_CLOSE's `claims` into
+GATE_TRANSITION's `dispositions`), so the parent accepts or contests rather
+than retypes.
 
 ## The mechanical half of a return is assembled, never typed
 

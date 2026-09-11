@@ -1,13 +1,29 @@
 # Step: gate adjudication. Owned by run-an-issue; filled by the conductor.
 # Minted per gate by the plan-to-execute transition; the gate's returns stamp
 # here when the child closes. Not a re-review: the panel already judged
-# whether the work fills the spec. You judge whether the spec achieved the
-# goal — act on the plan, never on the diff.
+# whether the work fills the spec, and the gate-conductor has already
+# claimed the obligations the gate was cut against. You judge the gate's
+# purpose -- what the rest of the run takes as true now that this gate has
+# landed -- and whether the plan still holds. Act on the plan, never on
+# the diff.
 
 imperative = """
-The gate has returned. Root-verify the returns — open the artifact, re-run a
-check; outputs and roots, not belief — then decide whether the spec achieved
-the goal and whether the plan still holds."""
+The gate has returned. It judged its obligations; you judge its purpose.
+Open the root that shows what this gate makes true -- the artifact, a check
+you re-run -- then decide whether the plan still holds, and accept or
+contest each obligation the gate claims."""
+
+[[field]]
+id = "purpose-holds"
+kind = "evidence"
+note = """
+The claim the rest of the run now takes as true from this gate -- its
+`purpose`, in your orders -- and what showed it: the root you opened or
+the check you ran that exercised that claim itself, not the obligations
+under it. A gate can satisfy every obligation it was cut against and
+still leave its purpose false, and every later gate then measures against
+a claim nobody checked. Where nothing you can open shows the claim, say so
+here; `plan-holds` is where that becomes a ruling."""
 
 [[field]]
 id = "findings"
@@ -37,15 +53,20 @@ id = "dispositions"
 kind = "plan"
 mints = "dispositions"
 board = "execution-state"
+drafted-by = "claims"
 optional = true
 note = """
-Every obligation this gate settled, root-verified against what it actually
-returned -- open the artifact, re-run a check, not belief. One block per
-obligation; leave blank where this gate settled none. The engine writes
-each disposition onto the matching row of the execution-state board, this
-gate's own id stamped alongside it. An obligation left unnamed here stays
-open, and the run plans another gate for it -- naming every obligation is
-not required, and none of this is checked against the spec."""
+The gate's own claims, one block per obligation, written into this form
+from its close (GATE_CLOSE.toml's `claims`) before you open it. Accept a
+claim by leaving its block as it stands; contest one by changing its word,
+the reason after the colon. The gate named each root so that you can open
+it. What you do not do is re-derive the claim from the diff: that is the
+gate's work done twice, and it is what crowded out the question
+`purpose-holds` asks. The engine writes each block's word onto the
+matching row of the execution-state board, this gate's own id stamped
+alongside it. Delete a block and its obligation stays open, and the run
+plans another gate for it; a gate that claimed nothing leaves this
+blank."""
 
   [[field.item]]
   id = "obligation"
@@ -56,6 +77,13 @@ not required, and none of this is checked against the spec."""
   note = """
 satisfied | deferred: <reason> | invalidated: <reason> | handed-off:
 <reason> | rejected: <reason>"""
+
+  [[field.item]]
+  id = "root"
+  optional = true
+  note = """
+What shows the word: the gate's own root as it returned it, or the one you
+opened instead where you contest."""
 
 [[field]]
 id = "gate-spec"

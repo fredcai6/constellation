@@ -251,15 +251,19 @@ def _dispatch_review(child_wid, verdict="pass", findings="none: waived: clean",
     return step_id
 
 
+PURPOSE_HOLDS = ('purpose-holds = "the parser reads EOF without a trailing newline; '
+                 're-ran the gate\'s own check"\n')
+
+
 def _fill_gate_transition(wid):
-    _fill(_response(wid), '''
+    _fill(_response(wid), PURPOSE_HOLDS + '''
 findings = "the fix landed cleanly, no follow-on scope"
 plan-holds = "advance"
 ''')
 
 
 def _fill_gate_transition_drop(wid, gate_id):
-    _fill(_response(wid), '''
+    _fill(_response(wid), PURPOSE_HOLDS + '''
 findings = "no longer needed"
 plan-holds = "drop %s"
 ''' % gate_id)
@@ -267,7 +271,7 @@ plan-holds = "drop %s"
 
 def _fill_gate_transition_remint(wid, purpose="a corrected gate", scope="src/ only",
                                  proof="true"):
-    _fill(_response(wid), '''
+    _fill(_response(wid), PURPOSE_HOLDS + '''
 findings = "the spec was wrong, needs a redo"
 plan-holds = "remint"
 
@@ -279,14 +283,14 @@ proof = "%s"
 
 
 def _fill_gate_transition_replan(wid, findings="the cut was wrong from the start"):
-    _fill(_response(wid), '''
+    _fill(_response(wid), PURPOSE_HOLDS + '''
 findings = "%s"
 plan-holds = "replan"
 ''' % findings)
 
 
 def _fill_gate_transition_remint_no_spec(wid):
-    _fill(_response(wid), '''
+    _fill(_response(wid), PURPOSE_HOLDS + '''
 findings = "reconsidering, but not sure what yet"
 plan-holds = "remint"
 ''')
@@ -439,7 +443,7 @@ def _replan_to_next_gate(wid, step_id, purpose="a second gate", scope="scope 2",
     and drive the fresh plan round it opens through to its own projected
     gate -- the real route to a second gate now that one plan round cuts
     exactly one."""
-    _fill(_response(wid), '''
+    _fill(_response(wid), PURPOSE_HOLDS + '''
 findings = "landed clean; more of the issue remains"
 plan-holds = "replan"
 ''')
@@ -930,7 +934,7 @@ def test_an_undeclared_outcome_refuses_and_a_declared_one_carries_its_reason(
     capsys.readouterr()
 
     before = len(journal.read("issue17"))
-    _fill(_response("issue17"), '''
+    _fill(_response("issue17"), PURPOSE_HOLDS + '''
 findings = "the fix landed"
 plan-holds = "the plan holds, carry on"
 ''')
@@ -952,7 +956,7 @@ plan-holds = "the plan holds, carry on"
     assert runmod.state("issue17")["current"]["id"] == "g1-adjudicate"
 
     # and a declared word with its reason after it is performed, reason kept
-    _fill(_response("issue17"), '''
+    _fill(_response("issue17"), PURPOSE_HOLDS + '''
 findings = "the cut was wrong from the start"
 plan-holds = "replan, the gates were cut along the wrong seam"
 ''')

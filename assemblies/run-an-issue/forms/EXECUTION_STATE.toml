@@ -1,8 +1,10 @@
 # Board: execution state. Owned by run-an-issue; seeded once, from the
 # spec's own numbered commitments, when consolidate releases
 # (CONSOLIDATE.toml's `obligations` field). Worked in place afterward: the
-# conductor disposes a row -- in GATE_TRANSITION.toml, beside the gate that
-# settles it -- the engine never writes here.
+# gate that settles a row claims its disposition at close (GATE_CLOSE.toml's
+# `claims`), the issue-conductor accepts or contests the claim in
+# GATE_TRANSITION.toml, and the engine writes the word they settle on here
+# -- nothing else writes to this file.
 #
 # The engine's own read is at execute's `advance`, every gate's commit: a
 # row still `open` refills the plan segment for another round; every row

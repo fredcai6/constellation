@@ -98,6 +98,7 @@ def _release_gates(wid, gates):
         cli.main([wid, "submit"])  # releases, projects this gate
         _dispatch_and_close_child(wid, f"g{gate}")
         _fill(_response(wid),
+              'purpose-holds = "this gate\'s claim holds; re-ran its check"\n'
               'findings = "landed clean; more of the issue remains"\n'
               'plan-holds = "replan"\n')
         cli.main([wid, "submit"])  # refills plan for the next gate

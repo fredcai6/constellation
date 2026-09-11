@@ -694,6 +694,36 @@ def _round_artifact(asm, st, seg_id, step_id):
             if k not in private}
 
 
+# [open-obligations]
+# Rationale: a gate claims the obligations it was cut against at its close
+#   (GATE_CLOSE.toml's `claims`), by the execution-state board's own row ids
+#   -- and those ids reached a gate only where the planner happened to write
+#   them into `purpose` ("Obligations 18 and 19"), a courtesy rather than a
+#   mechanism. So every child a board-holding run dispatches opens with the
+#   rows still open in its orders, id beside text, under `obligations`. Open
+#   rows only: a disposed row is nobody's to claim again. The path is
+#   re-resolved against the parent's root the way `_board_path` does, since
+#   the stored string is whatever cwd minted it.
+# Rejected: a gate spec item the planner fills with the ids. That is the row
+#   id typed a second time, by the hand that reads the board least; the
+#   board already holds it, and the secretary carries what is already written.
+def _open_obligations(pst, proot):
+    """`{"obligations": "o1 -- <text>; o2 -- <text>"}` for the rows still
+    open on the parent's execution-state board; `{}` where the run holds no
+    such board or every row is disposed."""
+    stored = pst["boards"].get("execution-state", "")
+    if not stored:
+        return {}
+    path = journal.location(pst["id"], proot) / pathlib.Path(stored).name
+    if not path.exists():
+        return {}
+    rows = [r for r in boards.rows(path) if r.get("status") == "open"]
+    if not rows:
+        return {}
+    return {"obligations": "; ".join(f"{r.get('id', '')} -- {r.get('obligation', '')}"
+                                     for r in rows)}
+
+
 def _open_child(assembly, parent, pstep_id, row_id=""):
     """A child is dispatched, never composed: its id, its orders, and the
     tier it runs under all come from the parent's step. A panelist is the
@@ -755,7 +785,8 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
         # to the spec it exists to plan from. The step's own keys still win
         # on collision, so a gate child's spec -- which duplicates nothing
         # the run-level prefill holds -- is unaffected.
-        prefill = {**(pst.get("prefill") or {}), **(pstep.get("prefill") or {})}
+        prefill = {**(pst.get("prefill") or {}), **(pstep.get("prefill") or {}),
+                   **_open_obligations(pst, proot)}
         title = prefill.get("purpose", pstep_id)
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
@@ -1183,7 +1214,8 @@ def _form_filler_brief(wid, st, asm, step, form):
     dest = _response_path(st, step, root=root)
     if not dest.exists():
         forms.materialize(form, dest, work_id=wid,
-                          submit=render.located(f"spine {wid} submit"))
+                          submit=render.located(f"spine {wid} submit"),
+                          drafts=_drafts(st, step, form))
     kwargs = _room_kwargs(wid, st, asm, step, form, dest, root=root)
     return render.status(st, form, dest, tier=tier, runner=runner,
                          worktree=worktree, branch=branch, **kwargs)
@@ -1500,6 +1532,35 @@ def _returned_verdict(st, asm):
     return ""
 
 
+# [drafts]
+# Rationale: a return used to reach the parent's form only as text in the
+#   room, and the conductor retyped what it accepted -- so an adjudication
+#   asked for `dispositions` and the conductor derived them afresh, the
+#   gate's own question answered a second time with a bigger model, while
+#   the gate's purpose went unasked. A plan field that declares
+#   `drafted-by` now opens holding the returned field's own blocks, and the
+#   parent's whole move on it is to accept or contest each. This reads the
+#   same `returns_by_child` entry `_room_kwargs` already renders; the
+#   template is written once, at the first `status`, so the draft lands
+#   exactly where the answer is typed.
+# Rejected: rendering the claims under "your orders" as prefill. Prefill is
+#   the parent's word to the child, read-only; a child's claim flowing up is
+#   a return, and calling it prefill would ship a homonym.
+def _drafts(st, step, form):
+    """`{field id: rows}` for every `plan` field on `form` whose `drafted-by`
+    names a list of blocks the step's child returned; `{}` otherwise."""
+    ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
+    returned = (ret or {}).get("fields") or {}
+    out = {}
+    for f in form["fields"]:
+        if f.get("kind") != "plan" or not f.get("drafted-by"):
+            continue
+        rows = returned.get(f["drafted-by"])
+        if isinstance(rows, list) and rows and all(isinstance(r, dict) for r in rows):
+            out[f["id"]] = rows
+    return out
+
+
 # [room-kwargs]
 # Rationale: `cmd_status`'s own derivation of everything `render.status`
 #   needs beyond `st`/`form`/`response_path` themselves -- the returned
@@ -1550,11 +1611,23 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
                         ("amends", render.amends), ("triage", render.triage)):
             if isinstance(returns.get(key), list):
                 returns[key] = "; ".join(fn(returns[key])) or "none"
+        # A child's own plan field returns as a list of blocks too --
+        # GATE_CLOSE.toml's `claims` -- and has no renderer of its own, so
+        # whatever list survives the four above prints block by block.
+        for key, val in list(returns.items()):
+            if isinstance(val, list):
+                returns[key] = "; ".join(render.blocks(val)) or "none"
     # Rendered whenever the segment has a board; `validates` decides only
     # whether submit refuses on it. The ideas board is read at every cycle
     # and refused at none.
     board = _board_state(_board_path(wid, st, step, root))
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
+    # A `carries` transition folds its plan fields into the run's prefill as
+    # lists of blocks (consolidate's `obligations`), and str() on one of
+    # those is a Python repr under "your orders" -- the same spelling-out
+    # the returns above get.
+    prefill = {k: ("; ".join(render.blocks(v)) or "none") if isinstance(v, list) else v
+               for k, v in prefill.items()}
     # One read of the response form: what is still marked `working:` and what
     # already carries an answer are two derivations of the same parse.
     filled = forms.filled_or_empty(dest)
@@ -1602,7 +1675,8 @@ def cmd_status(argv):
     dest = _response_path(st, step)
     if not dest.exists():
         forms.materialize(form, dest, work_id=wid,
-                          submit=render.located(f"spine {wid} submit"))
+                          submit=render.located(f"spine {wid} submit"),
+                          drafts=_drafts(st, step, form))
     kwargs = _room_kwargs(wid, st, asm, step, form, dest)
     print(render.status(st, form, dest, **kwargs))
     return 0

@@ -35,6 +35,13 @@ def _field(raw: dict) -> dict:
         out["board"] = raw["board"]
     if raw.get("record-only"):  # the producer's ledger -- the prefill guard reads this
         out["record-only"] = True
+    # Rationale: a `plan` field the parent answers by accepting or contesting
+    #   what its child claimed (GATE_TRANSITION.toml's `dispositions`, off
+    #   GATE_CLOSE.toml's `claims`) names the returned field it opens already
+    #   holding. Carried like `mints` and `board`, so `cli._drafts` reads it
+    #   off the loaded form and `materialize` writes the blocks.
+    if "drafted-by" in raw:
+        out["drafted-by"] = raw["drafted-by"]
     if "item" in raw:
         out["item"] = [_field(it) for it in raw["item"]]
     return out
@@ -171,10 +178,30 @@ def _slot(field_id: str, short: bool) -> str:
 ESCAPES_REFUSED = "# One of those values -- this field refuses waived: and unknown:."
 
 
-def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
+def _drafted(field: dict, rows: list) -> list[str]:
+    """A plan field's blocks written from what the child returned, one per
+    row, every declared item present -- a key the child did not return is an
+    empty slot, never a missing one. The answer starts as the claim: leaving
+    a block accepts it, changing its word contests it."""
+    from engine import tomlw
+    lines = [f"# Written from the return's `{field.get('drafted-by', '')}`, one block "
+             "per claim as the child made it. Leave a block to accept; change its "
+             "word to contest; delete it to leave the row open."]
+    for row in rows:
+        block = {it["id"]: row.get(it["id"], "") for it in field.get("item", [])}
+        lines.append(tomlw.table(field["id"], block).rstrip())
+        lines.append("")
+    return lines[:-1]
+
+
+def materialize(form: dict, dest_path, work_id=None, submit=None, drafts=None) -> None:
+    """Write the response template. `drafts` is `{field id: rows}` for the
+    plan fields that open already holding a child's returned blocks
+    (`cli._drafts`); every other plan field gets its blank example."""
     dest_path = Path(dest_path)
     work_id = work_id or dest_path.parent.name
     submit = submit or f"spine {work_id} submit"
+    drafts = drafts or {}
     shown = [f for f in form["fields"] if f["kind"] != "check"]
     lines = [f"# {dest_path} -- fill the values, then: {submit}",
              "#",
@@ -187,7 +214,9 @@ def materialize(form: dict, dest_path, work_id=None, submit=None) -> None:
     lines.append("")
     for field in shown:
         lines.append(_comment(field["note"], field["optional"]))
-        if field["kind"] == "plan":
+        if field["kind"] == "plan" and drafts.get(field["id"]):
+            lines.extend(_drafted(field, drafts[field["id"]]))
+        elif field["kind"] == "plan":
             lines.append("# Repeat this block per item; delete the example if none apply.")
             lines.append(f'[[{field["id"]}]]')
             for item in field.get("item", []):
