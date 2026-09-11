@@ -447,6 +447,60 @@ def test_a_panel_room_of_only_gone_and_spent_panelists_names_the_drop_it_escape(
     assert "open it:" not in out
 
 
+def test_a_two_voices_panel_room_of_only_gone_and_spent_panelists_names_the_waive_it_escape(
+        bare_workdir, capsys):
+    """The shape run-a-gate's own review step always mints -- a panel
+    alongside its conductor's own route form (`_review_step`,
+    test_verdict_panels.py) -- rather than the panel-only shape the test
+    above uses. `amend close` here would drop that form along with the
+    panel it is escaping, so once every panelist is gone and spent the
+    line names `amend waive` instead, never `amend close`."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    wid = "g9"
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work", form="forms/ROUTE.toml",
+                   panel=[{"worker": "reviewer", "criteria": "c1"},
+                          {"worker": "critic", "criteria": "c2"}])
+    for _ in range(checkrun.MAX_STARTS):
+        _record(wid, f"{wid}.review.p1", _dead_pid(), tag="review.p1")
+        _record(wid, f"{wid}.review.p2", _dead_pid(), tag="review.p2")
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "amend waive" in l)
+    assert "waive it: " in line
+    assert "amend waive review --reason" in line
+    assert "wait" not in line
+    assert "amend close" not in out
+    assert "panelist p1 (gone without returning -- starts spent)" in out
+    assert "panelist p2 (gone without returning -- starts spent)" in out
+
+
+def test_a_two_voices_panel_room_with_a_startable_panelist_still_names_wait(
+        bare_workdir, capsys):
+    """A two-voices panel room is not always the spent case: a live-pid
+    panelist is exactly what `wait`'s own poll loop is blocking on, so the
+    line still names `wait`, never `amend waive` or `amend close` -- the
+    escape only replaces the count once nothing remains live or
+    startable."""
+    _throwaway_dispatch(bare_workdir, bare_workdir / "spawned")
+    wid = "g9"
+    journal.append(wid, "run", title="t", assembly="run-a-gate")
+    journal.append(wid, "step", id="review", segment="work", form="forms/ROUTE.toml",
+                   panel=[{"worker": "reviewer", "criteria": "c1"}])
+    _record(wid, f"{wid}.review.p1", os.getpid(), tag="review.p1")
+
+    cli.main([wid])
+    out = capsys.readouterr().out
+
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "1 outstanding" in line
+    assert "g9 wait starts it" in line
+    assert "amend waive" not in out
+    assert "amend close" not in out
+
+
 def test_a_returned_panelist_never_makes_a_gone_and_spent_sibling_name_wait(
         bare_workdir, capsys):
     """Round 3's second finding (`plan-aaefb/p3`), proven directly at the

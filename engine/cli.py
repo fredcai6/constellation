@@ -1395,8 +1395,10 @@ def _panel_status(wid, st, asm, step, blocked):
     repository also gains one line above the panelist rows stating how
     many are outstanding and, where `wait` is genuinely the next move,
     naming it (commitments 18, 19) -- or, where nothing remains live or
-    startable, naming the ruling escape to drop the step instead
-    (commitment 30)."""
+    startable, naming the ruling escape instead: dropping the step, unless
+    the step is also its conductor's own route form, in which case
+    dropping it would drop that form too, and the escape waives the panel
+    instead (commitment 30, and issue811's ruling)."""
     worktree, branch = _tree_info(wid, st)
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
@@ -1409,7 +1411,9 @@ def _panel_status(wid, st, asm, step, blocked):
         child_ids = [d[0] for d in descriptors]
         count, name_wait = _outstanding_state(
             wid, child_ids, st["returns_by_child"], records, counts)
-        lines.append(render.outstanding_line(wid, count, name_wait, step["id"]))
+        two_voices = bool(step.get("panel") and step.get("form"))
+        lines.append(render.outstanding_line(wid, count, name_wait, step["id"],
+                                             two_voices))
         lines.append("")
     for child_id, role, tier, open_cmd, finish_form in descriptors:
         tag = child_id.rsplit(".", 1)[-1]
@@ -4257,12 +4261,23 @@ def cmd_close(argv):
     if pending:
         step = pending[0]
         drop_it = f"drop it: spine {wid} amend close {step['id']} --reason ..."
+        waive_it = f"waive it: spine {wid} amend waive {step['id']} --reason ..."
+        # The escape offered besides `how` -- the one that always exists --
+        # is `drop_it` by default, and stays that for every kind below
+        # except a two-voices panel step: `amend close` there would drop
+        # the conductor's own route form along with the panel it is
+        # escaping, exactly the move issue811's ruling cost three hand
+        # repairs, so its always-exists escape waives the panel instead
+        # (`outstanding_line`'s own rule, engine/render.py).
+        escape = drop_it
         # The way past a pending step depends on what kind it is: a step whose
         # panel is still outstanding has no form to fill yet -- true whether
         # or not it has one at all -- a dispatch step has no form either, and
         # offering the wrong escape is worse than offering none.
         if runmod.panel_outstanding(st, step):
             how = f"its panelists complete it: spine {wid}"
+            if step.get("panel") and step.get("form"):
+                escape = waive_it
             worktree, _branch = _tree_info(wid, st)
             if _dispatch_configured(worktree):
                 pasm = runmod.load_assembly(st["assembly"])
@@ -4290,7 +4305,7 @@ def cmd_close(argv):
                 how = f"spine {wid} wait" if name_wait else drop_it
         else:
             how = f"fill its form and submit it: spine {wid} submit"
-        suffix = "" if how == drop_it else f"\n  or {drop_it}"
+        suffix = "" if how == escape else f"\n  or {escape}"
         raise SystemExit(render.refusal(
             step["id"], "not complete", escape=f"{how}{suffix}"))
     asm = runmod.load_assembly(st["assembly"])

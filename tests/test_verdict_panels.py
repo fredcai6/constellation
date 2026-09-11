@@ -375,7 +375,11 @@ def test_a_gate_cannot_reach_close_without_review_having_fired(workdir, capsys):
     msg = str(e.value)
     assert review in msg
     assert "panelists complete it" in msg      # the escape that fits this kind
-    assert f"amend close {review}" in msg      # and the one that always exists
+    # review is a two-voices step -- panel plus its own route form -- so
+    # the one that always exists is `amend waive`, not `amend close`:
+    # dropping the step would drop that form along with the panel.
+    assert f"amend waive {review}" in msg
+    assert "amend close" not in msg
     assert "waived:" not in msg                # never the one that cannot work
 
     with pytest.raises(SystemExit) as e:

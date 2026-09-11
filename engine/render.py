@@ -219,7 +219,13 @@ the last verdict has returned."""
 #   `wait` do anything" sentence. Takes the count and the verdict on naming
 #   `wait` as precomputed values, the way `brief` and `preamble` already do,
 #   rather than reaching into `journal`/`checks` itself: this module renders
-#   what it is handed, it does not go read a run.
+#   what it is handed, it does not go read a run. `two_voices` is the same
+#   kind of precomputed verdict, read off `step` the way `run.py`'s own
+#   `two_voices` local is: whether `step_id` names a panel step that is
+#   also its conductor's own route form. The caller already holds `step`,
+#   so it passes `bool(step.get("panel") and step.get("form"))` in --
+#   the same predicate `_amend_waive` itself gates on -- rather than this
+#   function re-deriving it from a bare `step_id` string.
 # Rejected: always naming `wait` whenever `count` is nonzero and staying
 #   silent otherwise. A room whose only unresolved children are gone and
 #   spent reads count 0 with nothing to gain from typing `wait` -- but a
@@ -228,7 +234,7 @@ the last verdict has returned."""
 #   `wait` to start or restart, so the caller passes that distinction in
 #   explicitly as `name_wait` rather than this function re-deriving it from
 #   `count` alone.
-def outstanding_line(wid, count, name_wait, step_id=None):
+def outstanding_line(wid, count, name_wait, step_id=None, two_voices=False):
     """How many children (or one proof) `wait` still has to poll for, and --
     only when typing it would actually start, restart, or unblock something
     -- the move that does it. Never claims `wait` is the move when it would
@@ -241,9 +247,16 @@ def outstanding_line(wid, count, name_wait, step_id=None):
     the in-flight room (whose own step has no board row to drop); when it
     is given and nothing is live or startable, the bare count is replaced
     by the ruling escape instead -- once a child is spent there is still
-    one thing left for a reader to do about it, dropping the step, and this
-    line is where that gets said."""
+    one thing left for a reader to do about it. The same rule now decides
+    which escape that is: a dispatch step, or a panel step with no form of
+    its own to lose, still names dropping the step, since `amend close`
+    costs it nothing more. A `two_voices` panel step is also its
+    conductor's own route form, so `amend close` would drop that form
+    along with the panel it is escaping -- the line names `amend waive`
+    there instead, which leaves the form standing."""
     if step_id is not None and not name_wait:
+        if two_voices:
+            return located(f"  waive it: spine {wid} amend waive {step_id} --reason ...")
         return located(f"  drop it: spine {wid} amend close {step_id} --reason ...")
     line = f"  {count} outstanding"
     if name_wait:
