@@ -16,11 +16,12 @@ sequential is one gate; each gate buys its own review rounds, and that is the
 cost a split has to beat. Purpose says what the run
 takes as true, proof says what verifies it, scope says where -- the how is
 the implementer's, and that is the bar this gate is held to. A fresh-context
-critic must be able to attack it from the spec and the plan alone, and a
-fresh-context implementer must be able to execute it from the gate spec
-alone. `standards/approach.md`, under the engine root the brief named, is
-what this project builds by; name in `purpose` which of its five this gate
-serves, and cut the gate that serves it
+reader -- the critic panel on the run's opening cut, the conductor alone on
+every cut after -- must be able to attack it from the spec and the plan
+alone, and a fresh-context implementer must be able to execute it from the
+gate spec alone. `standards/approach.md`, under the engine root the brief
+named, is what this project builds by; name in `purpose` which of its five
+this gate serves, and cut the gate that serves it
 and nothing beside it. Sketch the horizon behind it -- coarsely, and only as
 far as you can actually commit to before the ground shifts. The plan document itself
 carries the approach and the risks that would change it; this gate's
@@ -47,15 +48,18 @@ note = "Where the change lives, and what is out of bounds."
 
 [[field]]
 id = "proof"
+kind = "proof"
 note = """
 A command that passes on an empty diff proves nothing, and so does one that
 covers less than `scope` promised -- one check per commitment. It exercises
 purpose's claim too: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string to run, never a description of it:
 this field rides into the dispatched child as its own `proof`, shell-executed
-there, so prose becomes a command and fails only after the work is done.
-Reference the command palette (constellation.toml) rather than hardcoding
-where it applies."""
+there. The engine runs it once when you submit, against the run's tree as it
+stands, and the conductor reads the result beside your cut: a real check
+fails there, before the work; one that passes proves nothing; prose does not
+resolve. Reference the command palette (constellation.toml) rather than
+hardcoding where it applies."""
 
 [[field]]
 id = "budget"
@@ -86,9 +90,10 @@ id = "horizon"
 kind = "evidence"
 note = """
 The gates likely to follow this one, coarsely, and the conditions that would
-change them. Provisional by construction: read by the critics alongside the
-gate above, but never attacked at gate grain, and never carried into the
-implementer's own prefill -- the gate ahead is this one alone."""
+change them. Provisional by construction: read beside the gate above by
+whoever judges this round, but never attacked at gate grain, and never
+carried into the implementer's own prefill -- the gate ahead is this one
+alone."""
 
 [[field]]
 id = "key-terms"

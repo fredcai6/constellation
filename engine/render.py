@@ -84,6 +84,40 @@ def checks(entries):
     return [f"exit {c.get('exit')} {c.get('command','')}" for c in entries or []]
 
 
+# [proof-readings]
+# Rationale: the trial at the cut (`_trial_proofs`, engine/cli.py) journals
+#   an exit status, and three readings of it matter to the conductor about
+#   to route the cut, none of them the number itself. A real check fails on
+#   an empty diff -- the work is not done -- so a nonzero exit that came from
+#   the command is the healthy reading. Exit 0 is the reading PLAN.toml's
+#   own note already names: a proof that passes on an empty diff proves
+#   nothing. And a proof that never became a command -- the shell could not
+#   find it (127, 126), could not parse it (a syntax error, issue116's
+#   apostrophe), or the palette had no such entry -- is #122's defect, read
+#   where it can still be sent back. A proof past its bound is the fourth,
+#   said as what happened rather than guessed at.
+# Rejected: a fifth reading for "failed for the right reason". Whether exit
+#   1 was the test the planner meant or a typo in a path is the conductor's
+#   to read off the output, not a classification a shell exit can carry.
+def proof_readings(entries):
+    """One block per proof the cut was trialled with: the command, then what
+    its one run against the tree as it stands says about it."""
+    out = []
+    for c in entries or []:
+        code, output = c.get("exit"), str(c.get("output") or "")
+        first = next((l for l in output.splitlines() if l.strip()), "").strip()
+        if code == 0:
+            reading = "passes on an empty diff (exit 0) -- proves nothing"
+        elif code == -1:
+            reading = f"did not finish -- {output.strip() or 'no result'}; not awaited at the cut"
+        elif code in (126, 127) or "syntax error" in output.lower():
+            reading = f"did not resolve (exit {code})" + (f" -- {first}" if first else "")
+        else:
+            reading = f"resolved, exit {code} -- a real check, failing before the work"
+        out.append(f"`{c.get('command', '')}`\n{reading}")
+    return out
+
+
 def cycles(entries):
     """One line per segment re-minted beyond its first pass -- the
     implement/review churn a conductor reads as a count, not a detail."""
@@ -443,8 +477,13 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, answered=(), onward_to=None,
            returns_from="", triage_notes=(), role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
-           filler_status="", waived=None):
+           filler_status="", waived=None, proofs=()):
     """The room description.
+
+    `proofs` is `proof_readings`' own lines for the cut this room disposes
+    of -- the engine ran each gate's `proof` once when the planner
+    submitted, and a conductor routing the cut reads what came back beside
+    the cut itself. Empty at every room that disposes of nothing trialled.
 
     Order is deliberate: a block first, because an open block outranks
     anything else; then who you are working for; then what arrived; then the
@@ -521,6 +560,17 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         # gates in flight needs, and the engine has known it all along.
         out.append(f"  returns from {returns_from}" if returns_from else "  returns")
         out.append(_pairs(list(returns.items())))
+        out.append("")
+
+    if proofs:
+        # The proof's one run at the cut, said as a reading rather than an
+        # exit code: which of the three readings it is (`proof_readings`) is
+        # what the conductor routes on, and the number alone says none of
+        # them.
+        out.append("  the proof, run once at the cut against the tree as it stands")
+        for block in proofs:
+            for line in block.split("\n"):
+                out.append(_para(line, indent="    "))
         out.append("")
 
     if verdict:

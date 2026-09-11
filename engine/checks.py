@@ -442,6 +442,32 @@ def alive(pid):
 # -- the detached runner ------------------------------------------------------
 
 
+# [trial-at-the-cut]
+# Rationale: #122 -- a plan's `proof` was read by three critics and run by
+#   nobody, so a prose proof failed only after the gate had built its whole
+#   diff, where no verb could repair it. Running it once where it is
+#   written, against the tree as it stands, is the one place that reading
+#   costs a line. This is a report, never a refusal (`_trial_proofs`,
+#   engine/cli.py journals whatever comes back), so it runs in the caller's
+#   own foreground rather than through `hand_in`'s detached runner: there
+#   is no submit riding on its exit status, and nothing to hand back.
+# Rationale: bounded by the smaller of the gate's own `budget` and the
+#   handback. The budget is the planner's declaration of how long the proof
+#   may run when it is right; the handback is what a harness does to a
+#   foreground command, and a trial that outran it would strand the
+#   planner's turn exactly as #72 did. A proof that outruns the bound is
+#   reported as such -- exit -1, the same shape `main` journals for an
+#   overrun -- not waited on.
+def trial(cmd, cwd, budget):
+    """Run one proof once, in this process, and report: `(exit, output)`,
+    the output tail as `_run` keeps it, exit `-1` where the proof did not
+    finish inside `budget` seconds -- reported, never awaited further."""
+    code, output = _run(cmd, cwd, budget)
+    if code is None:
+        return -1, f"no result after {budget}s"
+    return code, output
+
+
 def _run(cmd, cwd, budget):
     """(exit, output) for one check; exit `None` when it outran the budget."""
     try:

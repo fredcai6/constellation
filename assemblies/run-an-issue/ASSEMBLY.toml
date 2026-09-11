@@ -34,20 +34,22 @@ step-form = "skills/spec-writer/forms/SPEC.toml"
 worker = "spec-writer"
 # This segment has no rework-form, so the conductor's own `rework` (on
 # CONSOLIDATE.toml below) is another pass at the same spec-writer round --
-# the step-form refills in its place. After this many, a further rework
-# mints the impasse form instead: the loop itself becomes the thing the
-# conductor rules on. Counted since the last step-form mint, same as `plan`
-# below -- `forms/IMPASSE.toml` is shared with it, worded at the artifact
-# each segment produces rather than at "plan" by name. One rework succeeds --
-# the first critic round may send the spec back once -- and the second
-# round's own rework reaches the outlet instead of a third (ruling,
-# 2026-09-05: across five runs every real gap a spec panel found came in its
-# second round and a third found wording; the 2026-09-02 ruling of three
-# critic dispatches per artifact is superseded here as at `plan`).
+# the step-form refills in its place. `impasse-after` is how many such
+# passes a spec gets before a further rework mints the impasse form
+# instead, counted since the last step-form mint, same as `plan` below --
+# `forms/IMPASSE.toml` is shared with it, worded at the artifact each
+# segment produces rather than at "plan" by name. Zero: the first send-back
+# is itself the ruling, so a second spec-writer round happens only where the
+# conductor can name what it changes (ruling, 2026-09-11: "we overextended
+# by having multi pass on the spec and plan; once you give it a look over,
+# the proof is in execution" -- the first outside run's understand seam ran
+# three panel rounds, and four of round 3's five findings were introduced
+# fixing round 2's). `round-cap` below is unchanged: it counts rounds ruled
+# into being too.
 # Follow-up, 2026-09-03: consolidate holds the plan seam's own shape too --
 # the panel's two words both release below, and CONSOLIDATE.toml is the
 # conductor's route form, left open on purpose when the plan seam got it.
-impasse-after = 1
+impasse-after = 0
 impasse-form = "forms/IMPASSE.toml"
 # A run-level ceiling on this seam's own rounds (`consolidate`, below) --
 # distinct from `impasse-after`'s per-artifact one, and counted the way
@@ -149,20 +151,22 @@ step-form = "skills/planner/forms/PLAN.toml"
 # and the loop it may become, stay the issue-conductor's to hold; only the
 # drafting hand moves.
 rework-form = "skills/planner/forms/REWORK.toml"
-# After this many rework rounds on one artifact, a further revise mints the
-# impasse form instead: the loop itself becomes the thing the conductor rules
-# on. Counted since the last step-form mint, so a replan starts over. One
-# rework succeeds -- the first critic round may send the plan back once --
-# and the second round's own revise reaches the outlet instead of a third
-# (ruling, 2026-09-05: one review cycle is the default at this seam, a second
-# is sometimes worth it, and a third by structure was a miss; the earlier
-# 2026-09-02 ruling of three critic dispatches per artifact is superseded
-# here and stands elsewhere). The count latches: an impasse `rework` (below)
-# counts the same as an ordinary one, so a ruling that sends the loop back
-# does not buy it a fresh allowance -- `rework_rounds` (engine/run.py) counts
-# every mint since the last step-form mint with no exception for where the
-# mint came from.
-impasse-after = 1
+# After this many rework rounds on one artifact, a further send-back mints
+# the impasse form instead. Counted since the last step-form mint, so a
+# replan starts over. Zero: the first send-back of a cut is itself the
+# ruling -- no free rework round -- so a second planner pass on one cut
+# happens only where the conductor can name what it changes (ruling,
+# 2026-09-11: "we overextended by having multi pass on the spec and plan;
+# once you give it a look over, the proof is in execution" -- the first
+# outside run's plan seam ran 14 critic panels across 8 gates, and the
+# re-cut panels after the first found almost nothing a reading could find
+# while the gates built without one found the spec's defects as rework, with
+# a real diff to run). The count latches: an impasse `rework` (below) counts
+# the same as an ordinary one, so a ruling that sends the cut back does not
+# buy it a fresh allowance -- `rework_rounds` (engine/run.py) counts every
+# mint since the last step-form mint with no exception for where the mint
+# came from.
+impasse-after = 0
 impasse-form = "forms/IMPASSE.toml"
 # See the same field on `understand` above: this seam is `plan-to-execute`.
 round-cap = 5
@@ -195,6 +199,19 @@ filler = "conductor"
 # `plan`, since this form's own `rework` and `up` also reach this step and
 # neither has passed critique intact.
 projects = "run-a-gate"
+# The panel below reads the run's opening cut and no later one: a re-cut
+# after a gate lands (`settle`, `replan`), a ruled rework round and a
+# resumed round each stand this form alone, the conductor reading the
+# planner's cut and the engine's one run of its `proof` (`_trial_proofs`,
+# engine/cli.py) in the room. Read by `_mint_segment_round`; `skeleton()`
+# mints the opening round's panel regardless. `every` is the other value
+# and the default -- what `understand`'s transition above still does.
+# Ruling, 2026-09-11: on the first outside run the first cut's panel found
+# real defects (an import-boundary scan that would have failed on day one)
+# and the re-cut panels after each gate found almost nothing a reading
+# could find; a reviewer with a diff to run found what nine critic reports
+# on one gate's three cuts missed.
+panel-rounds = "opening"
 # The panel's own decides field, distinct from `ruling` above: this one is
 # PLAN_TO_EXECUTE.toml's `resolution`, answered by both voices -- the
 # panel's merged verdict first (always `release`, so it mints nothing), then
@@ -222,7 +239,7 @@ decides = "resolution"
   # One criterion per panelist. Three fresh-context readers disagreeing is a
   # panel; one reader holding three criteria is a reviewer with a checklist,
   # and it reads the plan once with divided attention instead of three times
-  # with whole.
+  # with whole. Minted on the opening cut only -- `panel-rounds` above.
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"

@@ -89,11 +89,20 @@ says it, so an agent reads where its tree came from without going to look.
 
 ## A check runs in a process of its own, always
 
-`submit` never runs a proof itself. It spawns `engine/checks.py` detached and
+`submit` never runs a check itself. It spawns `engine/checks.py` detached and
 waits the **handback** (90 seconds) for it. Inside the window the caller reads
 the runner's exit status and behaves exactly as the old foreground check did;
 past it the caller journals `check-started` and returns, and the runner
 appends the outcome when it has one.
+
+The one proof `submit` does run in its own process is not a check. A
+`kind = "proof"` field (the planner's PLAN.toml and REWORK.toml) is run once
+at the planner's submit, in the foreground, for the smaller of the gate's
+`budget` and the handback (`checks.trial`), and whatever comes back — exit 0,
+exit 127, a shell syntax error, no result inside the bound — is journaled as
+a `check` entry and reported; nothing rides on it, so there is no submit for
+a second process to hold (#122). The gate's own runner is what runs the same
+command to its full budget, later, as a check.
 
 One process holds the exit status, and that is the whole argument for the
 guarantee a failing proof records no submit: the runner writes the `submit`

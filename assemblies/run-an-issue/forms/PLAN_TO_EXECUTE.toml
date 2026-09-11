@@ -1,26 +1,34 @@
 # Transition: plan → execute. Owned by run-an-issue; filled by whoever
 # conducts the issue. Ruling 3 (2026-09-02): mirrors run-a-gate's own
-# review/ROUTE.toml shape. Two voices: the critic panel reads the plan and
-# rules first -- both of its words release, so nothing mints on the panel's
-# say alone -- and this form is where its round is disposed of, on a revise
-# as much as on a pass, since a round with findings in it is exactly the
-# round somebody has to rule on. The panel's verdict is above in the room;
-# this is the answer to it.
+# review/ROUTE.toml shape. Two voices on the run's opening cut: the critic
+# panel reads the plan and rules first -- both of its words release, so
+# nothing mints on the panel's say alone -- and this form is where its round
+# is disposed of, on a revise as much as on a pass, since a round with
+# findings in it is exactly the round somebody has to rule on. Every cut
+# after the first (`panel-rounds = "opening"`, ASSEMBLY.toml) stands this
+# form alone: the conductor reads the planner's cut, and the engine's one
+# run of its `proof`, in the room above. The panel's verdict, where there
+# was a panel, is above in the room; this is the answer to it.
 
 imperative = """
-The panel has returned. Read its findings as written -- a revise is not an
-invitation to argue the verdict you were given -- and say where this round
-goes: on to execute, or back for another pass. One round is the default
-(ruling, 2026-09-05): the gate's own reviewers can run the code the critics
-could only read, and across five runs nothing a plan seam found after its
-first round changed what shipped. Call every finding it returned, one by
-one; a `rework` carries the ones you call blocking and nothing else, and
+The cut is in the room above, with what its `proof` did when the engine ran
+it once against the tree as it stands: a real check fails there, before the
+work; one that passes on an empty diff proves nothing; a string the shell
+could not run will fail the gate after the work is done. Where a panel read
+this cut, read its findings as written -- a revise is not an invitation to
+argue the verdict you were given -- and call every finding it returned, one
+by one; a `rework` carries the ones you call blocking and nothing else, and
 blocking means the gate would build the wrong thing or could not be proven
 -- a true finding that is neither is `accepted`, which costs you one word
-and sends the round on. The round that just passed critique already
-cut the gate whole -- purpose, scope, proof, and any model or direction
-override -- so a `pass` (or a `revise` you are not sending back) needs
-nothing retyped, only the plan artifact pointed at."""
+and sends the round on. Then say where this round goes: on to execute, or
+back. One look is the default (ruling, 2026-09-11): the gate's own reviewers
+can run the code a reader can only read, and across the runs so far nothing
+a plan seam found after its first look changed what shipped. A send-back
+here is a ruling, made on the impasse form, so make it where you can name
+what another cut changes. The round that just landed already cut the gate
+whole -- purpose, scope, proof, and any model or direction override -- so a
+`pass` (or a `revise` you are not sending back) needs nothing retyped, only
+the plan artifact pointed at."""
 
 [[field]]
 id = "resolution"
@@ -31,8 +39,9 @@ resolved onto this same table when its verdict returned -- record one if you
 want the record explicit, but both release the round exactly as leaving the
 plan field filled and submitting does, so `revise` typed here does not send
 anything back. Your own two are the last two: `rework` is another planner
-pass, carrying the findings you call `blocking` below and nothing else --
-after `impasse-after` of them the ruling form comes instead. `up` is the
+pass, carrying the findings you call `blocking` below and your `orders`, and
+nothing else -- this segment declares `impasse-after = 0`, so the ruling form
+comes first, and the pass follows only where you rule it. `up` is the
 round you cannot rule on from here, the spec being wrong the usual reason:
 it pauses this segment rather than releasing it, your reason standing as an
 ask one tier up -- with whatever it answers carried back as this round's

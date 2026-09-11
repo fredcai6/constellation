@@ -35,7 +35,7 @@ def test_two_rounds_at_one_seam_resolve_to_different_paths(workdir, capsys):
     step is `done`, not `current`, but its response path is still
     resolvable. Round two's rework mints a fresh plan-to-execute step, and
     the two must not name the same file."""
-    wid = _drive_to_revise()
+    wid = _drive_to_revise(rule="rework")
     st = runmod.state(wid)
     round_one = next(s for s in st["steps"]
                      if s.get("form") == "forms/PLAN_TO_EXECUTE.toml" and s["id"] in st["done"])
@@ -55,9 +55,9 @@ def test_round_two_at_a_seam_renders_a_blank_route_form(workdir, capsys):
     """#118's own measurement, as a test: round one disposed of its round
     with `resolution = "rework"`; the room round two materializes must not
     still be holding that word."""
-    wid = _drive_to_revise()
+    wid = _drive_to_revise(rule="rework")
     _dispatch_rework_round(wid)
-    _dispatch_plan_critic(wid, verdict="pass")  # releases the panel, leaves the route form open
+    _dispatch_plan_critic(wid, verdict="pass")  # no panel on round two: a no-op, the form stands
     capsys.readouterr()
 
     st = runmod.state(wid)

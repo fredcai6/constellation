@@ -90,7 +90,7 @@ def test_two_rounds_produce_a_drift_the_rooms_renders(workdir, capsys):
     cli.main([child, "close"])
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin", rule="rework")
     capsys.readouterr()
 
     fresh = _fresh_mint(runmod.state(wid), "plan")
@@ -157,7 +157,7 @@ key-terms = "waived: none"
     cli.main([child, "close"])
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin", rule="rework")
     capsys.readouterr()
 
     # the crossing, at the parent: the freshly minted round already carries

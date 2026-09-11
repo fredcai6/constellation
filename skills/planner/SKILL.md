@@ -5,8 +5,12 @@ revise round: the spec, what has landed, and the horizon behind the next gate
 arrive as prefill. Fill it, submit it, and stop — this dispatch is one gate's
 worth of cutting, and it ends there.
 
-Do not judge your own cut — a critic reads it cold, and route decisions are
-the conductor's. Do not implement any gate from inside this form, and do not
+Do not judge your own cut — on the run's opening cut a critic panel reads it
+cold, on every cut after the conductor does, and route decisions are the
+conductor's. The engine runs your `proof` once when you submit, against the
+tree as it stands, and whoever judges the cut sees what it did: a real check
+fails there, before the work; one that passes proves nothing; prose does not
+resolve. Do not implement any gate from inside this form, and do not
 reach into a gate's own latitude: implementation detail below gate grain
 belongs to the gate that will do the work, not to the plan that names it. A
 spec that reads as the wrong problem is not yours to fix by planning around

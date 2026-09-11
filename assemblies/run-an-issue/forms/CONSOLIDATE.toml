@@ -36,7 +36,9 @@ want the record explicit, but both release the round exactly as leaving the
 fields below filled and submitting does, so `revise` typed here does not
 send anything back. Your own two are the last two: `rework` is another
 spec-writer pass, carrying the findings you call `blocking` below and
-nothing else -- after `impasse-after` of them the ruling form comes instead.
+nothing else -- this segment declares `impasse-after = 0`, so the ruling
+form comes first and the pass follows only where you rule it: a second look
+at a spec is a ruling, never a default (ruling, 2026-09-11).
 `up` is the round you cannot rule on from here, the spec being wrong the
 usual reason: it pauses this segment rather than releasing it, your reason
 standing as an ask one tier up -- with whatever it answers carried back as

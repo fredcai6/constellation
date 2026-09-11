@@ -54,11 +54,11 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | **understand** · do 1 | issue-conductor with the human; a subagent under a delegated principal | `UNDERSTAND` board | every row answered, mooted, or deferred with a reason; decisions and understandings in the principal's words; excursions dispatched from rows, returns stamped to the row | do 2 |
 | understand · do 2 | subagent, the spec writer | `SPEC` | the **problem specification** — standalone, every category considered, each obligation carrying a disposition | review |
 | understand · review | critic subagents, cold | `CRITIC` | completeness and ambiguity: findings classed gap / beyond; `pass | revise` | route |
-| understand · route | issue-conductor | the transition form | back to do 1 when information is missing; back to do 2 when it is there and the spec needs amending; forward when the spec is sufficient; up when the issue itself is wrong | the gate cycle |
+| understand · route | issue-conductor | `CONSOLIDATE`; `IMPASSE` on a send-back | forward when the spec is sufficient; back to do 2 only by ruling — `impasse-after = 0`, one look over a spec and the rest is found by the gates that build from it; up when the issue itself is wrong | the gate cycle |
 | **gate cycle** · route | engine | — | every obligation in the spec has a disposition → close; otherwise → plan | plan, or close |
 | **plan** · do | subagent, the planner | `PLAN` (first cut), `REWORK` (a revise) | the **next gate** from the spec and what has landed, plus a coarse horizon | review |
-| plan · review | critic subagents, cold | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap / beyond; `pass | revise` | route |
-| plan · route | issue-conductor | `PLAN_TO_EXECUTE`; `IMPASSE` after three | pass → the **gate spec** (purpose, scope, proof, model, direction) minted as a dispatch and its review step; revise → back to do; up → an ask for help; after three rounds a ruling | execute |
+| plan · review | critic subagents, cold — on the run's opening cut only (`panel-rounds = "opening"`); every cut after is the conductor's to read, with the engine's one run of its `proof` beside it | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap / beyond; `pass | revise` | route |
+| plan · route | issue-conductor | `PLAN_TO_EXECUTE`; `IMPASSE` on a send-back | pass → the **gate spec** (purpose, scope, proof, model, direction) minted as a dispatch and its review step; a send-back → a ruling (`impasse-after = 0`: another cut only where the conductor names what it changes); up → an ask for help | execute |
 | **execute** · do | subagent, the gate-conductor, as a `run-a-gate` child | the spec as prefill | the **gate report** — the diff on the worktree, residue, and the engine's record of cycles, verdict, checks, amends | review |
 | execute · review | issue-conductor | `GATE_TRANSITION` | root-verify the returns; did the spec achieve the goal; what this gate taught | route |
 | execute · route | issue-conductor | same form | **advance** commits the gate on the run's branch and records, in the run's execution state, the obligations it satisfied; **remint** cuts a fresh gate; **drop** closes a pending one; **replan** recuts; **up** asks for help | the top of the gate cycle |
@@ -116,10 +116,12 @@ child runs.
   stays neutral: field notes say what a field is, never what the answer usually is.
 - **Transitions dispatch verdict panels; review never lives in an interior.** A transition may
   dispatch 0..n reviewers — each a child prefilled with focused criteria, cold by
-  construction — whose verdicts land as returns to the transition. Any `revise` refills, with
-  findings merged; panel composition is the conductor's call at fire time, defaulting to one
-  and scaling with criticality. Interiors contain only production. A generator transition has
-  two voices: the panel's verdict, then the conductor's decide-and-mint on pass.
+  construction — whose verdicts land as returns to the transition, and it declares which of
+  its rounds the panel reads (`panel-rounds`: every round, or the run's opening one alone).
+  The conductor's `rework` refills, with the findings it called blocking and its own orders;
+  panel composition is the conductor's call at fire time, defaulting to one and scaling with
+  criticality. Interiors contain only production. A generator transition has two voices: the
+  panel's verdict, then the conductor's decide-and-mint on pass.
 - **A finding is advice, and scope belongs to the plan.** Independent review is the main way
   scope growth enters a bounded change: a reviewer is rewarded for finding something, and the
   cheapest something is "you should also add." So every finding is classed — **gap** (the spec
@@ -181,9 +183,11 @@ Two run states the verbs must express:
 - **Blocked / awaiting a decision** — a `note` with kind `blocked` naming the gap and where it
   went; the run stays open and `status` surfaces the block first — a parent's `status` surfaces
   its children's blocks first. Unblocking is a `note` with kind `resumed`.
-- **Rework** — a `revise` verdict refills the interior: a fresh step prefilled with the
-  findings, the cycle visible in the worklist and counted in the returns. Steps are never
-  resubmitted; `submit` advances monotonically.
+- **Rework** — the conductor's send-back refills the interior: a fresh step prefilled with the
+  findings and its orders, the cycle visible in the worklist and counted in the returns. At
+  run-an-issue's spec and plan seams the send-back is itself a ruling (`impasse-after = 0`):
+  the impasse form comes first, and the fresh round only where the conductor names what it
+  changes. Steps are never resubmitted; `submit` advances monotonically.
 
 ### The door is a CLI, shaped like a text adventure
 
@@ -444,7 +448,8 @@ all four of its gates passed first time; `#50` shipped two gate specs short of i
 transcription losses between `plan.md` and the spec; and the critic panel has never seen a gate
 spec, because it reads `PLAN.toml` and the specs are authored at the transition after it
 releases (`#27`). One change answers all three: when the plan step's artifact *is* the next
-gate spec, the critic reads what gets dispatched, there is nothing to transcribe, and a plan
+gate spec, whoever judges the cut — the critic panel on the run's opening cut, the conductor
+on every cut after — reads what gets dispatched, there is nothing to transcribe, and a plan
 cannot outgrow the work it plans because it is one gate long. The horizon stays because pure
 one-step planning misses seams, ordering and the chance to isolate an uncertain component —
 but it is provisional by construction and no critic attacks it at gate grain.
@@ -470,8 +475,10 @@ authority, encoded rather than inferred:
 teach the next plan round, when the planner knows. Two rules on the fields, from `#50`'s close:
 `scope` carries every commitment, including the prose ones the reviewer judges against the
 spec; `proof` holds commands only, one per commitment a command can prove. A commitment
-written into `proof` as a sentence is a defect the critic names before dispatch, not a shell
-error the implementer meets after the work is done.
+written into `proof` as a sentence is a defect the engine shows the conductor before dispatch
+— the planner's submit runs each `proof` once against the tree as it stands, and the route
+room reads the result (`#122`) — not a shell error the implementer meets after the work is
+done.
 
 **4. Forward-leaning changes are permitted, bounded, and always declared.** An implementer
 may make a change the spec did not name when all three hold: it is in a file this gate already
@@ -598,9 +605,10 @@ gate, reordering a wave, and downgrading an assumption to an open question.
 
 ## Open questions
 
-- **Rework cap:** answered by `impasse-after`. The count is surfaced in the returns, and
-  after three rounds the engine stops offering a fourth and the conductor rules — advance over
-  the objection, one more round it can name the change for, or up. A guardrail, not a target.
+- **Rework cap:** answered by `impasse-after` and `round-cap`. At run-an-issue's spec and plan
+  seams `impasse-after = 0`: the first send-back is the ruling — advance over the objection,
+  one more round the conductor can name the change for, or up (ruling, 2026-09-11: once a
+  cut has had its look over, the proof is in execution). A guardrail, not a target.
 - **Reviewer lenses beyond two:** which ship next, and how much of selection is mechanical
   (changed file types, the spec's risks) versus the gate-conductor's call. After rolling
   horizon runs.

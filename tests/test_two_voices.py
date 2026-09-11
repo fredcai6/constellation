@@ -347,32 +347,38 @@ def test_a_revise_holds_the_form_and_the_conductors_rework_sends_findings_back_a
     cli.main([wid, "submit"])
     capsys.readouterr()
 
+    # the send-back is a ruling (`impasse-after = 0`): the ruling form arrives
+    # holding the panel's findings, attributed, and the rework round exists
+    # only once the conductor rules it into being
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "forms/IMPASSE.toml"
+    assert "[p1] gap: gate 1 is untestable" in st["current"]["prefill"]["findings"]
+    _fill(_response(wid), 'ruling = "rework"\nwhy = "waived: none"\n')
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
     st = runmod.state(wid)
     fresh_plan = next(s for s in st["steps"]
-                      if s["segment"] == "plan" and s.get("source") == "mint")
+                      if s["segment"] == "plan" and s.get("source") == "mint"
+                      and s.get("dispatches"))
     # rework, not a second first draft -- and it dispatches, like every round
     assert fresh_plan["dispatches"] == "cut-a-gate"
     assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
     assert "[p1]" in fresh_plan["prefill"]["findings"]          # attributed
 
-    fresh_panel = next(s for s in st["steps"]
+    fresh_route = next(s for s in st["steps"]
                        if s.get("source") == "panel" and s["segment"] == "plan")
-    original_plan = next(s for s in st["steps"] if s["id"] == "plan")
-    assert fresh_panel["panel"] == original_plan["panel"]      # same panel config
-    assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"  # the two-voices shape survives
+    assert "panel" not in fresh_route                    # the panel read the opening cut only
+    assert fresh_route["form"] == "forms/PLAN_TO_EXECUTE.toml"  # the conductor's form alone
     assert st["current"]["id"] == fresh_plan["id"]              # plan resumes, not the mint form
 
-    # work the fresh round: dispatch it, reworked plan, fresh panel, this time a pass
+    # work the fresh round: dispatch it, reworked plan, the conductor's own
+    # form -- no panel to wait on -- this time a pass
     _dispatch_and_close_plan(wid, fresh_plan["id"], _fill_rework_form)
     capsys.readouterr()
     st = runmod.state(wid)
-    assert st["current"]["id"] == fresh_panel["id"]
-
-    _dispatch_panel(wid, fresh_panel["id"], verdict="pass")
-    capsys.readouterr()
-    st = runmod.state(wid)
-    assert st["current"]["id"] == fresh_panel["id"]   # resolved, waiting on its own form now
+    assert st["current"]["id"] == fresh_route["id"]
     _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -397,7 +403,7 @@ def test_pass_opens_plan_to_execute_for_the_conductor(workdir, capsys):
 
     cli.main(["i1"])
     out = capsys.readouterr().out
-    assert "The panel has returned." in out           # PLAN_TO_EXECUTE's own imperative
+    assert "The cut is in the room above" in out        # PLAN_TO_EXECUTE's own imperative
     assert "spine open give-a-verdict" not in out     # not the panel view anymore
 
 
@@ -443,11 +449,12 @@ def test_submit_refuses_while_a_verdict_is_outstanding(workdir, capsys):
 
 # There is no third verdict word. A panel that objects at the root writes it
 # as a revise finding, the same as any other -- and, once the panel's own
-# vocabulary is `pass | revise`, only two reworks landing on the plan in a
-# row reach the segment's outlet (impasse-after = 2). That path -- the third
-# revise minting IMPASSE.toml with `arrival = "rework-rounds"` -- is pinned
-# in tests/test_rework.py, which drives it for run-an-issue's plan and
-# understand and for run-a-gate alike; this file's own job is the
+# vocabulary is `pass | revise`, the conductor's send-back is what reaches
+# the segment's outlet: at once at run-an-issue's two seams (impasse-after =
+# 0), after two free rounds at run-a-gate's work (impasse-after = 2). That
+# path -- the send-back minting IMPASSE.toml with `arrival = "rework-rounds"`
+# -- is pinned in tests/test_rework.py, which drives it for run-an-issue's
+# plan and understand and for run-a-gate alike; this file's own job is the
 # two-voices shape (panel and form on one step).
 #
 # Ruling 3 (2026-09-02) moved plan-to-execute's own `revise` row to

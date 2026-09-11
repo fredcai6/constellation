@@ -122,12 +122,13 @@ def test_a_rework_round_opens_as_a_dispatch_and_reaches_the_rework_form(workdir,
     _dispatch_and_close_plan(wid)
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable",
+                          rule="rework")
     capsys.readouterr()
 
     st = runmod.state(wid)
     fresh = next(s for s in st["steps"]
-                if s["segment"] == "plan" and s.get("source") == "mint")
+                if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
     assert fresh["dispatches"] == "cut-a-gate"   # every round dispatches, not only the first
     assert st["current"]["id"] == fresh["id"]
 

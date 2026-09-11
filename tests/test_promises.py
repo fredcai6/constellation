@@ -128,7 +128,7 @@ def test_the_unwired_key_check_fails_on_a_key_that_is_only_written():
 def test_every_field_kind_is_one_the_engine_handles():
     """A form promising a kind the engine does not know produces a field that
     is silently treated as prose."""
-    known = {"check", "evidence", "artifact", "decision", "plan"}
+    known = {"check", "evidence", "artifact", "decision", "plan", "proof"}
     for f in FORMS:
         for field in tomllib.load(open(f, "rb")).get("field", []):
             kind = field.get("kind", "evidence")

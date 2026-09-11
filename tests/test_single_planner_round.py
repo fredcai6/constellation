@@ -83,14 +83,16 @@ def test_round_one_dispatches_a_single_planner_and_completes_on_its_return(workd
 
 
 def test_a_rework_round_also_dispatches_a_single_planner(workdir, capsys):
-    """A revise on round one mints through `_mint_segment_round` -- one
+    """A revise on round one, ruled into a rework round at the impasse form
+    (`impasse-after = 0`), mints through `_mint_segment_round` -- one
     planner, addressed the plain dispatch way (`plan-<n>`, never `.pN`), the
     same shape round one now takes too."""
     wid = _drive_to_plan_round_one()
     _dispatch_and_close_plan(wid, "plan-1")
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: needs another look")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: needs another look",
+                          rule="rework")
     capsys.readouterr()
 
     fresh = _fresh_mint(runmod.state(wid), "plan")

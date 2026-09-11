@@ -68,7 +68,8 @@ of the vocabulary is genuinely shared rather than coined in passing. Pairs that 
 padding at a glance — `run-an-issue` and `run-a-gate` each carrying their own `IMPASSE.toml`,
 and `run-an-issue/forms/CLOSE.toml` beside `run-a-gate/forms/GATE_CLOSE.toml` — read that
 length because each answers the same question at two different tiers in deliberately
-different words (a plan a fourth round keeps failing, versus a diff one does). `run-a-gate`
+different words (a spec or a cut being sent back at all, versus a diff a third review still
+sends back). `run-a-gate`
 has no `OPEN.toml` at all: its `ASSEMBLY.toml` states there is nothing to fill at open, so
 gate-tier open carries no form and no words.
 

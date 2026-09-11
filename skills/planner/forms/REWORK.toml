@@ -34,10 +34,12 @@ note = "Where the change lives, and what is out of bounds."
 
 [[field]]
 id = "proof"
+kind = "proof"
 note = """
 Same as PLAN.toml's `proof`: the exact command to run, never a description,
 referencing the command palette (constellation.toml) -- one that proves
-nothing on an empty diff or a diff short of `scope`."""
+nothing on an empty diff or a diff short of `scope`. Run once at submit, as
+there, and read by the conductor beside this round."""
 
 [[field]]
 id = "budget"
@@ -67,9 +69,10 @@ id = "horizon"
 kind = "evidence"
 note = """
 The gates likely to follow this one, coarsely, and the conditions that would
-change them. Provisional by construction: read by the critics alongside the
-gate above, but never attacked at gate grain, and never carried into the
-implementer's own prefill -- the gate ahead is this one alone."""
+change them. Provisional by construction: read beside the gate above by
+whoever judges this round, but never attacked at gate grain, and never
+carried into the implementer's own prefill -- the gate ahead is this one
+alone."""
 
 [[field]]
 id = "findings-addressed"

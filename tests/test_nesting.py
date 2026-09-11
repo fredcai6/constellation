@@ -368,8 +368,8 @@ def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
     the same objection, is the only way a root objection reaches the plan
     segment's impasse form now that the panel's vocabulary is `pass |
     revise`, not a third word that jumps there in one. The count is read off
-    the assembly (1 since the 2026-09-05 ruling: one review cycle by default
-    at this seam), never pinned here."""
+    the assembly (0 since the 2026-09-11 ruling: the first send-back is the
+    ruling), never pinned here."""
     _dispatch_plan_critic(wid, verdict="revise", findings=findings)
     plan = next(s for s in runmod.load_assembly("run-an-issue")["segment"] if s["id"] == "plan")
     for _ in range(plan["impasse-after"]):
@@ -381,8 +381,21 @@ def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
         _dispatch_plan_critic(wid, verdict="revise", findings=findings)
 
 
+def _rule_impasse(wid, ruling="rework", why="the next round replaces the proof in kind"):
+    """Rule on the impasse form the run is standing on. Both of run-an-issue's
+    seams declare `impasse-after = 0` (ruling, 2026-09-11), so the first
+    send-back of a spec or a cut mints this form rather than a free round: a
+    driver that wants a rework round asks for it here, by ruling, the way a
+    conductor does."""
+    st = runmod.state(wid)
+    assert st["current"].get("form") == "forms/IMPASSE.toml", (
+        f"not standing on the impasse form: {st['current']}")
+    _fill(_response(wid), 'ruling = "%s"\nwhy = """%s"""\n' % (ruling, why))
+    cli.main([wid, "submit"])
+
+
 def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
-                          resolution=None):
+                          resolution=None, rule=None):
     """Open every panelist the current transition's own panel declares --
     plan-to-execute's or consolidate's, whichever is `current` -- fill and
     close each. Both of a two-voices transition's own words release (ruling
@@ -390,9 +403,15 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
     for its own form either way, the same shape run-a-gate's review/ROUTE.toml
     already has: where the panel just returned is still `current` after this.
     A `verdict="revise"` also disposes of the round on that form, defaulting
-    to `resolution` (`"rework"` unless the caller names another), so a
-    caller driving straight through still reaches the fresh round it always
-    did without knowing this mechanism moved.
+    to `resolution` (`"rework"` unless the caller names another).
+
+    A round with no panel -- every plan-seam round after the run's opening
+    cut (`panel-rounds = "opening"`) -- dispatches nothing; a `revise` there
+    is the conductor's own send-back, `findings` riding as its `orders`.
+    A `rework` at either seam lands on the impasse form now (`impasse-after
+    = 0`): `rule` names the ruling to make there (`"rework"` for the fresh
+    round a caller used to reach directly), and `None` leaves the run
+    standing on the ruling form.
 
     Driven off the assembly's own panel length rather than a pinned count:
     the step completes on the last verdict, so a test that closes one of
@@ -401,7 +420,7 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
     """
     st = runmod.state(wid)
     step_id = st["current"]["id"]
-    panel = next(s for s in st["steps"] if s["id"] == step_id)["panel"]
+    panel = next(s for s in st["steps"] if s["id"] == step_id).get("panel") or []
     for n in range(1, len(panel) + 1):
         cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
         panelist = f"{wid}.{step_id}.p{n}"
@@ -412,11 +431,15 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
     form = current.get("form") if current else ""
     if (verdict == "revise" and current and current["id"] == step_id
             and form in ("forms/PLAN_TO_EXECUTE.toml", "forms/CONSOLIDATE.toml")):
+        orders = "" if panel else 'orders = "%s"\n' % findings
         if form == "forms/PLAN_TO_EXECUTE.toml":
-            _fill_plan_to_execute(wid, resolution or "rework")
+            _fill_plan_to_execute(wid, resolution or "rework", calls=orders)
         else:
-            _fill_consolidate(wid, resolution or "rework")
+            _fill_consolidate(wid, resolution or "rework", calls=orders)
         cli.main([wid, "submit"])
+        after = runmod.state(wid).get("current") or {}
+        if rule and after.get("form") == "forms/IMPASSE.toml":
+            _rule_impasse(wid, rule)
     return step_id
 
 
@@ -1188,8 +1211,11 @@ def test_replan_with_nothing_pending_closes_nothing_and_still_reenters_plan(work
     assert "g1" in runmod.state("issue17")["done"]
 
 
-def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_reachable(
+def test_replan_reenters_plan_with_a_fresh_step_and_the_conductors_route_form_genuinely_reachable(
         workdir, capsys):
+    """A replan's fresh round is a dispatch plus the conductor's own route
+    form -- and no critic panel: the panel reads the run's opening cut only
+    (`panel-rounds = "opening"`), so a re-cut stands PLAN_TO_EXECUTE alone."""
     _mint_n_gates(2)
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
@@ -1206,10 +1232,11 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
     assert fresh_plan["form"] == "skills/planner/forms/PLAN.toml"  # no override -- plans from scratch
     assert fresh_plan["prefill"]["findings"] == "the cut was wrong from the start"
 
-    fresh_panel = next(s for s in st["steps"] if s.get("source") == "panel")
-    assert fresh_panel["segment"] == "plan"
-    assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"   # the two-voices shape survives
-    assert fresh_panel["panel"][0]["criteria"].startswith("intent-fit")  # the real critic panel
+    fresh_route = next(s for s in st["steps"] if s.get("source") == "panel")
+    assert fresh_route["segment"] == "plan"
+    assert fresh_route["form"] == "forms/PLAN_TO_EXECUTE.toml"   # the conductor's form
+    assert "panel" not in fresh_route                            # and no critic beside it
+    assert next(s for s in st["steps"] if s["id"] == "plan")["panel"]  # the opening cut's stays
 
     # genuinely reachable, not a step that merely looks minted
     assert st["current"]["id"] == fresh_plan["id"]
@@ -1217,13 +1244,9 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
     _dispatch_and_close_plan("issue17", fresh_plan["id"], fill_fn=lambda w: _fill_plan(
         w, purpose="redo the cut correctly", scope="src/ only", proof="true"))
     capsys.readouterr()
-    assert runmod.state("issue17")["current"]["id"] == fresh_panel["id"]
-
-    # carry the fresh plan through its critic to confirm the panel really fires
-    _dispatch_plan_critic("issue17", verdict="pass")
-    capsys.readouterr()
     st = runmod.state("issue17")
-    assert st["current"]["id"] == fresh_panel["id"]  # resolved, waiting on its own form now
+    assert st["current"]["id"] == fresh_route["id"]  # straight to the form, nothing to wait on
+    assert not runmod.panel_outstanding(st, st["current"])
 
     _fill_plan_to_execute("issue17")
     cli.main(["issue17", "submit"])
@@ -1238,9 +1261,10 @@ def test_replan_reenters_plan_with_a_fresh_step_and_its_critic_panel_genuinely_r
 
 
 def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsys):
-    """`_act_on_verdicts` mints through `_mint_segment_round`, the same
-    primitive replan uses -- this pins the revise round's shape: the rework
-    form as the fresh interior, findings attributed, the panel refired."""
+    """A ruled rework mints through `_mint_segment_round`, the same primitive
+    replan uses -- this pins the rework round's shape: the rework form as the
+    fresh interior, findings attributed, and the route form re-minted with no
+    panel (the panel reads the opening cut only)."""
     wid = "issue18"
     cli.main(["open", "run-an-issue", "--issue", "18", "--title", "t"])
     _fill_open(wid)
@@ -1251,21 +1275,22 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     _dispatch_and_close_plan(wid)
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable",
+                          rule="rework")
     capsys.readouterr()
 
     st = runmod.state(wid)
     fresh_plan = next(s for s in st["steps"]
-                      if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"  # a revise reworks
+                      if s["segment"] == "plan" and s.get("source") == "mint"
+                      and s.get("dispatches"))
+    assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"  # a rework reworks
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
     assert "[p1]" in fresh_plan["prefill"]["findings"]
 
-    fresh_panel = next(s for s in st["steps"]
+    fresh_route = next(s for s in st["steps"]
                        if s.get("source") == "panel" and s["segment"] == "plan")
-    assert fresh_panel["form"] == "forms/PLAN_TO_EXECUTE.toml"
-    original_plan = next(s for s in st["steps"] if s["id"] == "plan")
-    assert fresh_panel["panel"] == original_plan["panel"]  # same panel config
+    assert fresh_route["form"] == "forms/PLAN_TO_EXECUTE.toml"
+    assert "panel" not in fresh_route  # `panel-rounds = "opening"`
     assert st["current"]["id"] == fresh_plan["id"]
 
 

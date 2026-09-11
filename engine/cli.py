@@ -267,6 +267,57 @@ def _resolve_one(text, root=None):
     return f"{cmd} {rest}".strip()
 
 
+# [trial-proofs]
+# Rationale: #122 -- a plan's `proof` reached a gate having been read by
+#   three critics and run by nobody; issue116's read `constellation.toml's
+#   `test` entry: ...`, died on its apostrophe at the gate's first submit,
+#   after the whole diff was built, and no verb on either run could then
+#   edit it. So the engine runs each `kind = "proof"` field once, where it is
+#   written, through the same resolution the gate's own check will use
+#   (`_resolve_command`, palette entries, the shell) against the run's tree
+#   as it stands, and journals a `check` entry -- the kind the gate's own
+#   runner writes, same shape: the command, its exit, the output tail --
+#   which the child's close summary already carries up to the parent, so the
+#   conductor's route room reads it (`render.proof_readings`) beside the cut.
+#   Nothing here refuses: exit 0 on an empty diff, a shell that cannot parse
+#   the string, a palette name with no entry are each a reading the
+#   conductor rules on, not a wall the planner meets. A palette miss is
+#   journaled as exit 127 -- the shell's own word for a command it cannot
+#   find, which is the same fact one layer up -- with the refusal's text as
+#   the output.
+# Rationale: bounded by the smaller of the gate's own `budget` and the
+#   handback (`checks.trial`), and run once, here: PLAN_TO_EXECUTE's own
+#   submit does not run it again, and the gate's runner is what runs it to
+#   its full budget. A `budget` that is not whole seconds is read as none --
+#   the gate's own submit refuses that as it always has; a trial refuses
+#   nothing.
+def _trial_proofs(wid, step, form, fields, root):
+    """Run every `proof`-kind field this submit carries, once, and journal
+    each as a `check` entry on this step. Returns the entries written, in
+    field order -- `[]` where the form declares no such field or every one
+    of them is a status word rather than a command."""
+    ran = []
+    for f in form["fields"]:
+        text = str(fields.get(f["id"], "") or "").strip()
+        if f.get("kind") != "proof" or not text:
+            continue
+        if forms.leading_word(text) in ("waived", "unknown"):
+            continue
+        try:
+            budget = checkrun.budget_for(fields)
+        except SystemExit:
+            budget = checkrun.BUDGET
+        try:
+            cmd = _resolve_command(text, root)
+        except SystemExit as e:
+            cmd, code, output = text, 127, str(e)
+        else:
+            code, output = checkrun.trial(cmd, root, min(budget, checkrun.HANDBACK))
+        ran.append(journal.append(wid, "check", step=step["id"], field=f["id"],
+                                  command=cmd, exit=code, output=output))
+    return ran
+
+
 def _tier(step, asm):
     """A dispatch step's model tier: its own prefill override, else the
     assembly segment's default."""
@@ -1598,8 +1649,42 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         filler_status = "spent"
     else:
         filler_status = ""
-    ret = st["returns_by_child"].get(step.get("child", "")) if step.get("child") else None
+    # [route-room-reads-the-cut]
+    # Rationale: a route step has no child of its own, so its room used to
+    #   show the panel's verdict and nothing of the round it was ruling on;
+    #   the critics saw the cut (`_round_artifact` fills their prefill) and
+    #   the conductor did not. Now that the plan seam's panel reads the
+    #   opening cut only (`[panel-rounds]`), every later route round is the
+    #   conductor alone, and the cut has to be in the room it is routed
+    #   from. So a step with no child reads the segment's most recent round
+    #   that was dispatched and has returned -- the same walk
+    #   `_panel_judged_rework` makes for `horizon` -- and renders its return
+    #   as the round's own; the trial its `proof` got at the cut
+    #   (`[trial-proofs]`) rides in that return's `checks` and renders as
+    #   readings rather than exit codes. A step whose segment holds no such
+    #   round (consolidate: the spec-writer fills in place; run-a-gate's
+    #   route: panelists carry no `child` key) reads nothing, as before.
+    child = step.get("child", "")
+    disposed = ""
+    if not child:
+        # A dispatch step's child id is the same derivation `cmd_submit` and
+        # `_open_child` make: its own `child` key where a mint wrote one, else
+        # `<wid>.<step-id>` -- `skeleton()`'s plan-1 carries no key at all.
+        prior = [s for s in st["steps"]
+                 if s["segment"] == step["segment"] and s["id"] != step["id"]
+                 and s.get("dispatches")]
+        disposed = next((cid for s in reversed(prior)
+                         for cid in (s.get("child") or f"{wid}.{s['id']}",)
+                         if cid in st["returns_by_child"]), "")
+    ret = st["returns_by_child"].get(child or disposed) if (child or disposed) else None
     returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
+    proofs = []
+    if returns and disposed:
+        checks = returns.pop("checks", None)
+        proofs = render.proof_readings(checks if isinstance(checks, list) else [])
+        # A planner's cut has no review verdict, change or deviations of its
+        # own; a blank line under each would say nothing to the conductor.
+        returns = {k: v for k, v in returns.items() if v not in ("", None)}
     if returns:
         # Every structured value the summary can carry, spelled out rather
         # than left as a raw list -- str() on a list prints Python reprs, not
@@ -1634,7 +1719,8 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     return {
         "prefill": prefill,
         "returns": returns,
-        "returns_from": step.get("child", ""),
+        "returns_from": child or disposed,
+        "proofs": proofs,
         "verdict": _returned_verdict(st, asm),
         "waived": runmod.waived_panel(step),
         "blocked": runmod.blocks(st),
@@ -2110,6 +2196,12 @@ def cmd_submit(argv):
     # against whatever directory the invoking shell happens to be standing
     # in, which a worktree can silently disagree with.
     check_root = journal.root_for(wid)
+    # A plan's own `proof` fields are run once here, before the submit lands
+    # -- reported to the planner now and to the conductor's route room later,
+    # refused never (`[trial-proofs]`).
+    trialled = _trial_proofs(wid, step, form, fields, check_root)
+    for block in render.proof_readings(trialled):
+        print("\n".join("  " + line for line in block.split("\n")) + "\n")
     # A check's command comes from the orders: the step's own prefill when it
     # has one, else the run's -- a dispatched child carries its spec at the
     # run level, and its first step is minted before that spec exists. The
@@ -2536,16 +2628,32 @@ def _seam_findings_history(st, round_steps):
     own findings prefill -- blocking calls narrowed where that round's own
     done-entry carried a `calls` table, else every panelist's own
     non-empty `findings` joined and attributed."""
-    blocks = []
-    for rstep in round_steps:
-        called = _blocking_calls(st["done"].get(rstep["id"], {}).get("fields"))
-        if called is not None:
-            blocks.append(called)
-            continue
-        blocks.append("\n\n".join(
-            f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
-            for r in st["returns"].get(rstep["id"], [])))
-    return "\n\n".join(blocks)
+    return "\n\n".join(
+        _round_findings(st, rstep, st["done"].get(rstep["id"], {}).get("fields"))
+        for rstep in round_steps)
+
+
+def _round_findings(st, step, fields):
+    """One round's own findings block, as the next round or an ask reads it:
+    the panel's returns, each attributed to the voice that raised it -- or,
+    where the deciding submit carried a per-finding `calls` table, its
+    blocking-called blocks alone (`_blocking_calls`) -- with the conductor's
+    own `orders` (the route forms' 2026-09-05 field) ahead of either, marked
+    as the conductor's. A status word there (`waived: none`) is no order and
+    carries nothing. A round with no panel and no orders reads as `""`.
+    One writer for `_panel_judged_rework`'s live round and
+    `_seam_findings_history`'s landed ones, so an ask reads each round the
+    way the round after it did."""
+    findings = "\n\n".join(
+        f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
+        for r in st["returns"].get(step["id"], []))
+    called = _blocking_calls(fields)
+    if called is not None:
+        findings = called
+    orders = str((fields or {}).get("orders", "") or "").strip()
+    if orders and forms.leading_word(orders) not in ("waived", "unknown", "working"):
+        findings = f"[conductor] {orders}\n\n{findings}" if findings else f"[conductor] {orders}"
+    return findings
 
 
 # [impasse-ruling-carries]
@@ -2594,64 +2702,67 @@ def _impasse_ruled_rework(step, fields):
 
 
 # [panel-judged-rework]
-# Rationale: a rework decided at a transition its own panel returned to is
-#   the same act whichever voice decided it -- the merged verdict resolving
-#   to `rework` (run-an-issue's consolidate and plan-to-execute,
-#   explore-an-idea's spec) or a conductor's form submitting on the step
-#   that panel already returned to (run-a-gate's review). Both owe the fresh
-#   round the panel's own findings as prefill, and both spend the segment's
-#   `impasse-after` count. So both live here, on the verb, rather than at
-#   either caller: run-a-gate's review resolves `revise` to `release` now,
-#   so the panel-return path never reaches `rework` for it again and an
-#   outlet checked only there would silently stop firing.
+# Rationale: a rework decided at a segment's own route step is the same act
+#   whichever voice decided it -- the merged verdict resolving to `rework`
+#   (explore-an-idea's spec) or a conductor's form submitting on the step
+#   (run-a-gate's review, run-an-issue's consolidate and plan-to-execute).
+#   Both owe the fresh round whatever the round was judged on as prefill,
+#   and both spend the segment's `impasse-after` count. So both live here,
+#   on the verb, rather than at either caller: run-a-gate's review resolves
+#   `revise` to `release` now, so the panel-return path never reaches
+#   `rework` for it again and an outlet checked only there would silently
+#   stop firing.
+# Rationale: the guard reads the step, not only its panel. A route step with
+#   no panel is real now -- run-an-issue's plan seam mints its critic panel
+#   on the run's opening cut only (`panel-rounds`, ASSEMBLY.toml), so every
+#   later PLAN_TO_EXECUTE round is the conductor's form alone -- and a
+#   conductor sending such a round back owes the next round its `orders`
+#   and spends the count exactly as a panel-judged one does. Keying on
+#   `panel` alone read that step as the impasse ruling and carried nothing.
 # Rejected: duplicating the check on the ordinary submit path. Two counts
-#   that happen to agree is the shape that drifts, and the fourth round is
-#   exactly the round nobody re-tests by hand.
+#   that happen to agree is the shape that drifts, and the round past the
+#   allowance is exactly the round nobody re-tests by hand.
 # See: `_blocking_calls` -- `fields` is the deciding submit's own, defaulted
 #   so a caller with no table to filter by reads as one.
 def _panel_judged_rework(wid, asm, seg, step, fields=None):
-    """(prefill, outlet) for a rework decided at `seg`'s own panel-bearing
-    transition: the panel's findings concatenated, never summarised, and
-    attributed to the panelist that raised them -- or, where the deciding
-    submit carried a per-finding `calls` table, the blocking-called blocks of
-    that table alone (`_blocking_calls`) -- plus any `horizon` the round just
-    judged wrote, which `skills/planner/SKILL.md` promises the next round
-    arrives holding. `outlet` is the segment's impasse form once
-    `impasse-after` rounds have already landed on this artifact, so a
-    conductor rules on the loop rather than the run finishing around it.
+    """(prefill, outlet) for a rework decided at `seg`'s own route step: the
+    panel's findings concatenated, never summarised, and attributed to the
+    panelist that raised them -- or, where the deciding submit carried a
+    per-finding `calls` table, the blocking-called blocks of that table
+    alone (`_blocking_calls`) -- with the conductor's own `orders` ahead of
+    them, plus any `horizon` the round just judged wrote, which
+    `skills/planner/SKILL.md` promises the next round arrives holding. A
+    route step with no panel carries the orders alone. `outlet` is the
+    segment's impasse form once `impasse-after` rounds have already landed
+    on this artifact -- `0` makes the first send-back itself the ruling --
+    so a conductor rules on the send-back rather than the run looping.
 
-    Where `step` is not that transition the outlet is always `""` -- an
-    impasse ruling's own `rework` never spends the count, which is what makes
-    the outlet a way out rather than a wall -- and the prefill is
-    `_impasse_ruled_rework`'s: what caused the impasse, with the conductor's
-    own `why` ahead of it (#107), or `None` where the ruling wrote no `why`
-    the round can act on, which is the plain carry this had before.
+    Where `step` is neither a panel step nor the segment's own route form
+    the outlet is always `""` -- an impasse ruling's own `rework` never
+    spends the count, which is what makes the outlet a way out rather than
+    a wall -- and the prefill is `_impasse_ruled_rework`'s: what caused the
+    impasse, with the conductor's own `why` ahead of it (#107), or `None`
+    where the ruling wrote no `why` the round can act on, which is the
+    plain carry this had before.
 
-    The guard is `step.get("panel")` alone, and that is the whole question:
-    is *this deciding step* a two-voices panel transition. `panel` is written
-    onto the step's own journal entry identically however the step came to
-    exist -- by `skeleton()` from a statically declared `[segment.transition]`
+    The guard is two reads of the step itself. `panel` is written onto the
+    step's own journal entry identically however the step came to exist --
+    by `skeleton()` from a statically declared `[segment.transition]`
     (consolidate, plan-to-execute, explore-an-idea's spec) or by `_mint`'s
-    panelists branch at run-a-gate's `select` -- so the check survives a
-    transition moving from a declaration to a mint. The one step it must not
-    match is the impasse ruling itself, and that step is a single-conductor
-    decision minted with no `panel` key at all, under every caller.
+    panelists branch at run-a-gate's `select` -- so that half survives a
+    transition moving from a declaration to a mint. The other half is the
+    step standing on the segment's own transition form (`deciding_spec`'s
+    own test), which is what a panel-less route round is. The one step
+    neither matches is the impasse ruling: a single-conductor decision
+    minted with no `panel` key, on the segment's `impasse-form`, under
+    every caller.
     """
-    if not step.get("panel"):
+    on_route_form = bool(step.get("form")) and \
+        step.get("form") == seg.get("transition", {}).get("form")
+    if not step.get("panel") and not on_route_form:
         return _impasse_ruled_rework(step, fields), ""
     st = runmod.state(wid)
-    findings = "\n\n".join(
-        f"[{r['child'].rsplit('.', 1)[-1]}] {(r.get('fields') or {}).get('findings', '')}"
-        for r in st["returns"].get(step["id"], []))
-    called = _blocking_calls(fields)
-    if called is not None:
-        findings = called
-    # The conductor's own `orders` (the route forms' 2026-09-05 field) go
-    # ahead of the findings, marked as the conductor's: a status word there
-    # (`waived: none`) is no order and carries nothing.
-    orders = str((fields or {}).get("orders", "") or "").strip()
-    if orders and forms.leading_word(orders) not in ("waived", "unknown", "working"):
-        findings = f"[conductor] {orders}\n\n{findings}" if findings else f"[conductor] {orders}"
+    findings = _round_findings(st, step, fields)
     # The round just judged is the segment's own most recent non-panel step --
     # the same lookup a panelist's own prefill uses (`_open_child`) to find
     # the artifact it is reviewing. Carried under the producing form's own
@@ -2660,8 +2771,12 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     prior = [s for s in st["steps"] if s["segment"] == seg["id"] and s["id"] != step["id"]]
     produced = st["done"].get(prior[-1]["id"], {}).get("fields", {}) if prior else {}
     carried = {"horizon": produced["horizon"]} if produced.get("horizon") else {}
-    after = seg.get("impasse-after", 0)
-    looped = bool(after) and runmod.rework_rounds(st, asm, seg["id"]) >= after
+    # `impasse-after = 0` is a declaration, not an absence: the opening round
+    # was never sent back (`rework_rounds` reads 0 there), so 0 >= 0 makes
+    # the first send-back the ruling. A segment declaring no `impasse-after`
+    # at all never reaches the outlet, as before.
+    after = seg.get("impasse-after")
+    looped = after is not None and runmod.rework_rounds(st, asm, seg["id"]) >= after
     return {"findings": findings, **carried}, (seg.get("impasse-form", "") if looped else "")
 
 
@@ -3758,10 +3873,11 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
                         restarts=False):
     """Mint one fresh round of a segment: its step-form (or the form the
     caller names -- a revise passes the segment's rework form) as a fresh
-    interior step, plus its transition's panel -- both read from the
-    assembly, never copied from whatever minted last. The shared move a
-    revise and a replan both need: the segment reopened for another pass,
-    carrying the same challenge that judges it.
+    interior step, plus its transition -- with its panel where the
+    transition declares one for every round (`[panel-rounds]` below) --
+    both read from the assembly, never copied from whatever minted last.
+    The shared move a revise and a replan both need: the segment reopened
+    for another pass.
 
     `restarts` says which kind of round this is, and only the caller knows:
     a `rework` is another pass at the artifact standing (the default), a
@@ -3829,7 +3945,19 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
              "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
              "validates": t.get("validates", ""), "carries": t.get("carries", False),
              "source": "panel"}
-    if t.get("panel"):
+    # [panel-rounds]
+    # Rationale: a transition says which rounds its panel is minted for.
+    #   `every` (the default, and what every transition read as before the
+    #   key existed) re-fires the panel on each fresh round; `opening` mints
+    #   it on the run's opening round alone -- `skeleton()`'s, which reads
+    #   the panel unconditionally -- so a rework, a refill after a gate and a
+    #   resumed round all stand the conductor's form there with no panel
+    #   beside it. run-an-issue's plan seam declares `opening` (ruling,
+    #   2026-09-11: one look over a cut, then the proof is in execution).
+    # Rejected: a mint-time rule keyed on the segment or its `dispatches`.
+    #   Which rounds a panel reads is the assembly's call about its own
+    #   seam, and an engine rule would have to name the seam to make it.
+    if t.get("panel") and t.get("panel-rounds", "every") != "opening":
         fresh["panel"] = t["panel"]
     if t.get("form"):
         fresh["form"] = t["form"]  # the two-voices shape survives a fresh round

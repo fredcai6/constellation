@@ -8,8 +8,10 @@ defect this replaces.
 A seam is a panel-bearing transition: a segment whose transition declares a
 panel outright (run-an-issue's consolidate, plan-to-execute) or whose round
 is minted at `select` through a `route-form` (run-a-gate's review). A round
-is one panel dispatch on one artifact -- the count `run.rework_rounds` uses,
-plus the first. A finding is one block a panelist returned in its own
+is one disposal of one artifact at the seam -- a panel dispatch where the
+round carries a panel, the conductor's route form alone where it does not
+(run-an-issue's plan seam after the opening cut) -- the count
+`run.rework_rounds` uses, plus the first. A finding is one block a panelist returned in its own
 `findings` field, empty or `waived:`/`none:` counting as zero. A call is the
 conductor's `blocking | accepted | beyond | rejected` on one finding, read
 from a route form's `calls` table where the deciding submit carried one --
@@ -103,16 +105,24 @@ def _calls(fields):
 #   whole issue exists to make free -- and the tally silently reads zero on
 #   every round that in fact sent the artifact back.
 def _round(returns, done_entry, panel_forms, table, waived=None):
-    """One panel dispatch on one artifact: the round's own verdict record,
-    how many of the panel sent it back, how many findings, and -- where the
-    deciding submit carried a `calls` table -- a tally of how each was
-    called, in the order the conductor ruled them. `waived` is
+    """One disposal of one artifact at the seam: the round's own verdict
+    record, how many of the panel sent it back, how many findings, and --
+    where the deciding submit carried a `calls` table -- a tally of how each
+    was called, in the order the conductor ruled them. `waived` is
     `run.waived_panel`'s own triple for a round a conductor waived in part
     or in full: the count and reason ride the record. A round waived whole
     has no voice to fold, so its verdict record is the quiet panel's own
-    `""` -- the count and reason are what the line then says."""
+    `""` -- the count and reason are what the line then says. A round that
+    carried no panel at all (run-an-issue's plan seam after the opening cut;
+    `panel_forms` is empty) has no verdict to record either, so the
+    conductor's own disposing word -- the `decides` field the seam's table
+    names, read off the round's done entry -- stands in its place: the
+    record of the round is what the conductor said of it."""
     n_waived, reason = (waived[0], waived[2]) if waived else (0, "")
     verdict = runmod.verdict_record(runmod.verdict_fold(returns, panel_forms, table))
+    if not returns and not panel_forms and done_entry:
+        verdict = forms.leading_word(
+            (done_entry.get("fields") or {}).get(table.get("decides", ""), ""))
     revising = sum(1 for kind, word in runmod.voice_outcomes(returns, panel_forms)
                    if kind == "clean" and runmod.declared_does(table, word)
                    not in (None, "release"))
@@ -136,10 +146,14 @@ def _round(returns, done_entry, panel_forms, table, waived=None):
 def _landed_round(st, seg, step):
     """Whether `step` is a landed round at this seam: in the seam's own
     segment, on its disposing form, carrying a panel that has returned --
-    or was waived, which lands the round by the conductor's ruling."""
-    return (step.get("segment") == seg["id"] and step.get("form") == _seam_form(seg)
-            and bool(step.get("panel"))
-            and bool(st["returns"].get(step["id"]) or step.get("waived")))
+    or was waived, which lands the round by the conductor's ruling -- or,
+    where the round carries no panel (run-an-issue's plan seam after the
+    opening cut, `panel-rounds = "opening"`), disposed of by its conductor."""
+    if step.get("segment") != seg["id"] or step.get("form") != _seam_form(seg):
+        return False
+    if step.get("panel"):
+        return bool(st["returns"].get(step["id"]) or step.get("waived"))
+    return step["id"] in st["done"]
 
 
 def seam_round_steps(st, seg):
@@ -147,11 +161,13 @@ def seam_round_steps(st, seg):
     one from `skeleton()`'s own mint or `select`'s first panel mint, every
     later round `_mint_segment_round`/`_mint` (cli.py) minted fresh under its
     own random tag -- found by segment and the seam's own disposing form,
-    never by a hardcoded id. A round with no returns yet (an outstanding one,
-    on a live run `trace --yield` can reach) is left out -- nothing to
-    report, and nothing yet decided for a cap to count -- unless its panel
-    was waived: that round landed by the conductor's own ruling, and the
-    yield owes the seam's history the fact and the reason."""
+    never by a hardcoded id. A round has landed once its panel has returned
+    or, where the round carries no panel, once its conductor has disposed of
+    it. A round with neither yet (an outstanding one, on a live run `trace
+    --yield` can reach) is left out -- nothing to report, and nothing yet
+    decided for a cap to count -- unless its panel was waived: that round
+    landed by the conductor's own ruling, and the yield owes the seam's
+    history the fact and the reason."""
     return [step for step in st["steps"] if _landed_round(st, seg, step)]
 
 

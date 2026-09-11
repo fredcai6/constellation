@@ -43,7 +43,10 @@ has used one back. Coining a synonym for a term below is a defect.
   explore-an-idea's spec) by refilling directly, `impasse-after` rounds of it reaching the
   segment's own impasse form where one is declared. A panel is written once, at the mint that
   makes its step: declared on a transition, or named at an earlier one (run-a-gate's `select`), never
-  grown after. Review never lives in an interior.
+  grown after. A transition also declares which of its rounds the panel reads —
+  `panel-rounds = "every"` (the default) or `"opening"`, the run's opening round alone, which is
+  run-an-issue's plan seam: a later cut stands the conductor's route form with no panel beside
+  it. Review never lives in an interior.
 - **clean** — one of `verdict_fold`'s three per-voice/panel outcomes (`engine/run.py`): a
   voice's return whose leading word is inside that voice's own form's declared vocabulary, or
   (panel-wide) the panel's own clean word once a refusal and total quiet are both ruled out.
@@ -119,22 +122,25 @@ has used one back. Coining a synonym for a term below is a defect.
   panel, no dispatch, only the positive `paused` key naming the segment the parent's answer
   will resume. Recognized everywhere by that key, never by the absence of the other three,
   which `amend add --transition` already mints today with no pause behind it at all.
-- **impasse** — a segment ruling reached once its transition has sent the same round back
-  `impasse-after` times: the loop itself, not any one round's findings, is the question, and the
-  segment's own impasse form — not a fresh round — reaches whoever conducts it. `advance` closes
-  the segment on the diff as it stands, over a live revise; `rework` is the answer only when it
-  names what changes that the counted rounds did not; `up` pauses the segment as an ask at the
-  run that dispatched it, the same as any other pause.
+- **impasse** — a segment ruling reached once its transition has sent the same artifact back
+  `impasse-after` times: the segment's own impasse form — not a fresh round — reaches whoever
+  conducts it. At run-an-issue's spec and plan seams the count is 0, so the first send-back of a
+  spec or a cut is itself the ruling (2026-09-11: one look over, then the proof is in
+  execution); at run-a-gate's `work` it is 2, the loop itself being the question there. `advance`
+  closes the segment on the artifact as it stands, over a live objection; `rework` is the answer
+  only when it names what the round changes that a reading did not; `up` pauses the segment as
+  an ask at the run that dispatched it, the same as any other pause.
 - **round-cap** — a segment property beside `impasse-after`, in a different kind: a ceiling on
   the **round**s a **seam** sends back in a row, counted since the seam last released one
   (`engine/review_yield.py`'s `seam_round_steps_since_release`) — a release starts the count
   over, a fresh artifact or an impasse ruling does not — where `impasse-after` counts one
-  artifact's own rework rounds and resets on a new one. Declared on `run-an-issue`'s
-  `understand` and `plan`, and on `run-a-gate`'s `review`. Where a send-back would land the
-  count at the cap, it mints an ask to the run's principal instead — naming the seam, the
-  count, and the findings of every round counted — and `impasse-after`'s own outlet is not
-  consulted on that send-back, having nothing left to fire on: the cap outranks it where both
-  would otherwise fire on the same round. At the issue tier the ask is the principal's to
+  artifact's own rework rounds and resets on a new one. A round with no panel (run-an-issue's
+  plan seam after the opening cut) counts once its conductor disposes of it. Declared on
+  `run-an-issue`'s `understand` and `plan`, and on `run-a-gate`'s `review`. Where a send-back
+  would land the count at the cap, it mints an ask to the run's principal instead — naming the
+  seam, the count, and the findings of every round counted — and `impasse-after`'s own outlet
+  is not consulted on that send-back, having nothing left to fire on: the cap outranks it where
+  both would otherwise fire on the same round. At the issue tier the ask is the principal's to
   fill, never a form filler's.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
@@ -179,7 +185,11 @@ has used one back. Coining a synonym for a term below is a defect.
   starting; a role with no SKILL.md gets no posture line at all.
 - **proof** — a gate spec's command, run by the engine at submit: it passes once the
   gate's work is done and fails while it is not. Its exit status decides the step; a
-  command that passes on an empty diff proves nothing.
+  command that passes on an empty diff proves nothing. Run once before that, too: the
+  planner's own submit runs it against the run's tree as it stands and journals the result as
+  a `check`, which the conductor's route room reads as one of three readings — resolved and
+  failing before the work (healthy), passing on an empty diff (proves nothing), or not
+  resolving at all (prose, an unknown palette name) — a report, never a refusal (#122).
 - **handback** — how long `submit` holds its caller before returning control, 90 seconds, the
   engine's own number and nothing a gate spec declares. A dispatched agent's harness moves a
   foreground command still running at about 120 seconds into the background and the turn ends
@@ -190,7 +200,8 @@ has used one back. Coining a synonym for a term below is a defect.
 - **proof budget** — how long a proof may run before it is broken rather than slow. Declared
   per gate spec as `budget`, whole seconds, 600 where the spec declares none; a proof that
   outruns it is refused. Distinct from the handback, which bounds the caller's wait rather
-  than the proof.
+  than the proof. The planner's own run of the proof at the cut waits the smaller of the two,
+  and reports a proof that outran it rather than waiting on.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
   implementer working its interior and the gate-conductor naming, at `select`, the panel that
   reviews it.
@@ -215,11 +226,12 @@ has used one back. Coining a synonym for a term below is a defect.
   whose round is minted at `select` through a `route-form` (`run-a-gate`'s review). Named for a
   human by `seam_label` — the disposing form's own name where the transition declares one, or
   (review, whose transition declares neither) the segment's own id.
-- **round** — one panel dispatch on one artifact at a seam, the count `run.rework_rounds` uses
-  plus the first — `engine/review_yield.py`'s `seam_round_steps`, blind to which mint produced
-  the step (`skeleton()`'s own, a later `rework`, `select`'s own panel mint), so it counts a
-  seam's rounds since the run opened rather than per artifact; the **round-cap** reads the same
-  list cut at the seam's last release.
+- **round** — one disposal of one artifact at a seam: a panel dispatch where the round carries a
+  panel, the conductor's route form alone where it does not (run-an-issue's plan seam after the
+  opening cut) — the count `run.rework_rounds` uses plus the first — `engine/review_yield.py`'s
+  `seam_round_steps`, blind to which mint produced the step (`skeleton()`'s own, a later
+  `rework`, `select`'s own panel mint), so it counts a seam's rounds since the run opened rather
+  than per artifact; the **round-cap** reads the same list cut at the seam's last release.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **dispatch** — a step (a gate dispatch, or one panel entry) naming a child run for the engine
@@ -291,9 +303,9 @@ has used one back. Coining a synonym for a term below is a defect.
   impasse `advance` — whose own ruling form carries none — still finds the round it actually
   approved.
 - **horizon** — the gates likely to follow the one a plan round just cut, coarsely, and the
-  conditions that would change them. Sits beside the gate spec on the same round; the critics
-  read it, provisional by construction and never attacked at gate grain, and it never crosses
-  into the implementer's own prefill — the gate ahead is this one alone.
+  conditions that would change them. Sits beside the gate spec on the same round; whoever
+  judges the cut reads it, provisional by construction and never attacked at gate grain, and it
+  never crosses into the implementer's own prefill — the gate ahead is this one alone.
 - **map** — the derived page tree under `map/`: one page per entity, a module index per module,
   one top index. Built by `tools/code_map` — the generator, and that is its only name — through
   `palette:map`; gitignored, regenerated at closeout, never committed. The artifact, not the act

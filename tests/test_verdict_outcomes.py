@@ -16,7 +16,7 @@ miss exactly that branch -- `engine/` is checked like any other root.
 
 from engine import cli, journal, run as runmod
 from conftest import REPO
-from test_nesting import _response, _write_plan_artifact
+from test_nesting import _response, _rule_impasse, _write_plan_artifact
 from test_two_voices import CRITIC, _dispatch_and_close_plan, _dispatch_panel, _drive_to_plan_to_execute
 
 
@@ -77,15 +77,26 @@ def test_the_conductors_rework_resolves_through_the_outcome_table_and_reworks(wo
                     findings="gap: the loop bound is off by one")
     capsys.readouterr()
 
+    # the conductor's `rework` reaches the verb and lands on the ruling form
+    # (`impasse-after = 0`), holding what caused it and nothing of the real
+    # plan-to-execute step's own prefill
+    st = runmod.state(wid)
+    ruling = st["current"]
+    assert ruling["form"] == "forms/IMPASSE.toml"
+    assert not set(real_prefill) & set(ruling["prefill"])
+    assert "off by one" in ruling["prefill"]["findings"]
+    assert "[p1]" in ruling["prefill"]["findings"]
+    _rule_impasse(wid, why="waived: none")
+    capsys.readouterr()
+
     st = runmod.state(wid)
     fresh = next(s for s in st["steps"]
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
     assert fresh["dispatches"] == "cut-a-gate"
     assert fresh["form"] == "skills/planner/forms/REWORK.toml"
-    # `_fill_plan_form` (the first round) declares `horizon`, so the fresh
-    # round's prefill is `findings` plus that carried horizon -- nothing
-    # else, and nothing from the real plan-to-execute step's own prefill.
-    assert set(fresh["prefill"]) <= {"findings", "horizon"}
+    # the ruled round carries the ruling's own prefill forward -- what caused
+    # the round -- and nothing from the real plan-to-execute step's own.
+    assert not set(real_prefill) & set(fresh["prefill"])
     assert "off by one" in fresh["prefill"]["findings"]
     assert "[p1]" in fresh["prefill"]["findings"]
 

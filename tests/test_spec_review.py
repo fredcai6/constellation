@@ -17,7 +17,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
-from test_nesting import _response
+from test_nesting import _response, _rule_impasse
 
 
 def _fill(path, text):
@@ -215,6 +215,14 @@ def test_the_conductors_rework_sends_only_the_blocking_calls_carrying_no_spec_an
         ("gap: commitment 1 is not numbered", "blocking"),
         ("gap: the parser needs a full rewrite", "rejected: unfounded -- the parser is untouched by this spec"))
     cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    # the send-back is a ruling first (`impasse-after = 0`), narrowed the
+    # same way; the spec-writer round exists once the conductor rules it
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "forms/IMPASSE.toml"
+    assert st["current"]["prefill"]["findings"] == "gap: commitment 1 is not numbered"
+    _rule_impasse(wid, why="waived: none")
     capsys.readouterr()
 
     st = runmod.state(wid)

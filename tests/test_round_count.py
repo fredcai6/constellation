@@ -27,6 +27,7 @@ from test_nesting import (
     _fill_open,
     _fill_spec,
     _response,
+    _rule_impasse,
     _work_the_board,
 )
 
@@ -64,12 +65,15 @@ def test_the_opening_round_is_round_zero(workdir, capsys):
 def test_a_send_back_at_a_one_form_segment_counts(workdir, capsys):
     """`understand` declares a step-form and no rework-form. The old
     derivation counted every step-form mint alike here, which happened to be
-    right for a rework and wrong for a replacement."""
+    right for a rework and wrong for a replacement. The send-back lands on
+    the impasse form first (`impasse-after = 0`); the round is ruled into
+    being there, and that ruled round is the one the count reads."""
     wid = _open_to_the_spec_seam()
     _work_the_board(wid)
     _fill_consolidate(wid, "rework",
                       calls='[[calls]]\nfinding = "f"\ncall = "blocking"\n')
     cli.main([wid, "submit"])
+    _rule_impasse(wid)
     capsys.readouterr()
 
     assert _count(wid, "understand") == 1
@@ -117,6 +121,7 @@ def test_a_restart_is_expressible_where_the_segment_declares_one_form(workdir, c
     _fill_consolidate(wid, "rework",
                       calls='[[calls]]\nfinding = "f"\ncall = "blocking"\n')
     cli.main([wid, "submit"])
+    _rule_impasse(wid)
     capsys.readouterr()
     assert _count(wid, "understand") == 1
 

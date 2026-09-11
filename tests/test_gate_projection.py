@@ -25,15 +25,14 @@ from test_nesting import (
     _fill_plan_rework,
     _fill_plan_to_execute,
     _response,
+    _rule_impasse,
     _work_the_board,
 )
 
 
-def _plan_impasse_after():
-    """The plan segment's `impasse-after`, read off the assembly rather than
-    pinned (1 since the 2026-09-05 ruling)."""
-    return next(s for s in runmod.load_assembly("run-an-issue")["segment"]
-                if s["id"] == "plan")["impasse-after"]
+# The round `_drive_to_impasse_with_varying_gates` ends on: the opening cut
+# plus two rounds ruled into being at the impasse form, each sent back.
+LAST_RULED_ROUND = 3
 
 
 def _drive_to_plan_to_execute(wid="issue17", fill_fn=None):
@@ -307,13 +306,16 @@ def _drive_to_impasse_with_varying_gates(wid="issue17"):
     _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
         w, purpose="round 1 purpose", scope="round 1 scope"))
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: round 1 is untestable")
-    # one rework per `impasse-after` (read off the assembly, never pinned),
-    # the last of them the round the ruling approves
-    last = _plan_impasse_after() + 1
+    # every send-back is a ruling (`impasse-after = 0`), so each later round
+    # is ruled into being here -- two of them, the last the one the final
+    # ruling approves; a later round carries no panel, so its send-back is
+    # the conductor's own
+    last = LAST_RULED_ROUND
     rounds = [(f"round {n} purpose", f"round {n} scope") for n in range(2, last)]
     rounds.append((f"round {last} purpose -- the one the ruling approves",
                    f"round {last} scope -- the one the ruling approves"))
     for n, (purpose, scope) in enumerate(rounds, start=2):
+        _rule_impasse(wid, why=f"round {n} changes the proof, not the prose")
         st = runmod.state(wid)
         fresh = next(s for s in st["steps"]
                     if s["segment"] == "plan" and s.get("source") == "mint"
@@ -322,6 +324,7 @@ def _drive_to_impasse_with_varying_gates(wid="issue17"):
             wid, fresh["id"],
             lambda w, p=purpose, s=scope: _fill_plan_rework(w, purpose=p, scope=s))
         _dispatch_plan_critic(wid, verdict="revise", findings=f"gap: round {n} is untestable")
+    assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
     return wid
 
 
@@ -360,7 +363,7 @@ def test_impasse_advance_projects_the_round_the_ruling_approved(workdir, capsys)
     assert [a["id"] for a in adjudications] == ["g1-adjudicate"]
 
     g1 = next(s for s in st["steps"] if s["id"] == "g1")
-    last = _plan_impasse_after() + 1
+    last = LAST_RULED_ROUND
     assert g1["prefill"]["purpose"] == f"round {last} purpose -- the one the ruling approves"
     assert g1["prefill"]["scope"] == f"round {last} scope -- the one the ruling approves"
     assert g1["prefill"]["proof"] == "true"

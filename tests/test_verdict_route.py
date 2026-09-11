@@ -27,7 +27,9 @@ import ast
 from engine import cli, journal, run as runmod
 from conftest import REPO
 from test_two_voices import CRITIC, _dispatch_critic, _drive_to_plan_to_execute
-from test_nesting import _fill_plan_route_with_calls, _fill_plan_to_execute, _response
+from test_nesting import (
+    _fill_plan_route_with_calls, _fill_plan_to_execute, _response, _rule_impasse,
+)
 from test_verdict_panels import (
     _fill, _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
     _review_step, _select,
@@ -488,6 +490,14 @@ def test_a_plan_revise_holds_the_form_and_the_conductors_rework_mints_the_round_
     cli.main([wid, "submit"])
     capsys.readouterr()
 
+    # the send-back lands on the ruling form first (`impasse-after = 0`),
+    # narrowed the same way; ruling `rework` there carries it on to the round
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "forms/IMPASSE.toml"
+    assert st["current"]["prefill"]["findings"] == "gap: the proof is untestable"
+    _rule_impasse(wid, why="waived: none")
+    capsys.readouterr()
+
     st = runmod.state(wid)
     fresh = next(s for s in st["steps"]
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
@@ -518,6 +528,14 @@ def test_the_conductors_orders_ride_ahead_of_the_blocking_findings(workdir, caps
     cli.main([wid, "submit"])
     capsys.readouterr()
     st = runmod.state(wid)
+    # on the ruling form the send-back mints (`impasse-after = 0`), and on
+    # the round ruled into being from it
+    assert st["current"]["form"] == "forms/IMPASSE.toml"
+    assert st["current"]["prefill"]["findings"] == (
+        "[conductor] keep the walk general, not a skip-one\n\ngap: the proof is untestable")
+    _rule_impasse(wid, why="waived: none")
+    capsys.readouterr()
+    st = runmod.state(wid)
     fresh = next(s for s in st["steps"]
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
     assert fresh["prefill"]["findings"] == (
@@ -536,6 +554,9 @@ def test_a_waived_orders_field_carries_nothing(workdir, capsys):
         calls=('orders = "waived: none"\n\n'
                '[[calls]]\nfinding = "gap: the proof is untestable"\ncall = "blocking"\n'))
     cli.main([wid, "submit"])
+    capsys.readouterr()
+    assert runmod.state(wid)["current"]["prefill"]["findings"] == "gap: the proof is untestable"
+    _rule_impasse(wid, why="waived: none")
     capsys.readouterr()
     fresh = next(s for s in runmod.state(wid)["steps"]
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))

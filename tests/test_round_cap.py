@@ -57,7 +57,9 @@ def _dispatch_plan_critic_with_calls(wid, blocking_finding):
     in this file."""
     st = runmod.state(wid)
     step_id = st["current"]["id"]
-    panel = next(s for s in st["steps"] if s["id"] == step_id)["panel"]
+    # no panel after the opening cut (`panel-rounds = "opening"`): the cap
+    # round is the conductor's alone, its calls table the conductor's own
+    panel = next(s for s in st["steps"] if s["id"] == step_id).get("panel") or []
     for n in range(1, len(panel) + 1):
         cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
         panelist = f"{wid}.{step_id}.p{n}"
@@ -105,12 +107,14 @@ def _release_gates(wid, gates):
 
 
 def _send_back(wid, findings):
-    """The current plan round sent back on `findings`: the panel revises, the
-    conductor rules `rework` -- and where this artifact's own
-    `impasse-after` is already spent, the impasse form that mints in place
-    of a round is ruled `rework` too, so the loop keeps the same artifact.
-    That ruling is the shape the cap exists to interrupt: issue99's
-    nineteen rounds were impasse rulings sending the same plan back."""
+    """The current plan round sent back on `findings`: the panel revises (on
+    the opening cut; a later cut has no panel, so the send-back is the
+    conductor's own, `findings` riding as its `orders`), the conductor rules
+    `rework` -- and since this seam allows no free round (`impasse-after =
+    0`), the impasse form that mints in place of a round is ruled `rework`
+    too, so the loop keeps the same artifact. That ruling is the shape the
+    cap exists to interrupt: issue99's nineteen rounds were impasse rulings
+    sending the same plan back."""
     _dispatch_plan_critic(wid, verdict="revise", findings=findings)
     cur = runmod.state(wid)["current"]
     if cur["form"] == PLAN_SEG["impasse-form"]:
@@ -120,10 +124,12 @@ def _send_back(wid, findings):
 
 def _drive_plan_seam_to_its_cap(wid="issue113c1"):
     """Five rounds at the plan-to-execute seam sent back in a row with none
-    released -- one artifact, reworked past its own `impasse-after` and
-    kept alive by impasse rulings of `rework`, the way issue99's plan seam
-    ran. Read off the assembly, never pinned: the cap is `round-cap`, and
-    the rounds before it are each sent back plain. The cap round's own
+    released -- one artifact, every send-back a ruling (`impasse-after =
+    0`) kept alive by impasse rulings of `rework`, the way issue99's plan
+    seam ran; only the opening cut carries a panel, every later round the
+    conductor disposes of alone. Read off the assembly, never pinned: the
+    cap is `round-cap`, and the rounds before it are each sent back plain.
+    The cap round's own
     deciding form carries a `[[calls]]` table narrowing it to one blocking
     finding among two raised (`_dispatch_plan_critic_with_calls`) -- the
     only round here that does, so C1-findings below also proves
@@ -188,17 +194,17 @@ def test_round_cap_pauses_the_plan_seam_after_five_send_backs_with_no_release(wo
 def test_round_cap_never_fires_on_a_plan_seam_released_once_per_gate(workdir, capsys):
     """issue811's shape: six gates, each cut once and released, is six plan
     rounds landed -- past the old count's cap -- with nothing sent back.
-    The seventh gate's cut, the run's first send-back, mints a rework round
-    and no ask. The yield still reads every round (`seam_rounds`); only the
-    cap's own count is cut at the last release."""
+    The seventh gate's cut, the run's first send-back, ruled into a rework
+    round at the impasse form (`impasse-after = 0`), mints that round and no
+    ask. The yield still reads every round (`seam_rounds`); only the cap's
+    own count is cut at the last release."""
     wid = "issue811"
     _open_to_plan(wid)
     _release_gates(wid, 6)
     fresh = _fresh_plan_mint(wid)
     _dispatch_and_close_plan(wid, fresh["id"], fill_fn=lambda w: _fill_plan(
         w, purpose="gate 7 purpose", scope="gate 7 scope"))
-    _dispatch_plan_critic(wid, verdict="revise",
-                          findings="gap: r7 the run's first send-back")
+    _send_back(wid, "gap: r7 the run's first send-back")
     capsys.readouterr()
 
     st = runmod.state(wid)

@@ -23,6 +23,7 @@ from test_nesting import (
     _fill_consolidate,
     _fill_open,
     _fill_spec,
+    _rule_impasse,
     _response,
     _work_the_board,
 )
@@ -89,6 +90,7 @@ def test_a_rework_round_does_not_destroy_the_round_it_reworks(workdir, capsys):
     _fill_consolidate("issue17", "rework",
                       calls='[[calls]]\nfinding = "f"\ncall = "blocking"\n')
     cli.main(["issue17", "submit"])
+    _rule_impasse("issue17")  # the send-back is a ruling (`impasse-after = 0`)
     capsys.readouterr()
 
     second = runmod.state("issue17")["current"]["id"]

@@ -4,11 +4,12 @@ Conduct this issue end to end: you are run-an-issue's one persistent agent,
 from open to close.
 
 The run's shape stays fixed. An issue opens onto an understand board, which
-consolidates into a plan; a critic panel attacks the plan before it is cut
-into gates; each gate runs as its own child, returns to its own adjudication
-step, and the run closes once every gate has landed. Each step's own form
-carries that step's fields, checks, and notes — read only the one `status`
-hands you.
+consolidates into a plan; a critic panel attacks the run's first cut, and
+every cut after it is yours to read, with the engine's one run of its
+`proof` beside it in the room; each gate runs as its own child, returns to
+its own adjudication step, and the run closes once every gate has landed.
+Each step's own form carries that step's fields, checks, and notes — read
+only the one `status` hands you.
 
 Four things hold across the whole run, because no single form states them
 for more than its own step:
@@ -29,22 +30,24 @@ them is yours.
 
 **Calls are yours, not the panel's.** A panel returns findings;
 each finding's call is your ruling, made at a gate's adjudication
-step and, every round, at the plan and consolidate seams alike — the route
-form there is where you call each finding the panel returned, the same as
-a gate's own review holds open for its conductor rather than refilling
-behind you. A principal's ruling that a round goes unreviewed is one
-command, `spine <work-id> amend waive <step-id> --reason "..."`: the
-panelists still out are journaled as waived with the reason and the route
-form stays yours to fill, where closing the step would drop the form with
-the panel. Two rounds on one proof means the proof is the defect: replace
-it in kind rather than run it a third time. Once the reviews on one
-artifact are spent, the engine stops offering another round and asks you to
-rule instead — advance over the
-verdict, run another round, or send it up, which pauses the run rather than
-ending it: your ruling stands as an ask one tier up, and the round resumes
-with whatever it answers. A critic panel re-reads the same artifact each
-round, so never sharpen its brief between rounds — fresh context is the
-point, and a sharpened brief tells it what to find.
+step and at the plan and consolidate seams alike — the route form there is
+where you call each finding the panel returned, the same as a gate's own
+review holds open for its conductor rather than refilling behind you. A
+principal's ruling that a round goes unreviewed is one command,
+`spine <work-id> amend waive <step-id> --reason "..."`: the panelists still
+out are journaled as waived with the reason and the route form stays yours
+to fill, where closing the step would drop the form with the panel. One
+look over a spec or a cut is the default (ruling, 2026-09-11): a reader
+can only imagine results, and the gate that builds from the artifact finds
+the rest with a diff to run. So a send-back at either seam is a ruling, not
+a default — the engine offers no free round and asks you to rule at once:
+advance over the objection, run another round only where you can name what
+it changes, or send it up, which pauses the run rather than ending it: your
+ruling stands as an ask one tier up, and the round resumes with whatever it
+answers. At the plan seam a `proof` that passes on an empty diff, or that
+did not resolve when the engine ran it at the cut, is the finding that
+earns a send-back; a real check that fails before the work is the healthy
+reading.
 
 **A return is root-verified, never believed.** Before adjudicating any
 child's returns — a gate's, a spike's — open the artifact it names or re-run

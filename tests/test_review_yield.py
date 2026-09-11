@@ -14,7 +14,8 @@ from gitremote import stub_gh
 from test_nesting import (
     _dispatch_and_close_plan, _fill_close, _fill_consolidate,
     _fill_consolidate_route_with_calls, _fill_critic, _fill_open, _fill_plan_rework,
-    _fill_plan_route_with_calls, _fill_plan_to_execute, _fill_spec, _work_the_board,
+    _fill_plan_route_with_calls, _fill_plan_to_execute, _fill_spec, _rule_impasse,
+    _work_the_board,
 )
 from test_verdict_panels import (
     _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
@@ -77,17 +78,16 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
         ("gap: the loop bound is untested", "blocking"),
         ("gap: the risk section is thin", "rejected: below the bar a plan is held to"))
     cli.main([wid, "submit"])
+    _rule_impasse(wid)  # the send-back is a ruling (`impasse-after = 0`)
 
     fresh = next(s for s in runmod.state(wid)["steps"]
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
     _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
 
-    # round two: clean, so the round releases with nothing to call
-    _dispatch_plan_panel(wid, [
-        ("pass", "none: waived: clean"),
-        ("pass", "none: waived: clean"),
-        ("pass", "none: waived: clean"),
-    ])
+    # round two: no panel after the opening cut (`panel-rounds = "opening"`),
+    # so the conductor's own word is the round's record -- a pass, with
+    # nothing to call
+    assert not runmod.state(wid)["current"].get("panel")
     _fill_plan_to_execute(wid, "pass")
     cli.main([wid, "submit"])
 
@@ -209,6 +209,7 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
         ("gap: the glossary check ran on the wrong word", "blocking"),
         ("gap: the settle field is thin", "rejected: below the bar a spec is held to"))
     cli.main([wid, "submit"])
+    _rule_impasse(wid)  # the send-back is a ruling (`impasse-after = 0`)
 
     # round two: a fresh spec-writer pass, filled in place (no dispatch --
     # understand declares no `dispatches`), then a clean panel: the round
@@ -245,38 +246,44 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
     it folds as a quiet panel -- no verdict record, zero findings, nothing
     called -- and carries the count of waived voices and the reason, so
     the seam's history shows the round happened and says why rather than
-    dropping it as one nobody returned to."""
+    dropping it as one nobody returned to.
+
+    Driven at the understand seam, the one that still re-mints its panel on
+    a later round: the plan seam's panel reads the opening cut only
+    (`panel-rounds = "opening"`), so a plan-seam round two has no panel to
+    waive."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
     cli.main([wid, "submit"])
-    _work_the_board(wid)
-    _fill_consolidate(wid)
+    board = pathlib.Path(f".agent-work/{wid}/UNDERSTAND.toml")
+    board.write_text(board.read_text().replace(
+        'status = "open"', 'status = "answered"\nanswer = "no trailing newline"'))
+    _fill_spec(wid)
     cli.main([wid, "submit"])
-    _dispatch_and_close_plan(wid)
 
     _dispatch_plan_panel(wid, [
         ("revise", "gap: the loop bound is untested"),
         ("pass", "none: waived: clean"),
         ("pass", "none: waived: clean"),
     ])
-    _fill_plan_route_with_calls(wid, "rework", ("gap: the loop bound is untested", "blocking"))
+    _fill_consolidate_route_with_calls(wid, "rework", ("gap: the loop bound is untested", "blocking"))
     cli.main([wid, "submit"])
+    _rule_impasse(wid)  # the send-back is a ruling (`impasse-after = 0`)
 
-    fresh = next(s for s in runmod.state(wid)["steps"]
-                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
-    _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
     round_two = runmod.state(wid)["current"]
-    assert round_two["id"] != "plan" and round_two.get("panel")
+    assert round_two["id"] != "understand" and round_two.get("panel")
 
-    reason = "principal's ruling: hand this gate off to be built rather than review it again"
+    reason = "principal's ruling: hand this spec off to be planned rather than review it again"
     cli.main([wid, "amend", "waive", round_two["id"], "--reason", reason])
-    _fill_plan_to_execute(wid, "pass")
+    _fill_consolidate(wid, "pass")
     cli.main([wid, "submit"])
     capsys.readouterr()
 
     entries = review_yield.run_yield(wid)
-    plan = next(e for e in entries if e["label"] == "plan-to-execute")
+    plan = next(e for e in entries if e["label"] == "consolidate")
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 1, "called": True,

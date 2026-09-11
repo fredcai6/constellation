@@ -4,7 +4,10 @@ A form is a TOML file: one `imperative` string plus `[[field]]` entries (a
 `plan` field nests `[[field.item]]` blocks). The response template is the
 only way an agent answers a step -- it edits the file with ordinary tools;
 `parse` reads it back with stdlib `tomllib`. `check` fields never reach the
-template: the engine runs those commands itself at submit.
+template: the engine runs those commands itself at submit. A `proof` field
+is filled like any other and run once at submit too, as a report the
+conductor reads rather than a check the submit rides on
+(`_trial_proofs`, engine/cli.py).
 """
 
 import re

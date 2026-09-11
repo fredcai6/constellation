@@ -1,20 +1,24 @@
 # Step: impasse. Owned by run-an-issue; filled by the conductor. Minted once
 # a segment has been sent back `impasse-after` times -- `sent-back` in the
 # orders says how many, since the two segments sharing this form need not
-# allow the same number: reviews landing on the same artifact mean the
-# artifact, not the round, is what keeps failing. Shared by `understand` (the spec-writer's spec) and `plan` (the
-# planner's plan) rather than forked into two near-duplicates named after
-# each artifact -- both segments read it worded at "the artifact" instead.
-# `arrival` in the orders reads `rework-rounds` here always -- the panel's
-# verdict is `pass | revise`, so a root objection arrives as a revise finding
-# like any other, and only a repeated one reaches you here. It carries no
+# allow the same number. Both declare zero now (ruling, 2026-09-11: once a
+# spec or a cut has had its look over, the proof is in execution), so the
+# first send-back of an artifact lands here: another round is a ruling, made
+# by naming what it changes, never a default. Shared by `understand` (the
+# spec-writer's spec) and `plan` (the planner's plan) rather than forked into
+# two near-duplicates named after each artifact -- both segments read it
+# worded at "the artifact" instead. `arrival` in the orders reads
+# `rework-rounds` here always -- the panel's verdict is `pass | revise`, so a
+# root objection arrives as a revise finding like any other. It carries no
 # panel: one more fresh-context reader is the loop, not the way out.
 
 imperative = """
-This artifact has been sent back as many times as this segment allows --
-`sent-back` in your orders is how many. Rule on the loop, not on the findings:
-reviews finding the same kind of thing means the artifact is not the one under
-repair. Say which way this run goes, and why."""
+You are sending this artifact back, and this segment allows no free round --
+`sent-back` in your orders is how many times it was sent back before this.
+Rule on the artifact, not on the findings: another round is the answer only where
+you can name what it changes that a reading alone did not, and the gate
+that builds from this artifact is where the rest is found. Say which way
+this run goes, and why."""
 
 [[field]]
 id = "ruling"
