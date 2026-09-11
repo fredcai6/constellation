@@ -449,10 +449,11 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     brief -- a process already on this form, nothing left to type here.
     `"spent"` leaves that line in place (a human genuinely has to act now)
     and adds one word saying automatic filling is exhausted, distinguishing
-    it from the ordinary, untouched form room `""` renders. `"terminal"`
+    it from the ordinary, untouched form room `""` renders. `"principal"`
     likewise leaves the line in place and says why no filler was ever
-    tried: a step's own terminal form is its principal's to fill, never a
-    filler's, so `drive` never spawns one there. Never `standalone`'s own
+    tried: the step is the run's principal's to fill (`run.principal_fills`
+    -- its own terminal form, or an ask standing in its own journal), never
+    a filler's, so `drive` never spawns one there. Never `standalone`'s own
     concern -- a fresh filler's own brief always reads `""` here, since no
     record of it exists yet at the moment it is built.
 
@@ -570,7 +571,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     else:
         if filler_status == "spent":
             out.append("  form filler:        spent -- automatic filling exhausted")
-        elif filler_status == "terminal":
+        elif filler_status == "principal":
             out.append("  form filler:        none -- this form is the run's principal's to fill")
         out.append(f"  your response form: {response_path}")
         out.append(located(f"  fill it, then:     spine {wid} submit"))

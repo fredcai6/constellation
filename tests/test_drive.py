@@ -522,6 +522,75 @@ def test_a_run_a_gates_terminal_form_stops_drive_without_a_filler(
     assert "principal" in out
 
 
+# -- an ask: the principal's at the issue tier, a filler's at the gate tier --
+
+
+ASK_FORM = "skills/gate-conductor/forms/ASK.toml"
+
+
+def test_an_issue_tier_ask_stops_drive_without_a_filler(bare_workdir, capsys):
+    """An ask `_pause_gate` mints into a root run's own journal -- no parent
+    run to carry it to, the shape the round-cap takes at the issue tier --
+    is the principal's to fill: `drive` renders it and stops, spawning
+    nothing. issue811's first run (2026-09-06) spawned the run's own
+    conductor into exactly this ask, and it ruled CONTINUE on itself twice
+    before the human saw the question."""
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    journal.append("i1", "run", title="t", assembly="run-an-issue")
+    plan = next(s for s in runmod.load_assembly("run-an-issue")["segment"] if s["id"] == "plan")
+    cli._pause_gate("i1", plan, "plan-to-execute has sent back 5 rounds in a row",
+                    {"why": "gap: the same defect, five times"})
+    ask = runmod.state("i1")["current"]
+    assert ask["form"] == ASK_FORM
+    assert ask["filler"] == runmod.PRINCIPAL
+
+    began = time.monotonic()
+    code = cli.main(["i1", "drive"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert elapsed < 1
+    assert not marker.exists()
+    assert _form_filler_entries("i1") == []
+    assert "principal" in out
+
+
+def test_a_gate_tier_ask_is_still_driven_by_the_parents_filler(
+        bare_workdir, capsys, monkeypatch):
+    """The same ask minted where a parent run holds the dispatch step lands
+    in the parent's journal under the `conductor` filler -- the parent's
+    conductor is a different party from the gate that paused -- and `drive`
+    on the parent spawns a filler for it as for any other childless form
+    step."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
+    journal.append("i1", "run", title="t", assembly="run-an-issue")
+    journal.append("i1", "step", id="g1", segment="execute", dispatches="run-a-gate",
+                   prefill={"purpose": "fix the parser", "scope": "src/ only", "proof": "true"},
+                   child="i1.g1", anchor=False, terminal=False, source="mint")
+    journal.append("i1", "step", id="g1-adjudicate", segment="execute",
+                   form="forms/GATE_TRANSITION.toml", filler="conductor", child="i1.g1",
+                   anchor=False, terminal=False, validates="", source="mint")
+    journal.append("i1.g1", "run", title="g", assembly="run-a-gate",
+                   parent="i1", parent_step="g1")
+    work = next(s for s in runmod.load_assembly("run-a-gate")["segment"] if s["id"] == "work")
+    cli._pause_gate("i1.g1", work, "the spec asks for what no proof can check",
+                    {"why": "no proof can check it"})
+    ask = runmod.state("i1")["current"]
+    assert ask["form"] == ASK_FORM
+    assert ask["filler"] == "conductor"
+
+    code = cli.main(["i1", "drive", "--for", "1"])
+    capsys.readouterr()
+
+    assert code == 0
+    assert _await(marker, 1)
+    assert any(e["step"] == ask["id"] for e in _form_filler_entries("i1"))
+
+
 # -- drive's own bound --------------------------------------------------------
 
 

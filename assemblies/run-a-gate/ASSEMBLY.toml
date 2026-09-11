@@ -75,12 +75,14 @@ route-form = "forms/ROUTE.toml"
 # declares none at all (see below). A minted review step therefore resolves
 # against the segment -- exactly the way `work`'s impasse ruling above
 # already does.
-# A run-level ceiling on this seam's own rounds, counted within this gate's
-# own run (issue113) -- distinct from `work`'s own `impasse-after`, which
-# this is beside in kind, not in file position: `review` declares no
-# `step-form`/`rework-form` of its own, so `impasse-after` could never sit
-# here. Outranks that per-artifact outlet where both would fire on the same
-# send-back.
+# A ceiling on the rounds this seam sends back in a row within this gate's
+# own run (issue113): counted as the rounds landed since `review` last
+# released one -- a `pass` or `close` here -- so the count is the loop
+# itself, never the gate's whole history. Distinct from `work`'s own
+# `impasse-after`, which this is beside in kind, not in file position:
+# `review` declares no `step-form`/`rework-form` of its own, so
+# `impasse-after` could never sit here. Outranks that per-artifact outlet
+# where both would fire on the same send-back.
 round-cap = 5
 decides = "resolution"     # both voices answer it: the panel's merged verdict, then the form's own
 

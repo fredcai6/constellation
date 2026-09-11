@@ -68,6 +68,29 @@ def resolve_skill(role):
     return path if path.is_file() else None
 
 
+# [principal-fills]
+# Rationale: two step shapes are the run's principal's to fill from outside
+#   the engine -- its own terminal close form, and an ask `_pause_gate`
+#   (cli.py) minted into this run's own journal because no parent run could
+#   be reached -- and the two readers that act on that (`cmd_drive`, which
+#   must start nothing there, and the room, which says whose form it is)
+#   need one answer. `principal` is a filler value, not a role: no
+#   `skills/principal/` exists, `_role_tier` never sees it because `drive`
+#   stops first, and `role_of` returns it unwrapped so the room prints no
+#   posture line for a reader who has no skill file.
+# Rejected: a `principal` entry in `[roles]`. A tier is what a role resolves
+#   to so the engine can spawn it, and the principal is exactly who the
+#   engine does not spawn.
+PRINCIPAL = "principal"
+
+
+def principal_fills(step):
+    """True where `step` is the run's principal's to fill, outside the
+    engine: its own terminal form, or a step minted with the `principal`
+    filler (an ask standing in this run's own journal)."""
+    return bool(step.get("terminal")) or step.get("filler") == PRINCIPAL
+
+
 # [role-of]
 # Rationale: `filler = "conductor"` means whoever conducts this assembly, and
 #   the two places that announce a role both have to unwrap it the same way.

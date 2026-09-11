@@ -49,11 +49,15 @@ worker = "spec-writer"
 # conductor's route form, left open on purpose when the plan seam got it.
 impasse-after = 1
 impasse-form = "forms/IMPASSE.toml"
-# A run-level ceiling on this seam's own rounds (`consolidate`, below) --
-# distinct from `impasse-after`'s per-artifact one, and counted the way
-# `engine/review_yield.py` already counts a seam's rounds: since this run
-# opened, never reset by a fresh artifact. The cap outranks the impasse
-# outlet where both would fire on the same send-back (issue113).
+# A ceiling on the rounds this seam (`consolidate`, below) sends back in a
+# row: the rounds landed since the seam last released one
+# (`engine/review_yield.py`'s `seam_round_steps_since_release`). A release
+# starts the count over; a fresh artifact or an impasse ruling does not,
+# which is what sets it apart from `impasse-after`'s per-artifact count.
+# The cap outranks the impasse outlet where both would fire on the same
+# send-back (issue113). It once counted every round since the run opened;
+# a rolling-horizon run re-enters `plan` once per gate by design, and that
+# count fired at gate six with nothing sent back (issue811's first run).
 round-cap = 5
 decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no such field
 
@@ -164,7 +168,10 @@ rework-form = "skills/planner/forms/REWORK.toml"
 # mint came from.
 impasse-after = 1
 impasse-form = "forms/IMPASSE.toml"
-# See the same field on `understand` above: this seam is `plan-to-execute`.
+# See the same field on `understand` above: this seam is `plan-to-execute`,
+# and the release that starts its count over is the `pass` that projects a
+# gate -- one cut per gate, each released, never reaches the cap however
+# many gates the issue carries.
 round-cap = 5
 worker = "planner"
 model = "standard"

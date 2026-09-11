@@ -1,8 +1,11 @@
-# Step: ask. Owned by the gate-conductor skill, filled by whoever conducts
-# whatever paused -- an issue-conductor reading a gate's own ask today, any
-# future host tomorrow, since a skill-owned ref resolves the same from any
-# parent -- or, where nothing paused reaches, the same conductor answering
-# itself. Minted where `up` was ruled: the orders driving the paused unit,
+# Step: ask. Owned by the gate-conductor skill, filled by whoever stands
+# above whatever paused -- an issue-conductor reading a gate's own ask
+# today, any future host tomorrow, since a skill-owned ref resolves the same
+# from any parent -- or, where no parent run reaches, the run's own
+# principal: the ask then stands in the run's own journal under the
+# `principal` filler, and `drive` starts nothing there, so the party the cap
+# stopped never answers its own question. Minted where `up` was ruled: the
+# orders driving the paused unit,
 # not its diff or its round, are what could not be answered from where it
 # stands, and this step is that question standing where whoever holds it
 # already looks -- ahead of its still-live dispatch and adjudication where

@@ -1406,8 +1406,8 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     `root` instead of whatever cwd minted it."""
     filler_record = _form_filler_records(wid).get(step["id"])
     filler_count = _form_filler_start_counts(wid).get(step["id"], 0)
-    if step.get("terminal"):
-        filler_status = "terminal"
+    if runmod.principal_fills(step):
+        filler_status = "principal"
     elif filler_record is not None and checkrun.alive(filler_record.get("pid")):
         filler_status = "working"
     elif filler_record is not None and filler_count >= checkrun.FORM_FILLER_MAX_STARTS:
@@ -1730,10 +1730,12 @@ def cmd_drive(argv):
     `cmd_status`/`cmd_wait` already do -- never a cached shape -- until one
     of commitment 9's stop conditions is reached or `bound` runs out: an ask
     carried up (`paused`), the run standing on its own close form
-    (`awaiting_close`), a gate or panelist spent past `checkrun.MAX_STARTS`
-    with nothing else outstanding for that step, or a childless form step's
-    own filler spent past `checkrun.FORM_FILLER_MAX_STARTS` -- each stops and
-    renders rather than crash or spin."""
+    (`awaiting_close`), a form its principal fills (`runmod.principal_fills`:
+    the close form itself, or an ask standing in this run's own journal), a
+    gate or panelist spent past `checkrun.MAX_STARTS` with nothing else
+    outstanding for that step, or a childless form step's own filler spent
+    past `checkrun.FORM_FILLER_MAX_STARTS` -- each stops and renders rather
+    than crash or spin."""
     wid = argv[0]
     bound = _drive_bound(argv[1:])
     st = runmod.state(wid)
@@ -1769,8 +1771,8 @@ def cmd_drive(argv):
         elif step.get("dispatches"):
             child_ids = [step.get("child") or f"{wid}.{step['id']}"]
         else:
-            if step.get("terminal"):
-                return cmd_status([wid])  # its own terminal form -- the principal's, not driven
+            if runmod.principal_fills(step):
+                return cmd_status([wid])  # the principal's own form -- rendered, never driven
             if runmod.in_flight(st, step):
                 time.sleep(checkrun.WAIT_POLL)
                 continue
@@ -2314,24 +2316,24 @@ def _beyond_calls(fields):
 
 
 # [seam-findings-history]
-# Rationale: issue113's run-level round-cap owes its ask every landed
-#   round's own findings, not only the round that tripped it (C1-findings)
+# Rationale: issue113's run-level round-cap owes its ask the findings of
+#   every round it counted, not only the round that tripped it (C1-findings)
 #   -- the same "blocking calls narrowed where the round's own done-entry
 #   carried a `calls` table, else every panelist's own non-empty `findings`
 #   joined and attributed" rule `_panel_judged_rework` already applies to
-#   the live round, walked here over every step `review_yield.seam_round_steps`
-#   names instead of the one step `_perform` is deciding. Living beside
-#   `_blocking_calls` rather than in `review_yield.py` reuses that reader
-#   directly rather than a second copy of its own narrowing rule.
-def _seam_findings_history(wid, seg):
-    """Every round landed at `seg`'s own seam, oldest first, each block
+#   the live round, walked here over the steps the cap's own count
+#   (`review_yield.seam_round_steps_since_release`) handed it instead of
+#   the one step `_perform` is deciding. Living beside `_blocking_calls`
+#   rather than in `review_yield.py` reuses that reader directly rather
+#   than a second copy of its own narrowing rule.
+def _seam_findings_history(st, round_steps):
+    """The findings of each round in `round_steps`, oldest first, each block
     formatted exactly as `_panel_judged_rework` formats the current round's
     own findings prefill -- blocking calls narrowed where that round's own
     done-entry carried a `calls` table, else every panelist's own
     non-empty `findings` joined and attributed."""
-    st = runmod.state(wid)
     blocks = []
-    for rstep in review_yield.seam_round_steps(st, seg):
+    for rstep in round_steps:
         called = _blocking_calls(st["done"].get(rstep["id"], {}).get("fields"))
         if called is not None:
             blocks.append(called)
@@ -2525,12 +2527,12 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "rework":
             cap = seg.get("round-cap")
             if cap:
-                landed = len(review_yield.seam_rounds(runmod.state(wid), seg, asm))
-                if landed >= cap:
-                    why = (f"{review_yield.seam_label(seg)} has landed {landed} rounds "
-                           f"in this run, at its round-cap of {cap}")
-                    _pause_gate(wid, tseg, why,
-                                {"why": _seam_findings_history(wid, seg)})
+                st = runmod.state(wid)
+                since = review_yield.seam_round_steps_since_release(st, seg, asm)
+                if len(since) >= cap:
+                    why = (f"{review_yield.seam_label(seg)} has sent back {len(since)} "
+                           f"rounds in a row with none released, at its round-cap of {cap}")
+                    _pause_gate(wid, tseg, why, {"why": _seam_findings_history(st, since)})
                     continue
             judged, outlet = _panel_judged_rework(wid, asm, tseg, step, fields)
             if outlet:
@@ -2646,11 +2648,13 @@ def _perform(wid, asm, seg, does, fields, step):
 #   closing it would strand the ordinary round `select` exists to receive
 #   once the paused segment resumes and completes.
 def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
-    """`up`'s own verb: an ask minted where a conductor can see it -- the
-    parent standing on the step that dispatched this run, reordered before
-    the still-live pair so it is what the parent's own `state()` stands on
-    next, or -- nothing reachable there -- this run's own journal, reordered
-    ahead of any untouched sibling transition instead (see `[pause-gate]`).
+    """`up`'s own verb: an ask minted where whoever answers it can see it --
+    the parent standing on the step that dispatched this run, reordered
+    before the still-live pair so it is what the parent's own `state()`
+    stands on next, filled by the parent's conductor; or -- nothing
+    reachable there -- this run's own journal, reordered ahead of any
+    untouched sibling transition instead (see `[pause-gate]`), filled by
+    the run's principal and never by a process `drive` starts.
     A marker minted here either way, in the segment the answer resumes,
     reordered ahead of the same sibling regardless of which path the ask
     took -- the marker is what every path's own `state()` must find."""
@@ -2674,8 +2678,21 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     elif fields.get("why"):
         ask["findings"] = fields["why"]
     ask_id = f"{ask_seg}-a{secrets.token_hex(2)}"
+    # [ask-filler-is-who-it-stands-before]
+    # Rationale: an ask landing in the parent's journal is the parent's
+    #   conductor's to answer; one landing in this run's own journal -- the
+    #   issue tier, or a parent nothing here can reach -- is its principal's,
+    #   outside the engine. It read `conductor` either way, and `drive` took
+    #   that literally: issue811's first run (2026-09-06) spawned the run's
+    #   own conductor into the round-cap's ask and it ruled CONTINUE on
+    #   itself twice before the human saw the question. Who holds the pen is
+    #   the whole fix; nothing reads the answer.
+    # Rejected: checking the answer's content. Structure that audits an
+    #   agent's behaviour goes (docs/AGENT_GUIDE.md); the filler is structure
+    #   that decides who answers.
     journal.append(ask_wid, "step", id=ask_id, segment=ask_seg,
-                   form="skills/gate-conductor/forms/ASK.toml", filler="conductor",
+                   form="skills/gate-conductor/forms/ASK.toml",
+                   filler="conductor" if pstep else runmod.PRINCIPAL,
                    prefill=ask, resumes=wid, anchor=False, terminal=False,
                    validates="", source="mint")
     if pstep:

@@ -116,11 +116,19 @@ def _round(returns, done_entry, panel_forms, table):
 
 
 # [seam-round-steps]
-# Rationale: `seam_rounds` and issue113's run-level round-cap both need the
-#   landed rounds at a seam -- one to tally verdicts, the other to walk each
-#   round's own step for its findings text (`cli.py`'s cap-check branch).
-#   Splitting the predicate out is what lets both read one definition of
-#   "a landed round" rather than two copies drifting apart.
+# Rationale: `seam_rounds` and `seam_round_steps_since_release` both need
+#   the landed rounds at a seam -- one to tally every verdict for the yield,
+#   the other to cut that list at the seam's last release for issue113's
+#   run-level round-cap. Splitting the predicate out is what lets both read
+#   one definition of "a landed round" rather than two copies drifting
+#   apart.
+def _landed_round(st, seg, step):
+    """Whether `step` is a landed round at this seam: in the seam's own
+    segment, on its disposing form, carrying a panel that has returned."""
+    return (step.get("segment") == seg["id"] and step.get("form") == _seam_form(seg)
+            and bool(step.get("panel")) and bool(st["returns"].get(step["id"])))
+
+
 def seam_round_steps(st, seg):
     """The steps behind a landed round at this seam, in journal order: round
     one from `skeleton()`'s own mint or `select`'s first panel mint, every
@@ -129,10 +137,55 @@ def seam_round_steps(st, seg):
     never by a hardcoded id. A round with no returns yet (an outstanding one,
     on a live run `trace --yield` can reach) is left out -- nothing to
     report, and nothing yet decided for a cap to count."""
-    form = _seam_form(seg)
-    return [step for step in st["steps"]
-            if step.get("segment") == seg["id"] and step.get("form") == form
-            and step.get("panel") and st["returns"].get(step["id"])]
+    return [step for step in st["steps"] if _landed_round(st, seg, step)]
+
+
+def _released(assembly, step, done):
+    """Whether the word `done` decided on `step` is one the table governing
+    that step resolves to the inert `release` -- the seam routing its round
+    onward rather than back, up, or nowhere yet."""
+    _, spec = runmod.deciding_spec(assembly, step)
+    word = forms.leading_word(str((done.get("fields") or {}).get(spec.get("decides", ""), "") or ""))
+    return runmod.declared_does(spec, word) == "release"
+
+
+# [rounds-since-release]
+# Rationale: issue113's cap exists to catch a seam sending the same plan back
+#   round after round with nothing released -- issue99's nineteen rounds at
+#   plan-to-execute -- and the count it first read was `seam_rounds`, every
+#   round since the run opened. A rolling-horizon run re-enters the plan seam
+#   once per gate by design, so an eight-gate run landed its sixth plan round
+#   with no send-back at all and the cap fired on structure, not churn
+#   (issue811's first run, 2026-09-06, in the conductor's own words). A
+#   release is the seam doing its job; the rounds it has sent back since it
+#   last did are the churn a human wants to hear about. The yield still
+#   reads `seam_rounds`: a reader tallying verdicts wants the whole history,
+#   the cap wants the run of send-backs, and those are two functions rather
+#   than one with a flag.
+# Rejected: counting per artifact (`run.rework_rounds`). That is
+#   `impasse-after`'s count, and an impasse ruling `rework` keeps the same
+#   artifact -- the cap has to reach past that outlet to the loop of impasse
+#   rulings that is issue99's shape, which only a release ends.
+def seam_round_steps_since_release(st, seg, assembly):
+    """The landed rounds at this seam since it last released, in journal
+    order -- `seam_round_steps`'s own list, started over at the most recent
+    step in this segment standing on the seam's form whose decided word its
+    table resolves to `release`: plan-to-execute's `pass` projecting a gate,
+    review's `pass` or `close` walking on to GATE_CLOSE. Read with or
+    without a panel on the releasing step, since an impasse `advance` mints
+    the form alone and the release lands there. Every round left in the
+    list was sent back, paused, or is still being decided; a seam that has
+    never released carries its whole history here."""
+    since = []
+    for step in st["steps"]:
+        if step.get("segment") != seg["id"] or step.get("form") != _seam_form(seg):
+            continue
+        if _landed_round(st, seg, step):
+            since.append(step)
+        done = st["done"].get(step["id"])
+        if done and _released(assembly, step, done):
+            since = []
+    return since
 
 
 def seam_rounds(st, seg, assembly):

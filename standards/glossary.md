@@ -125,14 +125,17 @@ has used one back. Coining a synonym for a term below is a defect.
   the segment on the diff as it stands, over a live revise; `rework` is the answer only when it
   names what changes that the counted rounds did not; `up` pauses the segment as an ask at the
   run that dispatched it, the same as any other pause.
-- **round-cap** — a segment property beside `impasse-after`, in a different kind: a run-level
-  ceiling on a **seam**'s own **round**s, counted since the run opened and never reset by a
-  fresh artifact — where `impasse-after` counts one artifact's own rework rounds and resets on
-  a new one. Declared on `run-an-issue`'s `understand` and `plan`, and on `run-a-gate`'s
-  `review`. Where a send-back would land the seam's round past the cap, it mints an ask to the
-  run's principal instead — naming the seam, the landed count, and every landed round's own
-  findings — and `impasse-after`'s own outlet is not consulted on that send-back, having nothing
-  left to fire on: the cap outranks it where both would otherwise fire on the same round.
+- **round-cap** — a segment property beside `impasse-after`, in a different kind: a ceiling on
+  the **round**s a **seam** sends back in a row, counted since the seam last released one
+  (`engine/review_yield.py`'s `seam_round_steps_since_release`) — a release starts the count
+  over, a fresh artifact or an impasse ruling does not — where `impasse-after` counts one
+  artifact's own rework rounds and resets on a new one. Declared on `run-an-issue`'s
+  `understand` and `plan`, and on `run-a-gate`'s `review`. Where a send-back would land the
+  count at the cap, it mints an ask to the run's principal instead — naming the seam, the
+  count, and the findings of every round counted — and `impasse-after`'s own outlet is not
+  consulted on that send-back, having nothing left to fire on: the cap outranks it where both
+  would otherwise fire on the same round. At the issue tier the ask is the principal's to
+  fill, never a form filler's.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
   interior, a gate's spec.
 - **work id** — a run's address: the tracker issue's number when one exists (`issue17`),
@@ -168,7 +171,9 @@ has used one back. Coining a synonym for a term below is a defect.
 - **role** — who fills a step: a step's own `filler` field, the bare `conductor` unwrapped to
   the assembly's own conductor; a board segment's `board-worker` (or its `-delegated` variant,
   once the run has a parent); or a panel entry's `worker`. One name for whichever of the three
-  set it — never a fourth word beside them.
+  set it — never a fourth word beside them. `principal` is the one `filler` value that is not
+  a role: the run's principal, outside the engine, holding the pen on the run's own close form
+  and on an ask standing in the run's own journal — `drive` starts nothing there.
 - **posture** — who an agent is at a step and how it carries it: a skill's stance, written at
   `skills/<role>/SKILL.md`. A brief names it as a path with the instruction to read it before
   starting; a role with no SKILL.md gets no posture line at all.
@@ -213,7 +218,8 @@ has used one back. Coining a synonym for a term below is a defect.
 - **round** — one panel dispatch on one artifact at a seam, the count `run.rework_rounds` uses
   plus the first — `engine/review_yield.py`'s `seam_round_steps`, blind to which mint produced
   the step (`skeleton()`'s own, a later `rework`, `select`'s own panel mint), so it counts a
-  seam's rounds since the run opened rather than per artifact. See **round-cap**.
+  seam's rounds since the run opened rather than per artifact; the **round-cap** reads the same
+  list cut at the seam's last release.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **dispatch** — a step (a gate dispatch, or one panel entry) naming a child run for the engine
