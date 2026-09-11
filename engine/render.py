@@ -433,7 +433,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, answered=(), onward_to=None,
            returns_from="", triage_notes=(), role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
-           filler_status=""):
+           filler_status="", waived=None):
     """The room description.
 
     Order is deliberate: a block first, because an open block outranks
@@ -456,6 +456,11 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     a filler's, so `drive` never spawns one there. Never `standalone`'s own
     concern -- a fresh filler's own brief always reads `""` here, since no
     record of it exists yet at the moment it is built.
+
+    `waived` is `(waived, named, reason)` for a step whose panel a `waive`
+    amend covers in part or in full (`run.waived_panel`), said as a
+    sentence beside the verdict's own, so a reader sees why this form is
+    in front of it with fewer verdicts than the panel names.
 
     `tier`/`runner`/`worktree`/`branch` turn this same room into a
     standalone brief for a form-step filler who is not this run's own
@@ -513,6 +518,15 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         # room is the room, and a reader who only sees the findings has to
         # guess whether they are a round's notes or a panel's objection.
         out.append(_para(f"The panel that last ruled here returned {verdict}."))
+        out.append("")
+
+    if waived:
+        n, named, reason = waived
+        back = named - n
+        who = ("The panel here was waived" if n >= named
+               else f"{n} of the {named} panelists here were waived -- the {back} that "
+                    f"returned still count{'s' if back == 1 else ''}")
+        out.append(_para(f"{who}. Reason: {reason}"))
         out.append("")
 
     if board:
@@ -745,15 +759,21 @@ def _yield_round(rnd):
     ruled on them -- a tally of each call. `uncalled` is a real answer, not a
     gap: it is what a round at a seam with no route form (explore-an-idea's
     spec, the one left) always says, rather than a guessed-at count of
-    blocking findings."""
+    blocking findings. A round with waived voices says how many and why,
+    the reason inline the way `_event` prints an amend's; one waived whole
+    has the quiet panel's empty verdict record, so that count and reason
+    are its whole line."""
     head = f"{rnd['revising']} {rnd['verdict']}" if rnd["revising"] else rnd["verdict"]
     n = rnd["findings"]
-    if not n:
-        return head
-    tail = f"{n} finding" if n == 1 else f"{n} findings"
-    calls = (" ".join(f"{c} {w}" for w, c in rnd["calls"].items())
-            if rnd["called"] else "uncalled")
-    return f"{head}   {tail}   {calls}"
+    if n:
+        tail = f"{n} finding" if n == 1 else f"{n} findings"
+        calls = (" ".join(f"{c} {w}" for w, c in rnd["calls"].items())
+                if rnd["called"] else "uncalled")
+        head = f"{head}   {tail}   {calls}"
+    if rnd.get("waived"):
+        note = f"{rnd['waived']} waived -- {rnd['reason']}"
+        head = f"{head}   {note}" if head else note
+    return head
 
 
 def review_yield(entries):

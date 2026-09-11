@@ -16,6 +16,11 @@ from a route form's `calls` table where the deciding submit carried one --
 run-a-gate's `ROUTE.toml`, run-an-issue's `PLAN_TO_EXECUTE.toml` and
 `CONSOLIDATE.toml`. A seam with no route form of its own (explore-an-idea's
 spec, the one left) renders its findings uncalled rather than guessed at.
+A round whose panel a conductor waived (`amend waive`) is still a round:
+it counts the voices that did return, reports the rest as waived with the
+reason, and waived whole folds as a quiet panel with the count and reason
+as its whole line -- so the seam's history shows the round happened and
+says why.
 """
 
 import os
@@ -97,11 +102,16 @@ def _calls(fields):
 #   value in a seam's table and its form's note together -- the rename this
 #   whole issue exists to make free -- and the tally silently reads zero on
 #   every round that in fact sent the artifact back.
-def _round(returns, done_entry, panel_forms, table):
+def _round(returns, done_entry, panel_forms, table, waived=None):
     """One panel dispatch on one artifact: the round's own verdict record,
     how many of the panel sent it back, how many findings, and -- where the
     deciding submit carried a `calls` table -- a tally of how each was
-    called, in the order the conductor ruled them."""
+    called, in the order the conductor ruled them. `waived` is
+    `run.waived_panel`'s own triple for a round a conductor waived in part
+    or in full: the count and reason ride the record. A round waived whole
+    has no voice to fold, so its verdict record is the quiet panel's own
+    `""` -- the count and reason are what the line then says."""
+    n_waived, reason = (waived[0], waived[2]) if waived else (0, "")
     verdict = runmod.verdict_record(runmod.verdict_fold(returns, panel_forms, table))
     revising = sum(1 for kind, word in runmod.voice_outcomes(returns, panel_forms)
                    if kind == "clean" and runmod.declared_does(table, word)
@@ -112,7 +122,8 @@ def _round(returns, done_entry, panel_forms, table):
     for word in calls or []:
         tally[word] = tally.get(word, 0) + 1
     return {"verdict": verdict, "revising": revising, "findings": findings,
-            "called": calls is not None, "calls": tally}
+            "called": calls is not None, "calls": tally,
+            "waived": n_waived, "reason": reason}
 
 
 # [seam-round-steps]
@@ -124,9 +135,11 @@ def _round(returns, done_entry, panel_forms, table):
 #   apart.
 def _landed_round(st, seg, step):
     """Whether `step` is a landed round at this seam: in the seam's own
-    segment, on its disposing form, carrying a panel that has returned."""
+    segment, on its disposing form, carrying a panel that has returned --
+    or was waived, which lands the round by the conductor's ruling."""
     return (step.get("segment") == seg["id"] and step.get("form") == _seam_form(seg)
-            and bool(step.get("panel")) and bool(st["returns"].get(step["id"])))
+            and bool(step.get("panel"))
+            and bool(st["returns"].get(step["id"]) or step.get("waived")))
 
 
 def seam_round_steps(st, seg):
@@ -136,7 +149,9 @@ def seam_round_steps(st, seg):
     own random tag -- found by segment and the seam's own disposing form,
     never by a hardcoded id. A round with no returns yet (an outstanding one,
     on a live run `trace --yield` can reach) is left out -- nothing to
-    report, and nothing yet decided for a cap to count."""
+    report, and nothing yet decided for a cap to count -- unless its panel
+    was waived: that round landed by the conductor's own ruling, and the
+    yield owes the seam's history the fact and the reason."""
     return [step for step in st["steps"] if _landed_round(st, seg, step)]
 
 
@@ -199,8 +214,10 @@ def seam_rounds(st, seg, assembly):
         # runtime, and a round's own step is what says which of the segment's
         # two tables governs it.
         _, table = runmod.deciding_spec(assembly, step)
-        rounds.append(_round(st["returns"][step["id"]], st["done"].get(step["id"]),
-                             runmod.panel_forms(assembly, step), table))
+        rounds.append(_round(st["returns"].get(step["id"]) or [],
+                             st["done"].get(step["id"]),
+                             runmod.panel_forms(assembly, step), table,
+                             runmod.waived_panel(step)))
     return rounds
 
 

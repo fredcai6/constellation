@@ -7,11 +7,13 @@ parent's dispatch step; `close` and `amend` round out the verbs `main()`
 dispatches.
 """
 
+import json
 import pathlib
+import sys
 
 import pytest
 
-from engine import cli, journal, run as runmod
+from engine import cli, journal, render, review_yield, run as runmod
 from gitremote import read_archived, stub_gh
 
 
@@ -680,6 +682,170 @@ def test_amend_on_anchor_is_allowed_and_flagged(workdir, capsys):
     st = runmod.state("issue21")
     assert "open" not in [s["id"] for s in st["steps"]]
     assert st["current"]["id"] == "understand-1"  # the anchor is really gone
+
+
+# -- amend waive: the panel waived, the step standing for its own form -------
+#
+# issue811 on f1Brainz (2026-09-07): a principal ruled "hand this gate off to
+# be built rather than review it again", and the only verb was `amend close`
+# on the two-voices step -- which took the route form with the panel, walked
+# the run to its close form with the gate never projected, and cost three
+# hand re-adds of PLAN_TO_EXECUTE.toml. `amend waive` is that ruling as one
+# journaled amend: the panelists still out are waived with the reason, the
+# step stops waiting for them, and its form stays the conductor's to fill.
+
+
+def _reach_plan_panel(wid, issue):
+    """Open a run-an-issue and drive it to the plan seam's own two-voices
+    step: panel declared, no panelist dispatched yet, the route form behind
+    them still the conductor's to fill."""
+    cli.main(["open", "run-an-issue", "--issue", issue, "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
+    st = runmod.state(wid)
+    assert st["current"]["id"] == "plan" and st["current"].get("panel")
+
+
+def _configure_throwaway_dispatch(wid, marker_dir):
+    """A real `dispatch` entry in the run's own palette -- the tree
+    `_tree_info` reads it from -- the same python-only shape
+    `test_wait._throwaway_dispatch` writes, added to the palette `workdir`
+    seeded rather than replacing it, so `[models]` stays. One marker file
+    per spawn makes an actual start observable rather than inferred."""
+    script = ("import pathlib, sys, time\n"
+              f"d = pathlib.Path({str(marker_dir)!r})\n"
+              "d.mkdir(parents=True, exist_ok=True)\n"
+              "(d / f'{time.time_ns()}.brief').write_text(sys.argv[1])\n")
+    entry = [sys.executable, "-c", script, "{brief}"]
+    palette = journal.root_for(wid) / "constellation.toml"
+    palette.write_text(palette.read_text().replace(
+        "[commands]\n", "[commands]\ndispatch = " + json.dumps(entry) + "\n", 1))
+
+
+def test_amend_waive_before_dispatch_starts_nothing_and_the_form_submits(workdir, capsys):
+    """Waived before any panelist was started: a later `wait` spawns none
+    of them (no `dispatch-started` record, no marker file), renders the
+    route form's own room with the waiver and its reason on it, and the
+    conductor's submit is accepted -- the step completes and the gate it
+    names is projected, which is exactly what `amend close` lost."""
+    wid = "issue23"
+    _reach_plan_panel(wid, "23")
+    marker = workdir / "spawned"
+    _configure_throwaway_dispatch(wid, marker)
+    reason = "principal's ruling: hand this gate off to be built rather than review it again"
+    cli.main([wid, "amend", "waive", "plan", "--reason", reason])
+    waive = [e for e in journal.read(wid) if e["kind"] == "amend" and e["action"] == "waive"]
+    assert len(waive) == 1
+    assert waive[0]["waived"] == [f"{wid}.plan.p{n}" for n in (1, 2, 3)]
+    assert waive[0]["reason"] == reason
+    capsys.readouterr()
+
+    code = cli.main([wid, "wait", "--for", "1"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert not [e for e in journal.read(wid) if e["kind"] == "dispatch-started"]
+    assert not marker.exists()
+    flat = " ".join(out.split())  # the sentence wraps; read it as one line
+    assert f"The panel here was waived. Reason: {reason}" in flat
+    assert "your response form" in out
+    assert "panelist p1" not in out
+
+    _fill_plan_to_execute(wid, "pass")
+    cli.main([wid, "submit"])
+    st = runmod.state(wid)
+    assert "plan" in st["done"]
+    assert st["current"]["segment"] == "execute"
+    assert st["current"].get("dispatches") == "run-a-gate"
+
+
+def test_amend_waive_after_a_return_keeps_it_and_waives_only_the_rest(workdir, capsys):
+    """One critic already returned with a finding when the waiver lands:
+    that return stays folded, only the two still out are waived, a waived
+    panelist that closes later lands nothing on the step, and the yield
+    reports the round with its one finding, its call, and the two waived
+    voices with the reason."""
+    wid = "issue24"
+    _reach_plan_panel(wid, "24")
+    p1 = f"{wid}.plan.p1"
+    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])
+    _fill_critic(p1, "revise", "gap: the loop bound is untested")
+    cli.main([p1, "submit"])
+    cli.main([p1, "close"])
+
+    with pytest.raises(SystemExit) as e:  # still two out: refused, and told the way out
+        cli.main([wid, "submit"])
+    assert "amend waive plan --reason" in str(e.value)
+
+    reason = "principal's ruling: no further critic round on this cut"
+    cli.main([wid, "amend", "waive", "plan", "--reason", reason])
+    waive = next(e for e in journal.read(wid) if e["kind"] == "amend" and e["action"] == "waive")
+    assert waive["waived"] == [f"{wid}.plan.p2", f"{wid}.plan.p3"]
+    st = runmod.state(wid)
+    assert [r["child"] for r in st["returns"]["plan"]] == [p1]
+    assert st["current"]["id"] == "plan"
+    assert not runmod.panel_outstanding(st, st["current"])
+
+    # p2 was live when the waiver landed and closes later: its return is in
+    # the journal and folds nowhere -- not a return, not a voice, not done
+    p2 = f"{wid}.plan.p2"
+    cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p2"])
+    _fill_critic(p2, "pass")
+    cli.main([p2, "submit"])
+    cli.main([p2, "close"])
+    st = runmod.state(wid)
+    assert any(e["kind"] == "return" and e["child"] == p2 for e in journal.read(wid))
+    assert [r["child"] for r in st["returns"]["plan"]] == [p1]
+    assert p2 not in st["returns_by_child"]
+    assert st["current"]["id"] == "plan"
+
+    with pytest.raises(SystemExit) as e:  # nothing left to waive
+        cli.main([wid, "amend", "waive", "plan", "--reason", "again"])
+    assert "nothing outstanding to waive" in str(e.value)
+    capsys.readouterr()
+
+    cli.main([wid])
+    flat = " ".join(capsys.readouterr().out.split())
+    assert ("2 of the 3 panelists here were waived -- the 1 that returned still "
+            f"counts. Reason: {reason}") in flat
+
+    _fill_plan_route_with_calls(
+        wid, "pass", ("gap: the loop bound is untested", "rejected: below the bar"))
+    cli.main([wid, "submit"])
+    assert "plan" in runmod.state(wid)["done"]
+
+    entries = review_yield.run_yield(wid)
+    plan = next(e for e in entries if e["label"] == "plan-to-execute")
+    assert plan["rounds"] == [{"verdict": "revise", "revising": 0, "findings": 1,
+                               "called": True, "calls": {"rejected": 1},
+                               "waived": 2, "reason": reason}]
+    assert f"r1  revise   1 finding   1 rejected   2 waived -- {reason}" in \
+        render.review_yield(entries)
+
+
+def test_amend_waive_refuses_where_nothing_stands_to_fill(workdir, capsys):
+    """A step with no panel has nothing to waive; a panel-only step is its
+    panel, so waiving it whole would leave nothing to complete it -- the
+    refusal names `amend close` as the move instead. A reason is journaled,
+    never judged: the one check on it is that it was given."""
+    cli.main(["open", "run-an-issue", "--issue", "25", "--title", "t"])
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue25", "amend", "waive", "open", "--reason", "r"])
+    assert "no panel to waive" in str(e.value)
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue25", "amend", "waive", "plan"])
+    assert "reason" in str(e.value)
+
+    journal.append("g9", "run", title="t", assembly="run-a-gate")
+    journal.append("g9", "step", id="review", segment="work",
+                   panel=[{"worker": "reviewer", "criteria": "c"}])
+    with pytest.raises(SystemExit) as e:
+        cli.main(["g9", "amend", "waive", "review", "--reason", "r"])
+    assert "panel-only" in str(e.value) and "amend close review" in str(e.value)
+    assert not [e for e in journal.read("g9") if e["kind"] == "amend"]
 
 
 # -- close refuses while a step is unfinished --------------------------------

@@ -96,8 +96,9 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"blocking": 1, "rejected": 1}}
-    assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {}}
+                  "calls": {"blocking": 1, "rejected": 1}, "waived": 0, "reason": ""}
+    assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
+                  "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "plan-to-execute" in table
@@ -161,8 +162,9 @@ def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
     assert len(review_entry["rounds"]) == 2
     r1, r2 = review_entry["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 1, "called": True,
-                  "calls": {"blocking": 1}}
-    assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {}}
+                  "calls": {"blocking": 1}, "waived": 0, "reason": ""}
+    assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
+                  "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "review" in table
@@ -226,11 +228,62 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     assert len(consolidate["rounds"]) == 2
     r1, r2 = consolidate["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"blocking": 1, "rejected": 1}}
-    assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {}}
+                  "calls": {"blocking": 1, "rejected": 1}, "waived": 0, "reason": ""}
+    assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
+                  "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "consolidate" in table
     assert "r1  revise   2 findings" in table
     assert "1 blocking 1 rejected" in table
     assert "uncalled" not in table
+
+
+def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(workdir, capsys):
+    """A round the conductor waived whole (`amend waive`, a principal's
+    ruling that the recut goes unreviewed) is still a round in the yield:
+    it folds as a quiet panel -- no verdict record, zero findings, nothing
+    called -- and carries the count of waived voices and the reason, so
+    the seam's history shows the round happened and says why rather than
+    dropping it as one nobody returned to."""
+    wid = "issue19"
+    cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
+
+    _dispatch_plan_panel(wid, [
+        ("revise", "gap: the loop bound is untested"),
+        ("pass", "none: waived: clean"),
+        ("pass", "none: waived: clean"),
+    ])
+    _fill_plan_route_with_calls(wid, "rework", ("gap: the loop bound is untested", "blocking"))
+    cli.main([wid, "submit"])
+
+    fresh = next(s for s in runmod.state(wid)["steps"]
+                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
+    _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
+    round_two = runmod.state(wid)["current"]
+    assert round_two["id"] != "plan" and round_two.get("panel")
+
+    reason = "principal's ruling: hand this gate off to be built rather than review it again"
+    cli.main([wid, "amend", "waive", round_two["id"], "--reason", reason])
+    _fill_plan_to_execute(wid, "pass")
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    entries = review_yield.run_yield(wid)
+    plan = next(e for e in entries if e["label"] == "plan-to-execute")
+    assert len(plan["rounds"]) == 2
+    r1, r2 = plan["rounds"]
+    assert r1 == {"verdict": "revise", "revising": 0, "findings": 1, "called": True,
+                  "calls": {"blocking": 1}, "waived": 0, "reason": ""}
+    assert r2 == {"verdict": "", "revising": 0, "findings": 0, "called": False, "calls": {},
+                  "waived": 3, "reason": reason}
+
+    table = render.review_yield(entries)
+    assert "r1  revise   1 finding   1 blocking" in table
+    assert f"r2  3 waived -- {reason}" in table

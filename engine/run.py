@@ -269,12 +269,27 @@ def skeleton(assembly):
     return steps
 
 
+# [waive-stamps-the-step]
+# Rationale: a waiver is a fact about the step it names -- which of its
+#   panelists it no longer waits for, and why -- so it is stamped onto that
+#   step at the point in the journal it landed, the same in-place mutation
+#   `close` and `reorder` already are. Every later reader (`panel_outstanding`,
+#   the `return` branch of `state`, the room, the yield) then reads one
+#   field off the step rather than each re-walking the amend log for it.
+#   The child ids are the amend's own, journaled when the conductor typed
+#   it, so a return that landed before the waiver was never in the list and
+#   folds as it always did; one that lands after, from a child the list
+#   names, is a panelist the step has already stopped waiting for.
+# Rejected: dropping the waived panelists from `step["panel"]`. The panel
+#   is the step's record of who was asked; the room and the yield both say
+#   "two of three were waived", which needs the three to still be there.
 def _apply_amend(raw_steps, e):
-    """`close` drops a pending step; `reorder` moves one before another --
-    both mutate the worklist in place, at the point they occur in the
-    journal. `add` needs no mutation here: its own `step` entry (appended
-    right alongside the amend entry) already carries the new step through
-    the ordinary branch below.
+    """`close` drops a pending step; `reorder` moves one before another;
+    `waive` stamps the step with the panelists it no longer waits for and
+    the reason -- all three mutate the worklist in place, at the point
+    they occur in the journal. `add` needs no mutation here: its own `step`
+    entry (appended right alongside the amend entry) already carries the
+    new step through the ordinary branch below.
     """
     action = e.get("action")
     if action == "close":
@@ -286,6 +301,11 @@ def _apply_amend(raw_steps, e):
             idx = next((i for i, s in enumerate(raw_steps) if s["id"] == e.get("before")),
                        len(raw_steps))
             raw_steps.insert(idx, step)
+    elif action == "waive":
+        step = next((s for s in raw_steps if s["id"] == e.get("step")), None)
+        if step:
+            step["waived"] = list(step.get("waived") or []) + list(e.get("waived") or [])
+            step["waived_reason"] = e.get("reason", "")
 
 
 def _ordered(raw_steps, seg_order):
@@ -729,7 +749,13 @@ def state(work_id):
             # no form to hold for. A verdict whose row is the inert `release`
             # instead leaves it open; it completes on submit.
             step = next((s for s in raw_steps if s["id"] == e["step"]), None)
-            expected = len(step["panel"]) if step and step.get("panel") else 1
+            if step and e.get("child") in (step.get("waived") or []):
+                # A waived panelist's later return: the waiver already
+                # answered for this voice, so its return lands nowhere --
+                # not in `returns`, not in `returns_by_child`, never in
+                # `done`. The journal still holds it; the fold does not.
+                continue
+            expected = panel_expected(step) if step and step.get("panel") else 1
             returns = st["returns"].setdefault(e["step"], [])
             returns.append(e)
             st["returns_by_child"][e.get("child", "")] = e
@@ -792,14 +818,35 @@ def blocks(st):
             if n.get("kind_detail") == "blocked" and n.get("id") not in resumed]
 
 
+def panel_expected(step):
+    """How many returns this step's panel still owes it: every panelist
+    named, less the ones a `waive` amend stamped on the step
+    (`_apply_amend`). A waived voice never has a return in `returns` --
+    the fold drops a late one -- so the count `panel_outstanding` and
+    `state` compare against is this and nothing else."""
+    return len(step.get("panel") or []) - len(step.get("waived") or [])
+
+
 def panel_outstanding(st, step):
     """A step's panel has not finished voting -- fewer returns than
-    panelists. True the same way for a panel-only step and a two-voices one;
-    the difference between them shows up only once this is false, since a
-    two-voices step whose panel resolved anything but `pass` is already
-    `done` by then and can no longer be `st["current"]`."""
+    panelists still expected (`panel_expected`, so a waived voice is not
+    waited for). True the same way for a panel-only step and a two-voices
+    one; the difference between them shows up only once this is false,
+    since a two-voices step whose panel resolved anything but `pass` is
+    already `done` by then and can no longer be `st["current"]`."""
     panel = step.get("panel")
-    return bool(panel) and len(st["returns"].get(step["id"], [])) < len(panel)
+    return bool(panel) and len(st["returns"].get(step["id"], [])) < panel_expected(step)
+
+
+def waived_panel(step):
+    """`(waived, named, reason)` for a step whose panel was waived in part or
+    in full -- how many voices the waiver covers, how many the panel names,
+    and the reason the conductor journaled -- or `None` where nothing on
+    this step was waived. What the room and the yield both print from."""
+    waived = step.get("waived") or []
+    if not waived:
+        return None
+    return len(waived), len(step.get("panel") or []), step.get("waived_reason", "")
 
 
 # [paused-marker]

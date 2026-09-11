@@ -32,7 +32,11 @@ each finding's disposition is your ruling, made at a gate's adjudication
 step and, every round, at the plan and consolidate seams alike — the route
 form there is where you call each finding the panel returned, the same as
 a gate's own review holds open for its conductor rather than refilling
-behind you. Two rounds on one proof means the proof is the defect: replace
+behind you. A principal's ruling that a round goes unreviewed is one
+command, `spine <work-id> amend waive <step-id> --reason "..."`: the
+panelists still out are journaled as waived with the reason and the route
+form stays yours to fill, where closing the step would drop the form with
+the panel. Two rounds on one proof means the proof is the defect: replace
 it in kind rather than run it a third time. Once the reviews on one
 artifact are spent, the engine stops offering another round and asks you to
 rule instead — advance over the

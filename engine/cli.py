@@ -40,6 +40,8 @@ spine <work-id> note <kind> <text>  record an observation, block, or decision
 spine <work-id> amend add --segment S --form F --reason "..."
 spine <work-id> amend close <step-id> --reason "..."
 spine <work-id> amend reorder <step-id> --before <step-id> --reason "..."
+spine <work-id> amend waive <step-id> --reason "..."   waive the panelists
+    still outstanding on a step; the step stands, its own form still yours
 spine <work-id> close               terminal: legal once every step is done
 spine open <assembly> --title T [--issue N]
 spine open <assembly> --parent <id> --step <step-id>   open a dispatched child
@@ -1083,18 +1085,33 @@ def _form_filler_brief(wid, st, asm, step, form):
                          worktree=worktree, branch=branch, **kwargs)
 
 
+# [waived-is-not-a-descriptor]
+# Rationale: every reader of a panel step's children -- `cmd_wait`'s spawn
+#   and poll, the two refusals, the room's rows -- takes its child ids from
+#   this one function, so a waived panelist left out here is left out of
+#   all of them at once: never spawned by a later `wait`, never counted
+#   outstanding, never named as who is still owed. `_dispatch_child`'s four
+#   states stay four; a waived child is not a child the step reads at all.
+# Rejected: a fifth `_dispatch_child` state, "waived". Four callers would
+#   each grow a branch to skip it, which is the guard-in-two-places shape
+#   `_wait_spawn`'s own rationale already refuses.
 def _panel_descriptors(wid, asm, step):
-    """Each panelist a panel step names, as `(child_id, role, tier,
-    open_cmd, finish_form)` -- a panelist's role is its own `worker`, not
-    the give-a-verdict assembly's conductor: `_open_child` stamps that
+    """Each panelist a panel step still waits for, as `(child_id, role,
+    tier, open_cmd, finish_form)` -- a panelist's role is its own `worker`,
+    not the give-a-verdict assembly's conductor: `_open_child` stamps that
     worker onto the dispatched child's step as its `filler`, so the panel
-    entry is the source of truth, not just the brief that names it."""
+    entry is the source of truth, not just the brief that names it. A
+    panelist a `waive` amend covers is left out: the step no longer waits
+    for it, so nothing here may start, poll, or name it."""
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
     verdict_asm = runmod.load_assembly("give-a-verdict")
+    waived = set(step.get("waived") or [])
     out = []
     for i, panelist in enumerate(step["panel"], start=1):
         tag = f"p{i}"
         child_id = f"{wid}.{step['id']}.{tag}"
+        if child_id in waived:
+            continue
         tier = panelist.get("model") or seg.get("model", "")
         open_cmd = f"spine open give-a-verdict --parent {wid} --step {step['id']}.{tag}"
         out.append((child_id, panelist.get("worker", ""), tier, open_cmd,
@@ -1207,9 +1224,9 @@ def _panel_status(wid, st, asm, step, blocked):
             wid, child_ids, st["returns_by_child"], records, counts)
         lines.append(render.outstanding_line(wid, count, name_wait, step["id"]))
         lines.append("")
-    for panelist, (child_id, role, tier, open_cmd, finish_form) in zip(
-            step["panel"], descriptors):
+    for child_id, role, tier, open_cmd, finish_form in descriptors:
         tag = child_id.rsplit(".", 1)[-1]
+        panelist = step["panel"][int(tag[1:]) - 1]
         status, brief_text = _dispatch_child(
             wid, child_id, role, tier, open_cmd, finish_form, worktree, branch,
             records, counts, child_id in st["returns_by_child"], configured)
@@ -1367,6 +1384,8 @@ def _returned_verdict(st, asm):
     form declaring a vocabulary -- is silent, as it is today."""
     for s in reversed(st["steps"]):
         rs = st["returns"].get(s["id"]) or []
+        if s.get("panel") and not rs and s.get("waived"):
+            return ""  # every voice waived: the last panel to rule here ruled nothing
         if s.get("panel") and rs and not runmod.panel_outstanding(st, s):
             _, spec = runmod.deciding_spec(asm, s)
             outcome = runmod.verdict_fold(rs, runmod.panel_forms(asm, s), spec)
@@ -1440,6 +1459,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         "returns": returns,
         "returns_from": step.get("child", ""),
         "verdict": _returned_verdict(st, asm),
+        "waived": runmod.waived_panel(step),
         "blocked": runmod.blocks(st),
         "position": runmod.position(st, asm),
         "board": board,
@@ -1816,9 +1836,15 @@ def cmd_submit(argv):
                 wid, child_ids, st["returns_by_child"], records, counts)
             if name_wait:
                 escape = f"spine {wid} wait"
+        if step.get("form"):
+            # A two-voices step has a form of its own to stand on once its
+            # panel is waived; a panel-only step has nothing left, so
+            # `amend close` stays its way out.
+            escape += (f"; or waive the rest: spine {wid} amend waive {step['id']} "
+                       "--reason ...")
         raise SystemExit(render.refusal(
             step["id"], "a panel step is not submitted -- the panelists' verdicts "
-            "complete it", escape=escape))
+            "complete it, or a waiver does", escape=escape))
     if runmod.paused(step):
         raise SystemExit(render.refusal(
             step["id"], "paused -- the ask it sent is standing at its parent, not here",
@@ -3363,7 +3389,7 @@ def cmd_note(argv):
 
 def cmd_amend(argv):
     if len(argv) < 2:
-        raise SystemExit("spine <work-id> amend add|close|reorder ... --reason \"...\"")
+        raise SystemExit("spine <work-id> amend add|close|reorder|waive ... --reason \"...\"")
     wid, action = argv[0], argv[1]
     reason = _opt(argv, "--reason")
     if not reason:
@@ -3377,7 +3403,9 @@ def cmd_amend(argv):
         return _amend_close(wid, st, argv[2], reason)
     if action == "reorder":
         return _amend_reorder(wid, st, argv[2], reason, _opt(argv, "--before"))
-    raise SystemExit(f"unknown amend action {action!r} -- add | close | reorder")
+    if action == "waive":
+        return _amend_waive(wid, st, argv[2], reason)
+    raise SystemExit(f"unknown amend action {action!r} -- add | close | reorder | waive")
 
 
 def _amend_add(wid, st, argv, reason):
@@ -3471,6 +3499,52 @@ def _amend_reorder(wid, st, step_id, reason, before):
     journal.append(wid, "amend", action="reorder", segment=step["segment"], step=step_id,
                    before=before, reason=reason, anchor=step.get("anchor", False))
     print(f"amended: reordered {step_id} before {before}\n")
+    return cmd_status([wid])
+
+
+# [waive-leaves-the-step-standing]
+# Rationale: a principal's ruling that a round goes unreviewed -- "hand
+#   this gate off to be built rather than review it again", issue811 on
+#   f1Brainz, 2026-09-07 -- had no verb. The conductor `amend close`d the
+#   two-voices step, the only step the panel hangs on, which took the route
+#   form behind it too: the run walked to its close form with the gate
+#   never projected, and the conductor re-added `forms/PLAN_TO_EXECUTE.toml`
+#   by hand three times over three gates, once under a wrong form reference.
+#   This verb is the ruling as one journaled amend: the panelists still
+#   outstanding are named waived with the reason, the step stops waiting for
+#   them (`panel_expected`, engine/run.py), and its own form stays the
+#   conductor's to fill. Nothing already running is touched -- a live
+#   panelist finishes and its return lands nowhere (`state`'s return
+#   branch), and a later `wait` never starts it (`_panel_descriptors`).
+# Rejected: validating the reason. It is journaled for the tier above to
+#   read, the same as every other amend's; the engine is a secretary.
+# Rejected: allowing it on a panel-only step. That step is its panel; with
+#   every voice waived nothing is left to complete it, which is what `amend
+#   close` already says in one entry.
+def _amend_waive(wid, st, step_id, reason):
+    step = next((s for s in st["steps"] if s["id"] == step_id), None)
+    if step is None:
+        raise SystemExit(render.refusal(step_id, "no such step", _pending(st)))
+    if step_id in st["done"]:
+        raise SystemExit(render.refusal(
+            step_id, "already complete -- history is not amendable", _pending(st)))
+    if not step.get("panel"):
+        raise SystemExit(render.refusal(step_id, "no panel to waive", _pending(st)))
+    if not step.get("form"):
+        raise SystemExit(render.refusal(
+            step_id, "a panel-only step is its panel -- nothing would be left to fill",
+            escape=f"drop it instead: spine {wid} amend close {step_id} --reason ..."))
+    asm = runmod.load_assembly(st["assembly"])
+    outstanding = [cid for cid, *_ in _panel_descriptors(wid, asm, step)
+                   if cid not in st["returns_by_child"]]
+    if not outstanding:
+        raise SystemExit(render.refusal(
+            step_id, "its panel has returned in full -- nothing outstanding to waive",
+            escape=f"fill its form: spine {wid}"))
+    journal.append(wid, "amend", action="waive", segment=step["segment"], step=step_id,
+                   reason=reason, anchor=step.get("anchor", False), waived=outstanding)
+    print(f"amended: waived {len(outstanding)} of {step_id}'s panel -- "
+          + ", ".join(c.rsplit(".", 1)[-1] for c in outstanding) + "\n")
     return cmd_status([wid])
 
 
@@ -3636,7 +3710,10 @@ def _act_on_verdicts(pwid, step_id):
     step = next((s for s in pst["steps"] if s["id"] == step_id), None)
     if not step or not step.get("panel") or runmod.panel_outstanding(pst, step):
         return
-    returns = pst["returns"][step_id]
+    # `.get`: a waived panelist closing late lands nothing in `returns`, and
+    # a panel waived whole has no key here at all -- the fold below reads
+    # an empty round as quiet and this returns without acting.
+    returns = pst["returns"].get(step_id) or []
     asm = runmod.load_assembly(pst["assembly"])
     _, spec = runmod.deciding_spec(asm, step)
     # A refusal and a quiet panel both perform nothing: neither is a word the
