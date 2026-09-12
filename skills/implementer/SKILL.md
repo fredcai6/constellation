@@ -39,11 +39,11 @@ above a function-local assignment each extract to nothing and report nothing,
 at exit 0. `palette:map` is how you see what landed — your slug in
 `map/ids.jsonl`.
 
-## Where your round ends
+## Where your round goes next
 
-Submit ends it. Your submit is what fires the review, and where the round
-goes from there — back into the diff, or out to close — is the
-gate-conductor's to rule on, on forms you are not stood on and do not fill.
+Your submit is what fires the review, and where the round goes from there —
+back into the diff, or out to close — is the gate-conductor's to rule on, on
+forms you are not stood on and do not fill.
 
 Where this does not apply: the plan behind the gate is not yours to remake.
 If the gate itself looks like the wrong move, that is a blocked note up —

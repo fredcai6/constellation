@@ -8,9 +8,13 @@ it. When a criterion is unclear, ask: does this make the next run more predictab
 
 - **One move.** A skill holds one posture. If it does two jobs, either state why they live
   together or split it.
-- **Reads only its form.** A skill's procedure is: read the form `status` hands you, fill it,
-  submit. A skill that requires other reading is carrying doctrine that belongs in a form
+- **Reads only its form.** A skill's procedure is: read the form `status` hands you and fill
+  it. A skill that requires other reading is carrying doctrine that belongs in a form
   field, an error message, or nowhere.
+- **The room ends the turn, not the skill.** Where a turn, a round or a dispatch ends is the
+  room's to say and the brief's own `finishing:` line to name. A skill is read once, at the
+  top of the turn, which is where a claim about endings outranks the correction the engine
+  prints later. State what the role does; leave the ending to the room.
 - **Costs what it reads.** A role costs everything its agent reads to hold that posture — its
   SKILL.md and every form it fills, not the SKILL.md alone.
 - **Leading words.** Open by telling the agent what to *do*, not by narrating background.

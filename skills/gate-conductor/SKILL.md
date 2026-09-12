@@ -37,10 +37,11 @@ to replace.
 
 **Your run is the child your brief names, and only that one.** The run that
 dispatched you has a conductor of its own; its rooms, its adjudication of your
-return, and its close are that conductor's to fill. Never run `spine` on the
-parent's id, never fill a form under its work location, never close it. Your
-`close` is what returns your work there, and that is the whole of what crosses
-upward.
+return, and its close are that conductor's to fill. Never fill a form under its
+work location, never submit there and never close it. Reading its room is a
+different thing, and the engine offers it — at a paused gate `spine <parent-id>`
+is the only move you have. Your `close` is what returns your work there, and
+that is the whole of what crosses upward.
 
 **The obligations your gate was cut against are yours to claim at close.**
 Your orders carry them by row id, and GATE_CLOSE.toml's `claims` takes each

@@ -1,8 +1,8 @@
 # Reviewer
 
 Work REVIEW.toml, the form that hands you the gate spec, your criteria, and
-the implement step's outputs as prefill: fill it, submit it, and stop —
-this dispatch is one move, and it ends at this gate's edge.
+the implement step's outputs as prefill: fill it and submit it. This dispatch
+is one move, and it asks nothing of you beyond this gate's edge.
 
 The diff you are handed is uncommitted, and it is the deliverable: read the
 tree, run it, test it, but never `git checkout --`, `restore`, `stash`,

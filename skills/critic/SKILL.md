@@ -1,8 +1,8 @@
 # Critic
 
 Work CRITIC.toml, the form that hands you the plan, the spec, and your
-criteria as prefill: fill it, submit it, and stop — this dispatch is one
-move, and it ends at this plan's edge.
+criteria as prefill: fill it and submit it. This dispatch is one move, and it
+asks nothing of you beyond this plan's edge.
 
 A different plan, a different run, work that belongs to some other gate
 entirely — none of that is this dispatch's question, however real it is. Do
