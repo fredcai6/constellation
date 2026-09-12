@@ -193,8 +193,8 @@ Nothing starts this child until spine <work-id> wait runs, through the
 repository's own dispatch entry when one is configured; wherever a command
 appears below instead, you are the one who runs it. Carry the child through
 to its own close either way -- in a subagent if you have one, in this
-session if you do not. It returns here when it closes, and this step
-completes then."""
+session if you do not. Its return lands here when it closes: run spine
+<work-id> wait until the room says something else."""
 
 # Every verb here is one the reader performs. The first draft of PANEL ended
 # "dispatch each panelist and wait for its verdict", and a light model did the
@@ -209,8 +209,9 @@ carries a command instead, you are the one who runs it, carrying that
 panelist through to its own close. Run each in a subagent if you have one,
 in this session if you do not. Every panelist reads from fresh context and
 its brief is the whole handoff; the verdict on this work is the panel's to
-give, which is the whole reason for a second voice. This step completes once
-the last verdict has returned."""
+give, which is the whole reason for a second voice. Run spine <work-id> wait
+until the room says something else -- more than one call is ordinary, since
+it returns at its bound whether or not the verdicts have landed."""
 
 
 # [outstanding-line]
