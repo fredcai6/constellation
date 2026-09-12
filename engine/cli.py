@@ -3717,17 +3717,16 @@ def cmd_up(argv):
     return cmd_status([wid])
 
 
-NOTE_KINDS = ("blocked", "resumed", "observation", "decision", "triage")
 
 
 def cmd_note(argv):
     if len(argv) < 2:
-        raise SystemExit(f"spine <work-id> note <{'|'.join(NOTE_KINDS)}> <text>")
+        raise SystemExit(f"spine <work-id> note <{'|'.join(render.NOTE_KINDS)}> <text>")
     wid, kind, text = argv[0], argv[1], " ".join(argv[2:])
-    if kind not in NOTE_KINDS:
+    if kind not in render.NOTE_KINDS:
         # `note block ...` used to print success and do nothing at all: only
         # the exact word is acted on, so a near-miss must not look like a hit.
-        raise SystemExit(f"no note kind {kind!r} -- one of: {', '.join(NOTE_KINDS)}")
+        raise SystemExit(f"no note kind {kind!r} -- one of: {', '.join(render.NOTE_KINDS)}")
     st = runmod.state(wid)
     if st is None:
         _no_run(wid)

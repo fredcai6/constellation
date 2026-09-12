@@ -176,8 +176,37 @@ def preamble(st, blocked=(), position=None):
     return out
 
 
-def legal_moves(wid):
-    return located(f"  also legal:        spine {wid} note ...   spine {wid} amend ...")
+# [note-kinds]
+# Rationale: the kinds live here, in the module that has to say them, and
+#   `engine/cli.py`'s `cmd_note` imports them rather than holding a second
+#   copy -- the defect being fixed is precisely a room and a refusal
+#   disagreeing about whether kinds exist, so one definition is the fix and
+#   two would be the bug again with extra steps. `cli` already imports
+#   `render`; the reverse would be a cycle, which is what settles the
+#   direction.
+# Rejected: leaving the vocabulary in `cli` beside the verb and spelling it
+#   a second time here. That is the drift `_dispatch_lines` was extracted to
+#   stop, in a file whose whole job is not making a reader guess a word.
+NOTE_KINDS = ("blocked", "resumed", "observation", "decision", "triage")
+
+
+# [legal-moves-names-the-kinds]
+# Rationale: `note` takes its kind as a required first argument, and the line
+#   offering the verb used to render `spine <wid> note ...` -- so the one
+#   room that offers the move named none of the five words that make it
+#   legal, and the refusal naming them arrived only after the whole note had
+#   been typed and parsed, echoing a paragraph back inside an error
+#   (`docs/process-notes/issue84.md` note 1). Every other command this file
+#   renders is typeable as printed; this one was not.
+# Rejected: a `<kind>` placeholder. A placeholder in argument position is the
+#   guess `_off_the_board` already refuses to make a reader perform.
+# Rejected: defaulting the kind when it is omitted. Only `blocked`, `resumed`
+#   and `triage` do anything; a default would silently turn a `blocked` a
+#   reader meant into a note nothing reads, and a block that does not block
+#   is the one failure shape nothing downstream can catch.
+def legal_moves(wid, kinds=NOTE_KINDS):
+    return located(f"  also legal:        spine {wid} note <{'|'.join(kinds)}> ...\n"
+                   f"                     spine {wid} amend ...")
 
 
 # Every form step ends with an imperative and one way to reply. A brief step
