@@ -1470,19 +1470,41 @@ def _paused_status(wid, st, asm, blocked):
 #   dispatch/panel line is -- because a step's proof is spawned through the
 #   check-runner/`HANDBACK` mechanism, a path with nothing to do with
 #   whether `commands.dispatch` is configured: a repository with no
-#   `dispatch` entry at all can still have a proof genuinely in flight. It
-#   never names `wait` as the move either way: `wait` renders this room
-#   immediately without blocking on it, running or dead (commitment 6),
-#   so claiming `wait` is the move would promise a block that never comes.
-#   The running branch's own prose says plainly that nothing notifies the
-#   reader -- three headless gate-conductors in this run read the old text
-#   ("see where it landed: spine <wid>") as a destination rather than an
-#   act, concluded a background process would tell them when the room
-#   changed, and stopped acting; nothing was coming. The fix is not a
-#   softer destination, it is an act with a cadence -- render this room
-#   again, by hand, every minute or two, until it says something else. A
-#   later reader must not "tidy" this back into a bare pointer: that is
+#   `dispatch` entry at all can still have a proof genuinely in flight. The
+#   two halves name `wait` differently now, and both are true: the orphan
+#   half still never names it -- a dead process has nothing left to poll,
+#   so claiming `wait` is the move would promise a block that never comes
+#   -- while the running half now does, because `cmd_wait`'s own final
+#   branch blocks on exactly this case (`runmod.in_flight`, polled the
+#   same shape as its spawn branches, minus the spawn -- there is nothing
+#   to start, the detached runner is already going). That running half
+#   used to carry its own cadence paragraph, spelled out by hand because
+#   there was no verb to carry it instead: three headless gate-conductors
+#   in this run read the old text ("see where it landed: spine <wid>") as
+#   a destination rather than an act, concluded a background process would
+#   tell them when the room changed, and stopped acting; nothing was
+#   coming. The fix was never a softer destination, it was an act with a
+#   cadence -- and a blocking verb IS that act: the cadence that used to
+#   live in a reader's own discipline (render this room again, by hand,
+#   every minute or two, until it says something else) now lives in the
+#   engine's own poll loop instead, which is why the paragraph that used to
+#   spell it out by hand is gone from the running branch -- the discipline
+#   moved, it was not dropped. A later reader must not "tidy" this room
+#   back into a bare pointer with no verb and no loop behind it: that is
 #   the exact shape that already killed three runs.
+# Rejected: leaving `wait` refusing to block here on the strength of
+#   issue99's own spec -- commitment 29's in-flight row, resting on
+#   commitment 6 -- whose stated reason was "`wait` blocks only on children
+#   it can see as processes, so the block is empty whenever there is no
+#   process to watch." That premise is false for a proof: `check-started`
+#   journals a pid, this same function calls `checkrun.alive()` on it two
+#   lines up, and `cmd_drive`'s own in-flight branch already polls that
+#   pid (`if runmod.in_flight(st, step): time.sleep(checkrun.WAIT_POLL);
+#   continue`) rather than refusing to -- `drive` already does the
+#   blocking thing `wait` used to refuse to do, on the same pid. Giving
+#   `wait` the same loop is not overturning that ruling, it is applying
+#   the ruling's own stated reason to a case -- a proof's pid -- the
+#   ruling's own text did not consider even though it already satisfies it.
 def _in_flight_status(wid, st, asm, entry, blocked):
     """What a run whose proof is still running says about itself."""
     running = checkrun.alive(entry.get("pid"))
@@ -1490,7 +1512,7 @@ def _in_flight_status(wid, st, asm, entry, blocked):
     for c in entry.get("commands") or []:
         lines.append(f"  {c.get('field', 'check')}: {c.get('command', '')}")
     lines.append("")
-    lines.append(render.outstanding_line(wid, 1 if running else 0, False))
+    lines.append(render.outstanding_line(wid, 1 if running else 0, running))
     lines.append("")
     if running:
         lines.append(render.located(
@@ -1498,11 +1520,7 @@ def _in_flight_status(wid, st, asm, entry, blocked):
             f"budget {entry.get('budget')}s -- this step is not done and nothing "
             "was recorded for it. The engine journals the submit itself when the "
             "proof passes, and refuses here when it fails.\n"
-            f"  what it is printing: {entry.get('log', '')}\n"
-            "  nothing notifies you when that happens -- no message arrives, and "
-            "this room does not change on its own. Run this room's own command "
-            f"again -- spine {wid} -- every minute or two, until it says "
-            "something else."))
+            f"  what it is printing: {entry.get('log', '')}"))
     else:
         lines.append(render.located(
             f"  proof started {entry.get('at', '')} (pid {entry.get('pid')}) and its "
@@ -1878,6 +1896,7 @@ def cmd_wait(argv):
     if not st["open"] or st["awaiting_close"]:
         return cmd_status([wid])
     asm, step, _ = _current_form(st)
+    started = runmod.in_flight(st, step)
     if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
         descriptors = _panel_descriptors(wid, asm, step)
     elif runmod.paused(step):
@@ -1885,10 +1904,36 @@ def cmd_wait(argv):
     elif step.get("dispatches"):
         child_id = step.get("child") or f"{wid}.{step['id']}"
         descriptors = [(child_id, *_dispatch_descriptor(wid, asm, step))]
+    elif started and checkrun.alive(started.get("pid")):
+        # a step's proof, not a child -- `checks.hand_in` already spawned
+        # the detached runner before this call ever ran (that is what
+        # `check-started` means), so there is nothing to spawn here, only
+        # to hold for. Same loop shape as the spawn branches above with no
+        # `_wait_spawn` call, because there is nothing to start. See
+        # `[in-flight-room]` above `_in_flight_status` for why this is not
+        # the same room refusing to block that an earlier ruling left in
+        # place, and for the cadence this loop now carries instead.
+        # `runmod.in_flight` alone is not the loop condition: it stays
+        # populated for an orphan too (nothing but a `submit` or `check`
+        # entry ever clears it, and a dead proof writes neither), so
+        # `checkrun.alive` is what tells a live wait from an orphan that
+        # will never land -- checked fresh each cycle, not just at entry.
+        deadline = time.monotonic() + bound
+        while True:
+            fresh = runmod.state(wid)  # re-folded every cycle, never cached
+            entry = runmod.in_flight(fresh, step)
+            if not entry or not checkrun.alive(entry.get("pid")):
+                break
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(checkrun.WAIT_POLL)
+        return cmd_status([wid])  # renders no view of its own (commitment 2)
     else:
-        # `runmod.in_flight` names a proof, not a child, and a childless
-        # form step has no child at all -- neither is something `wait` has
-        # anything to poll, so both render immediately (commitment 29).
+        # a childless form step has no child and no proof either, and an
+        # orphaned proof (started, but its process is gone with no result
+        # ever recorded) has nothing left to poll -- both render
+        # immediately, the orphan naming no `wait` either (DO NOT CHANGE:
+        # genuinely nothing to wait for there).
         return cmd_status([wid])
     child_ids = [d[0] for d in descriptors]
     _wait_spawn(wid, st, descriptors)

@@ -357,7 +357,7 @@ def test_a_dispatch_room_of_only_gone_not_spent_children_names_wait_to_restart_t
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "0 outstanding" in line
-    assert "d1 wait starts it" in line
+    assert "d1 wait is the move" in line
     assert "d1.g1 (gone without returning)" in out
     assert "open it:" not in out
 
@@ -386,7 +386,7 @@ def test_a_panel_room_of_only_gone_not_spent_panelists_names_wait_to_restart_the
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "0 outstanding" in line
-    assert "g9 wait starts it" in line
+    assert "g9 wait is the move" in line
     assert "panelist p1 (gone without returning)" in out
     assert "panelist p2 (gone without returning)" in out
     assert "open it:" not in out
@@ -496,7 +496,7 @@ def test_a_two_voices_panel_room_with_a_startable_panelist_still_names_wait(
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "1 outstanding" in line
-    assert "g9 wait starts it" in line
+    assert "g9 wait is the move" in line
     assert "amend waive" not in out
     assert "amend close" not in out
 
@@ -553,7 +553,7 @@ def test_a_dispatch_room_with_a_genuinely_outstanding_child_names_the_count_and_
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "1 outstanding" in line
-    assert "d1 wait starts it" in line
+    assert "d1 wait is the move" in line
     assert "d1.g1 (working)" in out
 
 
@@ -573,7 +573,7 @@ def test_a_panel_room_with_a_genuinely_outstanding_panelist_names_the_count_and_
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "1 outstanding" in line
-    assert "g9 wait starts it" in line
+    assert "g9 wait is the move" in line
     assert "panelist p1 (working)" in out
 
 
@@ -601,7 +601,7 @@ def test_a_never_dispatched_dispatch_childs_room_still_names_wait_at_zero_count(
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "0 outstanding" in line
-    assert "d1 wait starts it" in line
+    assert "d1 wait is the move" in line
 
 
 # -- commitment 17: the line is absent entirely from an unconfigured room ----
@@ -674,7 +674,14 @@ def test_a_live_in_flight_proof_reports_one_outstanding_in_both_worlds(
     `_gate()` returns, so the two parametrized runs are genuinely different
     repositories -- one configured, one not -- and the assertion below on
     `_dispatch_configured` itself proves that difference rather than
-    assuming it."""
+    assuming it.
+
+    `wait` now blocks on a live proof exactly as it does on a live child
+    (`[in-flight-room]` above `_in_flight_status`, `engine/cli.py`), so the
+    running half of this line names it as the move the same way a
+    dispatch or panel room's own outstanding line does -- unconditionally,
+    in both worlds, since a proof's pid has nothing to do with whether
+    `commands.dispatch` is configured either."""
     root = request.getfixturevalue(fixture_name)
     monkeypatch.setattr(checkrun, "HANDBACK", 1)
     wid = _gate()
@@ -692,7 +699,7 @@ def test_a_live_in_flight_proof_reports_one_outstanding_in_both_worlds(
 
     line = next(l for l in out.splitlines() if "outstanding" in l)
     assert "1 outstanding" in line
-    assert "wait" not in line
+    assert "wait is the move" in line
 
 
 @pytest.mark.parametrize("fixture_name", ["workdir", "bare_workdir"])
@@ -700,10 +707,12 @@ def test_a_dead_in_flight_proof_reports_zero_outstanding_in_both_worlds(
         fixture_name, request, capsys):
     """The dead-pid half of the case above: `checkrun.alive` reads a really-
     gone pid (`_dead_pid`, run to completion rather than merely abandoned) as
-    dead, so the count drops to zero -- still with no `wait` named, since
-    `wait` renders this room immediately either way, running or dead
-    (commitment 6), and naming `wait` here would promise a block that never
-    happens. Made genuinely configured under `bare_workdir` and genuinely
+    dead, so the count drops to zero -- still with no `wait` named, because
+    a dead process has nothing left to poll and naming `wait` here would
+    promise a block that never happens. Unlike the live case above, `wait`
+    still renders this half of the room immediately rather than blocking on
+    it -- `[in-flight-room]` above `_in_flight_status` says why. Made
+    genuinely configured under `bare_workdir` and genuinely
     unconfigured under `workdir`, the same way the live case above is, and
     for the same reason: this line's presence must not be an accident of one
     particular `constellation.toml`, and the pair must actually prove that
@@ -728,18 +737,23 @@ def test_a_dead_in_flight_proof_reports_zero_outstanding_in_both_worlds(
 # -- the in-flight room says plainly that nothing notifies you ---------------
 
 
-def test_a_proof_in_flight_says_nothing_notifies_you_and_names_the_cadence(
+def test_a_proof_in_flight_no_longer_carries_the_cadence_paragraph(
         bare_workdir, capsys, monkeypatch):
-    """Three headless gate-conductors in this run read the old text -- "see
-    where it landed: spine <wid>" -- as a destination rather than an act,
-    concluded a notification was coming, and stopped acting; nothing was
-    going to arrive. `test_wait.py`'s own
-    `test_a_proof_in_flight_renders_immediately` mints the same shape: a
-    real, short-lived `sleep 30` proof, handed back before it finishes, so
-    its pid is genuinely alive when this room renders. The room must now
-    say plainly that no message arrives and it does not change on its own,
-    and name the reader's move as an act with a cadence -- run this room's
-    own command again, every minute or two -- not a place to look."""
+    """Three headless gate-conductors in this run once read the old text --
+    "see where it landed: spine <wid>" -- as a destination rather than an
+    act, concluded a notification was coming, and stopped acting; nothing
+    was going to arrive. The fix that followed added a cadence paragraph
+    spelled out by hand ("nothing notifies you... run this room's own
+    command again... every minute or two") because there was no verb to
+    carry the cadence instead. There is one now: `wait` blocks on exactly
+    this case (`tests/test_wait.py`'s own
+    `test_a_proof_in_flight_holds_until_it_lands_then_renders_the_next_step`
+    proves the loop itself), so the cadence moved into the engine's own
+    poll loop and this room no longer spells it out by hand -- the
+    paragraph is gone, not replaced by another sentence saying the same
+    thing, and the outstanding line now names `wait` as the move rather
+    than staying silent about it (`[in-flight-room]` above
+    `_in_flight_status` carries the full account)."""
     monkeypatch.setattr(checkrun, "HANDBACK", 1)
     wid = _gate()
     journal.append(wid, "prefill", fields={"proof": "sleep 30"})
@@ -753,11 +767,13 @@ def test_a_proof_in_flight_says_nothing_notifies_you_and_names_the_cadence(
 
     assert "in flight" in out
     lowered = out.lower()
-    assert "nothing notifies you" in lowered
-    assert "no message arrives" in lowered
-    assert "does not change on its own" in lowered
-    assert "every minute or two" in lowered
+    assert "nothing notifies you" not in lowered
+    assert "no message arrives" not in lowered
+    assert "does not change on its own" not in lowered
+    assert "every minute or two" not in lowered
     assert "see where it landed" not in lowered
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "wait is the move" in line
 
 
 # -- commitments 30/31: cmd_submit's and cmd_close's refusals reuse the read --
