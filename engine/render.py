@@ -237,14 +237,20 @@ the last verdict has returned."""
 def outstanding_line(wid, count, name_wait, step_id=None, two_voices=False):
     """How many children (or one proof) `wait` still has to poll for, and --
     only when typing it would actually start, restart, or unblock something
-    -- the move that does it. Never claims `wait` is the move when it would
-    do nothing: the in-flight room never does (commitment 6 -- `wait`
-    renders it immediately either way), and a dispatch or panel room does
-    not when every unresolved child in it is already gone and spent -- a
-    configured room's gone-but-not-spent child carries no respawn command
-    of its own any more (that is `wait`'s to run now, not a row's own
-    brief). `step_id` is given only by a dispatch or panel room, never by
-    the in-flight room (whose own step has no board row to drop); when it
+    -- that `wait` is the move. Named without saying which of those it will
+    do: one verb starts a child that has not started, restarts a dead one,
+    and holds for a live child or an in-flight proof, and which of the three
+    a given room gets is the engine's business rather than the reader's.
+    Saying `starts it` on a proof already running was a claim the verb does
+    not make good on. Never claims `wait` is the move when it would
+    do nothing: the in-flight room's dead half never does -- a process
+    that is already gone has nothing left for `wait` to poll -- and a
+    dispatch or panel room does not when every unresolved child in it is
+    already gone and spent -- a configured room's gone-but-not-spent child
+    carries no respawn command of its own any more (that is `wait`'s to run
+    now, not a row's own brief). `step_id` is given only by a dispatch or
+    panel room, never by the in-flight room (whose own step has no board
+    row to drop); when it
     is given and nothing is live or startable, the bare count is replaced
     by the ruling escape instead -- once a child is spent there is still
     one thing left for a reader to do about it. The same rule now decides
@@ -260,7 +266,7 @@ def outstanding_line(wid, count, name_wait, step_id=None, two_voices=False):
         return located(f"  drop it: spine {wid} amend close {step_id} --reason ...")
     line = f"  {count} outstanding"
     if name_wait:
-        line += located(f" -- spine {wid} wait starts it")
+        line += located(f" -- spine {wid} wait is the move")
     return line
 
 

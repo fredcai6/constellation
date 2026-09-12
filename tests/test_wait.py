@@ -1,6 +1,6 @@
 """`spine <work-id> wait`: block while the current step has an outstanding
-child, then print exactly what `status` would have -- it renders no view of
-its own.
+child or an outstanding proof, then print exactly what `status` would have --
+it renders no view of its own.
 
 Gate 2 (commitments 13-15) makes `wait` the sole spawner of a child:
 `_dispatch_child` is a pure read now, and `cmd_wait`'s own pre-loop makes
@@ -33,7 +33,9 @@ choosing, never `claude`.
 """
 
 import json
+import os
 import pathlib
+import signal
 import subprocess
 import sys
 import threading
@@ -189,25 +191,138 @@ def test_a_paused_run_renders_immediately(bare_workdir, capsys):
     assert "paused" in out
 
 
-def test_a_proof_in_flight_renders_immediately(bare_workdir, capsys, monkeypatch):
-    monkeypatch.setattr(checkrun, "HANDBACK", 1)
-    wid = _gate()
-    journal.append(wid, "prefill", fields={"proof": "sleep 30"})
+# -- the proof case: `wait` holds for it, rather than refusing to --------
+
+
+def _submitted_proof(wid, proof, **spec):
+    """A real gate standing on its proof, already submitted -- `cmd_wait`'s
+    own final branch is what every test below is against, never a
+    hand-written `check-started` record standing in for one: the proof
+    really runs in `checks.hand_in`'s own detached process, the same one
+    production spawns."""
+    _gate(wid)
+    journal.append(wid, "prefill", fields={"proof": proof, **spec})
     _response(wid).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
     cli.main([wid, "submit"])
-    capsys.readouterr()
     st = runmod.state(wid)
-    assert runmod.in_flight(st, st["current"])
+    started = runmod.in_flight(st, st["current"])
+    assert started, "the proof did not outrun HANDBACK -- nothing in flight"
+    return started
+
+
+def test_a_proof_in_flight_holds_until_it_lands_then_renders_the_next_step(
+        bare_workdir, capsys, monkeypatch):
+    """The contract `wait` used to refuse for a proof: it now blocks while
+    the detached runner is still going, and unblocks the moment that runner
+    journals its own `submit` -- releasing well before the 90s round-trip a
+    caller used to have to re-render for by hand, and landing the run on
+    its own next step, not the in-flight room it started in."""
+    monkeypatch.setattr(checkrun, "HANDBACK", 0.1)
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    wid = "g1"
+    _submitted_proof(wid, "sleep 0.3; true")
+    capsys.readouterr()
+    before = runmod.state(wid)["current"]["id"]
 
     began = time.monotonic()
-    code = cli.main([wid, "wait"])
+    code = cli.main([wid, "wait", "--for", "5"])
     elapsed = time.monotonic() - began
     out = capsys.readouterr().out
 
     assert code == 0
-    assert elapsed < 1
+    assert 0.15 < elapsed < 3, f"elapsed {elapsed}"   # it blocked, then released
+    assert "in flight" not in out
+    fresh = runmod.state(wid)
+    assert fresh["current"]["id"] != before           # the room moved on
+
+
+def test_a_proof_still_running_at_the_bound_renders_the_in_flight_room_again(
+        bare_workdir, capsys, monkeypatch):
+    """The bound's own expiry, proven by shrinking it rather than by waiting
+    out the real 90s default: the proof outlives `--for`, so `wait` gives up
+    and renders the same in-flight room, still naming `wait` as the move --
+    unlike the orphan case below, there is genuinely something to keep
+    waiting for."""
+    monkeypatch.setattr(checkrun, "HANDBACK", 0.1)
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    wid = "g1"
+    started = _submitted_proof(wid, "sleep 5")
+    capsys.readouterr()
+
+    began = time.monotonic()
+    code = cli.main([wid, "wait", "--for", "1"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert 0.9 < elapsed < 3, f"elapsed {elapsed}"
+    assert checkrun.alive(started["pid"])              # the bound expired, not the proof
     assert "in flight" in out
+    assert "1 outstanding" in out and "wait is the move" in out
+    os.kill(started["pid"], signal.SIGKILL)
+    os.waitpid(started["pid"], 0)
+
+
+def test_a_proof_that_fails_mid_wait_stops_waiting_and_reflects_the_failure(
+        bare_workdir, capsys, monkeypatch):
+    """The runner is the only writer of a failing outcome too (a `check`
+    entry, never a `submit`) -- `wait`'s own predicate is `runmod.in_flight`,
+    which a `check` entry clears exactly as a `submit` does, so a failing
+    proof releases `wait` the same way a passing one does, onto a room that
+    now shows the failure rather than the step having advanced."""
+    monkeypatch.setattr(checkrun, "HANDBACK", 0.1)
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    wid = "g1"
+    _submitted_proof(wid, "sleep 0.3; exit 4")
+    capsys.readouterr()
+
+    began = time.monotonic()
+    code = cli.main([wid, "wait", "--for", "5"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert 0.15 < elapsed < 3, f"elapsed {elapsed}"
+    st = runmod.state(wid)
+    assert not st["in_flight"]                         # the check entry cleared it
+    assert st["current"]["id"] == "work-1"              # still standing on the failed step
+    checked = [e for e in journal.read(wid) if e.get("kind") == "check"]
+    assert checked[-1]["exit"] == 4
+    assert "in flight" not in out
+
+
+def test_a_proof_killed_mid_wait_renders_the_orphan_room_immediately(
+        bare_workdir, capsys, monkeypatch):
+    """The fourth release: nothing to poll survives a killed pid, so `wait`
+    must not hold it to the bound. `runmod.in_flight` alone cannot tell this
+    apart from a live proof -- only a `submit` or `check` entry clears it,
+    and a killed process writes neither -- so `checkrun.alive` is what has
+    to catch it, both at entry and every cycle after."""
+    monkeypatch.setattr(checkrun, "HANDBACK", 0.1)
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    wid = "g1"
+    started = _submitted_proof(wid, "sleep 30")
+    capsys.readouterr()
+    pid = started["pid"]
+
+    def _kill_it():
+        time.sleep(0.2)
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)   # reap it -- this test process is its real parent
+    threading.Thread(target=_kill_it, daemon=True).start()
+
+    began = time.monotonic()
+    code = cli.main([wid, "wait", "--for", "5"])
+    elapsed = time.monotonic() - began
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert 0.15 < elapsed < 3, f"elapsed {elapsed}"     # noticed the death, not the bound
+    assert not checkrun.alive(pid)
+    assert "process is gone" in out
+    assert "0 outstanding" in out
+    assert "wait is the move" not in out                  # no verb named -- nothing to poll
 
 
 def test_a_childless_form_step_renders_immediately(bare_workdir, capsys):
