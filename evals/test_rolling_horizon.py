@@ -203,7 +203,7 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
         "nothing wrong with the work at any point in this run -- a clean "
         "pass is the honest verdict wherever one is asked for. Do not "
         "stop until `spine r1` reports the run closed."),
-        timeout=480)
+        timeout=1800)
 
     closed = run_closed(workdir, "r1")
     gates = gate_children(workdir, "r1")
@@ -222,6 +222,16 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
     #   its implement step submitted) and was still short of `closed` at the
     #   budget below. The single-planner round this gate leaves standing is
     #   only lighter, so the same budget still bounds it.
+    #   That last inference was wrong, and the budget that rode on it was
+    #   480s. Measured 2026-09-12, three consecutive drives of this prompt
+    #   at this tier all reached `closed` and passed every assertion below,
+    #   in 772s, 850s and 1233s -- so the cycle a light model can carry end
+    #   to end had simply outgrown its clock, and this eval had been
+    #   reporting "rerun it" every time rather than anything about the
+    #   cycle. 1800 clears the slowest of the three by half again. Re-measure
+    #   before trusting it: the spread across those three is 60%, so a
+    #   cycle that grows will reach the budget here long before the number
+    #   looks wrong.
     #   A run that has not reached `closed` yet says nothing about whether
     #   the cycle is sound -- everything observed up to the cut was correct
     #   -- so cut-off-and-not-closed is retried rather than failed; only a
