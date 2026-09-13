@@ -119,6 +119,47 @@ def leading_word(value) -> str:
     return words[0].strip(".,;:-").lower() if words else ""
 
 
+# [null-answers-do-not-travel]
+# Rationale: `waived: <reason>` and `unknown: <reason>` are how a form says a
+#   field has no value, and they were being stored as the value. Every later
+#   reader then had to know the vocabulary to avoid acting on a non-answer,
+#   and three of them did not: `_tier` read `waived: none` as a model tier
+#   and dispatched `claude --model ""` until the start cap spent (three dead
+#   children in one real run), `checks.budget_for` refused a proof whose
+#   budget was waived instead of using the default, and `_gate_subject` wrote
+#   a commit titled `g1: waived: none`. None of those is wrong about values;
+#   each is right about a value and was handed a non-value.
+# Rejected: teaching each reader the vocabulary. That is the same rule in N
+#   places, and `_round_findings` already carries a fourth copy inline. The
+#   engine already treats an absent optional field correctly everywhere --
+#   `_tier`'s own `or seg.get("model", "")` is why an empty `model` has
+#   always worked -- so a null that resolves to absent needs no reader to
+#   change at all.
+# Rejected: storing the reason alongside under a second key. The reason is
+#   already in the journal, on the submit entry that answered the field; a
+#   prefill is orders, and a reason a step was not ordered is not an order.
+# Rejected: applying this to every prefill a run writes. Most of what a
+#   prefill carries is not an order the engine reads -- it is an artifact a
+#   later reader is handed, and there `waived: none` is an *answer*. A
+#   reviewer told `deviations = "waived: none"` knows the implementer
+#   declared none; hand it an absent key instead and it cannot tell that
+#   from a field nobody filled. `tests/test_verdict_panels.py` and
+#   `tests/test_planner_prefill.py` both pin that, and both went red when
+#   this was applied broadly. So it belongs only where a spec becomes
+#   orders the engine itself acts on -- `_mint_gates` -- and nowhere that
+#   merely carries one agent's answer to the next.
+NULL_WORDS = ("waived", "unknown")
+
+
+def without_nulls(fields):
+    """`fields` with every null answer dropped, so a non-value never travels
+    as orders. What is left is what was actually declared -- and a reader
+    asking for a key that is not there already has the behaviour a waived
+    field asks for, which is its own default."""
+    return {k: v for k, v in (fields or {}).items()
+            if not (isinstance(v, str) and leading_word(v) in NULL_WORDS)}
+
+
 def enforced_vocabulary(field: dict) -> list[str]:
     """The values the engine will accept for a field -- `[]` where it accepts
     anything.

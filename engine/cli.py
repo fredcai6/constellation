@@ -3380,7 +3380,7 @@ def _mint_gates(wid, seg, gates, start=1):
         gid = _unique_id(gate.get("id") or f"g{i}", existing)
         existing.add(gid)
         existing.add(f"{gid}-adjudicate")
-        prefill = {k: v for k, v in gate.items() if k != "id"}
+        prefill = forms.without_nulls({k: v for k, v in gate.items() if k != "id"})
         child = f"{wid}.{gid}"
         journal.append(wid, "step", id=gid, segment=seg["id"], dispatches=seg["dispatches"],
                        prefill=prefill, child=child, anchor=False, terminal=False,
