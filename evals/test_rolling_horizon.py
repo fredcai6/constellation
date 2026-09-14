@@ -48,6 +48,7 @@ is not.
 
 import os
 import pathlib
+import tomllib
 import shutil
 import subprocess
 
@@ -144,13 +145,22 @@ def run_closed(workdir, wid):
     return (pathlib.Path(workdir) / ".agent-work" / "archive" / wid).exists()
 
 
-def gate_children(workdir, wid):
-    """Every gate this run itself dispatched (`run-a-gate` children, never a
-    give-a-verdict panelist), read from the journal the same way `_mint_gates`
-    stamps them -- so this counts gates that actually ran, not steps that
-    merely named one."""
-    base = work_location(workdir, wid)
-    return sorted(p.parent.name for p in base.glob("g*/journal.toml"))
+def dropped_steps(workdir, wid):
+    """Every step this run closed with an `amend close` rather than running.
+
+    The one thing that can make every other assertion here true about a
+    cycle that did not turn. A real drive met a gate whose dispatch was
+    broken, did the gate's work by hand, amend-closed the dead step, and
+    walked on to `closed` with its obligation disposed and a commit on the
+    branch -- honestly, saying so in the amend's own reason, and nothing in
+    this file looked. An agent recovering by hand is the right move for the
+    agent and a failed run for this eval, whatever broke underneath it."""
+    path = work_location(workdir, wid) / "journal.toml"
+    if not path.exists():
+        return []
+    entries = tomllib.loads(path.read_text()).get("entry", [])
+    return [(e.get("step"), e.get("reason", "")) for e in entries
+            if e.get("kind") == "amend" and e.get("action") == "close"]
 
 
 def execution_state(workdir, wid):
@@ -167,9 +177,13 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
     What is asserted, and why each is the actual claim and not a proxy for
     it:
 
-    - a gate really ran (a `run-a-gate` child under this run, closed, with
-      its own commit) -- the projection from plan to execute is a real
-      dispatch, never a string typed into a form;
+    - no step was dropped with an `amend close` -- the cycle turned, rather
+      than being hand-patched around something broken and walked to a
+      terminal state that looks identical from the outside;
+    - a gate really ran, proved by the engine's own commit on the run's
+      branch rather than by a path existing: `gate_children` used to glob
+      `g*/journal.toml` without reading it, and counted a hand-written
+      26-byte stub as a gate that ran;
     - the execution-state board carries no row still `open` -- every
       obligation the spec made is disposed, not merely that the run
       stopped;
@@ -206,10 +220,10 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
         timeout=1800)
 
     closed = run_closed(workdir, "r1")
-    gates = gate_children(workdir, "r1")
+    dropped = dropped_steps(workdir, "r1")
     rows = execution_state(workdir, "r1")
 
-    detail = (f"\n-- gates dispatched -- {gates}"
+    detail = (f"\n-- steps dropped by amend -- {dropped}"
               f"\n-- execution-state board -- {rows}"
               f"\n-- run closed (archived): {closed}")
 
@@ -248,15 +262,12 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
             f"had not reached closed yet. Rerun it.{detail}"
             f"{harness.evidence(workdir, 'r1', r)}")
 
-    assert gates, (
-        f"the plan segment never projected a gate -- the cycle did not "
-        f"reach execute.{detail}{harness.evidence(workdir, 'r1', r)}")
+    assert not dropped, (
+        f"the cycle did not turn -- it was hand-patched: {dropped}. Every "
+        f"other assertion here can be true of a run that dropped the step it "
+        f"was supposed to run and did that work some other way.{detail}"
+        f"{harness.evidence(workdir, 'r1', r)}")
 
-    # Every gate in `gates` is guaranteed already closed the moment `closed`
-    # is true: a dispatch step only completes once its child returns, and a
-    # child returns only by closing (ASSEMBLY.toml's execute segment, and
-    # `run`/`return` in the journal) -- so there is nothing left to check
-    # gate by gate that `closed` below does not already cover.
     assert closed, (
         f"the drive finished on its own, short of the run closing -- a gate "
         f"ran, but the cycle did not reach its terminal step.{detail}"
