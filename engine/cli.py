@@ -3157,8 +3157,19 @@ def _commit_gate(wid, asm, step):
                         text=f"{child or wid} has no branch or worktree "
                              "stamped -- nothing to commit to")
         return
-    gate = next((s for s in st["steps"]
-                if s.get("child") == child and s.get("dispatches")), None)
+    # Rationale: a gate's dispatch step still names its purpose after an
+    #   amend closes it -- dispatch crashed and the work was finished by
+    #   hand, or it was dropped -- but `state()["steps"]` folds a closed
+    #   step out of the worklist entirely, the same gap `_minted_step_ids`
+    #   documents for ids. Reading the raw journal instead means a gate
+    #   closed before this commit runs still hands over the purpose its
+    #   own mint recorded, rather than falling back to a bare child id.
+    # Rejected: `st["steps"]`, the folded worklist -- right for what runs
+    #   next, wrong for what a closed child still named.
+    # See: [mint-ids-include-closed]
+    gate = next((e for e in journal.read(wid)
+                if e.get("kind") == "step" and e.get("child") == child
+                and e.get("dispatches")), None)
     gate_id = gate["id"] if gate else child
     purpose = (gate.get("prefill") or {}).get("purpose", "") if gate else ""
     _git_add_tracked(worktree)

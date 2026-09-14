@@ -237,6 +237,41 @@ def test_commit_journals_a_no_op_on_an_issue_tier_run_with_no_branch_or_worktree
     assert any(n.get("about") == "commit" for n in notes)
 
 
+# -- a dispatch closed by amend still names the purpose it minted with ----
+
+
+def test_advance_after_amend_closing_the_dispatch_step_still_names_the_purpose(
+        workdir, capsys):
+    """A dispatch that never returns -- crashed, or worked around by hand --
+    is closed by amend before the parent ever adjudicates it, the same
+    route `test_pause_gate.py`'s "amended away in the meantime" case takes.
+    Evidence: a real cycle (`/tmp/cycle-evidence/run-772s`) whose three
+    `run-a-gate` dispatches for `r1.g1` all crashed on an empty model
+    string; the run closed `g1` by hand with `amend close` and finished the
+    work itself, then adjudicated `advance` -- and the gate's own commit
+    landed with the bare subject `r1.g1:`, its purpose gone. `amend close`
+    drops the closed step from `state()["steps"]` entirely (`_apply_amend`),
+    and `_commit_gate` used to look for the gate's purpose only there."""
+    _mint_first_gate()
+    capsys.readouterr()
+    worktree = workdir / ".worktrees" / "issue17"
+
+    cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
+    pathlib.Path("src.txt").write_text("v1\n")
+    cli.main(["issue17", "amend", "close", "g1", "--reason",
+             "dispatch failed; work completed by hand"])
+    capsys.readouterr()
+    assert not any(s["id"] == "g1" for s in runmod.state("issue17")["steps"])
+
+    _fill_gate_transition("issue17")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    message = _git(worktree, "log", "-1", "--format=%B").stdout
+    assert message.startswith("g1:")               # names the gate, not the raw child id
+    assert "fix the parser" in message              # ... and its spec purpose survives
+
+
 # -- the subject is prose stripped for git, not the plan's markdown verbatim
 
 
