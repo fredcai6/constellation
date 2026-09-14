@@ -9,12 +9,18 @@ did not name when all three hold: it is in a file this gate already touches,
 it needs no proof of its own, and it is separable -- reverting it alone would
 leave the gate's diff complete. Anything failing one of the three is a note,
 never a detour. When the spec and reality disagree, that is a blocked note up,
-not an improvisation."""
+not an improvisation.
+
+Your deliverable is the working tree as you leave it, uncommitted. The issue
+tier makes this gate's commit when the parent advances past it, from whatever
+is standing in the tree then -- so a change you commit yourself lands in some
+other commit than the gate's, and the gate's own diff is no longer the whole
+of what it did."""
 
 [[field]]
 id = "change"
 kind = "evidence"
-note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort. Nothing here touches git: the commit is the issue tier's, made when the parent advances past this gate."
+note = "What changed and why it satisfies the purpose — the shape of the diff, not a narration of effort."
 
 [[field]]
 id = "deviations"
