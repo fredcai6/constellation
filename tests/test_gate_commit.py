@@ -75,6 +75,26 @@ def test_advance_commits_the_gate_naming_purpose_and_carrying_the_workid_trailer
     assert "src.txt" in stat  # the gate's own diff is what landed
 
 
+def test_advance_commits_the_gate_body_carrying_scope_verbatim(workdir, capsys):
+    """The commit body carries the gate spec's own `scope` verbatim,
+    unconditionally -- not folded into the subject and not gated on
+    emptiness or length, so a reader of `git show` never has to reconstruct
+    it from outside the commit."""
+    _mint_first_gate()
+    capsys.readouterr()
+    worktree = workdir / ".worktrees" / "issue17"
+
+    _dispatch_and_close_child_with_diff("issue17", "g1")
+    capsys.readouterr()
+
+    _fill_gate_transition("issue17")  # plan-holds = "advance"
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    message = _git(worktree, "log", "-1", "--format=%B").stdout
+    assert "src/parser.c only" in message  # the gate spec's own scope, verbatim
+
+
 def test_advance_with_nothing_staged_is_a_journaled_no_op_never_a_refusal_or_empty_commit(
         workdir, capsys):
     _mint_first_gate()
@@ -281,6 +301,17 @@ def test_gate_subject_strips_markdown_and_a_redundant_leading_label():
     (`**g8. Break the thing.**`) -- neither belongs in a commit subject,
     which already names the gate id itself."""
     assert cli._gate_subject("g8", "**g8. Break the thing.**") == "g8: Break the thing."
+
+
+def test_gate_subject_is_capped_at_100_characters():
+    """A plan's purpose is prose for a human reading the spec, with no bound
+    on its own length -- the commit subject drawn from it still needs one,
+    the repository's own habit (100 sits above the p90 of hand-authored
+    subjects on `main`) rather than an imported convention."""
+    purpose = "a" * 200
+    subject = cli._gate_subject("g8", purpose)
+    assert len(subject) <= 100
+    assert subject.startswith("g8: ")
 
 
 def test_gate_subject_reaches_the_real_commit_message(workdir, capsys):

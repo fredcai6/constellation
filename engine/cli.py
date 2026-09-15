@@ -3124,24 +3124,28 @@ def _gate_subject(gate_id, purpose):
     `<gate_id>.`-style label dropped when the purpose already opens with
     one. A plan's purpose field is prose for a human reading the spec, not
     a commit subject, and sometimes carries both a label and emphasis
-    meant for that reading rather than this one."""
+    meant for that reading rather than this one. Bounded to 100
+    characters total -- the repository's own habit, not an imported
+    convention -- so it still reads as a subject line rather than the
+    prose it was drawn from."""
     first = purpose.splitlines()[0] if purpose else ""
     first = first.replace("**", "").replace("__", "").lstrip("#").strip()
     label = f"{gate_id}."
     if first.startswith(label):
         first = first[len(label):].strip()
-    return f"{gate_id}: {first}"
+    return f"{gate_id}: {first}"[:100]
 
 
 def _commit_gate(wid, asm, step):
     """One commit for the gate that just advanced: staged against the run's
-    own worktree, on its own branch, the message naming the gate and its
-    spec purpose and carrying the gate's own work id as a trailer. Nothing
-    staged is the ordinary case wherever a gate's proof left no tracked
-    diff -- a journaled no-op, never a refusal and never an empty commit.
-    Neither guard below ever reaches `git`: each is the same shape of
-    no-op, so a run this verb cannot commit for advances instead of
-    stopping on an escape it has no way to take."""
+    own worktree, on its own branch, the message naming the gate, carrying
+    the gate spec's own purpose and scope verbatim in the body, and the
+    gate's own work id as a trailer. Nothing staged is the ordinary case
+    wherever a gate's proof left no tracked diff -- a journaled no-op,
+    never a refusal and never an empty commit. Neither guard below ever
+    reaches `git`: each is the same shape of no-op, so a run this verb
+    cannot commit for advances instead of stopping on an escape it has no
+    way to take."""
     child = step.get("child", "")
     if not _issue_tier(asm):
         journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
@@ -3171,9 +3175,13 @@ def _commit_gate(wid, asm, step):
                 if e.get("kind") == "step" and e.get("child") == child
                 and e.get("dispatches")), None)
     gate_id = gate["id"] if gate else child
-    purpose = (gate.get("prefill") or {}).get("purpose", "") if gate else ""
+    prefill = (gate.get("prefill") or {}) if gate else {}
+    purpose = prefill.get("purpose", "")
+    scope = prefill.get("scope", "")
     _git_add_tracked(worktree)
-    message = f"{_gate_subject(gate_id, purpose)}\n\nWork-Id: {child or wid}"
+    message = (f"{_gate_subject(gate_id, purpose)}\n\n"
+               f"{purpose}\n\n{scope}\n\n"
+               f"Work-Id: {child or wid}")
     made = _git(worktree, "commit", "-m", message)
     if made.returncode != 0:
         journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
