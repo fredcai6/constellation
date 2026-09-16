@@ -137,8 +137,36 @@ def signature_of(node):
 #: discards comments, so this is read from the file's own text.
 ANCHOR = re.compile(r"^[ \t]*#[ \t]*\[([a-z0-9]+(?:-[a-z0-9]+)*)\][ \t]*$")
 
+# [markdown-anchor-is-an-html-comment]
+# Rationale: epic #138 finding 10 -- a purpose chain must be able to root at
+#   one claim in a governing document, not the whole file, and the only
+#   governing documents (`docs/PURPOSE.md`, `standards/approach.md`) are
+#   markdown. `#` opens a heading there, so `ANCHOR`'s own spelling cannot be
+#   reused as-is above a claim without becoming one. An HTML comment is the
+#   one construct markdown already renders as nothing at all -- not a code
+#   span, not a footnote, nothing a reader ever sees -- so the same payload
+#   (a bracketed kebab slug, alone on its line) rides inside `<!-- -->`
+#   instead of behind `#`. Same fact, same shape, the wrapper each language
+#   already uses to hide a line from its own reader.
+# Rejected: a bracket in plain text directly above the claim, e.g. a line
+#   reading only `[slug]`. It would render -- CommonMark has no bare-text
+#   hiding construct -- so "invisible when the markdown renders" fails on
+#   the first line written. `standards/prose.md` rule 2 and the glossary's
+#   `anchor` entry bar a second, differently-shaped id syntax; this keeps
+#   the one shape (`[slug]`) and changes only the comment wrapper around it,
+#   which is exactly the axis `#` and `<!-- -->` already differ on.
+MD_ANCHOR = re.compile(r"^[ \t]*<!--[ \t]*\[([a-z0-9]+(?:-[a-z0-9]+)*)\][ \t]*-->[ \t]*$")
 
-def anchors_in(src):
+
+def _is_hash_comment(line):
+    return line.lstrip().startswith("#")
+
+
+def _is_html_comment(line):
+    return line.lstrip().startswith("<!--")
+
+
+def anchors_in(src, pattern=ANCHOR, is_comment=_is_hash_comment):
     """1-based line -> the authored slugs minted at it, in authored order.
 
     Ids are minted ON DEMAND: most definitions never get one, and that is the
@@ -154,18 +182,35 @@ def anchors_in(src):
     overwrote the earlier one, so the map bound only the last bracket and the
     rest never became a page anyone could see -- three of them across the
     tracked corpus at one measured rev, and a `check` run before this fix had
-    nothing to say about any of them."""
+    nothing to say about any of them.
+
+    `pattern`/`is_comment` are the one grammar's two spellings, not two
+    grammars: the defaults are Python's (`# [slug]`, `#`-comment lines);
+    `md_anchors_in` below calls back in with markdown's own (`<!-- [slug]
+    -->`, `<!--`-comment lines). A markdown heading starts with `#` too, so
+    the Python `is_comment` would wrongly skip PAST a heading while forward-
+    scanning for what a markdown anchor names -- the two predicates cannot
+    share a default, only the loop that uses them."""
     lines = src.splitlines()
     out = {}
     for i, line in enumerate(lines):
-        match = ANCHOR.match(line)
+        match = pattern.match(line)
         if not match:
             continue
         for j in range(i + 1, len(lines)):
-            if lines[j].strip() and not lines[j].lstrip().startswith("#"):
+            if lines[j].strip() and not is_comment(lines[j]):
                 out.setdefault(j + 1, []).append(match.group(1))
                 break
     return out
+
+
+def md_anchors_in(src):
+    """`anchors_in`, spelled for markdown: 1-based line -> the authored
+    slugs minted at it via `<!-- [slug] -->`, in authored order.
+
+    Same forward-scan, same stacking, same on-demand minting -- only the
+    wrapper and what counts as a comment line change. See `MD_ANCHOR`."""
+    return anchors_in(src, pattern=MD_ANCHOR, is_comment=_is_html_comment)
 
 
 #: Gate g7, grammar v0 as ruled by DESIGN_SPEC (the cull test is applied at

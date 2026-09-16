@@ -7,15 +7,19 @@ before building: one of them is wrong.
 
 ## What this is for
 
+<!-- [purpose-keeps-the-why-attached] -->
 **Constellation keeps the *why* attached to the work.**
 
 Reasons go missing faster than code does, and an addition nobody can justify is also one
 nobody can argue with, so the next agent builds beside it rather than through it. Three parts
 carry that load:
 
+<!-- [spec-gives-permission-to-stop] -->
 - The spec gives an agent **permission to stop** — bounded tightly enough that *do as little
   as possible* is an instruction it can act on.
+<!-- [critic-argues-from-a-position] -->
 - A critic argues from a stated position, because a position is a why.
+<!-- [delete-only-what-you-can-justify-or-refute] -->
 - Cleanup depends on both. You can delete only what you can justify or refute.
 
 It exists because models are trained to move fast and to add, and because their habits change
@@ -39,10 +43,12 @@ These are the bar. None of them runs yet, and each is a filed issue.
 
 ## Good enough
 
+<!-- [good-enough-is-only-decisions-left] -->
 Constellation is good enough when Tommy takes an idea he cares about in **another repository**,
 runs it through, and the only thing he does is make decisions. Three markers:
 
 1. Integration tests cover the basic functions and pass on a light model.
+<!-- [engine-changes-only-for-a-found-defect] -->
 2. `engine/` changes only in answer to a defect a real run found.
 3. It runs jobs for other repositories.
 

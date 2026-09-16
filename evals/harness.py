@@ -97,7 +97,7 @@ def spine(workdir, *args):
                           text=True, timeout=60)
 
 
-# [response-path-by-step]
+# [harness-response-path-via-engine]
 # Rationale: `_response_path` (engine/cli.py) now names a step's response
 #   form for the step as well as the form, so a fixture spelling `OPEN.toml`
 #   is exactly the #118 defect these evals would otherwise carry into a real
