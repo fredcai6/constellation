@@ -3556,7 +3556,7 @@ def _mint_projected_gate(wid, asm, step, st, fields):
 # Rejected: routing the answer through `_outcome`/`_perform` the ordinary
 #   way. That is exactly the collision named above -- the same submit would
 #   have to satisfy two unrelated vocabularies on one field.
-# See: `journal.py:119` -- `journal.append`'s own `mkdir(parents=True,
+# See: `journal.py:140` -- `journal.append`'s own `mkdir(parents=True,
 #   exist_ok=True)`, which is why this checks `journal.exists` before writing
 #   anywhere in the child rather than after.
 #

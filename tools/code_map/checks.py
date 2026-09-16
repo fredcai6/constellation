@@ -50,8 +50,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tokenize
 
-from .extract import STATEMENTS_NAME, WINDOW
+from .extract import STATEMENTS_NAME, WINDOW, anchors_in, tags_in
 
 #: How many offending items a failing check names before it summarizes. A check
 #: reports every failure it found in its count; it prints the first few.
@@ -224,6 +225,8 @@ class StoreScan:
         self.modules = {}
         self.inbound = collections.defaultdict(collections.Counter)
         self.line_base = {}
+        self.anchored = 0
+        self.anchor_ids = set()
         for st in statements:
             predicate = st["p"]
             q = st["q"]
@@ -238,6 +241,9 @@ class StoreScan:
             elif predicate in ("calls", "reads") and st.get("res") != "local":
                 caller_module = st["s"].split(":", 1)[0]
                 self.inbound[st["o"]][caller_module] += 1
+            elif predicate == "anchored":
+                self.anchored += 1
+                self.anchor_ids.add(st["o"])
 
 
 class SourceScan:
@@ -482,6 +488,303 @@ def page_accounting(m):
             f"the tree holds {actual} pages; the store accounts for {expected} "
             f"({TOP_INDEX_PAGES} top index + {len(m.modules)} module indexes + "
             f"{len(m.entities)} entities)")
+    return failures
+
+
+def _anchorable_lines(text):
+    """Every line `Extractor.anchor` is STRUCTURALLY capable of binding to,
+    from the SOURCE, independent of `extract.py`'s own walk: a function or
+    class definition (its own line, and its first decorator's line when it
+    has one -- `anchor`'s own `lines` list), and a module- or class-level
+    assignment to a plain name (`declare`'s own documented restriction: "a
+    function-local assignment is a local, not a declared surface").
+
+    A bracket that binds -- via `anchors_in`'s forward scan -- to a line
+    NOT in this set names a real statement (an `if`, a `return`, a bare
+    expression, a function-LOCAL assignment) that nothing in `extract.py`
+    ever calls `anchor()` on. That is a pre-existing scope limit `declare`
+    already states for assignments and this check does not relitigate; an
+    anchor placed there is out of `anchor_accounting`'s count on purpose,
+    the same kind of stated non-goal as a bare `#N` is for `see_tags_resolve`."""
+    tree = ast.parse(text)
+    lines = set()
+
+    def walk(node, kind):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                lines.add(child.lineno)
+                if child.decorator_list:
+                    lines.add(child.decorator_list[0].lineno)
+                walk(child, "class" if isinstance(child, ast.ClassDef) else "function")
+            elif isinstance(child, (ast.Assign, ast.AnnAssign)) and kind in ("module", "class"):
+                target = child.targets[0] if isinstance(child, ast.Assign) else child.target
+                if isinstance(target, ast.Name):
+                    lines.add(child.lineno)
+                walk(child, kind)
+            else:
+                walk(child, kind)
+
+    walk(tree, "module")
+    return lines
+
+
+def anchor_accounting(m):
+    """Every `[slug]` the source authors ABOVE A BINDABLE STATEMENT must be
+    an `anchored` statement the store holds -- see `_anchorable_lines` for
+    what "bindable" means and what it deliberately excludes.
+
+    A bracket with nothing bindable to bind to -- the last thing in a file,
+    or a target line `_anchorable_lines` does not recognise -- authors an id
+    the store never receives, with nothing at exit 0 to say so. (Two
+    brackets stacked above ONE bindable line used to be this same silence
+    for a different reason -- `anchors_in` overwrote the earlier slug in its
+    own dict -- and that cause is fixed at the source now: every stacked
+    bracket binds. This check is what still catches a bracket that finds no
+    line to bind to at all.)
+
+    The left side reuses `extract.anchors_in`'s own forward scan (which line
+    a bracket binds to is one fact, not two derivations to keep in sync) but
+    filters it against `_anchorable_lines`, a walk that shares no code with
+    `extract.py`'s own. The right side is `StoreScan.anchored`, the store
+    read straight -- counted the same way `page_accounting` counts pages: by
+    what is actually there, not by what a write attempt claims."""
+    authored = 0
+    for rel in sorted({v["file"] for v in m.modules.values()}):
+        text = (m.root / rel).read_text(encoding="utf-8")
+        bindable = _anchorable_lines(text)
+        for line, slugs in anchors_in(text).items():
+            if line in bindable:
+                authored += len(slugs)
+    bound = m.scan.anchored
+    if authored == bound:
+        return []
+    return [f"source authors {authored} `[slug]` anchors bound to a bindable "
+            f"statement across the mappable corpus; the store holds {bound} "
+            f"`anchored` statements -- {authored - bound} authored anchor(s) "
+            f"bound to nothing"]
+
+
+# --------------------------------------------------------- See: tag targets
+# A `See:` tag is free prose (`standards/prose.md` governs its WORDS, not its
+# shape), so what follows reads out only the targets the corpus actually
+# authors as pointers -- never a bare word, which is indistinguishable from
+# ordinary sentence content (`fields`, `route-form` are real words in real
+# `See:` tags that name nothing checkable).
+
+_SEE_ISSUE = re.compile(r"#(\d+)")
+_SEE_ANCHOR = re.compile(r"\[([a-z0-9]+(?:-[a-z0-9]+)*)\]")
+_SEE_FILE_LINE = re.compile(r"([\w./-]+\.(?:py|toml|md)):(\d+)")
+_SEE_FILE = re.compile(r"([\w./-]+\.(?:py|toml|md))")
+_SEE_BACKTICK = re.compile(r"`([^`]+)`")
+_SEE_SYMBOL_SHAPE = re.compile(
+    r"^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?:\(.*\))?$")
+
+
+def _see_targets(text):
+    """Every target `text` (one `See:` tag's authored words, already glued
+    across its lines by `tags_in`) names, as `(pos, kind, ...)` in reading
+    order -- `kind` one of `issue`, `anchor`, `file_line`, `file`, `symbol`.
+
+    A `symbol` is ONLY ever read from a backtick-quoted span: `See:` prose
+    uses backticks freely for things that are not code (a TOML key, a CLI
+    flag) as well as for things that are, and a bare word has no marker at
+    all to tell the two apart. Requiring the backtick is what keeps this
+    check from manufacturing a failure on a word that was never a pointer."""
+    claimed = []
+
+    def claim(s, e):
+        claimed.append((s, e))
+
+    def free(s, e):
+        return not any(s < ce and e > cs for cs, ce in claimed)
+
+    out = []
+    for mo in _SEE_FILE_LINE.finditer(text):
+        out.append((mo.start(), "file_line", mo.group(1), int(mo.group(2))))
+        claim(mo.start(), mo.end())
+    for mo in _SEE_FILE.finditer(text):
+        if free(mo.start(), mo.end()):
+            out.append((mo.start(), "file", mo.group(1)))
+            claim(mo.start(), mo.end())
+    for mo in _SEE_ANCHOR.finditer(text):
+        out.append((mo.start(), "anchor", mo.group(1)))
+    for mo in _SEE_ISSUE.finditer(text):
+        if free(mo.start(), mo.end()):
+            out.append((mo.start(), "issue", mo.group(1)))
+    for mo in _SEE_BACKTICK.finditer(text):
+        if not free(mo.start(), mo.end()):
+            continue
+        sm = _SEE_SYMBOL_SHAPE.match(mo.group(1))
+        if sm:
+            out.append((mo.start(), "symbol", sm.group(1)))
+    out.sort(key=lambda t: t[0])
+    return out
+
+
+def _resolve_ref(root, ref_dir, path):
+    """`path`, resolved against the repo root and then against the
+    REFERENCING file's own directory -- `journal.py:119`, authored from
+    inside `engine/cli.py`, means `engine/journal.py`, and there is no
+    root-level `journal.py` to find first. `None` when neither exists."""
+    candidate = root / path
+    if candidate.is_file():
+        return candidate
+    candidate = root / ref_dir / path
+    if candidate.is_file():
+        return candidate
+    return None
+
+
+def _def_spans(path, name):
+    """Every function/class/method in `path` (nested included -- `ast.walk`,
+    not `.body`) named `name`'s last dotted component, as `(lineno,
+    end_lineno)`. A second, independent derivation: this shares nothing with
+    `extract.py`'s own walk."""
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError, UnicodeDecodeError):
+        return []
+    target = name.rsplit(".", 1)[-1]
+    return [(n.lineno, n.end_lineno) for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and n.name == target]
+
+
+def _names_in(path):
+    """Every NAME token `path` contains, plus every STRING token's own
+    literal value -- `tokenize`-derived. Deliberately permissive: a `See:`
+    tag names a parameter, a local, an attribute base as freely as a
+    top-level definition, and just as often names a STRING VALUE this
+    corpus's own convention carries as a segment id or a decision word
+    (`` `plan` ``'s dispatched round, `` `work` ``'s undispatched one --
+    neither is a Python name anywhere, both are string literals `_fresh_mint`
+    is called with). None of that is the thing under test here -- only
+    whether the word appears in the file at all, spelled either way."""
+    try:
+        with open(path, "rb") as f:
+            names = set()
+            for tok in tokenize.tokenize(f.readline):
+                if tok.type == tokenize.NAME:
+                    names.add(tok.string)
+                elif tok.type == tokenize.STRING:
+                    try:
+                        names.add(ast.literal_eval(tok.string))
+                    except (ValueError, SyntaxError):
+                        pass
+            return names
+    except (OSError, SyntaxError, tokenize.TokenError, IndentationError,
+            UnicodeDecodeError):
+        return set()
+
+
+def _see_tag_failures(root, rel_file, text, bound_slugs):
+    """Every target in one `See:` tag's `text` that does not resolve.
+
+    `current` is the file a `symbol` target resolves against: the most
+    recent `file`/`file_line` target seen, reset by the next one. When a tag
+    names NO file at all, a `symbol` target defaults to the tag's OWN file
+    (`_wait_spawn`, two lines above `_dispatch_child`, in the same file the
+    tag sits in) -- there being no OTHER file a bare name in a file's own
+    comment could sensibly mean.
+
+    A `symbol` paired with a `file_line` (the very next one after it, and
+    only that one) is checked STRICTLY: its definition must SPAN the given
+    line, not merely exist in the file -- `journal.py:119` next to
+    `` `journal.append` `` is the tag this rule exists to catch, since line
+    119 is `stamp()`'s own line now, not `append`'s. A `symbol` with no line
+    to pin it to is checked LOOSELY: the name must appear somewhere in the
+    file, which tolerates a parameter or a local the strict check has no
+    span to check against."""
+    targets = _see_targets(text)
+    ref_dir = os.path.dirname(rel_file)
+    names_only_file = not any(k in ("file", "file_line") for _, k, *_ in targets)
+    current = None       # (resolved Path, displayed path, is_py)
+    pending_line = None
+    if names_only_file and any(k == "symbol" for _, k, *_ in targets):
+        current = (root / rel_file, rel_file, True)
+    failures = []
+    for tok in targets:
+        kind = tok[1]
+        if kind in ("issue",):
+            continue
+        if kind == "anchor":
+            slug = tok[2]
+            if slug not in bound_slugs:
+                failures.append(f"[{slug}]: not a bound anchor")
+            continue
+        if kind in ("file", "file_line"):
+            path = tok[2]
+            resolved = _resolve_ref(root, ref_dir, path)
+            if resolved is None:
+                failures.append(f"{path}: no such file")
+                current = None
+                pending_line = None
+                continue
+            if kind == "file_line":
+                line = tok[3]
+                total = len(resolved.read_text(encoding="utf-8").splitlines())
+                if not (1 <= line <= total):
+                    failures.append(f"{path}:{line}: file has {total} lines")
+                    current = None
+                    pending_line = None
+                    continue
+                pending_line = line
+            else:
+                pending_line = None
+            current = (resolved, path, path.endswith(".py"))
+            continue
+        if kind == "symbol":
+            name = tok[2]
+            if current is None:
+                continue
+            resolved, path, is_py = current
+            if not is_py:
+                continue
+            if pending_line is not None:
+                line = pending_line
+                pending_line = None
+                spans = _def_spans(resolved, name)
+                if not spans:
+                    failures.append(f"{path}: `{name}` -- no such definition")
+                elif not any(lo <= line <= hi for lo, hi in spans):
+                    failures.append(
+                        f"{path}:{line}: `{name}` is defined at "
+                        + ", ".join(f"{lo}-{hi}" for lo, hi in spans)
+                        + f", not at {line}")
+            elif name.rsplit(".", 1)[-1] not in _names_in(resolved):
+                failures.append(f"{path}: `{name}` -- no such name")
+            continue
+    return failures
+
+
+def see_tags_resolve(m):
+    """Every `See:` tag's checkable target must resolve: a bound anchor slug,
+    a file that exists, or a `file:line` paired with a backtick-quoted symbol
+    whose OWN definition spans that line.
+
+    NOT checked, and stated rather than silently narrowed: a bare `#N`. It
+    points outside the tree -- at an issue tracker this repo does not carry a
+    form to query -- and `standards/issue.md` gives no in-tree convention for
+    what "resolves" would even mean for one. Scoping this check to in-tree
+    targets is the decision the run that wrote it made explicitly, not a gap
+    it missed.
+
+    Two REAL derivations, same shape as `entity_symbol_join`: the tags come
+    from `tags_in`, reading SOURCE; a symbol's claim is checked against
+    `ast.walk` over the NAMED file's SOURCE, sharing no code path with
+    `extract.py`'s own walk; an anchor's claim is checked against the STORE's
+    bound slugs (`StoreScan.anchor_ids`) -- `anchor_accounting`, above, is
+    what holds THAT set honest."""
+    bound_slugs = m.scan.anchor_ids
+    failures = []
+    for rel in sorted({v["file"] for v in m.modules.values()}):
+        src = (m.root / rel).read_text(encoding="utf-8")
+        for tags in tags_in(src).values():
+            for t in tags:
+                if t["kind"] != "See":
+                    continue
+                for f in _see_tag_failures(m.root, rel, t["text"], bound_slugs):
+                    failures.append(f"{rel}: {f}")
     return failures
 
 
@@ -844,6 +1147,8 @@ def deterministic_rebuild(m):
 CHECKS = (
     ("no-empty-pages", no_empty_pages),
     ("page-accounting", page_accounting),
+    ("anchor-accounting", anchor_accounting),
+    ("see-tags-resolve", see_tags_resolve),
     ("refs-line-self-consistent", refs_line_self_consistent),
     ("entity-symbol-join", entity_symbol_join),
     ("page-location-matches-content", page_location_matches_content),

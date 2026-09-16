@@ -139,13 +139,22 @@ ANCHOR = re.compile(r"^[ \t]*#[ \t]*\[([a-z0-9]+(?:-[a-z0-9]+)*)\][ \t]*$")
 
 
 def anchors_in(src):
-    """1-based line -> the authored slug minted at it.
+    """1-based line -> the authored slugs minted at it, in authored order.
 
     Ids are minted ON DEMAND: most definitions never get one, and that is the
     point -- the symbol path is derived and disposable, and the slug is the one
-    thing the mind map stores. The slug binds to the next line that is neither
+    thing the mind map stores. A slug binds to the next line that is neither
     blank nor a comment, so a reader can stack a bracket above a docstringed
-    comment block and still name what he meant."""
+    comment block and still name what he meant.
+
+    A LIST at each line, not one slug: two anchors stacked directly above the
+    same definition both name it, on purpose -- a reader mints a second bracket
+    to give a second fact about the same target its own stable id, not to
+    replace the first. A single-slug-per-line dict (`out[j + 1] = ...`) silently
+    overwrote the earlier one, so the map bound only the last bracket and the
+    rest never became a page anyone could see -- three of them across the
+    tracked corpus at one measured rev, and a `check` run before this fix had
+    nothing to say about any of them."""
     lines = src.splitlines()
     out = {}
     for i, line in enumerate(lines):
@@ -154,7 +163,7 @@ def anchors_in(src):
             continue
         for j in range(i + 1, len(lines)):
             if lines[j].strip() and not lines[j].lstrip().startswith("#"):
-                out[j + 1] = match.group(1)
+                out.setdefault(j + 1, []).append(match.group(1))
                 break
     return out
 
@@ -560,7 +569,7 @@ class Extractor(ast.NodeVisitor):
         self.table = TABLES[self.mod]
         self.tree = tree
         self.src = src            # the file's own text, for facts `ast` drops
-        self.anchors = anchors_in(src)   # 1-based line -> authored slug
+        self.anchors = anchors_in(src)   # 1-based line -> authored slugs
         self.tags = tags_in(src)         # 1-based line -> authored [{"kind","text"}]
         # slug -> (owning symbol, span_hash) -- gate g6, collected as anchors
         # are emitted and read back by run() to diff against the PREVIOUS
@@ -863,10 +872,17 @@ class Extractor(ast.NodeVisitor):
         return self.out
 
     def anchor(self, sym, node):
-        """Emit the authored id minted directly above `node`, if there is one.
+        """Emit every authored id minted directly above `node`, if there are any.
 
         A decorated definition is anchored above its FIRST decorator as well as
         above its `def`, because that is where a reader writes the comment.
+
+        `self.anchors.get(line)` is a LIST (see `anchors_in`): two brackets
+        stacked immediately above one definition both name it, and both get
+        their own `anchored` statement here -- one per slug, all against the
+        same span. A `return` after the loop, not inside it, still stops at
+        whichever of the two candidate lines (decorator, then `def`) is the
+        one that actually carries anchors.
 
         Gate g6: an anchor is the only authored-identity surface that exists
         pre-g7 (the real comment-tag vocabulary -- Assumption:/Constraint:/
@@ -879,13 +895,14 @@ class Extractor(ast.NodeVisitor):
         if getattr(node, "decorator_list", None):
             lines.insert(0, node.decorator_list[0].lineno)
         for line in lines:
-            slug = self.anchors.get(line)
-            if slug:
+            slugs = self.anchors.get(line)
+            if slugs:
                 h = span_hash(node)
                 ln, col = store_line(node.lineno), node.col_offset
-                self.emit(sym, "anchored", slug, ln, col, "literal",
-                          d={"span_hash": h})
-                self.anchor_hashes[slug] = (sym, h, self.rel.replace("\\", "/"), ln, col)
+                for slug in slugs:
+                    self.emit(sym, "anchored", slug, ln, col, "literal",
+                              d={"span_hash": h})
+                    self.anchor_hashes[slug] = (sym, h, self.rel.replace("\\", "/"), ln, col)
                 return
 
     def tag_check(self, sym, node, span_node=None):
