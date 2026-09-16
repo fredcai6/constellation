@@ -23,12 +23,15 @@ is what the engine does at a real `advance`, not a unit in isolation.
 
 import pathlib
 
+import pytest
+
 from engine import boards, journal, run as runmod
 from engine import cli
+from gitremote import stub_gh
 from test_nesting import (
     _dispatch_and_close_child, _dispatch_and_close_plan, _dispatch_plan_critic,
-    _fill, _fill_gate_transition, _fill_gate_transition_drop, _fill_open, _fill_plan_to_execute,
-    _response, _work_the_board,
+    _fill, _fill_close, _fill_gate_transition, _fill_gate_transition_drop, _fill_open,
+    _fill_plan_to_execute, _response, _work_the_board,
 )
 
 
@@ -239,6 +242,70 @@ def test_dropping_the_last_pending_gate_still_refills_plan_over_an_open_obligati
 
     st = runmod.state("issue17")
     # a fresh plan round was minted -- not the terminal close step
+    assert st["current"]["segment"] == "plan"
+    assert st["current"]["form"] != "forms/CLOSE.toml"
+    fresh_plan = next(s for s in st["steps"]
+                      if s["segment"] == "plan" and s.get("source") == "mint")
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact
+
+
+# -- a worklist emptied outside every outcome verb still settles at close ----
+
+
+def test_a_worklist_emptied_outside_every_outcome_verb_still_settles_at_close(
+        workdir, capsys, monkeypatch):
+    """THE FIX (#143): `_settle_execution` only ever fires from inside the
+    execute segment's own outcome table -- `advance`'s `commit; settle` and
+    `drop <gate-id>`'s `close; settle` (#95) above. Both routes need a gate
+    that actually reaches its own adjudication. `spine <wid> amend close
+    <step-id> --reason ...` -- `cmd_close`'s own escape for a step stuck on
+    a pending gate -- closes a step directly, with no outcome table and no
+    `_settle_execution` call anywhere in the loop: the same shape any
+    future defect between a journal write and its own follow-on mint
+    reproduces (#141 was one cause of that; #143 is the gap independent of
+    cause). Amend-closing execute's only pending pair empties its worklist
+    that way, so `issue17` reaches CLOSE.toml with its one obligation still
+    `open` and nothing left in execute able to close it -- run `issue139`'s
+    own shape, reproduced here by a different, general-purpose route rather
+    than the one crash #141 already closed off. `cmd_close` is where every
+    route to the terminal step converges; this pins that it reads the board
+    there too, refilling plan instead of finalizing (and archiving) a run
+    that reports itself done over an open obligation. `gh` is stubbed
+    (`gitremote.stub_gh`) so a run that this check fails to catch would
+    actually reach `_push_and_open_pr` and archive clean -- the real shape
+    of the bug, not a run saved by a `gh` call failing for an unrelated
+    reason."""
+    stub_gh(monkeypatch)
+    _mint_first_gate_with_obligation()
+    capsys.readouterr()
+
+    rows = boards.rows(_execution_state_path("issue17"))
+    assert len(rows) == 1 and rows[0]["status"] == "open"  # seeded, undisposed
+
+    cli.main(["issue17", "amend", "close", "g1", "--reason",
+             "simulating a defect that empties the worklist with no outcome verb involved"])
+    cli.main(["issue17", "amend", "close", "g1-adjudicate", "--reason",
+             "simulating a defect that empties the worklist with no outcome verb involved"])
+    capsys.readouterr()
+
+    st = runmod.state("issue17")
+    # the reproduction: execute's worklist is empty and nothing stands
+    # between the run and its own terminal step
+    assert st["current"]["form"] == "forms/CLOSE.toml"
+
+    _fill_close("issue17")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "close"])
+    assert "not complete" in str(e.value)
+    capsys.readouterr()
+
+    st = runmod.state("issue17")
+    assert not st["closed"]  # refused -- never archived over an open obligation
+    # a fresh plan round was minted instead, the same shape `advance` and
+    # `drop` already refill through mid-run
     assert st["current"]["segment"] == "plan"
     assert st["current"]["form"] != "forms/CLOSE.toml"
     fresh_plan = next(s for s in st["steps"]
