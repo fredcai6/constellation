@@ -155,12 +155,13 @@ def _check_artifact(wid, form, fields):
     of its own (`forms.enforced_vocabulary` only fires on `kind = "decision"`)
     to forbid them the way a decision field's does."""
     root = journal.root_for(wid)
+    live = forms.without_nulls(fields)
     for f in form.get("fields", []):
         fid = f["id"]
         if f.get("kind") != "artifact" or fid not in fields:
             continue
         value = fields[fid]
-        if not isinstance(value, str) or forms.leading_word(value) in ("waived", "unknown"):
+        if not isinstance(value, str) or fid not in live:
             continue
         try:
             pathlib.Path(root / value).read_text(encoding="utf-8")
@@ -229,8 +230,10 @@ def _measure_artifacts(wid, step, form, fields):
     again would double the prefix and break every run, not only a worktree
     one."""
     root = journal.root_for(wid)
+    live = forms.without_nulls(fields)
     for f in form.get("fields", []):
-        if f.get("kind") != "artifact" or not isinstance(fields.get(f["id"]), str):
+        if (f.get("kind") != "artifact" or not isinstance(fields.get(f["id"]), str)
+                or f["id"] not in live):
             continue
         _archive_artifact(root, fields[f["id"]], step["id"])
         words = _prose_words(root / fields[f["id"]])

@@ -20,6 +20,7 @@ from engine import cli, journal, run as runmod
 from test_nesting import (
     _dispatch_and_close_plan,
     _dispatch_plan_critic,
+    _fill,
     _fill_consolidate,
     _fill_open,
     _fill_spec,
@@ -123,3 +124,38 @@ def test_a_null_artifact_answer_copies_nothing(workdir, capsys):
     cli._archive_artifact(journal.root_for("issue17"), ".agent-work/issue17/nope.md", "x")
 
     assert {p.name for p in _loc("issue17").iterdir()} == before
+
+
+def test_a_long_waived_artifact_value_is_not_archived(workdir, capsys):
+    """issue141: `_check_artifact` (pre-journal) treated any string whose
+    leading word is `waived`/`unknown` as a non-answer, but
+    `_measure_artifacts` (post-journal) admitted every string alike and
+    handed it to `_archive_artifact`, whose `is_file()` raises `OSError` --
+    not `False` -- once a path component exceeds the filesystem's 255-byte
+    name limit. A `waived:` reason long enough to trip that crashed after
+    the submit was already journaled (`complete_submit` journals first),
+    exactly what happened live in run issue139. Both call sites now consult
+    `forms.without_nulls`, the same predicate `_mint_gates` already uses, so
+    a null of any length is skipped before it ever reaches a filesystem
+    call -- no crash, and nothing archived."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open("issue17")
+    cli.main(["issue17", "submit"])
+    _work_the_board("issue17")
+    step_id = runmod.state("issue17")["current"]["id"]
+
+    long_value = "waived: " + "x" * 300
+    _fill(_response("issue17"),
+          'resolution = "pass"\n'
+          'spec = "%s"\n'
+          'key-terms = "waived: none"\n'
+          'settle = "waived: none"\n' % long_value)
+    cli.main(["issue17", "submit"])  # must not raise
+    capsys.readouterr()
+
+    assert any(e.get("kind") == "submit" for e in journal.read("issue17"))
+    measures = [e for e in journal.read("issue17") if e.get("kind") == "measure"]
+    assert not any(m["step"] == step_id and m["field"] == "spec" for m in measures), (
+        "a long null value must not be measured -- it names no file")
+    assert not (_loc("issue17") / f"spec.{step_id}.md").exists(), (
+        "a long null value must not be archived -- it names no file")
