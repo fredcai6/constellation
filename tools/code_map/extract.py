@@ -242,6 +242,73 @@ def tags_in(src):
     return out
 
 
+#: `See:` tag target grammar. `standards/prose.md` governs a `See:` tag's
+#: WORDS, not its shape, so this reads out only the targets the corpus
+#: actually authors as pointers -- never a bare word, which is
+#: indistinguishable from ordinary sentence content (`fields`, `route-form`
+#: are real words in real `See:` tags that name nothing checkable).
+_SEE_ISSUE = re.compile(r"#(\d+)")
+_SEE_ANCHOR = re.compile(r"\[([a-z0-9]+(?:-[a-z0-9]+)*)\]")
+_SEE_FILE_LINE = re.compile(r"([\w./-]+\.(?:py|toml|md)):(\d+)")
+_SEE_FILE = re.compile(r"([\w./-]+\.(?:py|toml|md))")
+_SEE_BACKTICK = re.compile(r"`([^`]+)`")
+_SEE_SYMBOL_SHAPE = re.compile(
+    r"^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?:\(.*\))?$")
+
+
+# [see-targets-lives-in-the-grammar-module]
+# Rationale: this function used to live in `checks.py`, which reads it
+#   forward -- does each target resolve. Epic #138 finding 2 asked `render.py`
+#   to read the SAME `See:` tags backward -- who points at this anchor -- and
+#   a target parser is a fact about the tag GRAMMAR, the same kind of fact
+#   `anchors_in`/`tags_in` above already are, not a fact about checking.
+#   `checks.py` and `render.py` are peer consumers of `extract.py`; neither
+#   imports the other, so putting the parser in either one would make the
+#   other reach sideways for it. One parser here, imported both directions,
+#   is what keeps `checks.see_tags_resolve` and `render.map_lines` from ever
+#   reading `See:` targets two different ways.
+def see_targets(text):
+    """Every target `text` (one `See:` tag's authored words, already glued
+    across its lines by `tags_in`) names, as `(pos, kind, ...)` in reading
+    order -- `kind` one of `issue`, `anchor`, `file_line`, `file`, `symbol`.
+
+    A `symbol` is ONLY ever read from a backtick-quoted span: `See:` prose
+    uses backticks freely for things that are not code (a TOML key, a CLI
+    flag) as well as for things that are, and a bare word has no marker at
+    all to tell the two apart. Requiring the backtick is what keeps a
+    consumer of this from manufacturing a hit on a word that was never a
+    pointer."""
+    claimed = []
+
+    def claim(s, e):
+        claimed.append((s, e))
+
+    def free(s, e):
+        return not any(s < ce and e > cs for cs, ce in claimed)
+
+    out = []
+    for mo in _SEE_FILE_LINE.finditer(text):
+        out.append((mo.start(), "file_line", mo.group(1), int(mo.group(2))))
+        claim(mo.start(), mo.end())
+    for mo in _SEE_FILE.finditer(text):
+        if free(mo.start(), mo.end()):
+            out.append((mo.start(), "file", mo.group(1)))
+            claim(mo.start(), mo.end())
+    for mo in _SEE_ANCHOR.finditer(text):
+        out.append((mo.start(), "anchor", mo.group(1)))
+    for mo in _SEE_ISSUE.finditer(text):
+        if free(mo.start(), mo.end()):
+            out.append((mo.start(), "issue", mo.group(1)))
+    for mo in _SEE_BACKTICK.finditer(text):
+        if not free(mo.start(), mo.end()):
+            continue
+        sm = _SEE_SYMBOL_SHAPE.match(mo.group(1))
+        if sm:
+            out.append((mo.start(), "symbol", sm.group(1)))
+    out.sort(key=lambda t: t[0])
+    return out
+
+
 def span_hash(node):
     """A normalised hash of an entity's own AST subtree (gate g6, stale-tag
     detection): immune to reformatting -- indentation, line wraps, blank
