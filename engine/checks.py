@@ -468,6 +468,26 @@ def trial(cmd, cwd, budget):
     return code, output
 
 
+# [timeout-streams-are-bytes]
+# Rationale: `text=True` decodes what `subprocess.run` returns, never what
+#   `TimeoutExpired` carries. CPython fills the exception from the pipes at
+#   kill time, ahead of the text wrapper's own decode, so a proof that printed
+#   anything before it was killed hands back `bytes` here while a silent one
+#   hands back `None`. Concatenating `bytes` against a `str` raised out of the
+#   handler, so the one path that exists to report an overrun reported nothing
+#   at all -- and the overrun test never saw it because `sleep 20` prints
+#   nothing, and empty `bytes` are falsy.
+# Rejected: `str(e.stdout)` -- it renders the repr, `b'...'`, into the tail a
+#   person reads.
+def _as_text(stream):
+    """One of `TimeoutExpired`'s streams as text: `bytes` decoded the way the
+    run itself would have decoded them, and a stream that is not there as
+    nothing."""
+    if isinstance(stream, bytes):
+        return stream.decode("utf-8", errors="replace")
+    return stream or ""
+
+
 def _run(cmd, cwd, budget):
     """(exit, output) for one check; exit `None` when it outran the budget."""
     try:
@@ -477,7 +497,7 @@ def _run(cmd, cwd, budget):
     except subprocess.TimeoutExpired as e:
         # What it printed before it was killed is the only account of a proof
         # that outran its budget, and `run` hands it back on the exception.
-        return None, ((e.stdout or "") + (e.stderr or ""))[-4000:]
+        return None, (_as_text(e.stdout) + _as_text(e.stderr))[-4000:]
     return r.returncode, (r.stdout + r.stderr)[-4000:]
 
 
