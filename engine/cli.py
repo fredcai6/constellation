@@ -3127,13 +3127,23 @@ def _gate_subject(gate_id, purpose):
     meant for that reading rather than this one. Bounded to 100
     characters total -- the repository's own habit, not an imported
     convention -- so it still reads as a subject line rather than the
-    prose it was drawn from."""
+    prose it was drawn from. A subject over that bound is cut back to the
+    nearest word boundary and ends with an ellipsis, so it reads as
+    visibly truncated rather than a sentence that just stops mid-word."""
     first = purpose.splitlines()[0] if purpose else ""
     first = first.replace("**", "").replace("__", "").lstrip("#").strip()
     label = f"{gate_id}."
     if first.startswith(label):
         first = first[len(label):].strip()
-    return f"{gate_id}: {first}"[:100]
+    prefix = f"{gate_id}: "
+    subject = f"{prefix}{first}"
+    if len(subject) <= 100:
+        return subject
+    room = 100 - len(prefix) - 1
+    truncated = first[:room].rstrip()
+    if " " in truncated:
+        truncated = truncated.rsplit(" ", 1)[0]
+    return f"{prefix}{truncated}…"
 
 
 def _commit_gate(wid, asm, step):
