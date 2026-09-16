@@ -1,7 +1,8 @@
-# The command palette: this repo's own commands and model tiers. One of the
-# two artifacts v2 allows to be repo-specific (the other is the glossary).
-# A gate spec's `check` field reaches a runner through these names --
-# `palette:test tests/x.py` -- so a spec names the job, not the command.
+# The command palette: this repo's own commands and model tiers, plus the
+# chain root set below. One of the two artifacts v2 allows to be repo-specific
+# (the other is the glossary). A gate spec's `check` field reaches a runner
+# through these names -- `palette:test tests/x.py` -- so a spec names the
+# job, not the command.
 
 [commands]
 # `test` is the fast suite -- no model calls, but not free: it drives real
@@ -48,3 +49,17 @@ heavy = "claude-opus-5"
 [roles]
 planner = "standard"
 implementer = "standard"
+
+# Epic #138 finding 10: the documents a purpose chain is allowed to
+# terminate at, rather than climb past. A claim counts as a root when its
+# anchor lives in one of these files -- Part 1 of the same finding is what
+# lets a chain name a claim instead of a whole document. This belongs here,
+# not in a check's own source, for the same reason the command palette
+# above does: `standards/approach.md` travels to any repository this
+# system runs in and its five are a root wherever it lands, but
+# `docs/PURPOSE.md` is this repository's own page and does not travel --
+# a root set baked into code cannot tell a portable root from a local one,
+# and would either follow `approach.md` to a repo with no `PURPOSE.md` or
+# hardcode this repo's path into a mechanism meant to travel.
+[roots]
+documents = ["docs/PURPOSE.md", "standards/approach.md"]

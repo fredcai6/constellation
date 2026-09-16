@@ -6,14 +6,19 @@ or it is appetite: real work, queued rather than done now.
 
 ## The five
 
+<!-- [explore-and-play] -->
 1. **Explore, and play.** A null result kills one variant under those conditions. The move
    after a null is another variant.
+<!-- [drill-down-until-understood] -->
 2. **Drill down until the problem is understood**, and say it in words that survive leaving
    the room.
+<!-- [build-so-it-will-not-break] -->
 3. **Build so it will not break.** Unit tests, and especially tests that watch the important
    things pass through the whole project. Time spent here buys back the fiddling later.
+<!-- [short-loops] -->
 4. **Short loops.** Plan enough to do the next step and to hold a rough idea of what follows.
    Do it. Step back, consolidate, plan again.
+<!-- [make-mechanical-things-mechanical] -->
 5. **Make mechanical things mechanical.** A script beats an agent at what a script can do, and
    giving the same instruction twice is a defect in the system rather than a chore.
 

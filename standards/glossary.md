@@ -69,9 +69,10 @@ has used one back. Coining a synonym for a term below is a defect.
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
   template step flagged so that amending it away is loud in the ledger and the parent's
   adjudication view — still one journaled step to amend, never a refusal. *In the map:* an
-  authored identity for a definition — a comment line holding only a bracketed kebab slug,
-  `# [stable-id]`, directly above what it names. Minted on demand; the one fact about a
-  definition the map stores instead of deriving.
+  authored identity for a definition or a claim — a comment line holding only a bracketed
+  kebab slug, directly above what it names: `# [stable-id]` in Python, `<!-- [stable-id] -->`
+  in markdown, each language's own way of hiding a line from its own reader. Minted on demand;
+  the one fact about a definition the map stores instead of deriving.
 - **form** — one step's imperative, fields, and field notes; the unit that carries doctrine.
 - **field kind** — how a field is satisfied: `check`, `evidence`, `artifact`, `decision`,
   `plan`. A field takes `waived: <reason>` or `unknown: <reason>` in place of an answer —

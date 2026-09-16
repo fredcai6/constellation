@@ -19,7 +19,7 @@ import subprocess
 
 from gitremote import init_checkout
 
-from tools.code_map import parents
+from tools.code_map import discovery, extract, parents
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -214,3 +214,27 @@ def test_orphan_count_on_this_repos_clean_tree_equals_the_total_anchor_count():
     assert result["anchors"] > 0
     assert len(result["orphans"]) == result["anchors"]
     assert result["dangling"] == []
+
+
+def test_no_anchor_id_is_claimed_at_more_than_one_site():
+    """`anchor_ids`'s own docstring says why it returns a set rather than a
+    count: "two anchors sharing one slug in different files is a duplicate
+    id -- a separate authoring defect this reader does not paper over by
+    counting positions instead of identities." A set alone cannot report
+    THAT defect, only hide it -- this walks the same corpus and grammar but
+    keeps every occurrence, so a shared slug fails here instead of nowhere.
+
+    Epic #138 finding 10 found exactly one collision in the tree:
+    `response-path-by-step`, claimed by both `engine/cli.py`'s own
+    `_response_path` and `evals/harness.py`'s `response_path`. `render.py`'s
+    own build-time duplicate check (`ids` grouped by slug) catches the same
+    thing at a different altitude; this is the corpus-level version, cheap
+    enough to run without a full build."""
+    sites = {}
+    for rel in discovery.discover_corpus(ROOT):
+        src = (ROOT / rel).read_text(encoding="utf-8")
+        for line, slugs in extract.anchors_in(src).items():
+            for slug in slugs:
+                sites.setdefault(slug, []).append(f"{rel}:{line}")
+    dupes = {slug: where for slug, where in sites.items() if len(where) > 1}
+    assert dupes == {}
