@@ -307,11 +307,29 @@ def test_gate_subject_is_capped_at_100_characters():
     """A plan's purpose is prose for a human reading the spec, with no bound
     on its own length -- the commit subject drawn from it still needs one,
     the repository's own habit (100 sits above the p90 of hand-authored
-    subjects on `main`) rather than an imported convention."""
+    subjects on `main`) rather than an imported convention. A raw slice at
+    100 would cut mid-word, so the overrun subject is trimmed back to a
+    word boundary and marked with an ellipsis instead of just stopping."""
+    purpose = "alpha " * 30
+    subject = cli._gate_subject("g8", purpose)
+    assert len(subject) <= 100
+    assert subject.startswith("g8: ")
+    assert subject.endswith("…")
+    body = subject[len("g8: "):-len("…")]
+    assert purpose.startswith(body)
+    assert body.split()[-1] == "alpha"
+    assert purpose[len(body)] == " "
+
+
+def test_gate_subject_with_no_word_boundary_still_caps_at_100_characters():
+    """A purpose that never spaces out into words -- a single run-on token
+    -- has no boundary to trim back to, so the cap still holds and the
+    subject still ends visibly truncated rather than silently over."""
     purpose = "a" * 200
     subject = cli._gate_subject("g8", purpose)
     assert len(subject) <= 100
     assert subject.startswith("g8: ")
+    assert subject.endswith("…")
 
 
 def test_gate_subject_reaches_the_real_commit_message(workdir, capsys):
