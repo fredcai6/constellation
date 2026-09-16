@@ -199,6 +199,23 @@ def test_a_proof_past_its_budget_is_reported_not_awaited(workdir, capsys, monkey
     assert "did not finish -- no result after 1s; not awaited at the cut" in out
 
 
+def test_a_proof_that_printed_before_it_was_killed_is_reported_not_raised(workdir):
+    """The overrun path's whole job is to hand back what the proof printed.
+    `TimeoutExpired` carries those streams as raw `bytes` -- `text=True`
+    decodes what `run` returns, not what the exception holds -- so the tail
+    has to be decoded here or reporting the overrun raises instead.
+
+    Pinned separately from the `sleep`-only overrun tests on purpose: a proof
+    that prints nothing hands back empty `bytes`, which are falsy, so those
+    tests pass whether or not this decode exists."""
+    code, output = checks._run("echo carried; sleep 5", ".", 1)
+    assert code is None                      # it did outrun the budget
+    assert output == "carried\n"             # ... and said what it managed to say
+
+    silent, nothing = checks._run("sleep 5", ".", 1)
+    assert (silent, nothing) == (None, "")   # a proof that printed nothing still reports
+
+
 def test_the_bound_is_the_smaller_of_the_budget_and_the_handback(workdir, capsys, monkeypatch):
     """A full-suite proof declares 600; the trial waits the handback, not
     the budget, and says which it waited."""
