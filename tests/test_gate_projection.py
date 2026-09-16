@@ -251,6 +251,37 @@ key-terms = "waived: none"
     assert not any(m["field"] == "plan" for m in measures)
 
 
+def test_a_long_waived_plan_still_projects_its_gate(workdir, capsys):
+    """issue141, c-projection-still-fires: a release whose `plan` field is a
+    long `waived:`/`unknown:` value (>= 300 bytes, the shape that used to
+    trip `is_file()`'s `OSError` on the name-length limit) must still mint
+    the round's gate -- the same projection an ordinary release or a short
+    null value already gets. `_projected_source` never reads `plan`'s own
+    content -- it walks the segment's prior rounds for `_GATE_FIELDS` --
+    so nothing about the projection itself should depend on the value's
+    length; before the fix, the crash in `_measure_artifacts` (called
+    before `_mint_projected_gate` in `complete_submit`) never let the round
+    reach that far, exactly what happened live in run issue139 at step
+    `plan-a03a2`."""
+    wid = _drive_to_plan_to_execute()
+    capsys.readouterr()
+    step_id = runmod.state(wid)["current"]["id"]
+
+    long_value = "waived: " + "x" * 300
+    _fill(_response(wid), 'resolution = "pass"\nplan = "%s"\n' % long_value)
+    cli.main([wid, "submit"])  # must not raise
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    gates = [s for s in st["steps"] if s.get("dispatches") == "run-a-gate"]
+    assert [g["id"] for g in gates] == ["g1"]
+    adjudications = [s for s in st["steps"] if s.get("form") == "forms/GATE_TRANSITION.toml"]
+    assert [a["id"] for a in adjudications] == ["g1-adjudicate"]
+
+    measures = [e for e in journal.read(wid) if e.get("kind") == "measure"]
+    assert not any(m["step"] == step_id and m["field"] == "plan" for m in measures)
+
+
 def test_a_release_with_a_blank_plan_is_refused(workdir, capsys):
     """#87's silent class: `plan` went optional so a `rework`/`up` -- neither
     releasing anything -- could leave it blank. The same optional flag let
