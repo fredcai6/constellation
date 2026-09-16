@@ -52,7 +52,7 @@ import sys
 import tempfile
 import tokenize
 
-from .extract import STATEMENTS_NAME, WINDOW, anchors_in, tags_in
+from .extract import STATEMENTS_NAME, WINDOW, anchors_in, tags_in, see_targets
 
 #: How many offending items a failing check names before it summarizes. A check
 #: reports every failure it found in its count; it prints the first few.
@@ -565,60 +565,11 @@ def anchor_accounting(m):
 
 
 # --------------------------------------------------------- See: tag targets
-# A `See:` tag is free prose (`standards/prose.md` governs its WORDS, not its
-# shape), so what follows reads out only the targets the corpus actually
-# authors as pointers -- never a bare word, which is indistinguishable from
-# ordinary sentence content (`fields`, `route-form` are real words in real
-# `See:` tags that name nothing checkable).
-
-_SEE_ISSUE = re.compile(r"#(\d+)")
-_SEE_ANCHOR = re.compile(r"\[([a-z0-9]+(?:-[a-z0-9]+)*)\]")
-_SEE_FILE_LINE = re.compile(r"([\w./-]+\.(?:py|toml|md)):(\d+)")
-_SEE_FILE = re.compile(r"([\w./-]+\.(?:py|toml|md))")
-_SEE_BACKTICK = re.compile(r"`([^`]+)`")
-_SEE_SYMBOL_SHAPE = re.compile(
-    r"^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)(?:\(.*\))?$")
-
-
-def _see_targets(text):
-    """Every target `text` (one `See:` tag's authored words, already glued
-    across its lines by `tags_in`) names, as `(pos, kind, ...)` in reading
-    order -- `kind` one of `issue`, `anchor`, `file_line`, `file`, `symbol`.
-
-    A `symbol` is ONLY ever read from a backtick-quoted span: `See:` prose
-    uses backticks freely for things that are not code (a TOML key, a CLI
-    flag) as well as for things that are, and a bare word has no marker at
-    all to tell the two apart. Requiring the backtick is what keeps this
-    check from manufacturing a failure on a word that was never a pointer."""
-    claimed = []
-
-    def claim(s, e):
-        claimed.append((s, e))
-
-    def free(s, e):
-        return not any(s < ce and e > cs for cs, ce in claimed)
-
-    out = []
-    for mo in _SEE_FILE_LINE.finditer(text):
-        out.append((mo.start(), "file_line", mo.group(1), int(mo.group(2))))
-        claim(mo.start(), mo.end())
-    for mo in _SEE_FILE.finditer(text):
-        if free(mo.start(), mo.end()):
-            out.append((mo.start(), "file", mo.group(1)))
-            claim(mo.start(), mo.end())
-    for mo in _SEE_ANCHOR.finditer(text):
-        out.append((mo.start(), "anchor", mo.group(1)))
-    for mo in _SEE_ISSUE.finditer(text):
-        if free(mo.start(), mo.end()):
-            out.append((mo.start(), "issue", mo.group(1)))
-    for mo in _SEE_BACKTICK.finditer(text):
-        if not free(mo.start(), mo.end()):
-            continue
-        sm = _SEE_SYMBOL_SHAPE.match(mo.group(1))
-        if sm:
-            out.append((mo.start(), "symbol", sm.group(1)))
-    out.sort(key=lambda t: t[0])
-    return out
+# The target grammar itself (`see_targets`) now lives in `extract.py`, beside
+# `anchors_in`/`tags_in` -- epic #138 finding 2 needed `render.py` to read the
+# same `See:` tags backward (who points at this anchor), and a target parser
+# is grammar, not a check. What stays here is CHECK-only: resolving a target
+# against the filesystem and the store, which nothing else in the package needs.
 
 
 def _resolve_ref(root, ref_dir, path):
@@ -695,7 +646,7 @@ def _see_tag_failures(root, rel_file, text, bound_slugs):
     to pin it to is checked LOOSELY: the name must appear somewhere in the
     file, which tolerates a parameter or a local the strict check has no
     span to check against."""
-    targets = _see_targets(text)
+    targets = see_targets(text)
     ref_dir = os.path.dirname(rel_file)
     names_only_file = not any(k in ("file", "file_line") for _, k, *_ in targets)
     current = None       # (resolved Path, displayed path, is_py)

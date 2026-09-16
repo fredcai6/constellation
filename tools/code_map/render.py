@@ -40,7 +40,8 @@ import shutil
 import subprocess
 import sys
 
-from .extract import STATEMENTS_NAME, WINDOW
+from .extract import STATEMENTS_NAME, WINDOW, see_targets
+from .parents import PARENTS_FILENAME, read_parents
 
 STDLIB = set(sys.stdlib_module_names)
 REPORT_NAME = "render_report.json"
@@ -91,6 +92,12 @@ page_file = {}                               # store symbol -> page filename
 ids = collections.defaultdict(list)          # authored slug -> [store symbol]
 tags = collections.defaultdict(list)         # gate g7: symbol -> [{"kind","text"}]
 stale_tags = []                              # gate g6: [{"id","s","old_hash","new_hash"}]
+
+# Epic #138 finding 5: the map's two portions, read for `map_lines` below.
+anchors_of = collections.defaultdict(list)   # store symbol -> [anchor slug], inverting `ids`
+see_backrefs = collections.defaultdict(list) # anchor slug -> [symbol whose See: tag names it]
+parents_map = {}                             # anchor slug -> (parent slug, ...); map/parents.jsonl
+
 MODULES = []
 BY_PKG = collections.defaultdict(list)
 
@@ -168,7 +175,7 @@ def load_stores(artifacts, packages=()):
     artifacts = pathlib.Path(artifacts)
     for d in (docs, params, inherits, edges, inbound, imports_out, imported_by,
               children, members_of, page_file, BY_PKG, entities, modules, ids,
-              tags, stale_tags):
+              tags, stale_tags, anchors_of, see_backrefs):
         d.clear()
     MODULES.clear()
 
@@ -252,6 +259,26 @@ def load_stores(artifacts, packages=()):
                                      intern(st.get("why") or "")))
             if p in ("calls", "reads"):
                 inbound[o][intern(modof(s))] += 1
+
+    # Epic #138 finding 2/5: `anchors_of`/`see_backrefs` are built from
+    # `ids`/`tags` HERE, before the render-scope narrowing two blocks down,
+    # on purpose -- a `See:` tag authored anywhere in the corpus can point at
+    # an anchor inside the narrowed render (`--render-only engine`, say), and
+    # the reverse direction has to see it or a page would silently
+    # under-report who references it depending on which packages happened to
+    # be passed. `ids`/`tags` are never pruned by the narrowing below for the
+    # same reason `docs`/`edges` are not: `map_lines` reads them the way
+    # `refs_line` already reads `inbound`.
+    for slug, syms in ids.items():
+        for s in syms:
+            anchors_of[s].append(slug)
+    for key, ts in tags.items():
+        for t in ts:
+            if t["kind"] != "See":
+                continue
+            for tok in see_targets(t["text"]):
+                if tok[1] == "anchor":
+                    see_backrefs[tok[2]].append(key)
 
     # Narrow the RENDER, never the walk. Everything above read the WHOLE store,
     # so an entity's inbound counts and a module's importer list still see
@@ -359,6 +386,56 @@ def tag_lines(key):
     if not ts:
         return []
     L = [f"{t['kind']}: {t['text']}" for t in ts]
+    L.append("")
+    return L
+
+
+#: Epic #138 finding 5: both portions of the map, on the same visual grammar
+#: `REFS_PROD_PREFIX`/`REFS_TEST_PREFIX` already established below -- a fixed
+#: prefix, then either the fact or `REFS_NONE`. A reader who already parses
+#: one referenced-by line parses these without a new convention to learn.
+PARENTS_PREFIX = "parents: "
+PARENTS_ORPHAN = "ORPHAN -- no entry in map/parents.jsonl"
+PARENTS_ROOT = "none -- declared root"
+REFS_SEE_PREFIX = "referenced by (See:): "
+
+
+# [map-lines-never-omits-once-anchored]
+# Rationale: `tag_lines` above omits its whole section when a key has no
+#   tags, and that is right for tags -- silence there just means nobody wrote
+#   one. It is wrong for the DEFINED portion: `map/parents.jsonl` is empty on
+#   this tree today (nothing writes it yet), so if an anchored key with no
+#   entry rendered nothing, every anchored page in the corpus would look
+#   identical to one that was never checked -- exactly the silent gap epic
+#   #138 opened on. So an anchor with no `parents.jsonl` entry renders as
+#   ORPHAN, plainly, rather than being left out. The gate that DOES apply is
+#   on the ANCHOR, not the tag: a key with no anchor at all has no identity
+#   `parents.jsonl` could hold an entry for and cannot be a `See:` target
+#   either (`checks.see_tags_resolve` only resolves `[slug]` against a BOUND
+#   anchor) -- for that key this returns `[]`, the one point where this
+#   follows `tag_lines`'s own precedent instead of overriding it.
+def map_lines(key):
+    """Both portions of the map for `key`'s own anchor(s), if it has any: the
+    DEFINED portion (`parents_map`, read from `map/parents.jsonl` once per
+    build by `run()`) and its computed reverse direction -- every `See:` tag
+    anywhere in the corpus whose target names this anchor (`see_backrefs`,
+    built in `load_stores` from the same `extract.see_targets` parser
+    `checks.see_tags_resolve` runs forward, so the two can never read a
+    `See:` tag two different ways)."""
+    slugs = anchors_of.get(key)
+    if not slugs:
+        return []
+    L = []
+    for slug in slugs:
+        L.append(f"[{slug}]")
+        if slug in parents_map:
+            parent_ids = parents_map[slug]
+            L.append(PARENTS_PREFIX + (
+                ", ".join(f"[{p}]" for p in parent_ids) if parent_ids else PARENTS_ROOT))
+        else:
+            L.append(PARENTS_PREFIX + PARENTS_ORPHAN)
+        backs = sorted(set(see_backrefs.get(slug, ())))
+        L.append(REFS_SEE_PREFIX + (", ".join(backs) if backs else REFS_NONE))
     L.append("")
     return L
 
@@ -561,6 +638,7 @@ def entity_page(key, mod):
 
     L.extend(doc_block(summary_of(key), e.get("doc_body")))
     L.extend(tag_lines(key))
+    L.extend(map_lines(key))
 
     attrs = [a for a in (e.get("attrs") or []) if not a["name"].startswith("__")]
     if attrs:
@@ -588,6 +666,7 @@ def module_index(mod):
          f"{ms['file']}, {ms['loc']} lines" + (f", {holes} holes" if holes else ""), ""]
     L.extend(doc_block(mod_summary_of(mod), ms.get("doc_body")))
     L.extend(tag_lines(mod + ":"))
+    L.extend(map_lines(mod + ":"))
 
     if ms.get("all"):
         L.append("__all__: " + ", ".join(str(x) for x in ms["all"]))
@@ -732,12 +811,35 @@ def run(root, artifacts, out, packages=()):
     """Render the page tree for `root` from `artifacts` into `out`. Returns an
     exit code.
 
-    `packages` is the caller's render narrowing -- see `in_render_scope`."""
+    `packages` is the caller's render narrowing -- see `in_render_scope`. The
+    DEFINED portion (`map/parents.jsonl`) is read against `root`, never
+    `artifacts` -- it is authored and committed, not built by extraction, so
+    it has no seat in the gitignored statement store `load_stores` reads."""
     load_stores(artifacts, packages)
+    parents_map.clear()
+    parents_map.update(read_parents(pathlib.Path(root) / "map" / PARENTS_FILENAME))
     out = pathlib.Path(out)
+
+    # Rationale: `out` defaults to `<root>/map` -- the SAME directory
+    #   `map/parents.jsonl` is committed into (`.gitignore` carries `map/*`
+    #   plus one `!map/parents.jsonl` exception; see `parents.PARENTS_FILENAME`).
+    #   The `rmtree`/`mkdir` pair just below wipes `out` on every render, and
+    #   nothing wrote the file back -- a build would silently delete the one
+    #   authored file the whole defined portion lives in, off disk, with
+    #   `git status` left to notice what the tool did not. `parents_map`
+    #   above already holds the file's PARSED content in memory for the
+    #   pages about to render; this preserves its RAW bytes across the
+    #   rmtree/mkdir instead -- never reserialized, since an authored file's
+    #   comments, key order and formatting are not this tool's to rewrite --
+    #   so a render can never be the thing that deletes it.
+    existing_parents = out / PARENTS_FILENAME
+    preserved_parents = existing_parents.read_bytes() if existing_parents.is_file() else None
+
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
+    if preserved_parents is not None:
+        (out / PARENTS_FILENAME).write_bytes(preserved_parents)
     sizes = []
     for mod in MODULES:
         d = out / mod
