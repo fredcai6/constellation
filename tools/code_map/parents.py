@@ -73,7 +73,10 @@ def anchor_ids(root):
     ids = set()
     for rel in discover_corpus(root):
         src = (root / rel).read_text(encoding="utf-8")
-        ids.update(anchors_in(src).values())
+        # `anchors_in` maps a target line to every slug stacked above it,
+        # so the values are lists -- flatten, never `update` with them.
+        for stacked in anchors_in(src).values():
+            ids.update(stacked)
     return ids
 
 
