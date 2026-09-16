@@ -6,9 +6,10 @@
 # GATE_TRANSITION.toml, and the engine writes the word they settle on here
 # -- nothing else writes to this file.
 #
-# The engine's own read is at execute's `advance`, every gate's commit: a
-# row still `open` refills the plan segment for another round; every row
-# disposed mints nothing, and the run walks on to its terminal step. The
+# The engine's own read is at every gate's advance or drop, and once more
+# at close, whichever of those a run's own route to its terminal step
+# actually takes: a row still `open` refills the plan segment for another
+# round; every row disposed mints nothing, and the run walks on. The
 # engine reads dispositions and refuses nothing -- deferred, invalidated,
 # handed-off and rejected all count as settled, exactly like satisfied, and
 # no word here is checked against anything.

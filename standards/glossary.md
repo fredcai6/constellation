@@ -348,10 +348,10 @@ has used one back. Coining a synonym for a term below is a defect.
 - **execution state** — run-an-issue's second board, seeded once (consolidate's `obligations`
   field) from the spec's own keyed commitments and worked in place afterward: the gate claims
   the rows it settles at its close, and its adjudication accepts or contests each claim onto the
-  row. `execute`'s `advance` reads it at every gate's
-  commit — an open row refills the plan segment for another round, every row disposed mints
-  nothing and the run walks on. Unvalidated, like the ideas board: the engine reads dispositions
-  and refuses nothing.
+  row. `execute`'s `advance` and `drop` outcomes both read it, and `spine close` reads it once
+  more — whichever of those a run's own route to its terminal step actually takes — an open row
+  refills the plan segment for another round, every row disposed mints nothing and the run walks
+  on. Unvalidated, like the ideas board: the engine reads dispositions and refuses nothing.
 - **obligation** — one row on the execution-state board: a spec commitment, and the disposition
   it settles to — `satisfied | deferred | invalidated | handed-off | rejected`, each with a
   reason folded into the status the way `deferred: <reason>` already reads elsewhere. The gate

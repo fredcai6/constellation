@@ -4333,7 +4333,36 @@ def cmd_close(argv):
         _no_run(wid)
     if st.get("closed"):
         raise SystemExit(f"{wid} is already closed")
+    asm = runmod.load_assembly(st["assembly"])
     pending = [s for s in st["steps"] if s["id"] not in st["done"]]
+    # [close-settles-too]
+    # Rationale: `_settle_execution` (`[settle-execution]`) only ever fires
+    #   from inside the execute segment's own outcome table -- `advance`'s
+    #   `commit; settle` and `drop <gate-id>`'s `close; settle` (#95) -- so
+    #   it never runs at all when execute's worklist empties by some other
+    #   route: a projecting transition whose mint lands nothing (#141 was
+    #   one cause of that), or a step closed directly by `amend close` --
+    #   this same function's own escape for a stuck step, below. A run can
+    #   then reach CLOSE.toml with an obligation still `open` on the
+    #   execution-state board and no live step left to close it, and
+    #   nothing has ever read the board to notice (#143). `cmd_close` is
+    #   where every route to the terminal step converges -- the terminal
+    #   form is already submitted and nothing else is pending -- so the
+    #   read belongs here too, once, before the run is allowed to finalize.
+    #   `_settle_execution` still refuses nothing on the board's own
+    #   content: an open row mints a fresh plan round exactly as it already
+    #   does mid-run, and the `pending` recheck below reports it through
+    #   the ordinary "not complete" refusal below -- no new refusal text,
+    #   no second escape to maintain.
+    # Rejected: refusing here with bespoke wording naming the open row.
+    #   The refusal below already says a pending step by name and how to
+    #   work it; a second, differently-worded refusal for the same fact --
+    #   "not complete" -- would be two things to keep saying the same
+    #   thing.
+    if not pending:
+        _settle_execution(wid, asm)
+        st = runmod.state(wid)
+        pending = [s for s in st["steps"] if s["id"] not in st["done"]]
     if pending:
         step = pending[0]
         drop_it = f"drop it: spine {wid} amend close {step['id']} --reason ..."
@@ -4384,7 +4413,6 @@ def cmd_close(argv):
         suffix = "" if how == escape else f"\n  or {escape}"
         raise SystemExit(render.refusal(
             step["id"], "not complete", escape=f"{how}{suffix}"))
-    asm = runmod.load_assembly(st["assembly"])
     # Structural, like `_commit_gate`'s own guard: `_issue_tier` alone is not
     # enough, since `cmd_open` stamps `branch`/`worktree` onto every root
     # run's opening entry, issue-tier or not. Both together name exactly the
