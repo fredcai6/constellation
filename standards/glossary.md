@@ -69,7 +69,7 @@ has used one back. Coining a synonym for a term below is a defect.
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
   template step flagged so that amending it away is loud in the ledger and the parent's
   adjudication view — still one journaled step to amend, never a refusal. *In the map:* an
-  authored identity for a definition or a claim — a comment line holding only a bracketed
+  authored identity for a definition or a purpose — a comment line holding only a bracketed
   kebab slug, directly above what it names: `# [stable-id]` in Python, `<!-- [stable-id] -->`
   in markdown, each language's own way of hiding a line from its own reader. Minted on demand;
   the one fact about a definition the map stores instead of deriving.
@@ -320,6 +320,15 @@ has used one back. Coining a synonym for a term below is a defect.
   assemblies. Derived output is not in it. *The mappable corpus:* every tracked `.py` file
   the map is built from, which is the sense `tools/code_map` uses throughout its own
   docstrings.
+- **purpose** — why a definition exists, written beside it and anchored. Purposes form a
+  hierarchy: each one names the purpose it serves, and those links are the rows of
+  `map/parents.jsonl`, the one authored file in an otherwise derived map. A purpose with no
+  row is an **orphan** — absence means unmapped, never mapped-to-nothing. A **root purpose**
+  is where the hierarchy terminates: one of those anchored in the documents
+  `constellation.toml`'s `[roots]` names, and never a node to climb past. A purpose sits on
+  the definition that carries it out, so the next reader can check it against that code and
+  contradict it; one no definition executes is not written down at all. `standards/purpose.md`
+  is the whole of it.
 - **delivery** — the engine actually rendering a word or line into `status`'s output, not
   merely a form or skill claiming it will. `render.py`'s whole job; a corpus sentence
   describing a delivery the engine does not make is a promise nothing keeps.
