@@ -18,15 +18,21 @@ Stdlib only, matching the rest of `tools/code_map` (see `__init__.py`'s own
 constraint): CI installs pytest and coverage and nothing else.
 """
 import json
+import tomllib
 from pathlib import Path
 
 from .discovery import discover_corpus
-from .extract import anchors_in
+from .extract import anchors_in, md_anchors_in
 
 #: Beside `extract.STATEMENTS_NAME` and `render.IDS_FILENAME` -- the same
 #: directory, the opposite side of the commit rule: `ids.jsonl` is derived
 #: identity, gitignored; `parents.jsonl` is authored structure, committed.
 PARENTS_FILENAME = "parents.jsonl"
+
+#: The repository's own config, read straight off disk -- `tools/` may not
+#: import `engine/` (see `docs/AGENT_GUIDE.md`'s repository table), so this
+#: is a second, narrow `tomllib.loads` rather than a shared reader.
+CONFIG_FILENAME = "constellation.toml"
 
 
 def read_parents(path):
@@ -80,6 +86,54 @@ def anchor_ids(root):
     return ids
 
 
+# [parents-root-claims-resolve-as-parents]
+# Rationale: every purpose chain terminates at a root claim (epic #138
+#   finding 10), and all eleven of those live in markdown (`<!-- [slug]
+#   -->`, `extract.md_anchors_in`) -- `docs/PURPOSE.md` and
+#   `standards/approach.md`, named by `constellation.toml`'s `[roots]
+#   documents`, never hardcoded here (that table's own comment says why:
+#   `standards/approach.md` travels to other repositories, `docs/PURPOSE.md`
+#   does not, so a root set baked into this module could not tell a
+#   portable root from a local one). `anchor_ids` walks the PYTHON corpus
+#   only (`anchors_in`, `discover_corpus`'s tracked `*.py`), so without this
+#   a `parents.jsonl` row naming a root claim as a parent would read as
+#   dangling on every single chain, from the first entry -- noise so
+#   total it would make the dangling report worthless within a week.
+# Narrow, not the whole markdown tree: a root claim is the only markdown
+#   anchor a `parents.jsonl` row is ever allowed to name (`[roots]
+#   documents` IS the allowed-root list), so only those documents are
+#   walked. Extending the corpus to every tracked `.md` file would change
+#   what the map renders and reaches far past what dangling resolution
+#   needs.
+def root_claim_ids(root):
+    """Every markdown anchor id minted in `constellation.toml`'s `[roots]
+    documents` -- the purpose chain's root set, read from config rather than
+    hardcoded (see the rationale just above).
+
+    A repository with no `constellation.toml`, no `[roots]` table, no
+    `documents` key, or a listed document that does not exist on disk all
+    read as "no root claims here" and return the empty set -- the same
+    "ordinary condition, not a traceback" contract `discovery.py`'s own
+    `tracked_python_files` states for a missing git or a bad `--root`.
+    Only a *listed* document must exist; this never globs for more."""
+    root = Path(root)
+    config_path = root / CONFIG_FILENAME
+    if not config_path.is_file():
+        return set()
+    config = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    rels = config.get("roots", {}).get("documents", ())
+
+    ids = set()
+    for rel in rels:
+        doc_path = root / rel
+        if not doc_path.is_file():
+            continue
+        src = doc_path.read_text(encoding="utf-8")
+        for stacked in md_anchors_in(src).values():
+            ids.update(stacked)
+    return ids
+
+
 def orphan_report(anchors, parents):
     """Anchor ids present in `anchors` with no entry in `parents`.
 
@@ -114,14 +168,24 @@ def dangling_report(anchors, parents):
 
 
 def report(root, parents_path):
-    """The two reports together, against the anchor set found under `root`."""
+    """The two reports together, against the anchor set found under `root`.
+
+    `orphan_report` runs over `anchors` alone -- a root claim is a chain's
+    terminus, never itself the subject of a `parents.jsonl` row, so folding
+    it into the orphan check would flag all eleven of them forever, on
+    every build, for a gap nobody can close. `dangling_report` runs over
+    `anchors | root_claim_ids(root)`: a row naming a root claim as a parent
+    is exactly the shape a correct, complete chain takes (see
+    `root_claim_ids`'s rationale), so the valid-id set it is checked
+    against must include the root set or every chain reads as broken."""
     anchors = anchor_ids(root)
+    roots = root_claim_ids(root)
     parents = read_parents(parents_path)
     return {
         "anchors": len(anchors),
         "parents_entries": len(parents),
         "orphans": orphan_report(anchors, parents),
-        "dangling": dangling_report(anchors, parents),
+        "dangling": dangling_report(anchors | roots, parents),
     }
 
 

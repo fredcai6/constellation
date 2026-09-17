@@ -17,6 +17,34 @@ ARTIFACTS_DIRNAME = ".code-map"
 MAP_DIRNAME = "map"
 
 
+# [map-build-prints-parents-summary]
+# Rationale: `parents.orphan_report`/`dangling_report` already existed with
+#   no caller at any seam -- `docs/DERIVED_IS_CODE.md`'s "unwired derivation
+#   is a missing call site, not dead weight." `build()` is that seam:
+#   `constellation.toml`'s `map` entry (its own comment calls it "the
+#   closeout call") runs this function, so printing here is the one place
+#   that reaches every caller of the closeout call without also reaching the
+#   narrower `render`/`extract` subcommands that are not "the build."
+#
+#   Counts only, never the id lists: `parents.main` already prints those on
+#   request, and 169 orphan lines in every build would bury the two numbers
+#   that matter under output nobody reads (epic #138: the defined portion is
+#   currently a known-empty backfill, not a build-time surprise). Neither
+#   number changes `build`'s return value -- `dangling_report`'s own
+#   docstring says a stale reference is "raw material for a ranked backlog,
+#   not a commit-time gate," and the same holds for an orphan: a purpose
+#   graph that can block a build becomes a box-ticking exercise.
+def _print_parents_summary(root):
+    from . import parents
+
+    result = parents.report(root, Path(root) / MAP_DIRNAME / parents.PARENTS_FILENAME)
+    print("parents: %d anchor(s), %d parents.jsonl entr(ies) -- "
+          "%d orphaned, %d dangling"
+          % (result["anchors"], result["parents_entries"],
+             len(result["orphans"]), len(result["dangling"])))
+    print("  detail: python3 -m tools.code_map.parents --root %s" % root)
+
+
 def build(root, *, artifacts=None, out=None, packages=()) -> int:
     """Run extract then render end to end against `root`.
 
@@ -28,6 +56,12 @@ def build(root, *, artifacts=None, out=None, packages=()) -> int:
     passed to `render.run` alone: `extract` always walks the whole corpus, so
     a narrowed page still reports the callers it has outside the narrowing.
     See `render.in_render_scope`.
+
+    Always prints the defined-portion summary (orphan/dangling counts) after
+    render finishes, win or lose -- see `_print_parents_summary`. It reads
+    `root`, not `artifacts` or `out`: the committed `map/parents.jsonl` lives
+    at a fixed spot under `root` regardless of where a caller narrows or
+    redirects the derived tree, mirroring `render.run`'s own read of it.
     """
     from . import extract, render
 
@@ -38,4 +72,6 @@ def build(root, *, artifacts=None, out=None, packages=()) -> int:
     status = extract.run(root, artifacts)
     if status:
         return status
-    return render.run(root, artifacts, out, packages)
+    status = render.run(root, artifacts, out, packages)
+    _print_parents_summary(root)
+    return status

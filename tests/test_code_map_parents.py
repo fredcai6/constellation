@@ -1,17 +1,19 @@
 """`map/parents.jsonl` -- the map's authored, defined portion (epic #138,
 finding 1). `tools/code_map/parents.py` is a reader plus two reports over
 it: orphans (an anchor with no entry) and dangling (an entry naming an id
-that is not an anchor in the tree). Neither report refuses anything --
+that is neither an anchor in the tree nor a configured root claim --
+`root_claim_ids`, epic #138 finding 10). Neither report refuses anything --
 `report()`/`main()` always return 0 -- so these tests check what the reports
 NAME, never that they exit nonzero.
 
-Two altitudes: the pure functions (`orphan_report`, `dangling_report`) get
+Three altitudes: the pure functions (`orphan_report`, `dangling_report`) get
 manufactured sets so every branch is reachable without a real checkout;
 `anchor_ids` needs one (it shells to `git ls-files` through
 `discovery.discover_corpus`), so those tests stand on `gitremote.init_checkout`
-the way the rest of this suite does. The last group runs the whole thing
-against THIS repository's own committed `map/parents.jsonl`, which is the
-actual deliverable.
+the way the rest of this suite does; `root_claim_ids` reads `constellation.toml`
+and the documents it names straight off disk, no git required. The last group
+runs the whole thing against THIS repository's own committed `map/parents.jsonl`
+and `constellation.toml`, which is the actual deliverable.
 """
 import json
 import pathlib
@@ -35,6 +37,29 @@ def _write(tmp_path, name, anchors_above):
         body.append("    pass")
         body.append("")
     (tmp_path / name).write_text("\n".join(body) + "\n", encoding="utf-8")
+
+
+def _write_md(tmp_path, name, anchors_above):
+    """A tiny fixture document: one paragraph per (slug, text) pair in
+    `anchors_above`, each preceded by its own `<!-- [slug] -->` anchor
+    comment -- the exact shape `extract.md_anchors_in` binds."""
+    body = []
+    for slug, text in anchors_above:
+        body.append(f"<!-- [{slug}] -->")
+        body.append(text)
+        body.append("")
+    path = tmp_path / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(body) + "\n", encoding="utf-8")
+
+
+def _write_roots_config(tmp_path, documents):
+    """`constellation.toml` with a `[roots] documents = [...]` table --
+    `root_claim_ids` reads this list rather than any hardcoded path (see
+    its own rationale: `standards/approach.md` travels between
+    repositories, `docs/PURPOSE.md` does not)."""
+    lines = ["[roots]", "documents = [" + ", ".join(json.dumps(d) for d in documents) + "]"]
+    (tmp_path / "constellation.toml").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------- read_parents
@@ -132,6 +157,73 @@ def test_anchor_ids_ignores_untracked_files(tmp_path):
     assert parents.anchor_ids(tmp_path) == {"tracked-anchor"}
 
 
+# ------------------------------------------------------------ root_claim_ids
+
+
+def test_root_claim_ids_is_empty_with_no_constellation_toml(tmp_path):
+    """No config at all is an ordinary condition -- no root set configured,
+    not an error -- matching `discovery.py`'s own "missing git, missing
+    directory" voice."""
+    assert parents.root_claim_ids(tmp_path) == set()
+
+
+def test_root_claim_ids_is_empty_with_no_roots_table(tmp_path):
+    (tmp_path / "constellation.toml").write_text(
+        "[models]\nlight = \"x\"\n", encoding="utf-8")
+    assert parents.root_claim_ids(tmp_path) == set()
+
+
+def test_root_claim_ids_is_empty_with_no_documents_key(tmp_path):
+    (tmp_path / "constellation.toml").write_text("[roots]\n", encoding="utf-8")
+    assert parents.root_claim_ids(tmp_path) == set()
+
+
+def test_root_claim_ids_skips_a_listed_document_that_does_not_exist(tmp_path):
+    """A listed document missing from disk is skipped, not a traceback --
+    the same "ordinary condition" contract as the config file itself being
+    absent."""
+    _write_roots_config(tmp_path, ["docs/NOSUCHFILE.md"])
+    assert parents.root_claim_ids(tmp_path) == set()
+
+
+def test_root_claim_ids_collects_markdown_anchors_from_listed_documents(tmp_path):
+    _write_md(tmp_path, "docs/PURPOSE.md", [("root-a", "Claim A.")])
+    _write_md(tmp_path, "standards/approach.md", [("root-b", "Claim B.")])
+    _write_roots_config(tmp_path, ["docs/PURPOSE.md", "standards/approach.md"])
+    assert parents.root_claim_ids(tmp_path) == {"root-a", "root-b"}
+
+
+def test_root_claim_ids_ignores_a_markdown_anchor_outside_the_listed_documents(tmp_path):
+    """Narrow by design: a document not named in `[roots] documents` is not
+    part of the root set even if it uses the same anchor syntax -- only the
+    listed roots resolve, not the whole markdown tree."""
+    _write_md(tmp_path, "docs/PURPOSE.md", [("root-a", "Claim A.")])
+    _write_md(tmp_path, "docs/OTHER.md", [("not-a-root", "Not a root claim.")])
+    _write_roots_config(tmp_path, ["docs/PURPOSE.md"])
+    assert parents.root_claim_ids(tmp_path) == {"root-a"}
+
+
+def test_root_claim_ids_ignores_a_python_anchor_sharing_a_slug_shape(tmp_path):
+    """The grammar, not just the directory, gates membership: a `# [slug]`
+    Python anchor never counts as a root claim, even inside a listed
+    document's own directory."""
+    _write_md(tmp_path, "docs/PURPOSE.md", [("root-a", "Claim A.")])
+    _write(tmp_path, "docs/helper.py", [("not-markdown", "f")])
+    _write_roots_config(tmp_path, ["docs/PURPOSE.md"])
+    assert parents.root_claim_ids(tmp_path) == {"root-a"}
+
+
+def test_this_repos_root_claims_resolve_from_its_own_constellation_toml():
+    """The real deliverable: `constellation.toml`'s `[roots] documents`
+    against this repository's own `docs/PURPOSE.md` and
+    `standards/approach.md` names the eleven root claims epic #138 finding
+    10 put there."""
+    got = parents.root_claim_ids(ROOT)
+    assert "purpose-keeps-the-why-attached" in got
+    assert "explore-and-play" in got
+    assert len(got) == 11
+
+
 # ----------------------------------------------------------------- report
 
 
@@ -157,6 +249,56 @@ def test_report_with_a_full_defined_portion_orphans_nothing(tmp_path):
     result = parents.report(tmp_path, parents_path)
     assert result["orphans"] == []
     assert result["dangling"] == []
+
+
+def test_report_dangling_resolves_a_parents_entry_naming_a_root_claim(tmp_path):
+    """The defect this closes: every purpose chain terminates at a root
+    claim, and all eleven of those are markdown -- `anchor_ids` alone never
+    sees them, so a correct row naming one as a parent must not read as
+    dangling."""
+    _write(tmp_path, "mod.py", [("a1", "f")])
+    _write_md(tmp_path, "docs/PURPOSE.md", [("root-a", "Claim A.")])
+    _write_roots_config(tmp_path, ["docs/PURPOSE.md"])
+    init_checkout(tmp_path)
+    parents_path = tmp_path / "map" / "parents.jsonl"
+    parents_path.parent.mkdir(exist_ok=True)
+    parents_path.write_text(
+        json.dumps({"id": "a1", "parents": ["root-a"]}) + "\n", encoding="utf-8")
+    result = parents.report(tmp_path, parents_path)
+    assert result["dangling"] == []
+
+
+def test_report_dangling_still_flags_an_id_that_is_no_root_claim_and_no_anchor(tmp_path):
+    """Root-claim resolution is not a blanket amnesty: a parent naming
+    neither an anchor nor a configured root claim is still dangling."""
+    _write(tmp_path, "mod.py", [("a1", "f")])
+    _write_md(tmp_path, "docs/PURPOSE.md", [("root-a", "Claim A.")])
+    _write_roots_config(tmp_path, ["docs/PURPOSE.md"])
+    init_checkout(tmp_path)
+    parents_path = tmp_path / "map" / "parents.jsonl"
+    parents_path.parent.mkdir(exist_ok=True)
+    parents_path.write_text(
+        json.dumps({"id": "a1", "parents": ["totally-nonexistent-slug"]}) + "\n",
+        encoding="utf-8")
+    result = parents.report(tmp_path, parents_path)
+    assert result["dangling"] == ["totally-nonexistent-slug"]
+
+
+def test_report_orphans_never_include_a_root_claim(tmp_path):
+    """A root claim is a chain's terminus, never itself a `parents.jsonl`
+    row -- folding it into `anchors` for the orphan check would flag every
+    root claim forever, on every build, for a gap that can never close."""
+    _write(tmp_path, "mod.py", [("a1", "f")])
+    _write_md(tmp_path, "docs/PURPOSE.md", [("root-a", "Claim A.")])
+    _write_roots_config(tmp_path, ["docs/PURPOSE.md"])
+    init_checkout(tmp_path)
+    parents_path = tmp_path / "map" / "parents.jsonl"
+    parents_path.parent.mkdir(exist_ok=True)
+    parents_path.write_text(
+        json.dumps({"id": "a1", "parents": ["root-a"]}) + "\n", encoding="utf-8")
+    result = parents.report(tmp_path, parents_path)
+    assert "root-a" not in result["orphans"]
+    assert result["orphans"] == []
 
 
 def test_main_never_refuses_even_with_dangling_and_orphaned_entries(tmp_path, capsys):
