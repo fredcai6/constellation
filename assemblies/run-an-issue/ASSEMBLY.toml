@@ -116,7 +116,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "commitments: is every commitment an observable end state or an invariant with its test, and which of them is a how, or a note about the spec, wearing a number"
+  criteria = "obligations: is every obligation an observable end state or an invariant with its test, and which of them is a how, or a note about the spec, wearing a number"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"

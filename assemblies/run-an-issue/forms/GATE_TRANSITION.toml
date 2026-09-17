@@ -110,7 +110,7 @@ which of the five in `standards/approach.md` it serves."""
   kind = "check"
   note = """
 A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised -- one check per commitment. It exercises
+covers less than `scope` promised -- one check per obligation. It exercises
 purpose's claim too: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string you ran, never a description of it:
 this field is shell-executed in the dispatched child, so prose becomes a

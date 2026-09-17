@@ -110,7 +110,7 @@ mints = "board rows"
 board = "execution-state"
 optional = true
 note = """
-One block per commitment the spec makes, verbatim from its own list, cited
+One block per obligation the spec makes, verbatim from its own list, cited
 by key. Minted as rows on the execution-state board (EXECUTION_STATE.toml) the
 moment this releases -- every gate's advance reads their dispositions
 afterward to decide whether the run is done, never the spec's prose again.
@@ -121,7 +121,7 @@ board existed."""
 
   [[field.item]]
   id = "obligation"
-  note = "One spec commitment, verbatim."
+  note = "One spec obligation, verbatim."
 
 # `calls` is written last, after every scalar and after `obligations`,
 # because a plan field renders as a bare `[[calls]]` header and every scalar
@@ -144,7 +144,7 @@ paragraph, a sentence that could be sharper -- is `accepted`. `accepted`
 -- you are not acting on it, and you owe no reason why. The rubber
 stamp, and the call most findings should take: the round stands, nothing
 carries, and the record is that you called it. A finding that proposes
-deleting something -- a commitment, a gate, a field, a file -- takes
+deleting something -- an obligation, a gate, a field, a file -- takes
 `blocking` or `rejected: <reason>` and never `accepted`: three runs
 running, an accepted call on a deletion was read by the next round as
 consent to it, and a deletion the round stands anyway on is a deletion

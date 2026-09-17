@@ -69,7 +69,7 @@ has used one back. Coining a synonym for a term below is a defect.
   not bar one name for two, and these two never appear in the same reading. *In a run:* a
   template step flagged so that amending it away is loud in the ledger and the parent's
   adjudication view — still one journaled step to amend, never a refusal. *In the map:* an
-  authored identity for a definition or a claim — a comment line holding only a bracketed
+  authored identity for a definition or a purpose — a comment line holding only a bracketed
   kebab slug, directly above what it names: `# [stable-id]` in Python, `<!-- [stable-id] -->`
   in markdown, each language's own way of hiding a line from its own reader. Minted on demand;
   the one fact about a definition the map stores instead of deriving.
@@ -217,7 +217,7 @@ has used one back. Coining a synonym for a term below is a defect.
   accepted | beyond | rejected`. Every panel-bearing transition's own route form carries the
   field, the same shape wherever one exists. Distinct from the issue tier's **disposition**
   (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges one finding or deviation once;
-  a disposition judges one spec commitment across the run's whole life.
+  a disposition judges one obligation across the run's whole life.
 - **review yield** — a closed run's own record of its review seams, derived and printed at
   close (`engine/review_yield.py`): rounds per seam, findings per round, and each finding's
   call where a route form ruled on one. Written beside `CLOSE.toml` as `YIELD.md`, and reachable
@@ -320,6 +320,15 @@ has used one back. Coining a synonym for a term below is a defect.
   assemblies. Derived output is not in it. *The mappable corpus:* every tracked `.py` file
   the map is built from, which is the sense `tools/code_map` uses throughout its own
   docstrings.
+- **purpose** — why a definition exists, written beside it and anchored. Purposes form a
+  hierarchy: each one names the purpose it serves, and those links are the rows of
+  `map/parents.jsonl`, the one authored file in an otherwise derived map. A purpose with no
+  row is an **orphan** — absence means unmapped, never mapped-to-nothing. A **root purpose**
+  is where the hierarchy terminates: one of those anchored in the documents
+  `constellation.toml`'s `[roots]` names, and never a node to climb past. A purpose sits on
+  the definition that carries it out, so the next reader can check it against that code and
+  contradict it; one no definition executes is not written down at all. `standards/purpose.md`
+  is the whole of it.
 - **delivery** — the engine actually rendering a word or line into `status`'s output, not
   merely a form or skill claiming it will. `render.py`'s whole job; a corpus sentence
   describing a delivery the engine does not make is a promise nothing keeps.
@@ -347,15 +356,16 @@ has used one back. Coining a synonym for a term below is a defect.
 - **flavor** — a cycle's mode, the human's pick: `shotgun` diverges, `compare` weighs a few
   seriously, `refine` hardens one.
 - **execution state** — run-an-issue's second board, seeded once (consolidate's `obligations`
-  field) from the spec's own keyed commitments and worked in place afterward: the gate claims
+  field) from the spec's own keyed obligations and worked in place afterward: the gate claims
   the rows it settles at its close, and its adjudication accepts or contests each claim onto the
   row. `execute`'s `advance` and `drop` outcomes both read it, and `spine close` reads it once
   more — whichever of those a run's own route to its terminal step actually takes — an open row
   refills the plan segment for another round, every row disposed mints nothing and the run walks
   on. Unvalidated, like the ideas board: the engine reads dispositions and refuses nothing.
-- **obligation** — one row on the execution-state board: a spec commitment, and the disposition
-  it settles to — `satisfied | deferred | invalidated | handed-off | rejected`, each with a
-  reason folded into the status the way `deferred: <reason>` already reads elsewhere. The gate
-  cut against it claims the word at close, with the root that shows it (`GATE_CLOSE.toml`'s
-  `claims`); the issue-conductor accepts or contests the claim (`GATE_TRANSITION.toml`'s
-  `dispositions`). `open` until disposed; no word here is checked against anything.
+- **obligation** — one row on the execution-state board: something the spec requires, keyed,
+  and the disposition it settles to — `satisfied | deferred | invalidated | handed-off |
+  rejected`, each with a reason folded into the status the way `deferred: <reason>` already
+  reads elsewhere. The gate cut against it claims the word at close, with the root that shows
+  it (`GATE_CLOSE.toml`'s `claims`); the issue-conductor accepts or contests the claim
+  (`GATE_TRANSITION.toml`'s `dispositions`). `open` until disposed; no word here is checked
+  against anything.
