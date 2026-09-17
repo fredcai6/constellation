@@ -1,19 +1,19 @@
 # Purpose in code
 
 Where the *why* lives after the work is done: on the definition that carries it out, in one
-graph that climbs to a claim in `docs/PURPOSE.md` or `standards/approach.md`. Those two pages
+graph that climbs to a root purpose in `docs/PURPOSE.md` or `standards/approach.md`. Those two pages
 say what this repository is for and how Tommy builds; this page says how a line of code reaches
 them, and what an implementer writes down to make the connection real.
 
 ## The graph
 
 Every node is an **anchor** on something that already exists — a definition in the tree, or one
-of the eleven claims in the two roots documents. An anchor is a comment line holding only a
+of the eleven root purposes in the two roots documents. An anchor is a comment line holding only a
 bracketed kebab slug, directly above what it names: `# [slug]` in Python, `<!-- [slug] -->` in
-markdown. A slug is minted on demand, is unique across the tree, and reads as the claim it
+markdown. A slug is minted on demand, is unique across the tree, and reads as the purpose it
 names rather than as the symbol underneath it. There is no purpose artifact and no second kind
-of node: a purpose you cannot attach to an existing definition is not a node yet, but a claim
-waiting for code or a claim to drop.
+of node: a purpose you cannot attach to an existing definition is not a node yet, but a purpose
+waiting for code, or one to drop.
 
 Edges live in `map/parents.jsonl`, the one authored file in an otherwise derived map. One JSON
 object per line, naming an anchor and the purposes it serves:
@@ -25,7 +25,7 @@ object per line, naming an anchor and the purposes it serves:
 
 One row per id, and a row may name more than one parent — a definition can serve two purposes,
 which makes this a DAG rather than a tree. An id with no row is an **orphan**: absence means
-unmapped, so a fresh checkout orphans every anchor in the tree. A root claim carries a row with
+unmapped, so a fresh checkout orphans every anchor in the tree. A root purpose carries a row with
 an empty `parents` list, which renders as `none -- declared root`; without a row it renders as
 `ORPHAN` like anything else (`tools/code_map/render.py`, `PARENTS_ROOT`).
 
@@ -34,7 +34,7 @@ check's source, so a root set can differ per repository — `standards/approach.
 `docs/PURPOSE.md` does not. That table's own comment carries the full reasoning.
 
 The report's corpus is tracked Python only today (`tools/code_map/discovery.py`), so a row
-naming a markdown root claim shows up in the dangling report until the corpus reads markdown
+naming a markdown root purpose shows up in the dangling report until the corpus reads markdown
 too. Write the row anyway: the row is right and the report is behind.
 
 ## A rung goes next to its executor
@@ -45,17 +45,17 @@ differs from its module's. A purpose sitting next to the code that executes it c
 against that code by the next reader, and contradicted by it. That is the whole value.
 
 **Never author a rung with no executor.** If no definition carries out the purpose, there is
-nothing to anchor: write the code, or drop the claim.
+nothing to anchor: write the code, or drop the purpose.
 
 A chain that reaches a root in two rungs is complete, not lazy. Inventing a middle rung to pad
 the ladder is the defect, because it puts a purpose somewhere no code can contradict it, and a
-claim nothing can falsify is exactly what this graph exists to stop.
+purpose nothing can falsify is exactly what this graph exists to stop.
 
-Stop climbing at a root claim. A root is where the chain terminates, never a node to climb past.
+Stop climbing at a root purpose. A root is where the chain terminates, never a node to climb past.
 
 ## Duty is one path, not a subtree
 
-When a spec decomposes a problem, it traces its obligations up to a root claim and builds
+When a spec decomposes a problem, it traces its obligations up to a root purpose and builds
 whatever rungs are missing along that path. That path, and nothing beside it. Neighboring code
 stays unmapped until something touches it.
 
