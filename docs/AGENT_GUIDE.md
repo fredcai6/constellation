@@ -78,7 +78,11 @@ gate-tier open carries no form and no words.
 Work runs through the engine itself. `spine` with no arguments lists open runs; `spine
 <work-id>` says where you are and what to fill; `spine open run-an-issue --title T --issue N`
 starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitignored — as are
-`.code-map/` and `map/`. Nothing derived is ever committed; `docs/DERIVED_IS_CODE.md` says why.
+`.code-map/` and `map/`. Nothing derived is ever committed, because a generated artifact in the
+index goes stale the moment its source moves and the next reader cannot tell a stale one from a
+true one. The one exception is `map/parents.jsonl`: it is authored rather than generated, so
+nothing derives it and there is no source for it to go stale against. `standards/purpose.md`
+says what goes in it.
 
 ## Repository organization
 
@@ -102,11 +106,12 @@ starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitign
 | `docs/PURPOSE.md` | what Constellation is for, what measures its machinery, and what good enough means |
 | `docs/V2_DESIGN.md` | the founding design: thesis, rulings, and the reasoning behind them. A starting point, not a target sheet; where it and the tree differ, the tree is right and the passage goes. |
 | `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
-| `docs/DERIVED_IS_CODE.md` | why nothing generated is committed |
+| `docs/DERIVED_IS_CODE.md` | why anything the engine can compute is computed by the engine, not written down as a rule for an agent to apply |
 | `standards/approach.md` | how Tommy builds, in any repository: the five, and the two rules at the human seam |
 | `standards/prose.md` | how this repo writes |
 | `standards/glossary.md` | one name for one thing |
 | `standards/issue.md` | what an issue and an epic are |
+| `standards/purpose.md` | how the why rides in the code: the purpose graph, where a rung goes, and what `map/parents.jsonl` holds |
 | `standards/skill.md` | what a skill is and what it must carry |
 
 ## Run things through the palette
