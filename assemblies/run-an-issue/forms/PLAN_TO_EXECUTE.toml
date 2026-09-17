@@ -95,7 +95,7 @@ and a finding that is true and neither of those is `accepted`.
 `accepted` -- you are not acting on it, and you owe no reason why. The
 rubber stamp, and the call most findings should take: the round stands,
 nothing carries, and the record is that you called it. A finding that
-proposes deleting something -- a commitment, a gate, a field, a file --
+proposes deleting something -- an obligation, a gate, a field, a file --
 takes `blocking` or `rejected: <reason>` and never `accepted`: three
 runs running, an accepted call on a deletion was read by the next round
 as consent to it, and a deletion the round stands anyway on is a

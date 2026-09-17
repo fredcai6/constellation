@@ -5,7 +5,7 @@ means**. Implementation steps in an issue are a defect — the plan belongs to t
 the issue up. Breadcrumbs (a possible fix, open questions) are optional, marked as hypotheses,
 and discardable by any later reader.
 
-An issue is one verb, about fifteen commitments and two or three gates. Past that it is two
+An issue is one verb, about fifteen obligations and two or three gates. Past that it is two
 issues, and the split belongs to whoever writes the issue, not to the run that picks it up.
 
 ## Observations — the load-bearing half

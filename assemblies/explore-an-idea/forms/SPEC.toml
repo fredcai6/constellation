@@ -17,11 +17,11 @@ note = "The spec, in the work location. It reads whole to a fresh-context critic
 id = "rivals"
 kind = "evidence"
 note = """
-For each load-bearing commitment: the rivals designed against it under
+For each load-bearing obligation: the rivals designed against it under
 distinct constraints — each a row on the ideas board, one constraint in its
 brief, dispatched as design-a-rival — and whether the incumbent held or a
 rival or hybrid replaced it. Reversible details earn no
-rival. Skip a load-bearing commitment only with a stated reason."""
+rival. Skip a load-bearing obligation only with a stated reason."""
 
 [[field]]
 id = "key-terms"

@@ -51,7 +51,7 @@ id = "proof"
 kind = "proof"
 note = """
 A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised -- one check per commitment. It exercises
+covers less than `scope` promised -- one check per obligation. It exercises
 purpose's claim too: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string to run, never a description of it:
 this field rides into the dispatched child as its own `proof`, shell-executed

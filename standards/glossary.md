@@ -217,7 +217,7 @@ has used one back. Coining a synonym for a term below is a defect.
   accepted | beyond | rejected`. Every panel-bearing transition's own route form carries the
   field, the same shape wherever one exists. Distinct from the issue tier's **disposition**
   (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges one finding or deviation once;
-  a disposition judges one spec commitment across the run's whole life.
+  a disposition judges one obligation across the run's whole life.
 - **review yield** — a closed run's own record of its review seams, derived and printed at
   close (`engine/review_yield.py`): rounds per seam, findings per round, and each finding's
   call where a route form ruled on one. Written beside `CLOSE.toml` as `YIELD.md`, and reachable
@@ -347,15 +347,16 @@ has used one back. Coining a synonym for a term below is a defect.
 - **flavor** — a cycle's mode, the human's pick: `shotgun` diverges, `compare` weighs a few
   seriously, `refine` hardens one.
 - **execution state** — run-an-issue's second board, seeded once (consolidate's `obligations`
-  field) from the spec's own keyed commitments and worked in place afterward: the gate claims
+  field) from the spec's own keyed obligations and worked in place afterward: the gate claims
   the rows it settles at its close, and its adjudication accepts or contests each claim onto the
   row. `execute`'s `advance` and `drop` outcomes both read it, and `spine close` reads it once
   more — whichever of those a run's own route to its terminal step actually takes — an open row
   refills the plan segment for another round, every row disposed mints nothing and the run walks
   on. Unvalidated, like the ideas board: the engine reads dispositions and refuses nothing.
-- **obligation** — one row on the execution-state board: a spec commitment, and the disposition
-  it settles to — `satisfied | deferred | invalidated | handed-off | rejected`, each with a
-  reason folded into the status the way `deferred: <reason>` already reads elsewhere. The gate
-  cut against it claims the word at close, with the root that shows it (`GATE_CLOSE.toml`'s
-  `claims`); the issue-conductor accepts or contests the claim (`GATE_TRANSITION.toml`'s
-  `dispositions`). `open` until disposed; no word here is checked against anything.
+- **obligation** — one row on the execution-state board: something the spec requires, keyed,
+  and the disposition it settles to — `satisfied | deferred | invalidated | handed-off |
+  rejected`, each with a reason folded into the status the way `deferred: <reason>` already
+  reads elsewhere. The gate cut against it claims the word at close, with the root that shows
+  it (`GATE_CLOSE.toml`'s `claims`); the issue-conductor accepts or contests the claim
+  (`GATE_TRANSITION.toml`'s `dispositions`). `open` until disposed; no word here is checked
+  against anything.
