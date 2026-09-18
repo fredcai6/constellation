@@ -346,15 +346,50 @@ def test_this_repos_derived_map_directory_stays_gitignored():
 
 
 def test_orphan_count_on_this_repos_clean_tree_equals_the_total_anchor_count():
-    """Finding 1 ships no writer: `map/parents.jsonl` starts empty, so on a
-    clean tree the orphan report names every anchor and nothing is
-    dangling. Regressing this either means the file stopped being empty
-    (a writer landed early) or the reader/anchor-set stopped agreeing with
-    `extract.anchors_in`."""
-    result = parents.report(ROOT, ROOT / "map" / "parents.jsonl")
-    assert result["parents_entries"] == 0
-    assert result["anchors"] > 0
-    assert len(result["orphans"]) == result["anchors"]
+    """The relationships that hold no matter how many rows `map/parents.jsonl`
+    carries: every anchor with no entry is an orphan, and nothing dangles.
+    Regressing this means the reader and `extract.anchors_in` stopped
+    agreeing on the anchor set, or a row went dangling -- not that the file
+    stopped being empty, which finding 1 never promised to stay true."""
+    parents_path = ROOT / "map" / "parents.jsonl"
+    anchors = parents.anchor_ids(ROOT)
+    have = parents.read_parents(parents_path)
+    result = parents.report(ROOT, parents_path)
+
+    assert anchors
+    assert set(result["orphans"]) == anchors - set(have)
+    assert result["dangling"] == []
+
+
+def test_orphans_and_dangling_tolerate_a_declared_root_row(tmp_path):
+    """`map/parents.jsonl` may carry a root purpose's own declared-root row --
+    a row whose id is anchored in a roots document (`standards/purpose.md`)
+    rather than in the Python tree, rendered by `render.PARENTS_ROOT`. That
+    id is never in `anchor_ids` (it is markdown, not Python), so it can never
+    satisfy an orphan and can never gain an entry of its own from the orphan
+    report's point of view -- but it must not read as dangling either, and
+    it must not disturb the ordinary anchor's own orphan/dangling status.
+    Pins the same two relationships
+    `test_orphan_count_on_this_repos_clean_tree_equals_the_total_anchor_count`
+    asserts against this repository's own tree, against a small tree that
+    carries one ordinary anchor row and one declared-root row."""
+    _write(tmp_path, "mod.py", [("a1", "f")])
+    _write_md(tmp_path, "docs/PURPOSE.md", [("root-a", "Claim A.")])
+    _write_roots_config(tmp_path, ["docs/PURPOSE.md"])
+    init_checkout(tmp_path)
+    parents_path = tmp_path / "map" / "parents.jsonl"
+    parents_path.parent.mkdir(exist_ok=True)
+    parents_path.write_text(
+        json.dumps({"id": "a1", "parents": ["root-a"]}) + "\n"
+        + json.dumps({"id": "root-a", "parents": []}) + "\n",
+        encoding="utf-8")
+
+    anchors = parents.anchor_ids(tmp_path)
+    have = parents.read_parents(parents_path)
+    result = parents.report(tmp_path, parents_path)
+
+    assert anchors
+    assert set(result["orphans"]) == anchors - set(have)
     assert result["dangling"] == []
 
 

@@ -21,6 +21,7 @@ meaning what it says.
 
 import pathlib
 import re
+import tomllib
 
 import pytest
 
@@ -37,18 +38,46 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 #   a real subprocess in the background the instant that entry became real,
 #   with the failure invisible (`_spawn`'s `Popen` is fire-and-forget, its
 #   errors caught and logged, never raised into the render). Dropping the
-#   key here is airtight rather than merely tidy: `spawn_dispatch` itself
-#   refuses to spawn anything when `"dispatch" not in commands` (commitment
-#   3), so a workdir-based render has nothing left to call even if some
-#   later change to the engine forgot to guard the call site.
+#   key here is airtight rather than merely tidy: `engine/checks.py`'s own
+#   `spawn_dispatch` refuses to spawn anything when `"dispatch" not in
+#   commands`, so a workdir-based render has nothing left to call even if
+#   some later change to the engine forgot to guard the call site. The
+#   removal itself establishes key absence directly: a best-effort text
+#   strip is checked by its own postcondition, `_dispatch_is_absent`,
+#   which parses the result as TOML and looks for the key -- never at the
+#   text -- so no formatting of the entry (one line, several, reordered)
+#   can produce a false pass. A survival is not silent: the postcondition
+#   raises, naming the entry, before the fixture hands the copy to a test.
 # Rejected: an autouse fixture monkeypatching `checks.spawn_dispatch`.
 #   That guard would live beside the fixture rather than in it, covering
 #   every test in the session (including `test_spawn_dispatch.py`'s own
 #   direct, deliberate calls) unless it were then taught to exempt them --
 #   a second thing to keep in sync with the first. Editing the one file
 #   `workdir` already writes needs nothing else to know about the guard.
+_DISPATCH_ENTRY_RE = re.compile(r"(?ms)^dispatch[ \t]*=[ \t]*(?:\[.*?\]|[^\n]*)\n?")
+
+
+def _dispatch_is_absent(text):
+    """The removal's own postcondition: parse `text` as TOML and confirm
+    `[commands]` carries no `dispatch` key. Judged against the parsed
+    palette, never the text, so no line-wrapping or reordering of the
+    entry can fool it either way. Raises loudly, naming the surviving
+    entry, rather than letting a kept `dispatch` command travel into the
+    fast suite quietly -- the spawn side cannot tell the two cases apart
+    (see rationale above), so this is the only thing in the system that
+    can."""
+    palette = tomllib.loads(text)
+    if "dispatch" in palette.get("commands", {}):
+        raise AssertionError(
+            "workdir-drops-dispatch: constellation.toml's copy still "
+            "carries a `dispatch` command -- the removal meant to strip "
+            "it did not, and the fast suite would spawn a real process.")
+
+
 def _without_dispatch_entry(text):
-    return re.sub(r"(?m)^dispatch[ \t]*=.*\n", "", text)
+    stripped = _DISPATCH_ENTRY_RE.sub("", text, count=1)
+    _dispatch_is_absent(stripped)
+    return stripped
 
 
 @pytest.fixture
