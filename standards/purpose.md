@@ -33,9 +33,12 @@ Which documents hold roots is named in `constellation.toml`'s `[roots]` table ra
 check's source, so a root set can differ per repository — `standards/approach.md` travels and
 `docs/PURPOSE.md` does not. That table's own comment carries the full reasoning.
 
-The report's corpus is tracked Python only today (`tools/code_map/discovery.py`), so a row
-naming a markdown root purpose shows up in the dangling report until the corpus reads markdown
-too. Write the row anyway: the row is right and the report is behind.
+A row resolves against two corpora and only those two: tracked Python for anchors
+(`tools/code_map/discovery.py`), and the roots documents for root purposes
+(`tools/code_map/parents.py`, `root_claim_ids`). Both ends of every row are checked against them,
+so a row naming a root purpose resolves like any other. A markdown anchor written anywhere else
+is in neither corpus and dangles forever — the mechanical half of why a node is a definition in
+the tree or a root purpose, and never a third thing.
 
 ## A rung goes next to its executor
 
