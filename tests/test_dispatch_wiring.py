@@ -21,6 +21,7 @@ import tomllib
 
 import pytest
 
+import conftest
 from engine import checks as checkrun
 from engine import cli, journal, render
 from test_brief import _mint_dispatch_step, _mint_panel_step
@@ -292,6 +293,50 @@ def test_the_fast_suites_workdir_never_touches_a_real_process(
     assert calls == []
     assert _dispatch_entries("d1") == []
     assert _dispatch_entries("g9") == []
+
+
+# -- [workdir-drops-dispatch]: the removal survives reformatting, and a miss is loud --
+
+
+def test_workdir_drops_dispatch_even_when_the_entry_is_wrapped_across_lines():
+    """`o-guard-survives-reformat`: an ordinary, correct TOML edit --
+    writing `dispatch` across several physical lines instead of one --
+    must not defeat the removal. The old line-oriented regex only ever
+    matched a `dispatch` key confined to one physical line; this drives
+    `conftest._without_dispatch_entry` against a wrapped array and checks
+    the result through the same postcondition function (`_dispatch_is_
+    absent`) the `workdir` fixture itself calls."""
+    wrapped = (
+        '[commands]\n'
+        'dispatch = [\n'
+        '    "claude", "-p", "{brief}",\n'
+        '    "--model", "{runner}",\n'
+        ']\n'
+        'test = "python3 -m pytest -q"\n'
+    )
+
+    stripped = conftest._without_dispatch_entry(wrapped)
+    conftest._dispatch_is_absent(stripped)  # does not raise
+
+    palette = tomllib.loads(stripped)
+    assert "dispatch" not in palette["commands"]
+    assert palette["commands"]["test"] == "python3 -m pytest -q"
+
+
+def test_workdir_would_fail_loudly_if_a_dispatch_entry_survived_the_drop():
+    """`o-silent-miss-is-impossible`'s failure path, driven directly
+    rather than merely asserted to exist: hand the fixture's own
+    postcondition function, `conftest._dispatch_is_absent`, a palette
+    whose `dispatch` command was never removed. It must fail loudly --
+    naming the surviving command -- rather than let it travel into the
+    fast suite quietly. The spawn side cannot tell a working guard from a
+    silently-dead one (see the anchor's rationale, conftest.py); this
+    postcondition is the only thing in the system that can, and it is
+    what `workdir` runs at fixture setup, before any test body."""
+    still_there = '[commands]\ndispatch = ["claude"]\n'
+
+    with pytest.raises(AssertionError, match="dispatch"):
+        conftest._dispatch_is_absent(still_there)
 
 
 # -- commitment 22 / commitment 16's first row: brief suppressed when configured --
