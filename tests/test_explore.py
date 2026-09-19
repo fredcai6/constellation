@@ -87,6 +87,40 @@ def test_excursion_returns_under_its_row_and_completes_nothing(explore):
     assert "excursion returned to row i1" in out and "verdict" in out
 
 
+def test_an_excursions_form_is_its_workers_not_its_principals(explore):
+    """A conductor opens an excursion precisely so it does NOT spend its own
+    context answering the row -- the excursion skill is written to the agent
+    doing the looking ("You are a child run opened from a board row"), not to
+    the one who sent it. So the room must not tell that reader the form is its
+    principal's, and `drive` must be willing to start a filler on it.
+
+    `terminal` alone used to decide this, which let the close-form rule shadow
+    a worker the assembly names outright: find-prior-art's one step is both its
+    terminal and its work, and declares `filler = "excursion"`. The room said
+    "none -- this form is the run's principal's to fill" and nothing would
+    start anyone on it."""
+    out, _ = _spine("open", "find-prior-art", "--parent", explore, "--row", "i1")
+    child = out.split()[1]
+
+    step = runmod.state(child)["current"]
+    assert step["terminal"] and step["filler"] == "excursion"
+    assert not runmod.principal_fills(step)
+
+    room, _ = _spine(child)
+    assert "principal's to fill" not in room
+    assert "skills/excursion/SKILL.md" in room
+
+
+def test_a_close_form_is_still_its_principals_to_fill(explore):
+    """The other half, and the reason the predicate reads `filler` rather than
+    dropping `terminal`: a real close form leaves `filler` at the `conductor`
+    default, and stays the principal's. `drive` starts nobody there."""
+    step = {"terminal": True, "filler": "conductor"}
+    assert runmod.principal_fills(step)
+    assert runmod.principal_fills({"terminal": False, "filler": "principal"})
+    assert not runmod.principal_fills({"terminal": False, "filler": "spec-writer"})
+
+
 def test_a_second_excursion_off_one_row_gets_its_own_id(explore):
     a, _ = _spine("open", "find-prior-art", "--parent", explore, "--row", "i1")
     b, _ = _spine("open", "draw-a-picture", "--parent", explore, "--row", "i1")
