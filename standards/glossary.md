@@ -1,8 +1,18 @@
 # Glossary
 
-One name for one thing. New terms are proposed through the key-terms field on
-understanding and plan forms, and enter here once they have crossed to the human and the human
-has used one back. Coining a synonym for a term below is a defect.
+One name for one thing. This page is where a human and an agent fix the same meaning for a
+word, so it holds the terms that mean something specific to this project — the ones an ordinary
+reading would get wrong. A word whose everyday sense is already right stays out: an entry for it
+is a second place to look up a definition that already has one. An engine verb is defined by
+`spine --help` — it is what the engine does, not a meaning two parties have to agree on — so one
+appears below only where the word carries a second sense here: `close` and `up` name an outcome a
+form's `does` field takes as well as a command, and `wait` starts the child it then blocks on,
+which is the opposite of what the word ordinarily promises.
+
+That is why a term enters only once it has crossed to the human and the human has used one back.
+It is proposed through the key-terms field on understanding and plan forms, and the
+acknowledgement admits it: both sides using the word is the only evidence that the understanding
+is joint. Coining a synonym for a term below is a defect.
 
 - **run** — one instantiated pass through an assembly, addressed by its work id, recorded in
   its journal.

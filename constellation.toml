@@ -31,8 +31,7 @@ map = "python3 -m tools.code_map build --root . --artifacts .code-map --out map 
 # already drives by hand is the same one `wait` now starts itself.
 # `--append-system-prompt` carries the one fact about this harness a brief cannot: a
 # headless process is never woken. Twelve children across three runs died by starting a
-# check in the background and ending their turn to "wait for the notification"
-# (docs/process-notes/issue99.md note 28).
+# check in the background and ending their turn to "wait for the notification".
 dispatch = ["claude", "-p", "{brief}", "--model", "{runner}", "--allowedTools", "Bash", "Read", "Write", "Edit", "--append-system-prompt", "You are a headless process started by an engine. Nothing will ever notify you: no background task, no timer, no other agent. Run every command in the foreground and read its output before going on; never start a check in the background and never end your turn to wait for anything. Your turn ends only when the room you were handed says your step is done."]
 
 # Logical tiers, resolved at dispatch. Forms and assemblies name only the

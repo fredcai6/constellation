@@ -17,6 +17,13 @@ and let your principal confirm or correct it. A decision you know you lack
 is loud; a wrong reading held confidently is silent, and it is the one that
 sends two people to different places.
 
+Seed against a claim, never on top of it. A row drawn from an issue, a
+prior run's notes, or any other carried context inherits that context's
+claims, and a claim is true of the revision it was written against and no
+other. Phrase such a row to test what it carries — is this still true —
+rather than to act on it. The most relevant input is the most dangerous
+one for exactly that reason.
+
 Own the glossary while you are here. Every term the ask leans on either has
 its entry or gets one now, and a word the board uses two ways is a row, not
 a footnote. Record what you coined in the consolidate's key-terms field.
