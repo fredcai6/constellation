@@ -2320,9 +2320,18 @@ def complete_submit(wid, step_id, fields, ran):
     # or an up submits `resolution` and maybe `calls`, never a real `spec`,
     # and folding those into prefill would carry a blank field over whatever
     # a prior release already put there.
-    if step.get("carries") and _releases(outcome):
+    # `true` folds every field the step submitted; a list of field ids folds
+    # only those, for a step whose fields do not all age the same way. `open`
+    # is the case that exists for: `authority` is the principal's own orders
+    # and has to reach every later dispatch, while `questions` beside it is a
+    # seed list the board supersedes the moment it is worked -- a frozen copy
+    # of it in every child's prefill reads as orders that it is not.
+    carries = step.get("carries")
+    if carries and _releases(outcome):
+        held = (fields if carries is True else
+                {k: v for k, v in fields.items() if k in carries})
         journal.append(wid, "prefill",
-                       fields={**(st.get("prefill") or {}), **fields})
+                       fields={**(st.get("prefill") or {}), **held})
     _mint(wid, asm, step, form, fields)
     _mint_projected_gate(wid, asm, step, st, fields)
     _resume_paused_child(wid, step, fields)

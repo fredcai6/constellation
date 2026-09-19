@@ -137,3 +137,53 @@ def test_a_rework_round_opens_as_a_dispatch_and_reaches_the_rework_form(workdir,
 
     child = f"{wid}.{fresh['id']}"
     assert runmod.state(child)["current"]["form"] == "skills/planner/forms/REWORK.toml"
+
+
+# -- 5. open carries the principal's authority, and not the seed questions ---
+
+
+def test_a_gate_child_receives_the_principals_authority(workdir, capsys):
+    """`authority` is the principal's own orders -- who the principal is, what
+    the run owns, where gaps go. It is recorded at `open` and read segments
+    later by a child that never met the human, so it has to ride the run's
+    prefill the whole way down.
+
+    Before the open transition named its carried fields, the run's prefill was
+    empty at this point: `carries` lived only on consolidate, so everything a
+    principal ruled at open reached nobody and the convention bridging it --
+    write the orders into the `issue` artifact too -- was undocumented for
+    `authority` and unenforced anywhere."""
+    wid = "issue18"
+    cli.main(["open", "run-an-issue", "--issue", "18", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
+    capsys.readouterr()
+
+    prefill = runmod.state(f"{wid}.plan-1")["prefill"]
+    assert "Principal: Tommy, live." in prefill["authority"]
+    assert prefill["issue"] == f".agent-work/{wid}/issue.md"
+
+
+def test_open_does_not_carry_its_seed_questions(workdir, capsys):
+    """The other half of the same ruling, and the reason the open transition
+    names its fields instead of carrying `true`: `questions` is a starting cut
+    the board supersedes the moment it is worked. A frozen copy of the seeds
+    riding in every later child's prefill reads as orders it is not.
+
+    This is the half that regresses silently -- `carries = true` would pass
+    the test above and fail here -- so it is pinned on its own."""
+    wid = "issue19"
+    cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    prefill = runmod.state(wid)["prefill"]
+    assert "authority" in prefill      # the fold happened at all
+    assert "questions" not in prefill  # and it was selective

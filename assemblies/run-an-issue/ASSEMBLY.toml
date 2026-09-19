@@ -13,6 +13,12 @@ id = "open"
 anchor = true
 form = "forms/OPEN.toml"
 filler = "conductor"
+# `issue` and `authority` join the run's prefill so every later dispatch gets
+# them: authority is the principal's own orders, and a gate child that never
+# sees them is working for nobody. `questions` is left out on purpose -- the
+# board supersedes the seeds the moment it is worked, and a frozen copy of
+# them in a child's prefill reads as orders it is not.
+carries = ["issue", "authority"]
 
 [[segment]]
 id = "understand"
