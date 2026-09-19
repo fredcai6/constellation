@@ -74,7 +74,18 @@ def resolve_skill(role):
 #   (cli.py) minted into this run's own journal because no parent run could
 #   be reached -- and the two readers that act on that (`cmd_drive`, which
 #   must start nothing there, and the room, which says whose form it is)
-#   need one answer. `principal` is a filler value, not a role: no
+#   need one answer.
+#   `terminal` alone does not make a step the principal's: a close form
+#   leaves `filler` at the `conductor` default, while a child run whose one
+#   step IS its terminal names a worker skill outright -- `excursion` on the
+#   four excursion assemblies, `planner` on cut-a-gate, `reviewer` on
+#   give-a-verdict. Reading `terminal` alone let a declared worker be
+#   shadowed by the close-form rule, so the room told an excursion's reader
+#   the form was its principal's and `drive` refused to start anyone on it.
+#   That is backwards: a conductor opens an excursion precisely so it does
+#   NOT spend its own context answering the row, and the excursion skill is
+#   written to the agent doing the looking ("You are a child run opened from
+#   a board row"), not to the one who sent it. `principal` is a filler value, not a role: no
 #   `skills/principal/` exists, `_role_tier` never sees it because `drive`
 #   stops first, and `role_of` returns it unwrapped so the room prints no
 #   posture line for a reader who has no skill file.
@@ -86,9 +97,12 @@ PRINCIPAL = "principal"
 
 def principal_fills(step):
     """True where `step` is the run's principal's to fill, outside the
-    engine: its own terminal form, or a step minted with the `principal`
-    filler (an ask standing in this run's own journal)."""
-    return bool(step.get("terminal")) or step.get("filler") == PRINCIPAL
+    engine: its own terminal close form -- terminal, and left at the
+    `conductor` default rather than naming a worker -- or a step minted with
+    the `principal` filler (an ask standing in this run's own journal)."""
+    if step.get("filler") == PRINCIPAL:
+        return True
+    return bool(step.get("terminal")) and step.get("filler") == "conductor"
 
 
 # [role-of]
