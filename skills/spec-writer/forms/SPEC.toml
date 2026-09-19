@@ -1,6 +1,7 @@
 # Step: spec. Owned by the spec-writer skill; filled by the spec-writer --
-# the conductor's own hat for this one round, distinct from the interrogator
-# hat it wears to work the board (`hat`, engine/run.py). The understand
+# a distinct hand for this round, not a hat the conductor wears: this step
+# names its own `worker`, which `hat` (engine/run.py) leaves alone, and
+# ASSEMBLY.toml says why the hand is distinct. The understand
 # board is the source; it is not attached. A conductor's `rework` -- ruled
 # off the panel's own findings at CONSOLIDATE.toml, the route form the
 # segment holds open on either of the panel's own words -- mints this same
