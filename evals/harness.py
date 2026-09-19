@@ -35,7 +35,7 @@ from engine import run as runmod
 # Rationale: the one fact about this harness a brief cannot carry. A headless
 #   `claude -p` is never woken: twelve children across three runs died by
 #   starting a check in the background and ending their turn to wait for a
-#   notification (docs/process-notes/issue99.md note 28). Stated once here and
+#   notification. Stated once here and
 #   copied verbatim into constellation.toml's `dispatch` entry, which
 #   tests/test_dispatch_wiring.py holds equal to this argv.
 HEADLESS = 'You are a headless process started by an engine. Nothing will ever notify you: no background task, no timer, no other agent. Run every command in the foreground and read its output before going on; never start a check in the background and never end your turn to wait for anything. Your turn ends only when the room you were handed says your step is done.'

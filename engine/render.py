@@ -195,9 +195,8 @@ NOTE_KINDS = ("blocked", "resumed", "observation", "decision", "triage")
 #   offering the verb used to render `spine <wid> note ...` -- so the one
 #   room that offers the move named none of the five words that make it
 #   legal, and the refusal naming them arrived only after the whole note had
-#   been typed and parsed, echoing a paragraph back inside an error
-#   (`docs/process-notes/issue84.md` note 1). Every other command this file
-#   renders is typeable as printed; this one was not.
+#   been typed and parsed, echoing a paragraph back inside an error. Every
+#   other command this file renders is typeable as printed; this one was not.
 # Rejected: a `<kind>` placeholder. A placeholder in argument position is the
 #   guess `_off_the_board` already refuses to make a reader perform.
 # Rejected: defaulting the kind when it is omitted. Only `blocked`, `resumed`

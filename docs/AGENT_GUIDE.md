@@ -75,9 +75,13 @@ gate-tier open carries no form and no words.
 
 ## How work happens
 
-Work runs through the engine itself. `spine` with no arguments lists open runs; `spine
-<work-id>` says where you are and what to fill; `spine open run-an-issue --title T --issue N`
-starts one. Journals and response forms live at `.agent-work/<work-id>/`, gitignored — as are
+Work runs through the engine itself. **`spine --help` names every verb and what each one
+does — read it before you guess.** An engine verb is defined there and nowhere else: it is what
+the engine does, not vocabulary you and a human share, so `standards/glossary.md` carries an
+entry for one only where the word means something else here as well. The three you reach for
+first: `spine` with no arguments lists open runs, `spine <work-id>` says where you are and what
+to fill, and `spine open run-an-issue --title T --issue N` starts one. Journals and response
+forms live at `.agent-work/<work-id>/`, gitignored — as are
 `.code-map/` and `map/`. Nothing derived is ever committed, because a generated artifact in the
 index goes stale the moment its source moves and the next reader cannot tell a stale one from a
 true one. The one exception is `map/parents.jsonl`: it is authored rather than generated, so
@@ -133,3 +137,7 @@ them is a choice: `palette:validate`, or `pytest evals`. They drive a real model
 - `standards/issue.md` — an observation is a claim about a rev, so run its command against HEAD
   before planning against it. A defect that is real, cheap, and harmless is the easiest work to
   justify and the least worth doing.
+- Single-quote a `spine <work-id> note ...` whose text contains a backticked term. In double
+  quotes the shell runs the backticks as command substitution before `note` ever sees the
+  string, splicing their output into an append-only journal — silently, and this repo's prose
+  wraps every verb, field and path in backticks.

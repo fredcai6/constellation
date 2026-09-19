@@ -875,9 +875,7 @@ def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc(
 #   technique a hit on its own bytecode. Still rooted wrong: rglob walked
 #   the filesystem, not the repository, so it also caught a sibling
 #   issue-tier worktree and generated map output; walking `git ls-files`
-#   instead drops those for free and lets `docs/process-notes/` join
-#   `V2_DESIGN.md` as a third exclusion, since a dated record quoting the
-#   claim as evidence of a defect is not a standing claim either.
+#   drops those for free.
 def test_no_text_in_the_repository_claims_up_mints_nothing_or_ends_the_run():
     _j = ""  # a name, not a literal -- see the rationale above
     fragments = [
@@ -895,9 +893,8 @@ def test_no_text_in_the_repository_claims_up_mints_nothing_or_ends_the_run():
         if not raw:
             continue
         rel = raw.decode()
-        if rel == "docs/V2_DESIGN.md" or rel.startswith("docs/process-notes/"):
-            continue  # a decision the answerer may name, or a dated record
-            # quoting the claim as evidence -- neither is standing prose
+        if rel == "docs/V2_DESIGN.md":
+            continue  # a decision the answerer may name, not standing prose
         try:
             text = (ROOT / rel).read_text()
         except (UnicodeDecodeError, OSError):
