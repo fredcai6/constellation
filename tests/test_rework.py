@@ -736,7 +736,7 @@ def test_a_revised_understands_re_minted_transition_carries_its_declared_guards(
     t = next(s for s in runmod.load_assembly("run-an-issue")["segment"]
              if s["id"] == "understand")["transition"]
     assert fresh["validates"] == t["validates"] == "board"
-    assert t["carries"] is True and fresh["carries"] is True
+    assert fresh["carries"] == t["carries"]
 
 
 def test_a_gates_reworked_select_carries_the_conductor_default(workdir, capsys):

@@ -86,7 +86,18 @@ validates = "board"   # refuses an open row or a self-answered decision on a rel
 # a release only, the same guard as `validates` above: a rework or an up
 # leaves nothing intact to carry, and `_releases` is what keeps this fold
 # from writing a blank spec over prefill's own.
-carries = true
+# A list, not `true`, for the same reason `open` above carries one: `true`
+# folds every field the step submitted, and this form's own `resolution`,
+# `orders` and `calls` are this seam's bookkeeping, spent the moment it
+# releases. Frozen into prefill they outlive the seam and read downstream as
+# live orders -- exactly what engine/cli.py's fold warns of, "a frozen copy
+# of it in every child's prefill reads as orders that it is not". Measured:
+# issue112's plan seam ruled `rework` on gate 1, and the next planner read
+# this seam's stale `resolution = "revise"` and `orders = "waived: this
+# round releases"` as the ruling on that gate, quoted them as its evidence,
+# and cut the wrong gate -- one whole round, and a workaround paragraph in
+# the round after it naming three fields to disregard.
+carries = ["spec", "key-terms", "settle", "obligations"]
 # Follow-up to ruling 3, 2026-09-03: mirrors run-a-gate's own review/ROUTE.toml
 # and plan-to-execute's shape above. The critic panel's own two words are
 # both inert (`release`, below), so the step stays open on either verdict --
