@@ -97,7 +97,7 @@ validates = "board"   # refuses an open row or a self-answered decision on a rel
 # round releases"` as the ruling on that gate, quoted them as its evidence,
 # and cut the wrong gate -- one whole round, and a workaround paragraph in
 # the round after it naming three fields to disregard.
-carries = ["spec", "key-terms", "settle", "obligations"]
+carries = ["spec", "key-terms", "settle", "obligations", "rungs"]
 # Follow-up to ruling 3, 2026-09-03: mirrors run-a-gate's own review/ROUTE.toml
 # and plan-to-execute's shape above. The critic panel's own two words are
 # both inert (`release`, below), so the step stays open on either verdict --

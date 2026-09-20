@@ -27,17 +27,19 @@ asked and what the board settled — point at neither.
 Climb one path, not a subtree: the rungs your own obligations need to reach a
 root, and nothing beside them. Neighbouring code stays unmapped until a run
 touches it -- backfill is a detour on the path you are already walking, never
-a cartography project. Where a rung is missing, author it: mint the anchor on
-the definition that carries that purpose out -- usually a module docstring,
-sometimes one function -- and write its `map/parents.jsonl` line. Never
-author a rung no code executes: a chain that reaches a root in two rungs is
-complete, and a middle rung invented to pad the climb is the defect, not the
-short ladder. Name the anchor id this run's work will land and write its line
-now, so the implementer transcribes an id instead of minting one; the line
-dangles until that work lands the anchor, which is expected -- nothing
-refuses on a dangling entry. A rung you mint sits on code that already
-exists, but the id you reserve names a purpose, not the file that will hold
-it.
+a cartography project. Where a rung is missing on code that already exists,
+author it: mint the anchor on the definition that carries that purpose out --
+usually a module docstring, sometimes one function -- and write its
+`map/parents.jsonl` line yourself. Never author a rung no code executes: a
+chain that reaches a root in two rungs is complete, and a middle rung
+invented to pad the climb is the defect, not the short ladder. Where the rung
+is this run's own work, landing on code that does not exist yet, reserve it
+instead: name the anchor id in `rungs` below, and the anchor id it sits
+under, so the implementer transcribes an id instead of minting one. The
+engine writes `map/parents.jsonl`'s row itself, the moment that work
+actually lands the anchor, in the same commit -- never write that line by
+hand. A rung you mint sits on code that already exists; a rung you reserve
+names a purpose, not the file that will hold it.
 State every obligation this run makes under its own key: a short, stable key
 -- say `o-registry-shared`, lowercase words, no sequence number -- that never
 changes when the list is edited, so a reference to it survives a rework;
@@ -76,3 +78,25 @@ kind = "artifact"
 note = """
 The specification, in the work location (.agent-work/<work-id>/). Point at
 it — never retype it: the imperative above says what it must contain."""
+
+[[field]]
+id = "rungs"
+kind = "plan"
+optional = true
+note = """
+Reserved rungs: one block per anchor this run's own work will land on code
+that does not exist yet. `anchor` is the id this run mints; `parents` is
+the anchor id(s) it sits under, the rung above it on the purpose chain.
+Name it here so the implementer transcribes an id instead of minting one --
+never write `map/parents.jsonl`'s line yourself for one of these: the
+engine writes it the moment the anchor actually lands, in the same commit.
+Leave blank on a run that reserves no anchor of its own -- most gates
+climb through code that already exists and need nothing here."""
+
+  [[field.item]]
+  id = "anchor"
+  note = "The anchor id this run's work will land, exactly as it will read."
+
+  [[field.item]]
+  id = "parents"
+  note = "The anchor id(s) it sits under -- the rung above it. Space-separated if more than one."

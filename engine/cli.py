@@ -6,6 +6,7 @@ crew ends up driving its dispatcher's run. A bare `spine` prints the ledger,
 never your run.
 """
 
+import json
 import os
 import pathlib
 import re
@@ -3275,6 +3276,115 @@ def _gate_subject(gate_id, purpose):
     return f"{prefix}{truncated}…"
 
 
+# [rungs-are-transcribed-not-authored-early]
+# Rationale: issue166 -- SPEC.toml used to write `map/parents.jsonl`'s row
+#   at spec time, before any code carried the anchor, which dangled that row
+#   for the whole run and turned the fast suite red for anyone who followed
+#   the instruction. The spec still names the id, as structured data
+#   (`rungs`), so the implementer transcribes rather than mints one; the
+#   engine writes the row itself, mechanically, the moment the anchor
+#   actually lands -- here, immediately before the gate that landed it is
+#   committed, so the pointer and its target arrive in the same commit. A
+#   secretary's move: an anchor that never lands writes no row, and nothing
+#   here refuses a gate for failing to land one (docs/AGENT_GUIDE.md, "the
+#   engine is a secretary, never a guard").
+# Rejected: `from tools.code_map import parents` to read the anchor and
+#   dangling sets. `engine/install.py`'s own `_plan` ships exactly
+#   `assemblies`, `standards`, `engine`, `spine` and the skill bundles --
+#   `tools/` is not among them, so an installed copy has no `tools/` on its
+#   `PYTHONPATH` and that import raises `ModuleNotFoundError` the first time
+#   a real reservation reaches this function. `docs/AGENT_GUIDE.md` also
+#   names `tools/` as decoupled tooling; the engine depending on it inverts
+#   the direction that decoupling is for. So this reads the git index and
+#   `map/parents.jsonl` itself, narrowly -- not by importing the module that
+#   already knows how, and not by copying its grammar wholesale.
+def _reserved_rungs(wid):
+    """This run's own `rungs` reservation, off its prefill -- folded there by
+    consolidate's own `carries` the moment the spec released. `[(anchor id,
+    (parent id, ...)), ...]`; absent, blank, or not a list all read as no
+    reservation, the ordinary case -- most runs climb through code that
+    already exists and reserve nothing."""
+    st = runmod.state(wid)
+    rows = (st.get("prefill") or {}).get("rungs")
+    if not isinstance(rows, list):
+        return []
+    out = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        anchor = str(row.get("anchor", "")).strip()
+        if anchor:
+            out.append((anchor, tuple(str(row.get("parents", "")).split())))
+    return out
+
+
+# The two authored shapes an anchor comment takes (standards/purpose.md): a
+# line holding nothing but its bracketed slug, `# [id]` in Python or
+# `<!-- [id] -->` in markdown -- and nothing looser, so a mention of the slug
+# in prose or a docstring never counts as landing it.
+_ANCHOR_LINE_PATTERNS = (
+    r'^[ \t]*#[ \t]*\[{slug}\][ \t]*$',
+    r'^[ \t]*<!--[ \t]*\[{slug}\][ \t]*-->[ \t]*$',
+)
+
+
+def _anchor_landed(worktree, anchor):
+    """True when the staged tree -- what `_git_add_tracked` just staged --
+    carries `anchor`'s own marker line. `git grep --cached` reads the index
+    directly, so a brand-new file the gate's own diff just added is seen the
+    moment it is staged, with no dependency on git having committed yet and
+    none on `tools/code_map`."""
+    slug = re.escape(anchor)
+    args = ["grep", "--cached", "-I", "-q", "-E"]
+    for pattern in _ANCHOR_LINE_PATTERNS:
+        args += ["-e", pattern.format(slug=slug)]
+    return _git(worktree, *args).returncode == 0
+
+
+def _parents_jsonl_ids(path):
+    """Every id `map/parents.jsonl` already carries a row for -- one JSON
+    object per line, read directly rather than through
+    `tools.code_map.parents.read_parents` (see the rationale above). A
+    missing file reads as no rows, the ordinary state of a fresh worktree
+    before this ever writes to it."""
+    path = pathlib.Path(path)
+    if not path.exists():
+        return set()
+    ids = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        rid = json.loads(line).get("id")
+        if rid:
+            ids.add(rid)
+    return ids
+
+
+def _land_reserved_rungs(wid, worktree):
+    """For each anchor this run reserved at consolidate, write
+    `map/parents.jsonl`'s row the moment that anchor actually landed in this
+    gate's own diff -- called from `_commit_gate`, after `_git_add_tracked`
+    has staged the diff, and before the commit that follows. A reservation
+    whose anchor never lands, or that already carries a row, writes nothing:
+    this is a transcription of an authored fact, never a check on whether
+    the gate landed it."""
+    reserved = _reserved_rungs(wid)
+    if not reserved:
+        return
+    path = pathlib.Path(worktree) / "map" / "parents.jsonl"
+    have = _parents_jsonl_ids(path)
+    landed = [(anchor, parent_ids) for anchor, parent_ids in reserved
+             if anchor not in have and _anchor_landed(worktree, anchor)]
+    if not landed:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        for anchor, parent_ids in landed:
+            f.write(json.dumps({"id": anchor, "parents": list(parent_ids)}) + "\n")
+    _git(worktree, "add", "--", "map/parents.jsonl")
+
+
 def _commit_gate(wid, asm, step):
     """One commit for the gate that just advanced: staged against the run's
     own worktree, on its own branch, the message naming the gate, carrying
@@ -3318,6 +3428,7 @@ def _commit_gate(wid, asm, step):
     purpose = prefill.get("purpose", "")
     scope = prefill.get("scope", "")
     _git_add_tracked(worktree)
+    _land_reserved_rungs(wid, worktree)
     message = (f"{_gate_subject(gate_id, purpose)}\n\n"
                f"{purpose}\n\n{scope}\n\n"
                f"Work-Id: {child or wid}")
