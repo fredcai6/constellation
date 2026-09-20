@@ -252,7 +252,7 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
 # anyone remembering to; the sites are pinned so that a new one fails loudly
 # instead of going unswept.
 MINT_TARGETS = {
-    ("_open_child", None): ("panel",),                 # a panelist's dispatch
+    ("_mint_child", None): ("panel",),                 # a panelist's dispatch
     # a replan's fresh round now goes through `_perform`'s generic `refill`
     # verb (`_mint_segment_round(wid, asm, tseg["id"], prefill=fields)`) --
     # `fields` is forwarded whole, not a literal dict this sweep can see, so

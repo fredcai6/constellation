@@ -177,7 +177,7 @@ def hand_in(wid, step, fields, commands, check_root, budget):
     raise SystemExit(_said(result, wid, step["id"]))
 
 
-def _spawn(argv, log, cwd=None):
+def _spawn(argv, log, cwd=None, *, bind=None):
     """The detached runner, generalized to any argv: `Popen` it with output
     captured to `log` and nothing read from the caller's own stdin.
     `start_new_session` puts it in a session of its own, so a harness that
@@ -194,12 +194,22 @@ def _spawn(argv, log, cwd=None):
     install is a copy, so a module run this way is found the same way in
     the repo and in an installed copy. Harmless, not just convenient, for an
     argv that names no Python module at all -- an extra `PYTHONPATH` entry
-    a non-Python harness never looks at costs it nothing."""
+    a non-Python harness never looks at costs it nothing.
+
+    `bind`, when given, is the id of the child this argv itself runs as --
+    stamped into `CONSTELLATION_BOUND` so that child's own work-id
+    resolution (`engine/journal.py`'s `_in_scope`) reaches only itself and
+    whatever it dispatches beneath itself. Omitted (`None`), the spawned
+    process inherits whatever `CONSTELLATION_BOUND` this caller already
+    carries, unchanged -- a form filler and a proof runner are not a
+    distinct child with a subtree of its own, so neither passes `bind`."""
     env = {**os.environ,
            "PYTHONPATH": os.pathsep.join(
                p for p in (str(_ROOT), os.environ.get("PYTHONPATH", "")) if p),
            "CONSTELLATION_SESSION": os.environ.get(
                "CONSTELLATION_SESSION", str(os.getpid()))}
+    if bind is not None:
+        env["CONSTELLATION_BOUND"] = bind
     with open(log, "a", encoding="utf-8") as out:
         return subprocess.Popen(
             argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
@@ -307,7 +317,7 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
                 DISPATCH_UNFILLED, f"{word} has no value supplied for this child")
         argv.append(str(value))
     try:
-        proc = _spawn(argv, log, cwd=tree)
+        proc = _spawn(argv, log, cwd=tree, bind=child_id)
     except OSError as e:
         raise DispatchFailure(DISPATCH_SPAWN_FAILED, str(e)) from e
     return journal.append(wid, "dispatch-started", child=child_id, pid=proc.pid,

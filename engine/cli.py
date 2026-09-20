@@ -109,7 +109,9 @@ def mint_id(issue=None, kind="issue"):
         return f"issue{issue}"
     while True:
         wid = f"{kind}{secrets.token_hex(2)}"
-        if not journal.exists(wid):
+        # See: `[write-guard-is-not-scope]`, `cmd_open` below -- the same
+        #   on-disk question, not `journal.exists`'s in-scope one.
+        if not journal.journal_path(wid).exists():
             return wid
 
 
@@ -509,22 +511,33 @@ def _git(cwd, *args):
 
 # [stage-exclude]
 # Rationale: this repository's own ignore file keeps `.agent-work`,
-#   `.worktrees`, `.code-map` and `map` out of *its* commits, but a run's
-#   own commits land in whatever repository it opened against -- and that
-#   repository's own ignore file is not this engine's to depend on. A host
-#   with no entry for `.agent-work` stages the whole record on every commit
-#   `git add -A` alone makes (51 files of it, once, in the wild): the rule
-#   in `docs/DERIVED_IS_CODE.md` is that nothing derived is ever committed,
-#   so the engine holds the exclusion itself, as a pathspec, rather than
-#   trust a file it does not own.
+#   `.worktrees`, `.code-map` and the rest of `map` out of *its* commits,
+#   but a run's own commits land in whatever repository it opened against --
+#   and that repository's own ignore file is not this engine's to depend on.
+#   A host with no entry for `.agent-work` stages the whole record on every
+#   commit `git add -A` alone makes (51 files of it, once, in the wild): the
+#   rule in `docs/DERIVED_IS_CODE.md` is that nothing derived is ever
+#   committed, so the engine holds the exclusion itself, as a pathspec,
+#   rather than trust a file it does not own. One path under `map` is
+#   carried anyway: `map/parents.jsonl` is authored, not derived -- the
+#   exception `docs/AGENT_GUIDE.md` already records -- so a run that mints
+#   an anchor and writes its own line there needs that line to reach the
+#   commit rather than be held back by the same exclusion as its derived
+#   siblings. A `git add -A` pathspec cannot re-include a literal path once
+#   a broader exclude already covers it (tested: a directory-level
+#   `:(exclude)` wins over a later, more specific include in the same
+#   invocation), so the carry is a second, plain `add` naming that one file.
 def _git_add_tracked(cwd):
-    """Stage everything except the engine's own derived trees. A commit
-    made here never carries `.agent-work` (the run's record), `.worktrees`
-    (nested issue-tier worktrees), `.code-map` or `map` (the code map),
-    whether or not the repository being committed to ignores them itself."""
+    """Stage everything except the engine's own derived trees, with one
+    carve-out. A commit made here never carries `.agent-work` (the run's
+    record), `.worktrees` (nested issue-tier worktrees), `.code-map` or the
+    rest of `map` (the code map), whether or not the repository being
+    committed to ignores them itself -- except `map/parents.jsonl`, the
+    map's authored portion, which is staged right after."""
     excludes = [f":(exclude){name}" for name in
                 (".agent-work", ".worktrees", ".code-map", "map")]
     _git(cwd, "add", "-A", "--", ".", *excludes)
+    _git(cwd, "add", "--", "map/parents.jsonl")
 
 
 def _gh(cwd, *args):
@@ -695,7 +708,23 @@ def cmd_open(argv):
     issue = _opt(argv, "--issue")
     from_ref = _opt(argv, "--from") or ""
     wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue, kind=assembly.rsplit("-", 1)[-1]))
-    if journal.exists(wid):
+    # [write-guard-is-not-scope]
+    # Rationale: this guard asks "is this name already taken", never "can I
+    #   resolve this id from here" -- `journal.exists`, since #112 gate 2,
+    #   answers the second question, narrowed to a bound process's own
+    #   subtree, and swapping it in here would hand a `--id` typed inside a
+    #   bound process a name already taken by a run outside that subtree,
+    #   its own parent included, the moment this line wrote through it.
+    #   `journal_path(wid).exists()` reads no caller identity and no
+    #   session -- the same plain on-disk check `exists` itself used before
+    #   that gate -- so a bound caller gets the identical "already exists"
+    #   refusal an unbound one always got, never a new, differently-worded
+    #   one, keeping o3's no-predicate shape intact for the write side too.
+    # Rejected: leaving `journal.exists` here and adding a second predicate
+    #   to widen it back for a write guard. That is a second mode on the
+    #   one function every resolver bottoms out on, which is exactly the
+    #   shape #112 gate 2 exists to avoid needing anywhere.
+    if journal.journal_path(wid).exists():
         raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
     on_issue_tier = _issue_tier(asm)
@@ -787,6 +816,41 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     a board row: the row is its brief, and its return lands under the row
     rather than completing any step.
 
+    The row_id branch (an excursion) stays here, unsplit: `_spawn_outstanding`
+    never opens a board row, so `_mint_child` -- the silent core below,
+    which `_spawn_outstanding` calls directly -- carries only the
+    dispatch/panelist half. This wrapper mints through that core, then
+    keeps the two lines only a caller reading its own stdout needs: the
+    "opened ..." announcement and the room `cmd_status` renders for it.
+    """
+    if row_id:
+        pst = runmod.state(parent)
+        if pst is None:
+            _no_run(parent)
+        proot = journal.root_for(parent)
+        return _open_excursion(assembly, parent, pst, row_id, proot)
+    wid = _mint_child(assembly, parent, pstep_id)
+    print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
+    return cmd_status([wid])
+
+
+# [child-cannot-act-on-its-parent]
+# Rationale: the run this anchor names (spec.md's Chain of purpose) is that
+#   a dispatched child is never left holding its own `open` -- the engine
+#   has already computed it and can run it itself. This is the mechanism
+#   that makes that true: the whole of `_open_child`'s old body, minus its
+#   trailing print and `cmd_status` tail, pulled out so `_spawn_outstanding`
+#   can mint an engine-spawned child's run directly, before that child's
+#   process ever starts, without also inheriting the wrapper's stdout.
+def _mint_child(assembly, parent, pstep_id):
+    """The silent minting core: mints `parent`'s next dispatch-step child or
+    panelist -- its `run`, `prefill`, and `step` journal entries -- and
+    returns the bare minted work id. Prints nothing; `_open_child`'s wrapper
+    calls this for its own non-excursion branch and keeps its own "opened
+    ..." print and `cmd_status` tail, while `_spawn_outstanding` calls this
+    directly so the run it is about to work already exists by the time that
+    child's process ever starts.
+
     A child's work location nests inside its parent's actual location, never
     cwd -- the two never agree unless the caller happened to be standing in
     the parent's own worktree, and a child minted elsewhere would strand
@@ -799,8 +863,6 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     if pst is None:
         _no_run(parent)
     proot = journal.root_for(parent)
-    if row_id:
-        return _open_excursion(assembly, parent, pst, row_id, proot)
     m = _PANEL_TAG.match(pstep_id or "")
     step_id, tag = (m.group(1), m.group(2)) if m else (pstep_id, "")
     n = int(tag[1:]) if tag else 0
@@ -845,7 +907,8 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
-                   parent_step=step_id, model=tier, root=proot)
+                   parent_step=step_id, model=tier, root=proot,
+                   branch=pst.get("branch", ""))
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
         # A panel names the form its panelist fills -- a critic reads a plan
@@ -866,8 +929,7 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
         if not tag and pstep.get("form"):
             step = {**step, "form": pstep["form"]}
         journal.append(wid, "step", **step)
-    print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
-    return cmd_status([wid])
+    return wid
 
 
 # [excursion]
@@ -922,12 +984,21 @@ def _finishing(asm, form_override=""):
 # Rationale: a dispatched child inherits its parent's tree (ruling 8), so the
 #   worktree to name is simply where this run's own journal physically
 #   lives -- `journal.root_for`, correct at any nesting depth without
-#   climbing, since a gate or panelist nests inside its issue's own. The
-#   branch is not derivable that way -- only a root run's opening entry
-#   carries one -- so it is read off the nearest ancestor that has it.
-# Rejected: a `branch` stamped on every run, including nested ones. That
-#   would repeat one fact at every depth for no reason two-root resolution
-#   does not already give for free once `worktree` is derived structurally.
+#   climbing, since a gate or panelist nests inside its issue's own.
+#   `_mint_child` now stamps `branch` on every dispatch/panel child's own
+#   "run" entry, read off its parent's already-resolved state at mint
+#   time -- knowable there without crossing any run's own boundary, which
+#   is what lets a bound process's own review-panel or nested-gate render
+#   (issue112 g2) name a branch without climbing across the boundary that
+#   binding puts around it. This climb stays as the fallback for what that
+#   stamp does not cover: a run minted before this change, or one opened
+#   through a path that is not `_mint_child` (an excursion's own "run"
+#   entry, `_open_excursion`, carries no `branch` either).
+# Rejected: rewriting this climb away now that most runs carry the field
+#   directly. A legacy run's own entry never gains `branch` retroactively,
+#   so the climb is still the only way to answer for one -- deleting it
+#   would blank that answer immediately rather than let it narrow over
+#   time as older runs close.
 def _tree_info(wid, st):
     """Where a dispatched child actually lands: this run's own worktree, and
     the branch stamped on the nearest issue-tier ancestor -- climbed to
@@ -1075,7 +1146,8 @@ def _startable(is_returned, record, count):
 #   own "already tried, don't retry" reading nowhere else asks for; a
 #   repository whose entry is simply broken keeps failing, and keeps
 #   logging why, on every `wait` call until someone fixes the entry.
-def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, is_returned):
+def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, is_returned,
+                       assembly, pstep_id):
     """Start `child_id`'s harness process through this repository's own
     `dispatch` palette entry -- a fresh start or a restart, whichever
     `_startable(is_returned, records.get(child_id), counts.get(child_id,
@@ -1084,11 +1156,20 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
     alive, or it is dead-and-spent (`counts` has reached
     `checkrun.MAX_STARTS`). Also a no-op when the palette carries no
     `dispatch` entry at all (`spawn_dispatch` returns `None` for a
-    repository that never configured one, commitment 3's world). The log
-    basename is the child id's own tail past the leading `wid.` -- not
-    merely its last dotted segment, which two different panel steps in the
-    same run would both give `p1` -- so it stays distinct per child inside
-    `wid`'s own work location, which is all commitment 18 asks.
+    repository that never configured one, commitment 3's world) -- and, per
+    `o-child-never-opens-its-own-run`, that is also the reason `_mint_child`
+    is called only when `_dispatch_configured(tree)` reads true: this run's
+    own run/prefill/step entries exist for an engine-spawned process to skip
+    its own `open`, and an unconfigured repository has no such process for
+    them to serve. `journal.exists(child_id)` guards the mint itself so a
+    restart of a child that minted successfully before its harness died
+    mints nothing a second time -- ordinary traffic through this call, not
+    the raised refusal `_open_child`'s and `cmd_open`'s own top-level checks
+    give an id that already exists. The log basename is the child id's own
+    tail past the leading `wid.` -- not merely its last dotted segment,
+    which two different panel steps in the same run would both give `p1` --
+    so it stays distinct per child inside `wid`'s own work location, which
+    is all commitment 18 asks.
 
     Returns the journal entry a successful attempt wrote, `None` for every
     other outcome (not startable, no `dispatch` entry configured, or the
@@ -1098,6 +1179,8 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
     rescanning."""
     if not _startable(is_returned, records.get(child_id), counts.get(child_id, 0)):
         return None
+    if _dispatch_configured(tree) and not journal.exists(child_id):
+        _mint_child(assembly, wid, pstep_id)
     tail = child_id[len(wid) + 1:] if child_id.startswith(wid + ".") else child_id
     log = journal.location(wid) / f"dispatch.{tail}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -1124,10 +1207,12 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
 # Rejected: always printing the brief's own `open it:` line. That is the
 #   exact command the spec's own opening scenario shows raising `SystemExit`
 #   with "already exists" in it the moment a reader actually types it.
-# See: `_wait_spawn` is this function's second caller -- it runs this
-#   answer unconditionally, before every spawn attempt, rather than behind
-#   a guard of its own, since `_respawn_cmd` already reduces to `open_cmd`
-#   for a child never opened.
+# See: `_dispatch_child`'s own "gone without returning" branch is this
+#   function's one caller now -- the unconfigured room's rendering, where a
+#   human still types a respawn command by hand. `_wait_spawn` no longer
+#   calls this: once `_spawn_outstanding` mints the run itself, the run
+#   already exists by the time an engine-spawned process could ask, so
+#   there is no first-start case left for it to distinguish.
 def _respawn_cmd(child_id, open_cmd):
     """The command a reader types to dispatch `child_id` again: the brief's
     own `open it:` line when that child's run was never opened, `spine
@@ -1544,9 +1629,17 @@ def _onward(st):
     A parent whose journal is gone gets nothing: `close` already says the
     return was not delivered, and offering a command that fails on top of
     that is worse than offering none.
+
+    `journal.unbound()`: `st`'s own `parent` is this run's own recorded
+    fact, not a caller-named id (see `[return-delivery-is-not-a-fresh-
+    resolution]`, `engine/journal.py`) -- without it, a bound child's own
+    closed status would always read as if its parent's journal were gone.
     """
     parent, pstep = st.get("parent"), st.get("parent_step")
-    return (parent, pstep) if parent and pstep and journal.exists(parent) else None
+    if not (parent and pstep):
+        return None
+    with journal.unbound():
+        return (parent, pstep) if journal.exists(parent) else None
 
 
 def _board_state(path):
@@ -1852,23 +1945,33 @@ def _wait_bound(argv):
 #   rule to fall out of sync with the first. `records` and `counts` are
 #   still computed once, before the loop, and threaded through rather than
 #   re-scanned per child.
+# Rationale: `o-child-never-opens-its-own-run` means an engine-spawned
+#   process's own brief never names an `open` command at all, on a fresh
+#   dispatch or a restart alike -- so this loop stops calling `_respawn_cmd`
+#   (which chose between two open-style commands) and stops passing
+#   `render.brief` an `open_cmd`; the "open it:" line simply does not print.
+#   `assembly` and `pstep_id` -- the two extra fields `_spawn_outstanding`
+#   needs to mint the run itself, before this brief's process ever starts --
+#   ride the same widened descriptor `cmd_wait` builds, so this loop still
+#   threads one tuple per child rather than a second, parallel list.
 def _wait_spawn(wid, st, descriptors):
     """One spawn attempt for each `(child_id, role, tier, open_cmd,
-    finish_form)` in `descriptors`, offered unconditionally to
-    `_spawn_outstanding` -- `cmd_wait`'s own pre-loop start, making `wait`
-    the sole spawner and respawner of a child (commitments 13-15, 23-28).
-    Each brief's own command is `_respawn_cmd(child_id, open_cmd)`, correct
-    for both a first start and a restart alike."""
+    finish_form, assembly, pstep_id)` in `descriptors`, offered
+    unconditionally to `_spawn_outstanding` -- `cmd_wait`'s own pre-loop
+    start, making `wait` the sole spawner, respawner, and (per
+    `o-child-never-opens-its-own-run`) minter of a child (commitments
+    13-15, 23-28). The brief handed to the spawned process names no `open`
+    command: `_spawn_outstanding` mints the run itself before that process
+    starts, so there is nothing left for the process to open."""
     worktree, branch = _tree_info(wid, st)
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
-    for child_id, role, tier, open_cmd, finish_form in descriptors:
+    for child_id, role, tier, _open_cmd, finish_form, assembly, pstep_id in descriptors:
         is_returned = child_id in st["returns_by_child"]
         brief_text = render.brief(child_id, role, tier, _runner(tier),
-                                  _respawn_cmd(child_id, open_cmd),
-                                  finish_form, worktree, branch)
+                                  finish_form=finish_form, worktree=worktree, branch=branch)
         _spawn_outstanding(wid, child_id, brief_text, tier, worktree,
-                           records, counts, is_returned)
+                           records, counts, is_returned, assembly, pstep_id)
 
 
 # [wait-verb]
@@ -1901,12 +2004,20 @@ def cmd_wait(argv):
     asm, step, _ = _current_form(st)
     started = runmod.in_flight(st, step)
     if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
-        descriptors = _panel_descriptors(wid, asm, step)
+        # A panelist's own dispatched assembly is always "give-a-verdict"
+        # (`_mint_child`'s own panel branch overwrites whatever it is
+        # handed), and its `pstep_id` is the panel tag riding the step id --
+        # `<step-id>.pN` -- the same shape `_panel_descriptors`' own
+        # `open_cmd` already builds, read back off each descriptor's own
+        # `child_id` rather than recomputed a second way.
+        descriptors = [(*d, "give-a-verdict", f"{step['id']}.{d[0].rsplit('.', 1)[-1]}")
+                       for d in _panel_descriptors(wid, asm, step)]
     elif runmod.paused(step):
         return cmd_status([wid])
     elif step.get("dispatches"):
         child_id = step.get("child") or f"{wid}.{step['id']}"
-        descriptors = [(child_id, *_dispatch_descriptor(wid, asm, step))]
+        descriptors = [(child_id, *_dispatch_descriptor(wid, asm, step),
+                        step["dispatches"], step["id"])]
     elif started and checkrun.alive(started.get("pid")):
         # a step's proof, not a child -- `checks.hand_in` already spawned
         # the detached runner before this call ever ran (that is what
@@ -3041,9 +3152,15 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     st = runmod.state(wid)
     pwid, pstep_id = st.get("parent"), st.get("parent_step")
     pstep = None
-    if pwid and journal.exists(pwid):
-        pst = runmod.state(pwid)
-        pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
+    # `journal.unbound()`: `pwid` is this run's own recorded parent, not a
+    # caller-named id (see `[return-delivery-is-not-a-fresh-resolution]`,
+    # `engine/journal.py`) -- without it, a bound child's own `up` could
+    # never reach the parent that dispatched it and would always fall to
+    # this run's own journal instead.
+    with journal.unbound():
+        if pwid and journal.exists(pwid):
+            pst = runmod.state(pwid)
+            pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
     ask_wid, ask_seg = (pwid, pstep["segment"]) if pstep else (wid, tseg["id"])
     orders = st.get("prefill") or {}
     ask = {"paused": wid,
@@ -3565,7 +3682,7 @@ def _mint_projected_gate(wid, asm, step, st, fields):
 # Rejected: routing the answer through `_outcome`/`_perform` the ordinary
 #   way. That is exactly the collision named above -- the same submit would
 #   have to satisfy two unrelated vocabularies on one field.
-# See: `journal.py:140` -- `journal.append`'s own `mkdir(parents=True,
+# See: `journal.py:201` -- `journal.append`'s own `mkdir(parents=True,
 #   exist_ok=True)`, which is why this checks `journal.exists` before writing
 #   anywhere in the child rather than after.
 #
@@ -4443,13 +4560,21 @@ def cmd_close(argv):
     decision = _last_decision(st, asm)
     journal.append(wid, "closed", fields=fields, summary=summary, decision=decision)
     if st.get("parent") and st.get("parent_step"):
-        if journal.exists(st["parent"]):
-            _fold_measures(st, st["parent"], st["parent_step"])
-            journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
-                           row=st.get("row", ""), fields=fields, summary=summary,
-                           decision=decision)
-            _act_on_verdicts(st["parent"], st["parent_step"])
-        else:
+        # `journal.unbound()`: `st["parent"]` is this closing run's own
+        # recorded parent, not a caller-named id (see `[return-delivery-is-
+        # not-a-fresh-resolution]`, `engine/journal.py`) -- without it, a
+        # bound dispatched child (every review panelist and nested gate)
+        # could never deliver its own return, and would always fall to the
+        # "parent not found" branch below instead.
+        with journal.unbound():
+            parent_exists = journal.exists(st["parent"])
+            if parent_exists:
+                _fold_measures(st, st["parent"], st["parent_step"])
+                journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
+                               row=st.get("row", ""), fields=fields, summary=summary,
+                               decision=decision)
+                _act_on_verdicts(st["parent"], st["parent_step"])
+        if not parent_exists:
             # Writing anyway would create the parent's journal from nothing --
             # a run with no opening, no title, no assembly, sitting in the
             # ledger. Say the return went nowhere instead.

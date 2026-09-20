@@ -6,6 +6,7 @@ mutable spine, so two sessions appending to the same run is a fact the record
 shows, never a race the engine has to prevent.
 """
 
+import contextlib
 import datetime
 import os
 import pathlib
@@ -97,8 +98,81 @@ def journal_path(work_id: str, root: pathlib.Path = None) -> pathlib.Path:
     return location(work_id, root) / "journal.toml"
 
 
+# See: engine/cli.py:808 -- `[child-cannot-act-on-its-parent]`, the same
+#   anchor, not repeated here as a second claim on the slug (see this
+#   round's own blocked note: `tests/test_code_map_parents.py`'s
+#   `test_no_anchor_id_is_claimed_at_more_than_one_site` treats a second
+#   site claiming one id as an authoring defect, corpus-wide, no
+#   exception). This is the other half of the one purpose that anchor's own
+#   rationale names: a dispatched child resolves nothing outside the
+#   subtree the engine spawned it into, including the run that dispatched
+#   it.
+def _in_scope(work_id: str) -> bool:
+    """True when `work_id` is resolvable from this process: unbound
+    (`CONSTELLATION_BOUND` unset, the ordinary top-level case), the bound
+    id itself, or a dotted extension of it -- a child this bound process
+    dispatches beneath itself. False for every other id, including the
+    parent that dispatched this process: that id is not a prefix of the
+    bound id, it is the bound id's own prefix, which this check does not
+    accept in reverse.
+
+    Reads no caller identity and no session -- only the one variable the
+    engine itself stamped at spawn (`engine/checks.py`'s `_spawn`). `exists`
+    and `read` each call this once, ahead of the filesystem check they
+    already make, so an out-of-scope id fails exactly as a never-minted one
+    already does: no entries, not found."""
+    bound = os.environ.get("CONSTELLATION_BOUND")
+    return bound is None or work_id == bound or work_id.startswith(bound + ".")
+
+
+# [return-delivery-is-not-a-fresh-resolution]
+# Rationale: a bound run's own `close`/`up` still has to touch the one
+#   parent id `_in_scope` never admits -- not because the operation is a
+#   caller naming some other run, but because it is this same, already-
+#   permitted run finishing what it was already doing: delivering its own
+#   return, or carrying its own ask upward, to the parent the engine itself
+#   recorded at mint time (`_mint_child`'s `parent=parent`), never a work id
+#   an agent typed. `engine/cli.py`'s `cmd_close`, `_onward` and
+#   `_pause_gate` are the three places that fact is touched. `_onward` and
+#   `_pause_gate`'s own blocks hold one resolution each and nothing else.
+#   `cmd_close`'s block is wider: it wraps `_act_on_verdicts` too, which on
+#   a clean panel fold can reach `_perform` running the PARENT's own outcome
+#   verbs with the narrowing lifted process-wide -- `_pause_gate` on the
+#   parent (resolving and minting into the grandparent), `_commit_gate`
+#   running git, `_settle_execution`, and three mint paths. None of that is
+#   live in any shipped assembly today: `[panel-owner]` (`engine/cli.py`,
+#   directly above `_act_on_verdicts`'s own `_perform` call) leaves `field`
+#   empty for run-a-gate's review panel, the one bound-child-facing panel
+#   this repo ships, so `_perform` is never reached from a panel return at
+#   all yet -- an accepted, narrowing exposure the moment an assembly gives
+#   a panel-bearing transition an acting outcome row, not a defect this
+#   context manager introduces. Bracketing just the one touch each of the
+#   three call sites needs, rather than teaching `_in_scope` a second
+#   predicate ("unless it's my own parent"), keeps the one exception this
+#   narrowing needs from also reopening the one thing it exists to close: a
+#   bound process asking `_in_scope` to resolve its own parent by name,
+#   which this context manager never does -- the id it lifts the narrowing
+#   for is read off this run's own already-resolved state, never off argv.
+# Rejected: a second `_in_scope` clause admitting "the bound id's own
+#   recorded parent". That is indistinguishable, from inside `_in_scope`
+#   itself, from a bound child naming its parent directly on the command
+#   line -- both resolve the identical id -- so it would undo obligation
+#   o2 for every verb, not just the three structural ones that need it.
+@contextlib.contextmanager
+def unbound():
+    """Lift this process's own `CONSTELLATION_BOUND` narrowing for the
+    duration of the block, restoring whatever it held (or its absence)
+    afterward, even if the block raises."""
+    prior = os.environ.pop("CONSTELLATION_BOUND", None)
+    try:
+        yield
+    finally:
+        if prior is not None:
+            os.environ["CONSTELLATION_BOUND"] = prior
+
+
 def exists(work_id: str) -> bool:
-    return journal_path(work_id).exists()
+    return _in_scope(work_id) and journal_path(work_id).exists()
 
 
 def _open_for_append(path: pathlib.Path, attempts=5, delay=0.05):
@@ -165,6 +239,8 @@ def read(work_id: str) -> list[dict]:
     `return []` after this loop for years and no test could reach it, which
     is what #34 measured as an uncovered line and what it actually was.
     """
+    if not _in_scope(work_id):
+        return []
     path = journal_path(work_id)
     if not path.exists():
         return []

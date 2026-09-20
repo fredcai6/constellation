@@ -146,6 +146,34 @@ def test_no_gitignore_entry_for_agent_work_still_keeps_it_out_of_the_commit(
     assert "src.txt" in stat
 
 
+# -- the one authored path under `map` survives the same staging -----------
+
+
+def test_git_add_tracked_stages_the_authored_parents_file_but_not_a_derived_sibling(
+        workdir):
+    """`_git_add_tracked`'s `map` exclusion is a git pathspec, not the
+    checkout's `.gitignore` -- and a directory-level `:(exclude)map` catches
+    `map/parents.jsonl` right along with everything derived beside it,
+    because a later, more specific include in the same `git add -A` call
+    does not win it back (verified by hand against a real repo; git's
+    pathspec exclude beats a same-call re-include). `map/parents.jsonl` is
+    the map's authored portion (docs/AGENT_GUIDE.md's exception to
+    `docs/DERIVED_IS_CODE.md`) and the one file a gate's own SPEC form
+    instructs every run to write -- a purpose chain that resolves only in
+    the worktree, never in the repository, is silent: it still reads as an
+    orphan (`test_orphan_count_on_this_repos_clean_tree_equals_the_total_anchor_count`
+    tolerates orphans), not as the dangling reference it actually is."""
+    (workdir / "map").mkdir()
+    (workdir / "map" / "parents.jsonl").write_text('{"id": "a", "parents": []}\n')
+    (workdir / "map" / "derived.txt").write_text("derived\n")
+
+    cli._git_add_tracked(workdir)
+
+    staged = _git(workdir, "diff", "--cached", "--name-only").stdout
+    assert "map/parents.jsonl" in staged
+    assert "map/derived.txt" not in staged
+
+
 # -- one commit per gate, not one for the gate and one for its record ------
 
 
