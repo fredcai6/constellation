@@ -571,6 +571,42 @@ def test_open_child_records_prefill_and_nests_location(workdir, capsys):
     assert cst["model"] == "standard"  # execute segment's default tier, no override on g1
 
 
+# -- 2b. consolidate's carries fold is a list, not everything ----------------
+
+
+def test_consolidate_carries_only_the_spec_seam_fields_into_prefill(workdir, capsys):
+    """`carries` on the understand seam's consolidate transition names the
+    fields that outlive this seam -- `spec`, `key-terms`, `settle`,
+    `obligations` -- not `true`, which would fold every field the step
+    submitted, including this seam's own bookkeeping: `resolution` (its
+    ruling on the spec) and `orders`/`calls` (its ruling on the panel's
+    findings). Those are spent the moment the round releases; frozen into
+    prefill they would ride into every later dispatch and collide with the
+    plan seam's identically-named fields -- measured on issue112, where a
+    stale `resolution`/`orders` from this seam's `rework` round read to the
+    next planner as the ruling on a gate, and the wrong gate was cut.
+
+    Driven for real: a genuine run-an-issue through the board and a real
+    consolidate release, then asserted on the run's own `prefill` journal
+    entry (`runmod.state(wid)["prefill"]`) -- not on the assembly's
+    `carries` declaration, which a reader could get right by eye while the
+    fold itself still froze too much."""
+    cli.main(["open", "run-an-issue", "--issue", "112", "--title", "t"])
+    wid = "issue112"
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+
+    prefill = runmod.state(wid)["prefill"]
+    for field in ("spec", "key-terms", "settle"):
+        assert field in prefill, f"{field!r} missing from prefill"
+    for field in ("resolution", "orders", "calls"):
+        assert field not in prefill, f"{field!r} leaked into prefill"
+
+
 # -- 3. dispatch status renders the resolved runner and open command ---------
 
 
