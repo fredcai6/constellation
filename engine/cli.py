@@ -109,7 +109,9 @@ def mint_id(issue=None, kind="issue"):
         return f"issue{issue}"
     while True:
         wid = f"{kind}{secrets.token_hex(2)}"
-        if not journal.exists(wid):
+        # See: `[write-guard-is-not-scope]`, `cmd_open` below -- the same
+        #   on-disk question, not `journal.exists`'s in-scope one.
+        if not journal.journal_path(wid).exists():
             return wid
 
 
@@ -509,22 +511,33 @@ def _git(cwd, *args):
 
 # [stage-exclude]
 # Rationale: this repository's own ignore file keeps `.agent-work`,
-#   `.worktrees`, `.code-map` and `map` out of *its* commits, but a run's
-#   own commits land in whatever repository it opened against -- and that
-#   repository's own ignore file is not this engine's to depend on. A host
-#   with no entry for `.agent-work` stages the whole record on every commit
-#   `git add -A` alone makes (51 files of it, once, in the wild): the rule
-#   in `docs/DERIVED_IS_CODE.md` is that nothing derived is ever committed,
-#   so the engine holds the exclusion itself, as a pathspec, rather than
-#   trust a file it does not own.
+#   `.worktrees`, `.code-map` and the rest of `map` out of *its* commits,
+#   but a run's own commits land in whatever repository it opened against --
+#   and that repository's own ignore file is not this engine's to depend on.
+#   A host with no entry for `.agent-work` stages the whole record on every
+#   commit `git add -A` alone makes (51 files of it, once, in the wild): the
+#   rule in `docs/DERIVED_IS_CODE.md` is that nothing derived is ever
+#   committed, so the engine holds the exclusion itself, as a pathspec,
+#   rather than trust a file it does not own. One path under `map` is
+#   carried anyway: `map/parents.jsonl` is authored, not derived -- the
+#   exception `docs/AGENT_GUIDE.md` already records -- so a run that mints
+#   an anchor and writes its own line there needs that line to reach the
+#   commit rather than be held back by the same exclusion as its derived
+#   siblings. A `git add -A` pathspec cannot re-include a literal path once
+#   a broader exclude already covers it (tested: a directory-level
+#   `:(exclude)` wins over a later, more specific include in the same
+#   invocation), so the carry is a second, plain `add` naming that one file.
 def _git_add_tracked(cwd):
-    """Stage everything except the engine's own derived trees. A commit
-    made here never carries `.agent-work` (the run's record), `.worktrees`
-    (nested issue-tier worktrees), `.code-map` or `map` (the code map),
-    whether or not the repository being committed to ignores them itself."""
+    """Stage everything except the engine's own derived trees, with one
+    carve-out. A commit made here never carries `.agent-work` (the run's
+    record), `.worktrees` (nested issue-tier worktrees), `.code-map` or the
+    rest of `map` (the code map), whether or not the repository being
+    committed to ignores them itself -- except `map/parents.jsonl`, the
+    map's authored portion, which is staged right after."""
     excludes = [f":(exclude){name}" for name in
                 (".agent-work", ".worktrees", ".code-map", "map")]
     _git(cwd, "add", "-A", "--", ".", *excludes)
+    _git(cwd, "add", "--", "map/parents.jsonl")
 
 
 def _gh(cwd, *args):
@@ -695,7 +708,23 @@ def cmd_open(argv):
     issue = _opt(argv, "--issue")
     from_ref = _opt(argv, "--from") or ""
     wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue, kind=assembly.rsplit("-", 1)[-1]))
-    if journal.exists(wid):
+    # [write-guard-is-not-scope]
+    # Rationale: this guard asks "is this name already taken", never "can I
+    #   resolve this id from here" -- `journal.exists`, since #112 gate 2,
+    #   answers the second question, narrowed to a bound process's own
+    #   subtree, and swapping it in here would hand a `--id` typed inside a
+    #   bound process a name already taken by a run outside that subtree,
+    #   its own parent included, the moment this line wrote through it.
+    #   `journal_path(wid).exists()` reads no caller identity and no
+    #   session -- the same plain on-disk check `exists` itself used before
+    #   that gate -- so a bound caller gets the identical "already exists"
+    #   refusal an unbound one always got, never a new, differently-worded
+    #   one, keeping o3's no-predicate shape intact for the write side too.
+    # Rejected: leaving `journal.exists` here and adding a second predicate
+    #   to widen it back for a write guard. That is a second mode on the
+    #   one function every resolver bottoms out on, which is exactly the
+    #   shape #112 gate 2 exists to avoid needing anywhere.
+    if journal.journal_path(wid).exists():
         raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
     on_issue_tier = _issue_tier(asm)
@@ -878,7 +907,8 @@ def _mint_child(assembly, parent, pstep_id):
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
-                   parent_step=step_id, model=tier, root=proot)
+                   parent_step=step_id, model=tier, root=proot,
+                   branch=pst.get("branch", ""))
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
         # A panel names the form its panelist fills -- a critic reads a plan
@@ -954,12 +984,21 @@ def _finishing(asm, form_override=""):
 # Rationale: a dispatched child inherits its parent's tree (ruling 8), so the
 #   worktree to name is simply where this run's own journal physically
 #   lives -- `journal.root_for`, correct at any nesting depth without
-#   climbing, since a gate or panelist nests inside its issue's own. The
-#   branch is not derivable that way -- only a root run's opening entry
-#   carries one -- so it is read off the nearest ancestor that has it.
-# Rejected: a `branch` stamped on every run, including nested ones. That
-#   would repeat one fact at every depth for no reason two-root resolution
-#   does not already give for free once `worktree` is derived structurally.
+#   climbing, since a gate or panelist nests inside its issue's own.
+#   `_mint_child` now stamps `branch` on every dispatch/panel child's own
+#   "run" entry, read off its parent's already-resolved state at mint
+#   time -- knowable there without crossing any run's own boundary, which
+#   is what lets a bound process's own review-panel or nested-gate render
+#   (issue112 g2) name a branch without climbing across the boundary that
+#   binding puts around it. This climb stays as the fallback for what that
+#   stamp does not cover: a run minted before this change, or one opened
+#   through a path that is not `_mint_child` (an excursion's own "run"
+#   entry, `_open_excursion`, carries no `branch` either).
+# Rejected: rewriting this climb away now that most runs carry the field
+#   directly. A legacy run's own entry never gains `branch` retroactively,
+#   so the climb is still the only way to answer for one -- deleting it
+#   would blank that answer immediately rather than let it narrow over
+#   time as older runs close.
 def _tree_info(wid, st):
     """Where a dispatched child actually lands: this run's own worktree, and
     the branch stamped on the nearest issue-tier ancestor -- climbed to
@@ -1590,9 +1629,17 @@ def _onward(st):
     A parent whose journal is gone gets nothing: `close` already says the
     return was not delivered, and offering a command that fails on top of
     that is worse than offering none.
+
+    `journal.unbound()`: `st`'s own `parent` is this run's own recorded
+    fact, not a caller-named id (see `[return-delivery-is-not-a-fresh-
+    resolution]`, `engine/journal.py`) -- without it, a bound child's own
+    closed status would always read as if its parent's journal were gone.
     """
     parent, pstep = st.get("parent"), st.get("parent_step")
-    return (parent, pstep) if parent and pstep and journal.exists(parent) else None
+    if not (parent and pstep):
+        return None
+    with journal.unbound():
+        return (parent, pstep) if journal.exists(parent) else None
 
 
 def _board_state(path):
@@ -3105,9 +3152,15 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     st = runmod.state(wid)
     pwid, pstep_id = st.get("parent"), st.get("parent_step")
     pstep = None
-    if pwid and journal.exists(pwid):
-        pst = runmod.state(pwid)
-        pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
+    # `journal.unbound()`: `pwid` is this run's own recorded parent, not a
+    # caller-named id (see `[return-delivery-is-not-a-fresh-resolution]`,
+    # `engine/journal.py`) -- without it, a bound child's own `up` could
+    # never reach the parent that dispatched it and would always fall to
+    # this run's own journal instead.
+    with journal.unbound():
+        if pwid and journal.exists(pwid):
+            pst = runmod.state(pwid)
+            pstep = next((s for s in pst["steps"] if s["id"] == pstep_id), None)
     ask_wid, ask_seg = (pwid, pstep["segment"]) if pstep else (wid, tseg["id"])
     orders = st.get("prefill") or {}
     ask = {"paused": wid,
@@ -3629,7 +3682,7 @@ def _mint_projected_gate(wid, asm, step, st, fields):
 # Rejected: routing the answer through `_outcome`/`_perform` the ordinary
 #   way. That is exactly the collision named above -- the same submit would
 #   have to satisfy two unrelated vocabularies on one field.
-# See: `journal.py:140` -- `journal.append`'s own `mkdir(parents=True,
+# See: `journal.py:201` -- `journal.append`'s own `mkdir(parents=True,
 #   exist_ok=True)`, which is why this checks `journal.exists` before writing
 #   anywhere in the child rather than after.
 #
@@ -4507,13 +4560,21 @@ def cmd_close(argv):
     decision = _last_decision(st, asm)
     journal.append(wid, "closed", fields=fields, summary=summary, decision=decision)
     if st.get("parent") and st.get("parent_step"):
-        if journal.exists(st["parent"]):
-            _fold_measures(st, st["parent"], st["parent_step"])
-            journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
-                           row=st.get("row", ""), fields=fields, summary=summary,
-                           decision=decision)
-            _act_on_verdicts(st["parent"], st["parent_step"])
-        else:
+        # `journal.unbound()`: `st["parent"]` is this closing run's own
+        # recorded parent, not a caller-named id (see `[return-delivery-is-
+        # not-a-fresh-resolution]`, `engine/journal.py`) -- without it, a
+        # bound dispatched child (every review panelist and nested gate)
+        # could never deliver its own return, and would always fall to the
+        # "parent not found" branch below instead.
+        with journal.unbound():
+            parent_exists = journal.exists(st["parent"])
+            if parent_exists:
+                _fold_measures(st, st["parent"], st["parent_step"])
+                journal.append(st["parent"], "return", step=st["parent_step"], child=wid,
+                               row=st.get("row", ""), fields=fields, summary=summary,
+                               decision=decision)
+                _act_on_verdicts(st["parent"], st["parent_step"])
+        if not parent_exists:
             # Writing anyway would create the parent's journal from nothing --
             # a run with no opening, no title, no assembly, sitting in the
             # ledger. Say the return went nowhere instead.
