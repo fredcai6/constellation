@@ -787,6 +787,41 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     a board row: the row is its brief, and its return lands under the row
     rather than completing any step.
 
+    The row_id branch (an excursion) stays here, unsplit: `_spawn_outstanding`
+    never opens a board row, so `_mint_child` -- the silent core below,
+    which `_spawn_outstanding` calls directly -- carries only the
+    dispatch/panelist half. This wrapper mints through that core, then
+    keeps the two lines only a caller reading its own stdout needs: the
+    "opened ..." announcement and the room `cmd_status` renders for it.
+    """
+    if row_id:
+        pst = runmod.state(parent)
+        if pst is None:
+            _no_run(parent)
+        proot = journal.root_for(parent)
+        return _open_excursion(assembly, parent, pst, row_id, proot)
+    wid = _mint_child(assembly, parent, pstep_id)
+    print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
+    return cmd_status([wid])
+
+
+# [child-cannot-act-on-its-parent]
+# Rationale: the run this anchor names (spec.md's Chain of purpose) is that
+#   a dispatched child is never left holding its own `open` -- the engine
+#   has already computed it and can run it itself. This is the mechanism
+#   that makes that true: the whole of `_open_child`'s old body, minus its
+#   trailing print and `cmd_status` tail, pulled out so `_spawn_outstanding`
+#   can mint an engine-spawned child's run directly, before that child's
+#   process ever starts, without also inheriting the wrapper's stdout.
+def _mint_child(assembly, parent, pstep_id):
+    """The silent minting core: mints `parent`'s next dispatch-step child or
+    panelist -- its `run`, `prefill`, and `step` journal entries -- and
+    returns the bare minted work id. Prints nothing; `_open_child`'s wrapper
+    calls this for its own non-excursion branch and keeps its own "opened
+    ..." print and `cmd_status` tail, while `_spawn_outstanding` calls this
+    directly so the run it is about to work already exists by the time that
+    child's process ever starts.
+
     A child's work location nests inside its parent's actual location, never
     cwd -- the two never agree unless the caller happened to be standing in
     the parent's own worktree, and a child minted elsewhere would strand
@@ -799,8 +834,6 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
     if pst is None:
         _no_run(parent)
     proot = journal.root_for(parent)
-    if row_id:
-        return _open_excursion(assembly, parent, pst, row_id, proot)
     m = _PANEL_TAG.match(pstep_id or "")
     step_id, tag = (m.group(1), m.group(2)) if m else (pstep_id, "")
     n = int(tag[1:]) if tag else 0
@@ -866,8 +899,7 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
         if not tag and pstep.get("form"):
             step = {**step, "form": pstep["form"]}
         journal.append(wid, "step", **step)
-    print(f"opened {wid} -- dispatched by {parent} at {pstep_id}\n")
-    return cmd_status([wid])
+    return wid
 
 
 # [excursion]
@@ -1075,7 +1107,8 @@ def _startable(is_returned, record, count):
 #   own "already tried, don't retry" reading nowhere else asks for; a
 #   repository whose entry is simply broken keeps failing, and keeps
 #   logging why, on every `wait` call until someone fixes the entry.
-def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, is_returned):
+def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, is_returned,
+                       assembly, pstep_id):
     """Start `child_id`'s harness process through this repository's own
     `dispatch` palette entry -- a fresh start or a restart, whichever
     `_startable(is_returned, records.get(child_id), counts.get(child_id,
@@ -1084,11 +1117,20 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
     alive, or it is dead-and-spent (`counts` has reached
     `checkrun.MAX_STARTS`). Also a no-op when the palette carries no
     `dispatch` entry at all (`spawn_dispatch` returns `None` for a
-    repository that never configured one, commitment 3's world). The log
-    basename is the child id's own tail past the leading `wid.` -- not
-    merely its last dotted segment, which two different panel steps in the
-    same run would both give `p1` -- so it stays distinct per child inside
-    `wid`'s own work location, which is all commitment 18 asks.
+    repository that never configured one, commitment 3's world) -- and, per
+    `o-child-never-opens-its-own-run`, that is also the reason `_mint_child`
+    is called only when `_dispatch_configured(tree)` reads true: this run's
+    own run/prefill/step entries exist for an engine-spawned process to skip
+    its own `open`, and an unconfigured repository has no such process for
+    them to serve. `journal.exists(child_id)` guards the mint itself so a
+    restart of a child that minted successfully before its harness died
+    mints nothing a second time -- ordinary traffic through this call, not
+    the raised refusal `_open_child`'s and `cmd_open`'s own top-level checks
+    give an id that already exists. The log basename is the child id's own
+    tail past the leading `wid.` -- not merely its last dotted segment,
+    which two different panel steps in the same run would both give `p1` --
+    so it stays distinct per child inside `wid`'s own work location, which
+    is all commitment 18 asks.
 
     Returns the journal entry a successful attempt wrote, `None` for every
     other outcome (not startable, no `dispatch` entry configured, or the
@@ -1098,6 +1140,8 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
     rescanning."""
     if not _startable(is_returned, records.get(child_id), counts.get(child_id, 0)):
         return None
+    if _dispatch_configured(tree) and not journal.exists(child_id):
+        _mint_child(assembly, wid, pstep_id)
     tail = child_id[len(wid) + 1:] if child_id.startswith(wid + ".") else child_id
     log = journal.location(wid) / f"dispatch.{tail}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -1124,10 +1168,12 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
 # Rejected: always printing the brief's own `open it:` line. That is the
 #   exact command the spec's own opening scenario shows raising `SystemExit`
 #   with "already exists" in it the moment a reader actually types it.
-# See: `_wait_spawn` is this function's second caller -- it runs this
-#   answer unconditionally, before every spawn attempt, rather than behind
-#   a guard of its own, since `_respawn_cmd` already reduces to `open_cmd`
-#   for a child never opened.
+# See: `_dispatch_child`'s own "gone without returning" branch is this
+#   function's one caller now -- the unconfigured room's rendering, where a
+#   human still types a respawn command by hand. `_wait_spawn` no longer
+#   calls this: once `_spawn_outstanding` mints the run itself, the run
+#   already exists by the time an engine-spawned process could ask, so
+#   there is no first-start case left for it to distinguish.
 def _respawn_cmd(child_id, open_cmd):
     """The command a reader types to dispatch `child_id` again: the brief's
     own `open it:` line when that child's run was never opened, `spine
@@ -1852,23 +1898,33 @@ def _wait_bound(argv):
 #   rule to fall out of sync with the first. `records` and `counts` are
 #   still computed once, before the loop, and threaded through rather than
 #   re-scanned per child.
+# Rationale: `o-child-never-opens-its-own-run` means an engine-spawned
+#   process's own brief never names an `open` command at all, on a fresh
+#   dispatch or a restart alike -- so this loop stops calling `_respawn_cmd`
+#   (which chose between two open-style commands) and stops passing
+#   `render.brief` an `open_cmd`; the "open it:" line simply does not print.
+#   `assembly` and `pstep_id` -- the two extra fields `_spawn_outstanding`
+#   needs to mint the run itself, before this brief's process ever starts --
+#   ride the same widened descriptor `cmd_wait` builds, so this loop still
+#   threads one tuple per child rather than a second, parallel list.
 def _wait_spawn(wid, st, descriptors):
     """One spawn attempt for each `(child_id, role, tier, open_cmd,
-    finish_form)` in `descriptors`, offered unconditionally to
-    `_spawn_outstanding` -- `cmd_wait`'s own pre-loop start, making `wait`
-    the sole spawner and respawner of a child (commitments 13-15, 23-28).
-    Each brief's own command is `_respawn_cmd(child_id, open_cmd)`, correct
-    for both a first start and a restart alike."""
+    finish_form, assembly, pstep_id)` in `descriptors`, offered
+    unconditionally to `_spawn_outstanding` -- `cmd_wait`'s own pre-loop
+    start, making `wait` the sole spawner, respawner, and (per
+    `o-child-never-opens-its-own-run`) minter of a child (commitments
+    13-15, 23-28). The brief handed to the spawned process names no `open`
+    command: `_spawn_outstanding` mints the run itself before that process
+    starts, so there is nothing left for the process to open."""
     worktree, branch = _tree_info(wid, st)
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
-    for child_id, role, tier, open_cmd, finish_form in descriptors:
+    for child_id, role, tier, _open_cmd, finish_form, assembly, pstep_id in descriptors:
         is_returned = child_id in st["returns_by_child"]
         brief_text = render.brief(child_id, role, tier, _runner(tier),
-                                  _respawn_cmd(child_id, open_cmd),
-                                  finish_form, worktree, branch)
+                                  finish_form=finish_form, worktree=worktree, branch=branch)
         _spawn_outstanding(wid, child_id, brief_text, tier, worktree,
-                           records, counts, is_returned)
+                           records, counts, is_returned, assembly, pstep_id)
 
 
 # [wait-verb]
@@ -1901,12 +1957,20 @@ def cmd_wait(argv):
     asm, step, _ = _current_form(st)
     started = runmod.in_flight(st, step)
     if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
-        descriptors = _panel_descriptors(wid, asm, step)
+        # A panelist's own dispatched assembly is always "give-a-verdict"
+        # (`_mint_child`'s own panel branch overwrites whatever it is
+        # handed), and its `pstep_id` is the panel tag riding the step id --
+        # `<step-id>.pN` -- the same shape `_panel_descriptors`' own
+        # `open_cmd` already builds, read back off each descriptor's own
+        # `child_id` rather than recomputed a second way.
+        descriptors = [(*d, "give-a-verdict", f"{step['id']}.{d[0].rsplit('.', 1)[-1]}")
+                       for d in _panel_descriptors(wid, asm, step)]
     elif runmod.paused(step):
         return cmd_status([wid])
     elif step.get("dispatches"):
         child_id = step.get("child") or f"{wid}.{step['id']}"
-        descriptors = [(child_id, *_dispatch_descriptor(wid, asm, step))]
+        descriptors = [(child_id, *_dispatch_descriptor(wid, asm, step),
+                        step["dispatches"], step["id"])]
     elif started and checkrun.alive(started.get("pid")):
         # a step's proof, not a child -- `checks.hand_in` already spawned
         # the detached runner before this call ever ran (that is what

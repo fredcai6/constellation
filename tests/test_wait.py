@@ -353,6 +353,11 @@ def test_a_palette_with_no_dispatch_entry_renders_immediately(bare_workdir, caps
     assert code == 0
     assert elapsed < 1
     assert _dispatch_entries("d1") == []
+    # an unconfigured repository never mints through this path at all --
+    # `_dispatch_entries` above only reads the parent's own
+    # `dispatch-started` records, never whether the child's own run got
+    # minted, so this checks the other half directly.
+    assert not journal.exists("d1.g1")
 
 
 # -- commitment 5: an excursion never reaches wait's predicate ---------------
@@ -386,7 +391,16 @@ def test_wait_spawns_a_never_dispatched_dispatch_child_then_blocks_on_it(
     child lands 0.2s in, which is several `WAIT_POLL` cycles past the
     spawn, so elapsed is bounded on both sides -- above the poll interval
     (it really cycled) and well below the `--for` bound (the return, not
-    the deadline, is what released it)."""
+    the deadline, is what released it).
+
+    Gate 1 (`o-child-never-opens-its-own-run`) also proves itself here: the
+    child's own run already exists (`_spawn_outstanding` minted it, not the
+    spawned process itself), the brief that process was actually handed
+    carries no "open it:" line, and `wait`'s own stdout carries no trace of
+    the minted child's status room either -- neither the "opened ..." line
+    nor its rendered brief's own "brief -- ..." header, the two markers that
+    would appear only if this path had called `_open_child`'s wrapper
+    instead of the silent minting core."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     marker = bare_workdir / "spawned"
     _throwaway_dispatch(bare_workdir, marker)
@@ -402,7 +416,7 @@ def test_wait_spawns_a_never_dispatched_dispatch_child_then_blocks_on_it(
     began = time.monotonic()
     code = cli.main(["d1", "wait", "--for", "5"])
     elapsed = time.monotonic() - began
-    capsys.readouterr()
+    out = capsys.readouterr().out
 
     assert code == 0
     assert 0.15 < elapsed < 3, f"elapsed {elapsed}"   # cycled, and not to the bound
@@ -412,6 +426,14 @@ def test_wait_spawns_a_never_dispatched_dispatch_child_then_blocks_on_it(
     assert started[0]["pid"]
     assert (journal.location("d1") / "dispatch.g1.log").is_file()
     assert "d1.g1" in runmod.state("d1")["returns_by_child"]   # what released it
+    assert journal.exists("d1.g1")                    # minted before the process ever started
+
+    briefs = list(marker.iterdir())
+    assert len(briefs) == 1
+    brief_text = briefs[0].read_text(encoding="utf-8")
+    assert not any("open it:" in l for l in brief_text.splitlines())
+    assert "opened d1.g1" not in out
+    assert "brief -- d1.g1" not in out
 
     # a second `wait` over the same state starts nothing further
     cli.main(["d1", "wait"])
@@ -776,11 +798,12 @@ def test_wait_restarts_with_the_resume_command_once_the_runs_already_exists(
     `test_gone_without_returning_offers_the_resume_command_once_the_run_exists`
     (`tests/test_dispatch_wiring.py`), but proven against the process
     `wait` actually spawns rather than only the rendered text: this
-    child's run was already opened by hand once before its harness died,
-    so `_respawn_cmd` -- now run unconditionally by `_wait_spawn` -- hands
-    the restarted process `spine {child_id}`, not the brief's original
-    `open it:` line, which would raise `SystemExit` with "already exists"
-    in it the moment anything actually ran it."""
+    child's run was already opened by hand once before its harness died.
+    `_wait_spawn` no longer calls `_respawn_cmd` at all -- per
+    `o-child-never-opens-its-own-run`, "no separate case for either" a
+    fresh dispatch or a restart, so the restarted process's own brief
+    carries no "open it:" line at all, matching the fresh-dispatch case
+    rather than being handed `spine {child_id}` to run again."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     marker = bare_workdir / "spawned"
     _throwaway_dispatch(bare_workdir, marker)
@@ -798,8 +821,7 @@ def test_wait_restarts_with_the_resume_command_once_the_runs_already_exists(
     briefs = list(pathlib.Path(marker).iterdir())
     assert len(briefs) == 1
     text = briefs[0].read_text(encoding="utf-8")
-    line = next(l for l in text.splitlines() if "open it:" in l)
-    assert line.split("open it:", 1)[1].strip().split() == [cli.render.spine_cmd(), "d1.g1"]
+    assert not any("open it:" in l for l in text.splitlines())
 
 
 # -- the mechanism itself: blocks, and unblocks three ways -------------------

@@ -381,19 +381,27 @@ def _dispatch_lines(role, tier, runner, worktree="", branch="", written_at=""):
     return lines
 
 
-def brief(child_id, role, tier, runner, open_cmd, finish_form, worktree="", branch=""):
+def brief(child_id, role, tier, runner, open_cmd=None, finish_form="", worktree="", branch=""):
     """One dispatch's whole brief, shared by a gate dispatch and a panelist
     so the two never render this as two drifting copies: who the child will
-    be, what it runs under, the command that mints it, what finishing means
-    for the assembly it is about to run, and -- a child inherits its
-    parent's tree rather than making one of its own -- which tree that is
-    and the branch it is on, plus the engine root a form's `standards/...`
-    citation resolves from. This is the text a conductor hands its harness
-    -- nothing else should be needed to start.
+    be, what it runs under, the command that mints it (when there is one to
+    run), what finishing means for the assembly it is about to run, and --
+    a child inherits its parent's tree rather than making one of its own --
+    which tree that is and the branch it is on, plus the engine root a
+    form's `standards/...` citation resolves from. This is the text a
+    conductor hands its harness -- nothing else should be needed to start.
+
+    `open_cmd` is omittable: an engine-spawned process is handed no `open`
+    command at all (`o-child-never-opens-its-own-run` -- the engine already
+    minted that run before starting this process), so the "open it:" line
+    prints only when a caller has one to give. The unconfigured room's own
+    status-view brief -- the only reader left with a human to type one by
+    hand -- still passes one, unchanged.
     """
     lines = [f"  brief -- {child_id}"]
     lines += _dispatch_lines(role, tier, runner, worktree, branch, written_at=posture(role))
-    lines.append(f"    open it:     {located(open_cmd)}")
+    if open_cmd:
+        lines.append(f"    open it:     {located(open_cmd)}")
     close_cmd = located(f"spine {child_id} close")
     if finish_form:
         lines.append(f"    finishing:   fill {finish_form}, then: {close_cmd}")
