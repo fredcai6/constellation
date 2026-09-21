@@ -19,8 +19,11 @@ real one under test. A plain requested fixture leaves that assertion
 meaning what it says.
 """
 
+import os
 import pathlib
 import re
+import shutil
+import tempfile
 import tomllib
 
 import pytest
@@ -99,3 +102,52 @@ def bare_workdir(tmp_path, monkeypatch):
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     init_checkout(tmp_path)
     return tmp_path
+
+
+# [tests-on-tmpfs]
+# Rationale: `journal.append` fsyncs every entry -- 5.06ms against 0.03ms
+#   without it, measured -- and that sync is load-bearing in production: it
+#   is what keeps a run's record whole when an agent's process dies
+#   mid-run. Tests need the write, never the durability, and they write
+#   dozens of entries apiece: the whole suite runs 180s with the sync and
+#   96s without it, so roughly half this suite's wall clock was buying a
+#   guarantee no test has ever read. Relocating pytest's temp root onto
+#   tmpfs makes the sync a no-op where it is worthless and changes nothing
+#   about where it is not -- no engine code moves, and `fsync` still means
+#   what it means everywhere a real run happens.
+# Rejected: making the fsync conditional, on an env var or a flag. That
+#   puts a knob on the one guarantee the journal exists to give, so that
+#   tests run faster -- and the first time someone sets it outside a test
+#   the record stops being a record.
+# Rejected: `--basetemp`. It relocates the root but also discards pytest's
+#   own `pytest-of-<user>` numbering and its keep-the-last-three retention,
+#   so a failed run's tree is gone before anyone reads it.
+_TMPFS_ROOTS = ("/dev/shm",)
+
+
+def _tmpfs_temproot():
+    """A writable tmpfs to hang pytest's temp root on, or None. None is the
+    ordinary answer off Linux, and the suite simply runs where it always
+    did -- correct, just paying the sync."""
+    for name in _TMPFS_ROOTS:
+        root = pathlib.Path(name)
+        if not root.is_dir() or not os.access(root, os.W_OK):
+            continue
+        try:
+            with tempfile.TemporaryDirectory(dir=root):
+                pass
+        except OSError:
+            continue
+        return root
+    return None
+
+
+def pytest_configure(config):
+    """Point pytest's temp root at tmpfs when there is one, unless the caller
+    already chose a location (`--basetemp`, or an environment that names one
+    for its own reasons -- CI writing somewhere it can collect afterward)."""
+    if config.getoption("basetemp") or os.environ.get("PYTEST_DEBUG_TEMPROOT"):
+        return
+    root = _tmpfs_temproot()
+    if root is not None:
+        os.environ["PYTEST_DEBUG_TEMPROOT"] = str(root)
