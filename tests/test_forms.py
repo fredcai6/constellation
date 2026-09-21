@@ -45,16 +45,20 @@ def test_load_open():
 def test_load_consolidate():
     """Follow-up to ruling 3, 2026-09-03: consolidate is the conductor's own
     route form now, the same shape PLAN_TO_EXECUTE.toml has -- `resolution`
-    leads, every scalar it declares stands before its two plan fields
-    (`obligations`, then `calls`, both optional now that a rework or an up
-    reaches this same form with nothing released to record)."""
+    leads, every scalar it declares stands before its plan fields
+    (`obligations`, `rungs`, then `calls`, all optional now that a rework or
+    an up reaches this same form with nothing released to record). `rungs`
+    is issue166's reservation transcription: the spec's own `rungs` field,
+    carried here so `carries` can fold it into the run's prefill for the
+    gate that actually lands the anchor to see -- `engine/cli.py`'s
+    `_land_reserved_rungs`."""
     form = forms.load(CONSOLIDATE)
     assert _ids(form) == ["resolution", "orders", "spec", "key-terms", "settle",
-                          "obligations", "calls"]
+                          "obligations", "rungs", "calls"]
     kinds = _kinds(form)
     assert kinds["spec"] == "artifact"
     assert kinds["key-terms"] == kinds["settle"] == "evidence"
-    assert kinds["obligations"] == kinds["calls"] == "plan"
+    assert kinds["obligations"] == kinds["rungs"] == kinds["calls"] == "plan"
     assert kinds["resolution"] == "decision"
     assert forms.vocabulary(_note(CONSOLIDATE, "resolution")) == [
         "pass", "revise", "rework", "up"]
@@ -63,6 +67,10 @@ def test_load_consolidate():
     assert obligations["board"] == "execution-state"
     assert obligations["optional"] is True
     assert [it["id"] for it in obligations["item"]] == ["obligation"]
+    rungs = next(f for f in form["fields"] if f["id"] == "rungs")
+    assert rungs["optional"] is True
+    assert "mints" not in rungs
+    assert [it["id"] for it in rungs["item"]] == ["anchor", "parents"]
     calls = next(f for f in form["fields"] if f["id"] == "calls")
     assert calls["optional"] is True
     assert "mints" not in calls

@@ -100,8 +100,8 @@ as `spec`; left blank on a `rework` or an `up`."""
 #   after that header lands inside the array-of-tables' last block under
 #   TOML's own rule for what a headerless key belongs to, not beside it as a
 #   sibling. `resolution`, `spec`, `key-terms` and `settle` -- every scalar
-#   this form declares -- all stand above both of the form's own plan
-#   fields, `obligations` and `calls`, for the same reason.
+#   this form declares -- all stand above every one of the form's own plan
+#   fields, `obligations`, `rungs` and `calls`, for the same reason.
 # See: tests/test_reachable_briefs.py
 [[field]]
 id = "obligations"
@@ -122,6 +122,28 @@ board existed."""
   [[field.item]]
   id = "obligation"
   note = "One spec obligation, verbatim."
+
+[[field]]
+id = "rungs"
+kind = "plan"
+optional = true
+note = """
+One block per anchor the spec reserved, verbatim from its own `rungs`
+field: the anchor id this run's work will land, and the anchor id(s) it
+sits under. `carries` puts this field in the run's own prefill, which is
+the only way a gate's own commit ever sees it -- the engine writes
+`map/parents.jsonl`'s row itself once that gate actually lands the
+anchor; nothing here writes the line by hand. Filled on a release, the
+same as `spec`; left blank on a `rework` or an `up`, where there is
+nothing intact to carry. Leave blank where the spec reserved none."""
+
+  [[field.item]]
+  id = "anchor"
+  note = "The anchor id, verbatim from the spec's own `rungs` field."
+
+  [[field.item]]
+  id = "parents"
+  note = "The anchor id(s) it sits under, verbatim from the spec's own `rungs` field."
 
 # `calls` is written last, after every scalar and after `obligations`,
 # because a plan field renders as a bare `[[calls]]` header and every scalar
