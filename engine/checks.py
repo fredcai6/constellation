@@ -177,6 +177,61 @@ def hand_in(wid, step, fields, commands, check_root, budget):
     raise SystemExit(_said(result, wid, step["id"]))
 
 
+# [trial-detached]
+# Rationale: #163's own defect -- a fast suite this repository's own
+#   `[commands]` palette declares takes 168s, `HANDBACK` is 90, and
+#   `_trial_proofs` (engine/cli.py) used to run each `proof` field
+#   synchronously with the command itself killed at
+#   `min(budget, HANDBACK)`, so every correctly written proof that took
+#   longer than the handback read as a fourth, useless reading: "no result
+#   after 90s", the real exit status lost with the process that held it.
+#   `hand_in`'s own shape already separates the two numbers correctly --
+#   the handback bounds the caller's wait, never the check's own run -- so
+#   the trial is spawned exactly the way `hand_in` spawns a gate's own
+#   checks, through this near-identical twin, and the one place this
+#   diverges from `hand_in` is on purpose: `[trial-proofs]`'s whole point is
+#   that nothing here is ever refused, so this never raises. A proof that
+#   lands within the handback journals its own reading before this
+#   returns, exactly as `_trial_main` always has; one that does not leaves
+#   `check-started` for the route form to find later, the same record
+#   `hand_in` already leaves for a gate's own overrun, marked `trial=True`
+#   so the fold (`engine/run.py`) can tell the two apart -- a plan step's
+#   own submit does not wait on this the way a gate's submit waits on
+#   `hand_in`'s, so the two cannot share one bookkeeping key.
+def hand_in_trial(wid, step_id, commands, cwd, budget):
+    """Spawn every resolved `proof`-kind field this submit carries as one
+    detached trial, and wait no longer than the handback for it to land.
+    `commands` is `[(field_id, resolved_command), ...]`, already resolved by
+    the caller -- a string that never became a command is the caller's own
+    to journal, synchronously, since there is no process worth spawning for
+    it.
+
+    Returns `"done"` once every command in `commands` has run and journaled
+    its own `check` entry -- the caller re-reads the journal for them,
+    exactly as it would any other journaled fact -- or `"in-flight"` when
+    the handback expired first, `check-started` already left behind for
+    whoever reads this run next."""
+    payload, _result, log = _paths(wid, step_id)
+    payload.parent.mkdir(parents=True, exist_ok=True)
+    where = str(pathlib.Path(cwd).resolve())
+    payload.write_text(json.dumps({
+        "wid": wid, "step": step_id, "commands": commands, "cwd": where,
+        "budget": budget, "trial": True}), encoding="utf-8")
+    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
+    try:
+        code = proc.wait(timeout=HANDBACK)
+    except subprocess.TimeoutExpired:
+        code = proc.poll()  # it may have landed in the instant we gave up
+    if code is None:
+        journal.append(wid, "check-started", step=step_id, pid=proc.pid,
+                       cwd=where, budget=budget, log=str(log.resolve()),
+                       trial=True,
+                       commands=[{"field": fid, "command": cmd}
+                                 for fid, cmd in commands])
+        return "in-flight"
+    return "done"
+
+
 def _spawn(argv, log, cwd=None, *, bind=None):
     """The detached runner, generalized to any argv: `Popen` it with output
     captured to `log` and nothing read from the caller's own stdin.
@@ -458,24 +513,40 @@ def alive(pid):
 #   diff, where no verb could repair it. Running it once where it is
 #   written, against the tree as it stands, is the one place that reading
 #   costs a line. This is a report, never a refusal (`_trial_proofs`,
-#   engine/cli.py journals whatever comes back), so it runs in the caller's
-#   own foreground rather than through `hand_in`'s detached runner: there
-#   is no submit riding on its exit status, and nothing to hand back.
-# Rationale: bounded by the smaller of the gate's own `budget` and the
-#   handback. The budget is the planner's declaration of how long the proof
-#   may run when it is right; the handback is what a harness does to a
-#   foreground command, and a trial that outran it would strand the
-#   planner's turn exactly as #72 did. A proof that outruns the bound is
-#   reported as such -- exit -1, the same shape `main` journals for an
-#   overrun -- not waited on.
-def trial(cmd, cwd, budget):
-    """Run one proof once, in this process, and report: `(exit, output)`,
-    the output tail as `_run` keeps it, exit `-1` where the proof did not
-    finish inside `budget` seconds -- reported, never awaited further."""
-    code, output = _run(cmd, cwd, budget)
-    if code is None:
-        return -1, f"no result after {budget}s"
-    return code, output
+#   engine/cli.py journals whatever comes back), so it never stops at the
+#   first failure the way `main`'s own gate-check loop does below -- every
+#   `proof` field this submit carries gets its own run and its own `check`
+#   entry, whatever the ones before it did.
+# Rationale: #163 -- this used to run in the caller's own foreground,
+#   bounded by the smaller of the gate's own `budget` and the handback, so a
+#   proof that was right but slow (this repository's own fast suite, 168s
+#   against a 90s handback) was killed before it could answer and read as a
+#   fourth, useless reading: "no result after 90s". Now it is `hand_in_trial`
+#   that bounds the *caller's wait* at the handback; this function is what
+#   the detached process spawned for that trial runs, and it is bounded only
+#   by `budget` itself -- the planner's own declaration of how long the
+#   proof may run when it is right. A command that genuinely outruns
+#   `budget` still reads as exit `-1`, `main`'s own shape for an overrun --
+#   that reading is real and stays; only the handback's incidental cutoff is
+#   gone.
+def _trial_main(payload):
+    """Run every proof this trial carries, in field order, journaling each as
+    a `check` entry exactly as `_trial_proofs` (engine/cli.py) always has --
+    and refusing nothing, whatever any of them does. Reused for both trial
+    shapes `hand_in_trial` can produce: one whose whole batch lands inside
+    the handback, and one that outruns it and keeps running here, detached,
+    after the caller has already been handed back."""
+    wid, step_id, budget = payload["wid"], payload["step"], payload["budget"]
+    for fid, cmd in payload["commands"]:
+        code, output = _run(cmd, payload["cwd"], budget)
+        _attempt(fid, cmd, code, output)
+        if code is None:
+            journal.append(wid, "check", step=step_id, field=fid, command=cmd,
+                           exit=-1, output=f"no result after {budget}s")
+        else:
+            journal.append(wid, "check", step=step_id, field=fid, command=cmd,
+                           exit=code, output=output)
+    return 0
 
 
 # [timeout-streams-are-bytes]
@@ -572,10 +643,15 @@ def _refuse(payload, text):
 
 def main(argv):
     """Run one step's checks and write the outcome. Never called by a person:
-    `hand_in` spawns this, and it is the only process that ever holds a
-    check's exit status."""
+    `hand_in` (a gate's own checks) or `hand_in_trial` (a plan's `proof`
+    fields, `[trial-detached]`) spawns this, and it is the only process that
+    ever holds a check's exit status. A payload marked `trial` is
+    `_trial_main`'s alone -- it refuses nothing and completes no submit,
+    the opposite contract from the gate-check loop below."""
     from engine import cli  # imported here: cli spawns this module
     payload = json.loads(pathlib.Path(argv[0]).read_text(encoding="utf-8"))
+    if payload.get("trial"):
+        return _trial_main(payload)
     wid, step_id, budget = payload["wid"], payload["step"], payload["budget"]
     ran = []
     for fid, cmd in payload["commands"]:

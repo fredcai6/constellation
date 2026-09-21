@@ -282,26 +282,34 @@ def _resolve_one(text, root=None):
 #   (`_resolve_command`, palette entries, the shell) against the run's tree
 #   as it stands, and journals a `check` entry -- the kind the gate's own
 #   runner writes, same shape: the command, its exit, the output tail --
-#   which the child's close summary already carries up to the parent, so the
-#   conductor's route room reads it (`render.proof_readings`) beside the cut.
-#   Nothing here refuses: exit 0 on an empty diff, a shell that cannot parse
-#   the string, a palette name with no entry are each a reading the
-#   conductor rules on, not a wall the planner meets. A palette miss is
-#   journaled as exit 127 -- the shell's own word for a command it cannot
-#   find, which is the same fact one layer up -- with the refusal's text as
-#   the output.
-# Rationale: bounded by the smaller of the gate's own `budget` and the
-#   handback (`checks.trial`), and run once, here: PLAN_TO_EXECUTE's own
-#   submit does not run it again, and the gate's runner is what runs it to
-#   its full budget. A `budget` that is not whole seconds is read as none --
-#   the gate's own submit refuses that as it always has; a trial refuses
-#   nothing.
+#   which the conductor's route room reads (`render.proof_readings`) beside
+#   the cut, from the child's own live journal (`[route-room-reads-the-
+#   cut]` below) rather than a snapshot frozen at close time. Nothing here
+#   refuses: exit 0 on an empty diff, a shell that cannot parse the string,
+#   a palette name with no entry are each a reading the conductor rules on,
+#   not a wall the planner meets. A palette miss is journaled as exit 127 --
+#   the shell's own word for a command it cannot find, which is the same
+#   fact one layer up -- with the refusal's text as the output.
+# Rationale: #163 -- a string that never becomes a command is resolved and
+#   journaled right here, synchronously, since there is no process worth
+#   spawning for it; every field that does resolve is handed to
+#   `checkrun.hand_in_trial` as one batch, detached at the cut exactly the
+#   way `hand_in` detaches a gate's own checks (`[trial-detached]`,
+#   engine/checks.py) -- the caller waits no longer than the handback, and a
+#   proof that is right but slow keeps running after that wait gives up
+#   rather than being killed and misread as a fourth, useless reading. Run
+#   once, here: PLAN_TO_EXECUTE's own submit does not run it again, and the
+#   gate's runner is what runs it to its full budget. A `budget` that is not
+#   whole seconds is read as none -- the gate's own submit refuses that as
+#   it always has; a trial refuses nothing.
 def _trial_proofs(wid, step, form, fields, root):
     """Run every `proof`-kind field this submit carries, once, and journal
-    each as a `check` entry on this step. Returns the entries written, in
-    field order -- `[]` where the form declares no such field or every one
-    of them is a status word rather than a command."""
-    ran = []
+    each as a `check` entry on this step. Returns the entries this run's own
+    journal now holds for it -- `[]` where the form declares no such field
+    or every one of them is a status word rather than a command, and
+    possibly short of every field where one outran the handback and is
+    still running, detached, when this returns."""
+    resolved = []
     for f in form["fields"]:
         text = str(fields.get(f["id"], "") or "").strip()
         if f.get("kind") != "proof" or not text:
@@ -309,18 +317,19 @@ def _trial_proofs(wid, step, form, fields, root):
         if forms.leading_word(text) in ("waived", "unknown"):
             continue
         try:
+            cmd = _resolve_command(text, root)
+        except SystemExit as e:
+            journal.append(wid, "check", step=step["id"], field=f["id"],
+                           command=text, exit=127, output=str(e))
+            continue
+        resolved.append((f["id"], cmd))
+    if resolved:
+        try:
             budget = checkrun.budget_for(fields)
         except SystemExit:
             budget = checkrun.BUDGET
-        try:
-            cmd = _resolve_command(text, root)
-        except SystemExit as e:
-            cmd, code, output = text, 127, str(e)
-        else:
-            code, output = checkrun.trial(cmd, root, min(budget, checkrun.HANDBACK))
-        ran.append(journal.append(wid, "check", step=step["id"], field=f["id"],
-                                  command=cmd, exit=code, output=output))
-    return ran
+        checkrun.hand_in_trial(wid, step["id"], resolved, root, budget)
+    return list(runmod.state(wid)["checks"])
 
 
 def _tier(step, asm):
@@ -1797,9 +1806,26 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     ret = st["returns_by_child"].get(child or disposed) if (child or disposed) else None
     returns = {**ret.get("summary", {}), **ret.get("fields", {})} if ret else None
     proofs = []
+    proof_wait = None
     if returns and disposed:
-        checks = returns.pop("checks", None)
-        proofs = render.proof_readings(checks if isinstance(checks, list) else [])
+        returns.pop("checks", None)
+        # Not the frozen snapshot `_summary` took at the child's own close
+        # time: `[trial-wait]` (`cmd_wait`, below) is exactly the case where
+        # a proof outran the handback and is still running, detached, when
+        # that child closes -- its later `check` entries land in the child's
+        # journal after the close already happened, and a snapshot taken at
+        # close can never pick them up. Reading that journal fresh instead
+        # -- always in scope from here, a child id is a dotted extension of
+        # whatever this process is bound to -- is what lets a reading that
+        # lands after the round closed still reach this room the next time
+        # it is rendered.
+        cst = runmod.state(disposed)
+        if cst:
+            proofs = render.proof_readings(cst.get("checks") or [])
+            pending = runmod.outstanding_trial(cst)
+            if pending and checkrun.alive(pending.get("pid")):
+                proof_wait = {"wid": disposed, "pid": pending.get("pid"),
+                              "log": pending.get("log", "")}
         # A planner's cut has no review verdict, change or deviations of its
         # own; a blank line under each would say nothing to the conductor.
         returns = {k: v for k, v in returns.items() if v not in ("", None)}
@@ -1839,6 +1865,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         "returns": returns,
         "returns_from": child or disposed,
         "proofs": proofs,
+        "proof_wait": proof_wait,
         "verdict": _returned_verdict(st, asm),
         "waived": runmod.waived_panel(step),
         "blocked": runmod.blocks(st),
@@ -1999,6 +2026,30 @@ def cmd_wait(argv):
     st = runmod.state(wid)
     if st is None:
         _no_run(wid)
+    # [trial-wait]
+    # Rationale: a plan step's own `proof` that outran the handback keeps
+    # running, detached (`checkrun.hand_in_trial`), but the step it belongs
+    # to submitted immediately and does not wait on it -- so it is already
+    # `done`, the run may already be `awaiting_close` or even closed, and
+    # neither ever reaches the ordinary in-flight branch below, which is
+    # keyed to the run's own *current* step. Checked first, ahead of every
+    # other shortcut this function takes, for exactly that reason: this is
+    # the one outstanding thing a closed run can still have. Same loop
+    # shape as the ordinary in-flight branch, no spawn -- `hand_in_trial`
+    # already started the detached runner, there is only the pid to hold
+    # for.
+    trial = runmod.outstanding_trial(st)
+    if trial and checkrun.alive(trial.get("pid")):
+        deadline = time.monotonic() + bound
+        while True:
+            fresh = runmod.state(wid)  # re-folded every cycle, never cached
+            entry = runmod.outstanding_trial(fresh)
+            if not entry or not checkrun.alive(entry.get("pid")):
+                break
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(checkrun.WAIT_POLL)
+        return cmd_status([wid])
     if not st["open"] or st["awaiting_close"]:
         return cmd_status([wid])
     asm, step, _ = _current_form(st)
@@ -2365,6 +2416,17 @@ def cmd_submit(argv):
     trialled = _trial_proofs(wid, step, form, fields, check_root)
     for block in render.proof_readings(trialled):
         print("\n".join("  " + line for line in block.split("\n")) + "\n")
+    # A proof that outran the handback is still running, detached
+    # (`checkrun.hand_in_trial`); this submit never waits on it, but the
+    # planner reading this same turn should not be left guessing why no
+    # reading printed for it.
+    pending = runmod.outstanding_trial(runmod.state(wid))
+    if pending:
+        print(render.located(
+            f"  a proof outran the {checkrun.HANDBACK}s handback and is still "
+            f"running (pid {pending.get('pid')}) -- the reading lands once it "
+            f"does, at the route form: spine {wid} wait\n"
+            f"  what it is printing: {pending.get('log', '')}") + "\n")
     # A check's command comes from the orders: the step's own prefill when it
     # has one, else the run's -- a dispatched child carries its spec at the
     # run level, and its first step is minted before that spec exists. The

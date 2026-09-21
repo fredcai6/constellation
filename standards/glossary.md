@@ -197,22 +197,27 @@ is joint. Coining a synonym for a term below is a defect.
 - **proof** — a gate spec's command, run by the engine at submit: it passes once the
   gate's work is done and fails while it is not. Its exit status decides the step; a
   command that passes on an empty diff proves nothing. Run once before that, too: the
-  planner's own submit runs it against the run's tree as it stands and journals the result as
-  a `check`, which the conductor's route room reads as one of three readings — resolved and
-  failing before the work (healthy), passing on an empty diff (proves nothing), or not
-  resolving at all (prose, an unknown palette name) — a report, never a refusal (#122).
+  planner's own submit runs it, detached at the cut, against the run's tree as it stands
+  and journals the result as a `check`, which the conductor's route room reads as one of
+  three readings — resolved and failing before the work (healthy), passing on an empty
+  diff (proves nothing), or not resolving at all (prose, an unknown palette name) — a
+  report, never a refusal (#122). One outlives the handback and the room says so plainly,
+  naming `wait`, rather than guessing a fourth reading (#163).
 - **handback** — how long `submit` holds its caller before returning control, 90 seconds, the
   engine's own number and nothing a gate spec declares. A dispatched agent's harness moves a
   foreground command still running at about 120 seconds into the background and the turn ends
-  there unwoken, so the engine returns first. Past the handback the proof keeps running
-  detached and the step stays open with its proof **in flight**; the process running it
-  appends the outcome, so a passing proof still lands its own submit and a failing one still
-  records none.
+  there unwoken, so the engine returns first. Past the handback a gate's own check keeps
+  running detached and the step stays open with its proof **in flight**; the process running
+  it appends the outcome, so a passing proof still lands its own submit and a failing one
+  still records none. A planner's own trial of a `proof` field past the handback keeps
+  running the same way, but the step it belongs to already submitted and is not held open
+  for it — its reading is collected later, at the route form (#163).
 - **proof budget** — how long a proof may run before it is broken rather than slow. Declared
   per gate spec as `budget`, whole seconds, 600 where the spec declares none; a proof that
   outruns it is refused. Distinct from the handback, which bounds the caller's wait rather
-  than the proof. The planner's own run of the proof at the cut waits the smaller of the two,
-  and reports a proof that outran it rather than waiting on.
+  than the proof — the planner's own trial of the proof at the cut is bounded by the budget
+  alone, detached past the handback rather than killed at it, and reports a proof that
+  outran the budget itself rather than one merely still running.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
   implementer working its interior and the gate-conductor naming, at `select`, the panel that
   reviews it.

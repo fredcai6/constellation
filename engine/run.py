@@ -720,7 +720,7 @@ def state(work_id):
         return None
     st = {"id": work_id, "steps": [], "done": {}, "boards": {}, "notes": [],
           "returns": {}, "returns_by_child": {}, "row_returns": {}, "amends": [],
-          "checks": [], "measures": [], "in_flight": {}, "closed": False}
+          "checks": [], "measures": [], "in_flight": {}, "trials": {}, "closed": False}
     raw_steps = []
     held_on_a_missing_form = {}
     for e in entries:
@@ -748,7 +748,19 @@ def state(work_id):
             # appends the submit itself, and only on exit 0 -- so a step is
             # in flight exactly while its own started entry is the last word
             # about it, which is what popping on a result below means.
-            st["in_flight"][e["step"]] = e
+            #
+            # A trial's own `check-started` (`trial=True`, `[trial-detached]`
+            # engine/checks.py) is kept apart in `trials` rather than folded
+            # in here: a plan step's own submit does not wait on its proof
+            # the way a gate's submit waits on `hand_in`'s check, so the step
+            # is already `done` the instant this lands -- and `in_flight`'s
+            # own done-filter below would read that as "clearly finished",
+            # exactly backwards for a trial still genuinely running past the
+            # handback.
+            if e.get("trial"):
+                st["trials"][e["step"]] = e
+            else:
+                st["in_flight"][e["step"]] = e
         elif kind == "return" and e.get("row"):
             # An excursion's return: it answers a board row, so it lands
             # under the row and completes no step.
@@ -790,6 +802,7 @@ def state(work_id):
             st["checks"].append({"command": e.get("command"), "exit": e.get("exit"),
                                  "output": e.get("output")})
             st["in_flight"].pop(e.get("step"), None)
+            st["trials"].pop(e.get("step"), None)
         elif kind == "board":
             st["boards"][e["segment"]] = e.get("path", "")
         elif kind == "note":
@@ -891,3 +904,14 @@ def in_flight(st, step):
     here -- a started check is not new state, it is another appender the
     journal already declares legitimate."""
     return st.get("in_flight", {}).get((step or {}).get("id"))
+
+
+def outstanding_trial(st):
+    """A proof trial this run's own journal shows still spawned, or `None`
+    -- `in_flight`'s own twin for the one case it cannot answer: a plan
+    step's own submit never waits on its `proof` (`[trial-proofs]`,
+    engine/cli.py), so the step it belongs to is already `done`, which is
+    exactly what `in_flight` reads as "clearly finished". At most one is
+    ever live per run in practice, a single `proof`-bearing form filled
+    once, so the first is enough."""
+    return next(iter((st.get("trials") or {}).values()), None)
