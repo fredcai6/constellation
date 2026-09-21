@@ -66,7 +66,9 @@ gate's work done twice, and it is what crowded out the question
 matching row of the execution-state board, this gate's own id stamped
 alongside it. Delete a block and its obligation stays open, and the run
 plans another gate for it; a gate that claimed nothing leaves this
-blank."""
+blank. `owed:` left standing does the same as a deleted block -- the run
+plans another gate for it -- since accepting an `owed` claim is agreeing
+the row is still nobody's done work, not disposing of it."""
 
   [[field.item]]
   id = "obligation"
@@ -76,7 +78,15 @@ blank."""
   id = "disposition"
   note = """
 satisfied | deferred: <reason> | invalidated: <reason> | handed-off:
-<reason> | rejected: <reason>"""
+<reason> | rejected: <reason> | owed: <reason>
+
+`deferred` says nobody is doing this, and why. `owed` says the opposite: it
+still must be done, and the gate that claimed it was not the place -- the
+reason is why it was not that gate's, never who takes it next. Accepting an
+`owed` claim does not settle the row: it counts exactly as `open` does, so
+the plan recuts and the run cannot reach its terminal step while one
+stands. Contest it the same way you contest any other word -- change it to
+what you have found true instead."""
 
   [[field.item]]
   id = "root"

@@ -792,24 +792,29 @@ def _round_artifact(asm, st, seg_id, step_id):
 #   -- and those ids reached a gate only where the planner happened to write
 #   them into `purpose` ("Obligations 18 and 19"), a courtesy rather than a
 #   mechanism. So every child a board-holding run dispatches opens with the
-#   rows still open in its orders, id beside text, under `obligations`. Open
-#   rows only: a disposed row is nobody's to claim again. The path is
-#   re-resolved against the parent's root the way `_board_path` does, since
-#   the stored string is whatever cwd minted it.
+#   rows still unsettled in its orders, id beside text, under `obligations`.
+#   `boards.unsettled` decides which those are: a disposed row is nobody's to
+#   claim again, but a row claimed `owed:` is exactly as unclaimed as one
+#   still `open` -- a gate that did not satisfy it must still see it in its
+#   own orders, or the run structurally cannot end but nothing dispatched
+#   ever knows to close it. The path is re-resolved against the parent's
+#   root the way `_board_path` does, since the stored string is whatever cwd
+#   minted it.
 # Rejected: a gate spec item the planner fills with the ids. That is the row
 #   id typed a second time, by the hand that reads the board least; the
 #   board already holds it, and the secretary carries what is already written.
 def _open_obligations(pst, proot):
     """`{"obligations": "o1 -- <text>; o2 -- <text>"}` for the rows still
-    open on the parent's execution-state board; `{}` where the run holds no
-    such board or every row is disposed."""
+    unsettled on the parent's execution-state board (`open`, or claimed
+    `owed:`); `{}` where the run holds no such board or every row is
+    settled."""
     stored = pst["boards"].get("execution-state", "")
     if not stored:
         return {}
     path = journal.location(pst["id"], proot) / pathlib.Path(stored).name
     if not path.exists():
         return {}
-    rows = [r for r in boards.rows(path) if r.get("status") == "open"]
+    rows = [r for r in boards.rows(path) if boards.unsettled(r)]
     if not rows:
         return {}
     return {"obligations": "; ".join(f"{r.get('id', '')} -- {r.get('obligation', '')}"
@@ -3401,22 +3406,30 @@ def _commit_gate(wid, asm, step):
 #   passes through, and either refill the plan segment for another round
 #   (`_mint_segment_round`, unchanged) or mint nothing, letting the run walk
 #   on to its own terminal step. The engine reads dispositions and refuses
-#   nothing here: any status but `open` counts as settled, whatever word or
-#   reason it carries, and a run that never seeded the board at all --
-#   consolidate's `obligations` field is optional -- settles trivially, the
-#   exact behaviour every run had before this gate.
+#   nothing here: `satisfied`, `deferred`, `invalidated`, `handed-off` and
+#   `rejected` all count as settled, whatever reason they carry, and a run
+#   that never seeded the board at all -- consolidate's `obligations` field
+#   is optional -- settles trivially, the exact behaviour every run had
+#   before this gate. `owed: <reason>` is the one word that is a claim
+#   without a disposition -- a gate saying an obligation was not its own to
+#   satisfy, never who takes it next -- so `boards.unsettled` counts it
+#   exactly as `open`: the plan recuts and the run cannot reach its
+#   terminal step while one stands, on purpose (#112 measured what silence
+#   used to cost -- a run that drained to CLOSE.toml with two of its three
+#   obligations unbuilt because every claimable word settled the row).
 # Rejected: validating dispositions the way `validates = "board"` does for
 #   the understand board. The principal's own ruling: execution state is
 #   mechanical-lane fields, not a second gate the engine adjudicates.
 def _settle_execution(wid, asm):
     st = runmod.state(wid)
     path = st["boards"].get("execution-state", "")
-    if not path or boards.summary(path)["by_status"].get("open", 0) == 0:
+    if not path or not any(boards.unsettled(r) for r in boards.rows(path)):
         return
     plan = next((s for s in asm["segment"] if s["id"] == "plan"), None)
     if plan:
-        # The board still has open rows, so the plan is recut rather than
-        # reworked: a fresh artifact, and a fresh count.
+        # The board still has unsettled rows (open, or claimed owed), so the
+        # plan is recut rather than reworked: a fresh artifact, and a fresh
+        # count.
         _mint_segment_round(wid, asm, plan["id"], restarts=True)
 
 

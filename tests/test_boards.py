@@ -1,5 +1,5 @@
 """Tests for engine/boards.py: rows, validate, askable, held, clusters,
-summary."""
+summary, unsettled."""
 
 import pathlib
 
@@ -369,6 +369,29 @@ def test_summary_counts_by_status_and_type(tmp_path):
 def test_summary_missing_file_is_empty():
     result = boards.summary(pathlib.Path("/nonexistent/BOARD.toml"))
     assert result == {"total": 0, "by_status": {}, "by_type": {}}
+
+
+# -- unsettled(): open and owed hold a row open, everything else settles ----
+
+
+def test_unsettled_true_for_open_row():
+    assert boards.unsettled({"status": "open"}) is True
+
+
+def test_unsettled_true_for_owed_row_whatever_the_reason():
+    assert boards.unsettled({"status": "owed: not this gate's scope"}) is True
+
+
+@pytest.mark.parametrize("status", [
+    "satisfied", "deferred: out of scope", "invalidated: superseded",
+    "handed-off: to a follow-up issue", "rejected: not true of this spec",
+])
+def test_unsettled_false_for_every_settling_word(status):
+    assert boards.unsettled({"status": status}) is False
+
+
+def test_unsettled_defaults_missing_status_to_open():
+    assert boards.unsettled({}) is True
 
 
 # -- status renders the board's own state, standing on the board segment ---
