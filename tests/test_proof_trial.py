@@ -15,6 +15,15 @@ PLAN.toml's own note already names -- a proof that passes on an empty diff
 proves nothing. And a string that never became a command -- the shell could
 not parse it, could not find it, or the palette has no such entry -- is
 #122's defect, read where the cut can still be sent back.
+
+#163: the trial used to run in the caller's own foreground, killed at
+`min(budget, HANDBACK)` -- so a proof that was right but slow (this repo's
+own fast suite, 168s against a 90s handback) never got a real reading, only
+a fourth, useless one: "no result after 90s". Now it starts detached at the
+cut (`checkrun.hand_in_trial`) and the caller waits no longer than the
+handback; a proof that lands within it journals its reading exactly as
+before, and one that does not keeps running, its check-started already
+left behind for the route form to find once it does.
 """
 
 import time
@@ -216,20 +225,70 @@ def test_a_proof_that_printed_before_it_was_killed_is_reported_not_raised(workdi
     assert (silent, nothing) == (None, "")   # a proof that printed nothing still reports
 
 
-def test_the_bound_is_the_smaller_of_the_budget_and_the_handback(workdir, capsys, monkeypatch):
-    """A full-suite proof declares 600; the trial waits the handback, not
-    the budget, and says which it waited."""
+def test_a_proof_that_outlives_the_handback_does_not_block_the_submit(
+        workdir, capsys, monkeypatch):
+    """#163: this repo's own fast suite takes 168s against a 90s handback,
+    and every one of its `[commands]` entries includes it -- so a proof
+    that is right but slow must not be killed and misread as a fourth
+    reading. The trial starts detached at the cut (`checkrun.hand_in_trial`)
+    -- the submit returns inside the handback, refusing nothing and
+    blocking on nothing -- and the real reading is not lost: it lands once
+    the detached trial actually finishes, and reaches the conductor's route
+    form from there, not from the planner's own submit."""
     monkeypatch.setattr(checks, "HANDBACK", 1)
     child = _to_the_first_cut()
-    _cut(child, "sleep 20", budget="600")
+    _cut(child, "sleep 2 && exit 5", budget="600")
     capsys.readouterr()
 
     began = time.time()
-    cli.main([child, "submit"])
-    assert time.time() - began < 10
+    cli.main([child, "submit"])                     # never blocks past the handback
+    held = time.time() - began
+    assert held < 10, f"held the caller for {held:.1f}s"
+    assert _checks(child) == []                      # nothing landed yet -- still running
+    assert "cut" in runmod.state(child)["done"]       # the submit itself was not held for it
+
+    cli.main([child, "close"])
+    out = _route_room("issue17", capsys)
+    assert "has not finished yet" in out
+    assert f"spine {child} wait" in out
+
+    deadline = time.time() + 10
+    while not _checks(child) and time.time() < deadline:
+        time.sleep(0.2)
+    [ran] = _checks(child)                            # the real reading, not lost
+    assert ran["exit"] == 5
+
+    capsys.readouterr()
+    cli.main(["issue17"])
+    out = capsys.readouterr().out
+    assert "resolved, exit 5" in out                  # ... and it reaches the route form
+    assert "has not finished yet" not in out
+
+
+def test_a_proof_that_fails_fast_refuses_nothing_and_reaches_the_route_form(
+        workdir, capsys, monkeypatch):
+    """Every proof goes through the same detached trial now, not only a
+    slow one -- a fast, failing proof must land exactly as promptly and as
+    unrefused as it always did (`[trial-proofs]`: nothing here is ever a
+    wall the planner meets)."""
+    monkeypatch.setattr(checks, "HANDBACK", 30)
+    child = _to_the_first_cut()
+    _cut(child, "exit 7")
+    capsys.readouterr()
+
+    began = time.time()
+    cli.main([child, "submit"])                       # never raises
+    held = time.time() - began
+    assert held < 10, f"held the caller for {held:.1f}s"
+    assert "cut" in runmod.state(child)["done"]
 
     [ran] = _checks(child)
-    assert ran["exit"] == -1 and ran["output"] == "no result after 1s"
+    assert ran["exit"] == 7
+    cli.main([child, "close"])
+
+    out = _route_room("issue17", capsys)
+    assert "resolved, exit 7" in out
+    assert "has not finished yet" not in out
 
 
 def test_a_malformed_budget_is_read_as_none_and_refuses_nothing(workdir, capsys):

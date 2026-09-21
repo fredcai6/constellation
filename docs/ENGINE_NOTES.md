@@ -16,6 +16,15 @@ field>"` materializes holding those blocks (GATE_CLOSE's `claims` into
 GATE_TRANSITION's `dispositions`), so the parent accepts or contests rather
 than retypes.
 
+One narrow exception: a planner's `proof` trial can still be running,
+detached, when its own tiny cut-a-gate run closes (see "A trial detaches at
+the cut" below) — the `return` its close wrote is a snapshot from that
+instant, and a reading that lands afterward would never reach the parent if
+nothing ever looked again. So `_room_kwargs`'s route-room branch is the one
+place that does read a child's journal after the fact, fresh, each time the
+room is rendered — not the return's own frozen `checks`, which it never
+even reads.
+
 ## The mechanical half of a return is assembled, never typed
 
 At close the engine builds the return summary from the journal itself: steps
@@ -95,14 +104,11 @@ the runner's exit status and behaves exactly as the old foreground check did;
 past it the caller journals `check-started` and returns, and the runner
 appends the outcome when it has one.
 
-The one proof `submit` does run in its own process is not a check. A
-`kind = "proof"` field (the planner's PLAN.toml and REWORK.toml) is run once
-at the planner's submit, in the foreground, for the smaller of the gate's
-`budget` and the handback (`checks.trial`), and whatever comes back — exit 0,
-exit 127, a shell syntax error, no result inside the bound — is journaled as
-a `check` entry and reported; nothing rides on it, so there is no submit for
-a second process to hold (#122). The gate's own runner is what runs the same
-command to its full budget, later, as a check.
+The one proof `submit` does run through this same detached shape and is not
+a check: a `kind = "proof"` field (the planner's PLAN.toml and REWORK.toml)
+is run once at the planner's submit — see "A trial detaches at the cut"
+below. The gate's own runner is what runs the same command to its full
+budget, later, as a check.
 
 One process holds the exit status, and that is the whole argument for the
 guarantee a failing proof records no submit: the runner writes the `submit`
@@ -131,6 +137,40 @@ abandoned one costs the record nothing, and the room tells the truth about it
 from the pid alone. What that pid cannot tell apart is a recycled number: a
 gone runner whose pid has been reused reads as alive and the re-run is
 refused until it is not.
+
+## A trial detaches at the cut, its reading collected at the route form
+
+#163: this repository's own fast suite takes 168 seconds, and every one of
+`constellation.toml`'s `[commands]` entries a gate's `proof` might name
+(`test`, `validate`, `validate-gate-loop`) includes it — well past the 90
+second handback. The trial used to run in the planner's own submit,
+foreground, killed at the smaller of the gate's `budget` and the handback,
+so a proof that was right but slow was killed before it could answer and
+misread as a fourth reading nobody could act on: "no result after 90s".
+
+Now `checkrun.hand_in_trial` spawns it exactly the way `hand_in` spawns a
+gate's own checks — detached, the caller waiting no longer than the
+handback — with the one deliberate difference `[trial-proofs]` has always
+held: it never refuses. A batch that lands inside the handback journals its
+`check` entries and the planner's submit reports them immediately, same as
+before. A batch that does not journals `check-started` (`trial=True`) and
+keeps running after the caller is handed back; `engine/run.py`'s fold keeps
+that apart from a gate's own `in_flight`, in a sibling `trials` dict
+(`runmod.outstanding_trial`), because a plan step's own submit does not wait
+on its proof the way a gate's submit waits on `hand_in`'s check — the step
+is already `done`, which is exactly what `in_flight`'s own done-filter reads
+as "clearly finished", backwards for a trial still genuinely running.
+
+The reading is collected later, at PLAN_TO_EXECUTE — the route form, where
+the conductor actually rules on the cut — not at the tiny cut-a-gate run's
+own close, which can and does happen before a slow trial lands.
+`_room_kwargs`'s route-room branch reads the child's journal fresh each time
+the room is rendered (the one exception "A return completes a step" above
+names), rendering the three ordinary readings for whatever landed and, for
+whatever has not, saying so plainly and naming `spine <child> wait` —
+`cmd_wait` checks for an outstanding trial before its usual `awaiting_close`
+shortcut, for the identical reason the fold keeps `trials` apart from
+`in_flight`, so the move the room names actually blocks.
 
 ## Renaming a form while runs are open
 

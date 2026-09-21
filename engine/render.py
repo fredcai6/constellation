@@ -533,13 +533,20 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, answered=(), onward_to=None,
            returns_from="", triage_notes=(), role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
-           filler_status="", waived=None, proofs=()):
+           filler_status="", waived=None, proofs=(), proof_wait=None):
     """The room description.
 
     `proofs` is `proof_readings`' own lines for the cut this room disposes
     of -- the engine ran each gate's `proof` once when the planner
     submitted, and a conductor routing the cut reads what came back beside
     the cut itself. Empty at every room that disposes of nothing trialled.
+
+    `proof_wait` is `{"wid", "pid", "log"}` for a proof that outran the
+    handback and is still running, detached, when this room is rendered --
+    `[trial-detached]` (engine/checks.py). `proofs` above still carries
+    whatever readings did land; this says, plainly, that one has not, and
+    names the move that waits for it rather than leaving the conductor to
+    guess why a reading is missing.
 
     Order is deliberate: a block first, because an open block outranks
     anything else; then who you are working for; then what arrived; then the
@@ -627,6 +634,22 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         for block in proofs:
             for line in block.split("\n"):
                 out.append(_para(line, indent="    "))
+        out.append("")
+
+    if proof_wait:
+        # The fourth case, said plainly rather than guessed at: a proof that
+        # genuinely has not finished yet, still running past the handback
+        # (`[trial-detached]`, engine/checks.py). Not one of the three
+        # readings above -- there is nothing to route on yet -- so this
+        # names the move that waits for it instead of leaving the room
+        # silent about a reading that simply has not arrived.
+        out.append("  the proof, cut against the tree as it stands, has not finished yet")
+        out.append(_para(
+            f"still running (pid {proof_wait.get('pid', '')}) -- not finished "
+            f"at the cut; the reading lands once it does: "
+            f"spine {proof_wait.get('wid', '')} wait", indent="    "))
+        if proof_wait.get("log"):
+            out.append(f"    what it is printing: {proof_wait['log']}")
         out.append("")
 
     if verdict:
