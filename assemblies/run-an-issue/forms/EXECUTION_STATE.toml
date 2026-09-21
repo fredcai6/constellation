@@ -8,16 +8,31 @@
 #
 # The engine's own read is at every gate's advance or drop, and once more
 # at close, whichever of those a run's own route to its terminal step
-# actually takes: a row still `open` refills the plan segment for another
-# round; every row disposed mints nothing, and the run walks on. The
-# engine reads dispositions and refuses nothing -- deferred, invalidated,
-# handed-off and rejected all count as settled, exactly like satisfied, and
-# no word here is checked against anything.
+# actually takes: a row still `open`, or claimed `owed:`, refills the plan
+# segment for another round; every other word mints nothing, and the run
+# walks on. The engine reads dispositions and refuses nothing -- deferred,
+# invalidated, handed-off and rejected all count as settled, exactly like
+# satisfied, and no word here is checked against anything. `owed` is the one
+# exception: it is a claim, not a disposition, and it holds the run open on
+# purpose -- see the status line below.
 
 [[obligation]]
 id = "o1"
 obligation = ""  # the spec's own obligation, verbatim, cited by key.
 status = "open"  # open | satisfied | deferred: <reason> | invalidated: <reason>
-                 # | handed-off: <reason> | rejected: <reason>
-gate = ""        # the gate that disposed this row -- filled beside status,
-                 # blank while open.
+                 # | handed-off: <reason> | rejected: <reason> | owed: <reason>
+                 #
+                 # owed differs from every other word here: it does not
+                 # settle the row. `deferred: <reason>` says nobody is doing
+                 # this and why; `owed: <reason>` says it still must be
+                 # done and this gate was not the place -- the reason is why
+                 # it was not this gate's, never who takes it next, since
+                 # the gate closing it out rarely knows and the planner that
+                 # cuts the next one may not send it there either. A row
+                 # left `owed` counts exactly as `open` does: the plan
+                 # segment recuts and the run cannot reach its terminal step
+                 # while one stands, so follow-up does not depend on anyone
+                 # remembering it.
+gate = ""        # the gate that claimed this row's status -- filled beside
+                 # it, including on `owed:` (that gate said it was not its
+                 # own), blank only while open.

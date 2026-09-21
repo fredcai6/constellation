@@ -9,12 +9,15 @@ advance reads it (`settle`, alongside `commit`) and either refills the plan
 segment for another round, while an obligation is still `open`, or mints
 nothing and lets the run walk on, once every row is disposed.
 
-The board mechanism itself is unchanged (`engine/boards.py`) -- this is the
-same mechanism pointed at a second file, seeded through the existing
-`_BOARD_MINT` path (`_mint`, `engine/cli.py`). What's new is the lookup that
-finds the right file now that two boards exist, and the one verb,
-`_settle_execution`, that reads dispositions and refuses nothing: any status
-but `open` counts as settled.
+The board mechanism itself (`engine/boards.py`) is largely unchanged -- this
+is the same mechanism pointed at a second file, seeded through the existing
+`_BOARD_MINT` path (`_mint`, `engine/cli.py`). What's new here is the lookup
+that finds the right file now that two boards exist, and the one verb,
+`_settle_execution`, that reads dispositions and refuses nothing: any
+disposing status -- `satisfied`, `deferred`, `invalidated`, `handed-off`,
+`rejected` -- counts as settled. (A later gate gave this board a sixth,
+non-disposing word, `owed: <reason>`, that counts as open instead --
+`boards.unsettled` is the shared read; see `tests/test_disposition.py`.)
 
 Every test here drives the real `run-an-issue` assembly end to end, reusing
 `test_nesting`'s fixtures rather than a shortcut -- the behaviour under test

@@ -374,13 +374,18 @@ is joint. Coining a synonym for a term below is a defect.
   field) from the spec's own keyed obligations and worked in place afterward: the gate claims
   the rows it settles at its close, and its adjudication accepts or contests each claim onto the
   row. `execute`'s `advance` and `drop` outcomes both read it, and `spine close` reads it once
-  more — whichever of those a run's own route to its terminal step actually takes — an open row
-  refills the plan segment for another round, every row disposed mints nothing and the run walks
-  on. Unvalidated, like the ideas board: the engine reads dispositions and refuses nothing.
+  more — whichever of those a run's own route to its terminal step actually takes — a row still
+  `open`, or claimed `owed:`, refills the plan segment for another round; every other word mints
+  nothing and the run walks on. Unvalidated, like the ideas board: the engine reads dispositions
+  and refuses nothing.
 - **obligation** — one row on the execution-state board: something the spec requires, keyed,
   and the disposition it settles to — `satisfied | deferred | invalidated | handed-off |
   rejected`, each with a reason folded into the status the way `deferred: <reason>` already
-  reads elsewhere. The gate cut against it claims the word at close, with the root that shows
-  it (`GATE_CLOSE.toml`'s `claims`); the issue-conductor accepts or contests the claim
-  (`GATE_TRANSITION.toml`'s `dispositions`). `open` until disposed; no word here is checked
-  against anything.
+  reads elsewhere. `owed: <reason>` is the one word that is a claim without a disposition: a
+  gate says the obligation was not its own to satisfy, the reason says why, and it never names
+  who takes it next — the gate closing it out rarely knows, and the plan round after it may not
+  decide either. An `owed` row counts exactly as `open` does: the run cannot reach its terminal
+  step while one stands. The gate cut against it claims the word at close, with the root that
+  shows it (`GATE_CLOSE.toml`'s `claims`); the issue-conductor accepts or contests the claim
+  (`GATE_TRANSITION.toml`'s `dispositions`). `open` until disposed, or claimed `owed`; no word
+  here is checked against anything.

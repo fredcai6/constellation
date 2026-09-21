@@ -5,7 +5,9 @@ taught `settle` to end the run once every row carries something other than
 `open` -- but no form ever asked anyone to *record* a disposition, so
 `settle` found every row open forever and a run with a real spec could
 never close on its own. The mechanism was complete except for the hand that
-moves it.
+moves it. (A later gate taught `settle` one more word, `owed: <reason>`,
+which claims a row without disposing of it -- see the `owed` tests near
+the end of this file.)
 
 GATE_TRANSITION.toml gains one field, `dispositions`: a `plan` field like
 `obligations` on CONSOLIDATE.toml, minted through the same board-writing
@@ -19,6 +21,8 @@ end to end, reusing `test_nesting`'s and `test_execution_state`'s own
 fixtures rather than a shortcut -- the behaviour under test is what the
 engine does at a real adjudication, not a unit in isolation.
 """
+
+import pytest
 
 from engine import boards, journal, run as runmod
 from engine import cli
@@ -253,3 +257,117 @@ def test_a_contested_claim_writes_the_conductors_word_not_the_gates(workdir, cap
     rows = boards.rows(_execution_state_path("issue17"))
     assert rows[0]["status"] == "rejected: the root names a test the diff never touched"
     assert rows[0]["gate"] == "g1"
+
+
+# -- owed: a claim that does not settle -----------------------------------
+#
+# Every word above ends the row. Before this gate that was the whole
+# vocabulary, so a gate that did not satisfy an obligation had exactly one
+# correct move: silence -- and silence looks identical to forgetting.
+# Issue #112's own run measured the cost: gate 1 claimed `deferred: ...
+# explicitly left for gate 2 by this gate's own scope text` on two
+# obligations, the conductor accepted it, and the run drained to CLOSE.toml
+# with two of its three obligations unbuilt. `owed: <reason>` is a claim
+# without a disposition -- the reason says why the obligation was not this
+# gate's, never who takes it next -- and it counts exactly as `open`:
+# `boards.unsettled` is what both `_settle_execution` and `_open_obligations`
+# (engine/cli.py) read now, in place of a bare `== "open"`.
+
+
+def test_an_owed_claim_refills_plan_rather_than_closing(workdir, capsys):
+    """THE FIX: driven the same way `test_an_accepted_claim_writes_the_board
+    _row_as_the_gate_claimed` above drives `satisfied` -- a real gate close,
+    a real adjudication accepting the drafted claim as it stands -- but with
+    `owed:` in place of a settling word. Fails against the pre-change engine
+    (`by_status.get("open", 0) == 0` sees `owed: ...` as anything-but-open
+    and calls the row settled, so the run reaches CLOSE.toml over an
+    unbuilt obligation exactly as #112 did); passes now that an owed row
+    counts as open."""
+    _mint_first_gate_with_obligation()
+    capsys.readouterr()
+    _close_child_with_claims(
+        "issue17", "g1",
+        [("o1", "owed: explicitly left for a later gate by this gate's own scope",
+          "this gate's own scope text names only src/parser.c")])
+    cli.main(["issue17"])
+    capsys.readouterr()
+
+    _answer_drafted_adjudication(
+        "issue17", purpose_holds="the parser reads EOF cleanly; re-ran the gate's check",
+        findings="waived: none", plan_holds="advance")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    rows = boards.rows(_execution_state_path("issue17"))
+    assert rows[0]["status"].startswith("owed:")  # the claim landed as written
+    assert rows[0]["gate"] == "g1"  # the gate that declined it, not who takes it next
+
+    st = runmod.state("issue17")
+    # a fresh plan round was minted -- not the terminal close step
+    assert st["current"]["segment"] == "plan"
+    assert st["current"]["form"] != "forms/CLOSE.toml"
+    fresh_plan = next(s for s in st["steps"]
+                      if s["segment"] == "plan" and s.get("source") == "mint")
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact
+
+
+def test_an_owed_obligation_still_rides_the_next_dispatch_orders(workdir, capsys):
+    """`_open_obligations` used to gather rows whose status was the literal
+    string `open` -- correct while every claimable word disposed of a row,
+    silently wrong now that `owed:` claims one without disposing of it.
+    Fails against the pre-change read (the obligation's status is
+    `owed: ...`, not `open`, so it drops out of the next dispatch's own
+    orders and nothing downstream is ever told the run is still holding
+    itself open over it); passes now that the same `boards.unsettled` read
+    gathers it."""
+    _mint_first_gate_with_obligation()
+    capsys.readouterr()
+    _close_child_with_claims(
+        "issue17", "g1",
+        [("o1", "owed: left for a later gate by this gate's own scope",
+          "this gate's own scope text names only src/parser.c")])
+    cli.main(["issue17"])
+    capsys.readouterr()
+
+    _answer_drafted_adjudication(
+        "issue17", purpose_holds="the parser reads EOF cleanly; re-ran the gate's check",
+        findings="waived: none", plan_holds="advance")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("issue17")
+    fresh_plan = next(s for s in st["steps"]
+                      if s["segment"] == "plan" and s.get("source") == "mint")
+    cli.main(["open", "cut-a-gate", "--parent", "issue17", "--step", fresh_plan["id"]])
+    prefill = runmod.state(f"issue17.{fresh_plan['id']}")["prefill"]
+    assert prefill["obligations"].startswith("o1 -- Fix the parser to handle EOF")
+
+
+@pytest.mark.parametrize("disposition", [
+    "satisfied", "deferred: out of scope for this issue",
+    "invalidated: superseded upstream", "handed-off: to a follow-up issue",
+    "rejected: not true of this spec",
+])
+def test_every_settling_word_still_walks_the_run_to_close(workdir, capsys, disposition):
+    """The companion pin: `owed` adds one claim that does not settle a row
+    without changing what the words that already did settle it mean. Same
+    fixture and the same claims -> dispositions path as the owed tests
+    above, one settling word per case -- passes both before and after this
+    gate, since none of these ever produced the string `open` that
+    `_settle_execution` used to key on."""
+    _mint_first_gate_with_obligation()
+    capsys.readouterr()
+    _close_child_with_claims("issue17", "g1",
+                             [("o1", disposition, "root for: " + disposition)])
+    cli.main(["issue17"])
+    capsys.readouterr()
+
+    _answer_drafted_adjudication(
+        "issue17", purpose_holds="the parser reads EOF cleanly; re-ran the gate's check",
+        findings="waived: none", plan_holds="advance")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    rows = boards.rows(_execution_state_path("issue17"))
+    assert rows[0]["status"] == disposition
+    assert runmod.state("issue17")["current"]["form"] == "forms/CLOSE.toml"

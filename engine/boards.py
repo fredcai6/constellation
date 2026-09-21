@@ -15,6 +15,26 @@ an auditor.
 import tomllib
 
 _DEFERRED = "deferred:"
+_OWED = "owed"
+
+
+# [unsettled]
+# Rationale: the execution-state board's `owed: <reason>` is a claim a gate
+#   makes without ending the obligation -- "not mine, still owed" -- so it
+#   must hold a run open the same way a plain `open` row does. Two readers
+#   need that fact (`_settle_execution`'s own read, and `_open_obligations`'s
+#   -- both `engine/cli.py`); one shared notion here keeps them from each
+#   growing their own `or status.startswith("owed")`. No board other than
+#   execution-state ever writes `owed`, so this changes nothing for the
+#   understand board's `open | answered | moot | up | deferred`.
+def unsettled(row) -> bool:
+    """True while `row` still needs work from someone: its status is `open`,
+    or it carries `owed: <reason>` -- a claim that says the obligation is
+    not this row's claimant's, never who takes it next. Every other status
+    these boards use is settled, or moot enough to let the run move past
+    it."""
+    status = str(row.get("status", "open"))
+    return status == "open" or status.split(":", 1)[0].strip() == _OWED
 
 
 def load(board_path) -> dict:
