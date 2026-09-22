@@ -272,28 +272,24 @@ def _spawn(argv, log, cwd=None, *, bind=None):
 
 
 # [dispatch-failure]
-# Rationale: the primitive's contract has exactly one axis (the gate room's
-#   own words): a genuinely absent `dispatch` key is nothing to spawn and no
-#   failure (returns `None`, no exception at all -- commitment 3's world),
-#   and every other case is a reported, distinguishable failure. Splitting
-#   those two by *shape* (return value vs. raised exception) rather than by
-#   a value the absent case would also have to carry makes the two
-#   mechanically un-collapsible: a caller cannot mistake `None` for a
-#   `DispatchFailure`, however either is constructed, which is stronger than
-#   asking a caller to compare two sentinel strings correctly forever.
-#   `.reason` is one of the module-level DISPATCH_* constants (not free
-#   text) so the three failure inputs stay distinguishable from each other
-#   too -- a caller branches on `exc.reason`, never on `str(exc)`.
-# Rejected: one return-value shape for all outcomes (success, absent, and
-#   the three failures) via a small result object. It would make the axis
-#   uniform to inspect, but every call site would need an `if` for a case
-#   (absent) that commitment 3 says is not an error at all, and Python
-#   already has a mechanism for "stop and report why" that isn't "also
-#   check a field to see if you should have stopped" -- an unraised `None`
-#   already reads, at the call site, as "there was nothing to do here."
+# Rationale: `o-absent-dispatch-raises` collapses what used to be two axes --
+#   a genuinely absent `dispatch` key read as nothing to spawn and no
+#   failure, every other case a reported, distinguishable failure -- into
+#   one: every way a start can fail to produce a running, journaled process
+#   raises this, absence included. `.reason` is one of the module-level
+#   DISPATCH_* constants (not free text) so the four failure inputs stay
+#   distinguishable from each other -- a caller branches on `exc.reason`,
+#   never on `str(exc)`.
+# Rejected: keeping the absent case a silent `None`, with only the other
+#   three raising. That is the two-state rendering `o-single-dispatch-room`
+#   deletes elsewhere in this same run -- a caller that catches
+#   `DispatchFailure` already handles "no journal entry, reason logged" for
+#   three of the four causes, so leaving the fourth a different shape is one
+#   more place the old contract survives after the room it justified is
+#   gone.
 class DispatchFailure(Exception):
     """A `spawn_dispatch` attempt that produced no journal entry. `.reason`
-    names which of the three failure inputs this was; `.detail` is the free
+    names which of the four failure inputs this was; `.detail` is the free
     text a person reads in a refusal or a log."""
     def __init__(self, reason, detail):
         super().__init__(f"{reason}: {detail}")
@@ -301,6 +297,7 @@ class DispatchFailure(Exception):
         self.detail = detail
 
 
+DISPATCH_ABSENT = "dispatch-absent"              # no `dispatch` key configured at all
 DISPATCH_MALFORMED = "dispatch-malformed"       # entry present but not a list
 DISPATCH_UNFILLED = "dispatch-unfilled"         # a recognized placeholder given no value
 DISPATCH_SPAWN_FAILED = "dispatch-spawn-failed"  # Popen itself could not start the process
@@ -333,26 +330,25 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
     panel step shares across several children.
 
     Returns the journal entry `journal.append` wrote (identity, pid, start
-    time) once the process is actually running. Returns `None` -- no
-    exception, no journal entry -- when `commands` carries no `dispatch`
-    key at all: a repository that has not configured one (commitment 3).
+    time) once the process is actually running.
 
-    Raises `DispatchFailure` for every other way this can fail to produce a
-    running, journaled process: the entry is present but not a list
-    (today's single-string `[commands]` shape used verbatim would land
-    here), a placeholder in it names one of `{brief}`/`{runner}`/`{tree}`
-    but the caller passed `None` for that value, or the process itself
-    fails to start (a nonexistent executable, most commonly). No journal
-    entry is written in any of these cases -- the append happens only after
-    `_spawn` hands back a live `Popen`, so there is no window in which a
-    partial entry could land.
+    Raises `DispatchFailure` for every way this can fail to produce a
+    running, journaled process: `commands` carries no `dispatch` key at all
+    (a repository that has not configured one), the entry is present but
+    not a list (today's single-string `[commands]` shape used verbatim
+    would land here), a placeholder in it names one of
+    `{brief}`/`{runner}`/`{tree}` but the caller passed `None` for that
+    value, or the process itself fails to start (a nonexistent executable,
+    most commonly). No journal entry is written in any of these cases --
+    the append happens only after `_spawn` hands back a live `Popen`, so
+    there is no window in which a partial entry could land.
 
     `tree` also becomes the spawned process's own working directory
     (commitment 7) regardless of whether the entry's text uses `{tree}` at
     all; `log` is where its stdout and stderr are captured, opened in
     append mode exactly like a check's own log."""
     if "dispatch" not in commands:
-        return None
+        raise DispatchFailure(DISPATCH_ABSENT, "no dispatch entry configured")
     entry = commands["dispatch"]
     if not isinstance(entry, list):
         raise DispatchFailure(
@@ -398,15 +394,14 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
 #   itself, and every one of its existing callers, is untouched this round.
 def _dispatch_launch(commands, brief, runner, tree, log):
     """Substitute `{brief}`/`{runner}`/`{tree}` into the configured
-    `dispatch` entry and launch it, returning the live `Popen`. Returns
-    `None` when `commands` carries no `dispatch` key at all -- the same
-    "nothing configured" reading `spawn_dispatch` gives. Raises
-    `DispatchFailure` for every other way this can fail: a malformed entry,
-    an unfilled placeholder, or the process itself failing to start --
-    identical to `spawn_dispatch`'s own three failure modes, because this is
-    the same substitution rule applied to a different journal record."""
+    `dispatch` entry and launch it, returning the live `Popen`. Raises
+    `DispatchFailure` for every way this can fail: no `dispatch` key
+    configured at all, a malformed entry, an unfilled placeholder, or the
+    process itself failing to start -- identical to `spawn_dispatch`'s own
+    four failure modes, because this is the same substitution rule applied
+    to a different journal record."""
     if "dispatch" not in commands:
-        return None
+        raise DispatchFailure(DISPATCH_ABSENT, "no dispatch entry configured")
     entry = commands["dispatch"]
     if not isinstance(entry, list):
         raise DispatchFailure(
@@ -448,14 +443,11 @@ def spawn_form_filler(commands, brief, runner, tree, wid, step_id, log):
     never `dispatch-started`, and never keyed by a child id, since this
     process fills no assembly of its own.
 
-    Returns the journal entry a successful attempt wrote, `None` when
-    `commands` carries no `dispatch` entry at all. Raises `DispatchFailure`
-    for every other way the attempt can fail, identical to
-    `spawn_dispatch`'s own three failure modes -- no journal entry is
+    Returns the journal entry a successful attempt wrote. Raises
+    `DispatchFailure` for every way the attempt can fail, identical to
+    `spawn_dispatch`'s own four failure modes -- no journal entry is
     written on that path either."""
     proc = _dispatch_launch(commands, brief, runner, tree, log)
-    if proc is None:
-        return None
     return journal.append(wid, "form-filler-started", step=step_id, pid=proc.pid,
                            log=str(pathlib.Path(log).resolve()))
 

@@ -383,16 +383,20 @@ def _role_tier(filler):
 
 
 # [dispatch-configured]
-# Rationale: one source of truth for "does this repository's palette start a
-#   child itself", reused by `_dispatch_child`'s two callers and by the
-#   outstanding-line gating in each -- three inline `"dispatch" in
-#   _palette(...).get("commands", {})` checks could drift; this predicate is
-#   the one place that can't.
+# Rationale: `o-single-dispatch-room` retires every reader of "is this
+#   repository's palette configured" except one: `cmd_drive`'s own pre-loop
+#   refusal (`o-drive-still-refuses-a-broken-tree`), which has to answer
+#   that question before it starts spinning, not after a start already
+#   failed. Every other caller this predicate used to feed -- the
+#   dispatch/panel rooms, `cmd_submit`'s and `cmd_close`'s refusals -- now
+#   renders or refuses the same way whether or not a `dispatch` entry
+#   exists, so this predicate has exactly one reason left to be a named
+#   function rather than inlined at its one remaining call site: a bare
+#   `"dispatch" in _palette(tree).get("commands", {})` read twice would be
+#   the drift this predicate exists to prevent, even at one caller.
 def _dispatch_configured(tree):
-    """Whether `tree`'s own `constellation.toml` names a `dispatch` entry --
-    the same read `_spawn_outstanding`'s own call to `checkrun.spawn_dispatch`
-    already makes through `_palette(tree)`, asked here as a plain bool rather
-    than attempted as a spawn."""
+    """Whether `tree`'s own `constellation.toml` names a `dispatch` entry.
+    `cmd_drive`'s own pre-loop refusal is the only caller left."""
     return "dispatch" in _palette(tree).get("commands", {})
 
 
@@ -1115,7 +1119,7 @@ def _form_filler_start_counts(wid):
 #   Exactly three call sites read it, and an editor growing this rule owes
 #   a re-read to all three: `_spawn_outstanding`'s own guard (the write
 #   path), `_outstanding_state`'s own `name_wait` test (the read path),
-#   and `_dispatch_child`'s configured "gone without returning" branch
+#   and `_dispatch_child`'s own "gone without returning" branch
 #   (the render path, where three of the four clauses are already decided
 #   by the branches standing above it and the call is made anyway,
 #   precisely so that branch cannot drift out of sync if `_startable` ever
@@ -1161,79 +1165,66 @@ def _startable(is_returned, record, count):
 #   own "already tried, don't retry" reading nowhere else asks for; a
 #   repository whose entry is simply broken keeps failing, and keeps
 #   logging why, on every `wait` call until someone fixes the entry.
+# [mint-follows-start]
+# Rationale: `o-mint-follows-start` -- whether this child can be started at
+#   all is decided once, by attempting the start itself through
+#   `checkrun.spawn_dispatch`, which now raises for every one of the four
+#   ways that attempt can fail (no `dispatch` entry, a malformed one, an
+#   unfilled placeholder, or the process failing to start) rather than
+#   letting only the first of them be screened in advance. `_mint_child`
+#   moves to after that call succeeds -- never ahead of it, and never for a
+#   child whose start just failed -- so a tree that cannot actually run what
+#   it would mint leaves no run/prefill/step behind for a start that never
+#   happened. `journal.exists(child_id)` still guards the mint itself, the
+#   same restart guard as before: a child whose harness died after minting
+#   successfully once does not mint a second time.
+# Rejected: validating the palette's `dispatch` entry ahead of the mint (the
+#   three causes that need no live process to detect) and minting before
+#   attempting the fourth (the process itself failing to start). That would
+#   still leave a mint standing for a start that goes on to fail at the one
+#   cause left uncovered -- exactly the gap this obligation closes -- for no
+#   benefit: `spawn_dispatch`'s own Popen call is not slow enough that
+#   deferring the mint past it costs anything worth trading that gap for.
 def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, is_returned,
                        assembly, pstep_id):
     """Start `child_id`'s harness process through this repository's own
     `dispatch` palette entry -- a fresh start or a restart, whichever
     `_startable(is_returned, records.get(child_id), counts.get(child_id,
-    0))` allows. A no-op, with nothing journaled or logged, once that
-    predicate reads false: `child_id` already returned, or it is still
+    0))` allows. A no-op, with nothing journaled, minted, or logged, once
+    that predicate reads false: `child_id` already returned, or it is still
     alive, or it is dead-and-spent (`counts` has reached
-    `checkrun.MAX_STARTS`). Also a no-op when the palette carries no
-    `dispatch` entry at all (`spawn_dispatch` returns `None` for a
-    repository that never configured one, commitment 3's world) -- and, per
-    `o-child-never-opens-its-own-run`, that is also the reason `_mint_child`
-    is called only when `_dispatch_configured(tree)` reads true: this run's
-    own run/prefill/step entries exist for an engine-spawned process to skip
-    its own `open`, and an unconfigured repository has no such process for
-    them to serve. `journal.exists(child_id)` guards the mint itself so a
-    restart of a child that minted successfully before its harness died
-    mints nothing a second time -- ordinary traffic through this call, not
-    the raised refusal `_open_child`'s and `cmd_open`'s own top-level checks
-    give an id that already exists. The log basename is the child id's own
-    tail past the leading `wid.` -- not merely its last dotted segment,
-    which two different panel steps in the same run would both give `p1` --
-    so it stays distinct per child inside `wid`'s own work location, which
-    is all commitment 18 asks.
+    `checkrun.MAX_STARTS`). Otherwise the one attempt this call makes is the
+    single decision that covers every reason a start can fail
+    (`o-mint-follows-start`): `checkrun.spawn_dispatch` either produces a
+    live, journaled process or raises `DispatchFailure`, and only on the
+    former does this mint the child's run at all (`journal.exists(child_id)`
+    guarding a restart from minting twice) -- so a failed attempt, of any of
+    its four causes, leaves no run behind for the harness that never
+    started. The log basename is the child id's own tail past the leading
+    `wid.` -- not merely its last dotted segment, which two different panel
+    steps in the same run would both give `p1` -- so it stays distinct per
+    child inside `wid`'s own work location, which is all commitment 18 asks.
 
     Returns the journal entry a successful attempt wrote, `None` for every
-    other outcome (not startable, no `dispatch` entry configured, or the
-    attempt failed) -- so `cmd_wait`, its one caller in `engine/` after
-    this gate, can tell a genuine spawn from a no-op without a second pass
-    over the journal, reading it straight off the return rather than
-    rescanning."""
+    other outcome (not startable, or the attempt failed) -- so `cmd_wait`,
+    its one caller in `engine/` after this gate, can tell a genuine spawn
+    from a no-op without a second pass over the journal, reading it
+    straight off the return rather than rescanning."""
     if not _startable(is_returned, records.get(child_id), counts.get(child_id, 0)):
         return None
-    if _dispatch_configured(tree) and not journal.exists(child_id):
-        _mint_child(assembly, wid, pstep_id)
     tail = child_id[len(wid) + 1:] if child_id.startswith(wid + ".") else child_id
     log = journal.location(wid) / f"dispatch.{tail}.log"
     log.parent.mkdir(parents=True, exist_ok=True)
     try:
-        return checkrun.spawn_dispatch(_palette(tree).get("commands", {}), brief_text,
-                                       _runner(tier), tree, wid, child_id, log)
+        entry = checkrun.spawn_dispatch(_palette(tree).get("commands", {}), brief_text,
+                                        _runner(tier), tree, wid, child_id, log)
     except checkrun.DispatchFailure as e:
         with open(log, "a", encoding="utf-8") as f:
             f.write(f"{e.reason}: {e.detail}\n")
         return None
-
-
-# [respawn-command]
-# Rationale: a "gone without returning" child's own respawn command is not
-#   always the brief's original `open it:` line -- a harness that died mid-
-#   step already ran that line once before it died, so its own run already
-#   exists by the time this room offers it again, and both paths that serve
-#   `spine open ... --parent ...` (`_open_child`'s and `cmd_open`'s own
-#   refusals, engine/cli.py -- left untouched by this gate) refuse outright,
-#   unconditionally, the moment that run already exists. Reading
-#   `journal.exists(child_id)` -- the same predicate those refusals already
-#   gate on -- decides which of two already-correct commands to print,
-#   without adding a new primitive or touching what either refusal does.
-# Rejected: always printing the brief's own `open it:` line. That is the
-#   exact command the spec's own opening scenario shows raising `SystemExit`
-#   with "already exists" in it the moment a reader actually types it.
-# See: `_dispatch_child`'s own "gone without returning" branch is this
-#   function's one caller now -- the unconfigured room's rendering, where a
-#   human still types a respawn command by hand. `_wait_spawn` no longer
-#   calls this: once `_spawn_outstanding` mints the run itself, the run
-#   already exists by the time an engine-spawned process could ask, so
-#   there is no first-start case left for it to distinguish.
-def _respawn_cmd(child_id, open_cmd):
-    """The command a reader types to dispatch `child_id` again: the brief's
-    own `open it:` line when that child's run was never opened, `spine
-    {child_id}` -- the resume command `_open_child`'s and `cmd_open`'s own
-    refusal messages already name -- when it was opened and then died."""
-    return f"spine {child_id}" if journal.exists(child_id) else open_cmd
+    if not journal.exists(child_id):
+        _mint_child(assembly, wid, pstep_id)
+    return entry
 
 
 # [child-status]
@@ -1254,57 +1245,33 @@ def _respawn_cmd(child_id, open_cmd):
 # Rejected: two copies of this, one inlined at each of `_dispatch_status`
 #   and `_panel_status`. A second, identical fork here would be the same
 #   duplication one level up.
-# [dispatch-child-suppresses-not-dispatched-brief]
-# Rationale: a repository whose palette carries a `dispatch` entry has
-#   `wait` starting this child itself -- printing the brief's `open it:`
-#   line there is printing a command the reader must not run (`wait` beat
-#   it to it, or will the moment it is typed). `configured` is threaded
-#   through rather than re-derived here so `_dispatch_status` and
-#   `_panel_status` each compute it once, from the same `worktree` they
-#   already derive, and both `_dispatch_child` and their own outstanding-line
-#   gating read the identical bool. The same suppression now also covers a
-#   gone-and-configured child once its own `counts` reaches
-#   `checkrun.MAX_STARTS`: `wait` will not restart it either, so there is
-#   nothing left for a hand-typed respawn command to offer, and the status
-#   word itself -- "gone without returning -- starts spent" -- carries that
-#   fact instead.
-def _dispatch_child(wid, child_id, role, tier, open_cmd, finish_form,
-                    worktree, branch, records, counts, is_returned, configured):
-    """One child's row: `(status, brief_text)`. `brief_text` is `None` for
-    "working" (commitment 14 -- never a manual dispatch command beside a
-    live pid), for "returned" (renders exactly as it does today), for "not
-    dispatched" when `configured` is true, and now for "gone without
-    returning" too once `configured` is true -- in every configured case
-    that row prints its own word (plus, for a gone child, whether its
-    starts are spent) and nothing else, since `spine <work-id> wait` is
-    what starts or restarts it, not a hand-typed command. An unconfigured
-    repository keeps both briefs exactly as before (commitment 17). A pure
-    read off `records` and `counts` either way -- this call spawns nothing
-    and threads nothing back; `cmd_wait` is the only caller left that
-    starts or restarts a child (commitments 13-15, 23-28)."""
-    runner = _runner(tier)
+# [one-room-not-two]
+# Rationale: `o-single-dispatch-room` -- a child's row never carries a
+#   hand-typed command, in any of its four states: `spine <work-id> wait`
+#   is what starts or restarts it, whether or not the palette carries a
+#   `dispatch` entry, so there is nothing left for this function to brief.
+#   The row states plainly when its own starts are spent, since that is
+#   still real information a reader needs even though there is no command
+#   left to offer about it.
+def _dispatch_child(wid, child_id, records, counts, is_returned):
+    """One child's status word: not dispatched, working, returned, gone
+    without returning, or -- once `counts` reaches `checkrun.MAX_STARTS` --
+    gone without returning with its own starts spent. Never a brief beside
+    it: `spine <work-id> wait` is the only move that starts or restarts a
+    child, so no row types one for the reader to copy. A pure read off
+    `records` and `counts` -- this call spawns nothing; `cmd_wait` is the
+    only caller left that starts or restarts a child (commitments 13-15,
+    23-28)."""
     if is_returned:
-        return "returned", None
+        return "returned"
     record = records.get(child_id)
     if record is None:
-        if configured:
-            return "not dispatched", None
-        return "not dispatched", render.brief(child_id, role, tier, runner, open_cmd,
-                                              finish_form, worktree, branch)
+        return "not dispatched"
     if checkrun.alive(record.get("pid")):
-        return "working", None
-    if configured:
-        # Reads `_startable` rather than hand-writing the cap comparison it
-        # reduces to here (`is_returned` false, `record` not `None`, and its
-        # pid already dead are all decided above): keeps this branch from
-        # drifting out of sync with `_startable` if a future clause is added
-        # to that predicate.
-        if _startable(is_returned, record, counts.get(child_id, 0)):
-            return "gone without returning", None
-        return "gone without returning -- starts spent", None
-    return ("gone without returning",
-           render.brief(child_id, role, tier, runner, _respawn_cmd(child_id, open_cmd),
-                        finish_form, worktree, branch))
+        return "working"
+    if _startable(is_returned, record, counts.get(child_id, 0)):
+        return "gone without returning"
+    return "gone without returning -- starts spent"
 
 
 # [child-descriptor]
@@ -1444,40 +1411,29 @@ def _outstanding_state(wid, child_ids, returns_by_child, records, counts):
 
 
 def _dispatch_status(wid, st, asm, step, blocked):
-    """A dispatch step renders a brief, not a form: `wait`, not this
+    """A dispatch step renders a brief, not a form: `wait`, never this
     render, starts this step's child through the repository's own
-    `dispatch` palette entry when one is configured (commitments 13-15) --
-    rendering this room only reads whatever `wait` has already done. A
-    repository whose palette carries no such entry renders byte-for-byte
-    as it always has, brief and all (commitment 17) -- there the reader is
-    the one who starts the child, by hand, off the same brief. A configured
-    repository suppresses that same brief for a "not dispatched" child and
-    for a "gone without returning" one alike (commitment 22 -- `wait`
-    starts or restarts either itself) and gains one line above the child's
-    own row stating how many are outstanding and, where `wait` is
-    genuinely the next move, naming it (commitments 18, 19) -- or, where
-    nothing remains live or startable, naming the ruling escape to drop
-    the step instead (commitment 30)."""
+    `dispatch` palette entry -- rendering this room only reads whatever
+    `wait` has already done. The room renders exactly one way regardless of
+    whether the palette is configured (`o-single-dispatch-room`): the
+    child's own row carries no brief, ever, and the line above it stating
+    how many are outstanding is never withheld -- naming `wait` where it is
+    genuinely the next move (commitments 18, 19), or, where nothing remains
+    live or startable, naming the ruling escape to drop the step instead
+    (commitment 30)."""
     child_id = step.get("child") or f"{wid}.{step['id']}"
-    role, tier, open_cmd, finish_form = _dispatch_descriptor(wid, asm, step)
-    worktree, branch = _tree_info(wid, st)
-    configured = _dispatch_configured(worktree)
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
-    status, brief_text = _dispatch_child(
-        wid, child_id, role, tier, open_cmd, finish_form, worktree, branch,
-        records, counts, child_id in st["returns_by_child"], configured)
+    status = _dispatch_child(
+        wid, child_id, records, counts, child_id in st["returns_by_child"])
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.DISPATCH))
     lines.append("")
-    if configured:
-        count, name_wait = _outstanding_state(
-            wid, [child_id], st["returns_by_child"], records, counts)
-        lines.append(render.outstanding_line(wid, count, name_wait, step["id"]))
-        lines.append("")
+    count, name_wait = _outstanding_state(
+        wid, [child_id], st["returns_by_child"], records, counts)
+    lines.append(render.outstanding_line(wid, count, name_wait, step["id"]))
+    lines.append("")
     lines.append(f"  {child_id} ({status})")
-    if brief_text:
-        lines.append(brief_text)
     lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
@@ -1485,49 +1441,39 @@ def _dispatch_status(wid, st, asm, step, blocked):
 
 def _panel_status(wid, st, asm, step, blocked):
     """A panel step renders each panelist's own row -- copied, never
-    composed -- with each panelist's own status (commitment 12); a
-    "working" or "returned" panelist carries no brief, and now neither
-    does a "not dispatched" one, nor a "gone without returning" one, when
-    the repository's palette carries a `dispatch` entry (commitment 22) --
-    `wait` starts or restarts either itself, so only an unconfigured
-    repository's "gone without returning" panelist still carries its own
-    respawn brief. A panelist's role is its own `worker`, not the
+    composed -- with each panelist's own status (commitment 12); no
+    panelist row, in any state, carries a brief (`o-single-dispatch-room`)
+    -- `wait` is what starts or restarts one, whether or not the palette is
+    configured. A panelist's role is its own `worker`, not the
     give-a-verdict assembly's conductor: `_open_child` stamps that worker
     onto the dispatched child's step as its `filler`, so the panel entry is
-    the source of truth, not just the brief that names it. A configured
-    repository also gains one line above the panelist rows stating how
-    many are outstanding and, where `wait` is genuinely the next move,
-    naming it (commitments 18, 19) -- or, where nothing remains live or
-    startable, naming the ruling escape instead: dropping the step, unless
-    the step is also its conductor's own route form, in which case
-    dropping it would drop that form too, and the escape waives the panel
-    instead (commitment 30, and issue811's ruling)."""
-    worktree, branch = _tree_info(wid, st)
+    the source of truth, not just the brief that would have named it. The
+    room always carries one line above the panelist rows stating how many
+    are outstanding and, where `wait` is genuinely the next move, naming it
+    (commitments 18, 19) -- or, where nothing remains live or startable,
+    naming the ruling escape instead: dropping the step, unless the step is
+    also its conductor's own route form, in which case dropping it would
+    drop that form too, and the escape waives the panel instead
+    (commitment 30, and issue811's ruling)."""
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
-    configured = _dispatch_configured(worktree)
     descriptors = _panel_descriptors(wid, asm, step)
     lines = render.preamble(st, blocked, runmod.position(st, asm))
     lines.append(render.imperative(render.PANEL))
     lines.append("")
-    if configured:
-        child_ids = [d[0] for d in descriptors]
-        count, name_wait = _outstanding_state(
-            wid, child_ids, st["returns_by_child"], records, counts)
-        two_voices = bool(step.get("panel") and step.get("form"))
-        lines.append(render.outstanding_line(wid, count, name_wait, step["id"],
-                                             two_voices))
-        lines.append("")
-    for child_id, role, tier, open_cmd, finish_form in descriptors:
+    child_ids = [d[0] for d in descriptors]
+    count, name_wait = _outstanding_state(
+        wid, child_ids, st["returns_by_child"], records, counts)
+    two_voices = bool(step.get("panel") and step.get("form"))
+    lines.append(render.outstanding_line(wid, count, name_wait, step["id"], two_voices))
+    lines.append("")
+    for child_id, _role, _tier, _open_cmd, _finish_form in descriptors:
         tag = child_id.rsplit(".", 1)[-1]
         panelist = step["panel"][int(tag[1:]) - 1]
-        status, brief_text = _dispatch_child(
-            wid, child_id, role, tier, open_cmd, finish_form, worktree, branch,
-            records, counts, child_id in st["returns_by_child"], configured)
+        status = _dispatch_child(
+            wid, child_id, records, counts, child_id in st["returns_by_child"])
         lines.append(f"  panelist {tag} ({status})"
                      f" -- criteria: {panelist.get('criteria', '')}")
-        if brief_text:
-            lines.append(brief_text)
         lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
@@ -1569,9 +1515,9 @@ def _paused_status(wid, st, asm, blocked):
 #   has to be told apart here rather than rendered as a proof that will never
 #   land: a check whose process is gone and whose result never arrived is
 #   work to redo, not work to wait for. Its own outstanding line is
-#   unconditional -- never gated on `_dispatch_configured` the way the
-#   dispatch/panel line is -- because a step's proof is spawned through the
-#   check-runner/`HANDBACK` mechanism, a path with nothing to do with
+#   unconditional, the same as the dispatch/panel line now is
+#   (`o-single-dispatch-room`) -- because a step's proof is spawned through
+#   the check-runner/`HANDBACK` mechanism, a path with nothing to do with
 #   whether `commands.dispatch` is configured: a repository with no
 #   `dispatch` entry at all can still have a proof genuinely in flight. The
 #   two halves name `wait` differently now, and both are true: the orphan
@@ -1984,9 +1930,11 @@ def _wait_bound(argv):
 #   (which chose between two open-style commands) and stops passing
 #   `render.brief` an `open_cmd`; the "open it:" line simply does not print.
 #   `assembly` and `pstep_id` -- the two extra fields `_spawn_outstanding`
-#   needs to mint the run itself, before this brief's process ever starts --
-#   ride the same widened descriptor `cmd_wait` builds, so this loop still
-#   threads one tuple per child rather than a second, parallel list.
+#   needs to mint the run itself, once the process it briefs has actually
+#   started (`o-mint-follows-start` -- never ahead of that, and never for a
+#   start that failed) -- ride the same widened descriptor `cmd_wait`
+#   builds, so this loop still threads one tuple per child rather than a
+#   second, parallel list.
 def _wait_spawn(wid, st, descriptors):
     """One spawn attempt for each `(child_id, role, tier, open_cmd,
     finish_form, assembly, pstep_id)` in `descriptors`, offered
@@ -1994,8 +1942,8 @@ def _wait_spawn(wid, st, descriptors):
     start, making `wait` the sole spawner, respawner, and (per
     `o-child-never-opens-its-own-run`) minter of a child (commitments
     13-15, 23-28). The brief handed to the spawned process names no `open`
-    command: `_spawn_outstanding` mints the run itself before that process
-    starts, so there is nothing left for the process to open."""
+    command: `_spawn_outstanding` mints the run itself once that process is
+    confirmed running, so there is nothing left for the process to open."""
     worktree, branch = _tree_info(wid, st)
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
@@ -2209,13 +2157,14 @@ def _drive_form_filler(wid, st, asm, step, form):
 # Rationale: three conditions end the call before it ever starts walking --
 #   an unresolvable work id, a run already closed outright or standing on
 #   `awaiting_close` (the same combined guard `cmd_status` and `cmd_wait`
-#   already use), and, new here, a repository whose palette carries no
-#   `[commands] dispatch` entry at all: `_dispatch_configured` is called
-#   today only from inside already-branched refusal text, never as a
-#   call-ending check on its own, so this is that check's first caller --
-#   without a `dispatch` entry `wait`'s own mechanism starts nothing for any
-#   step, so `drive` would only ever spin to its own bound doing nothing,
-#   and refusing outright says so instead of spinning quietly.
+#   already use), and a repository whose palette carries no `[commands]
+#   dispatch` entry at all: without a `dispatch` entry `wait`'s own
+#   mechanism starts nothing for any step, so `drive` would only ever spin
+#   to its own bound doing nothing, and refusing outright says so instead
+#   of spinning quietly. `_dispatch_configured` survives `o-single-dispatch-
+#   room` for exactly this one call-ending check -- every other room and
+#   refusal that used to read it now computes its own outstanding state
+#   unconditionally instead.
 #
 #   A fourth condition -- the current step's own segment sitting earlier
 #   than `plan` in the run's own assembly (`open`, `understand`;
@@ -2311,15 +2260,13 @@ def cmd_submit(argv):
     asm, step, form = _current_form(st)
     if runmod.panel_outstanding(st, step):  # checked before `dispatches`: see _current_form
         escape = f"who is outstanding: spine {wid}"
-        worktree, _branch = _tree_info(wid, st)
-        if _dispatch_configured(worktree):
-            child_ids = [d[0] for d in _panel_descriptors(wid, asm, step)]
-            records = _dispatch_records(wid)
-            counts = _dispatch_start_counts(wid)
-            _, name_wait = _outstanding_state(
-                wid, child_ids, st["returns_by_child"], records, counts)
-            if name_wait:
-                escape = f"spine {wid} wait"
+        child_ids = [d[0] for d in _panel_descriptors(wid, asm, step)]
+        records = _dispatch_records(wid)
+        counts = _dispatch_start_counts(wid)
+        _, name_wait = _outstanding_state(
+            wid, child_ids, st["returns_by_child"], records, counts)
+        if name_wait:
+            escape = f"spine {wid} wait"
         if step.get("form"):
             # A two-voices step has a form of its own to stand on once its
             # panel is waived; a panel-only step has nothing left, so
@@ -2335,17 +2282,13 @@ def cmd_submit(argv):
             escape=(f"see it: spine {st.get('parent')}" if st.get("parent")
                    else "no parent left to see it at -- see the blocked note above")))
     if step.get("dispatches"):
-        escape = (f"open its child: spine open {step['dispatches']} "
-                  f"--parent {wid} --step {step['id']}")
-        worktree, _branch = _tree_info(wid, st)
-        if _dispatch_configured(worktree):
-            child_id = step.get("child") or f"{wid}.{step['id']}"
-            records = _dispatch_records(wid)
-            counts = _dispatch_start_counts(wid)
-            _, name_wait = _outstanding_state(
-                wid, [child_id], st["returns_by_child"], records, counts)
-            escape = (f"spine {wid} wait" if name_wait else
-                      f"drop it: spine {wid} amend close {step['id']} --reason ...")
+        child_id = step.get("child") or f"{wid}.{step['id']}"
+        records = _dispatch_records(wid)
+        counts = _dispatch_start_counts(wid)
+        _, name_wait = _outstanding_state(
+            wid, [child_id], st["returns_by_child"], records, counts)
+        escape = (f"spine {wid} wait" if name_wait else
+                  f"drop it: spine {wid} amend close {step['id']} --reason ...")
         raise SystemExit(render.refusal(
             step["id"], "a dispatch step is not submitted -- it completes when "
             "its child closes", escape=escape))
@@ -4695,31 +4638,25 @@ def cmd_close(argv):
             how = f"its panelists complete it: spine {wid}"
             if step.get("panel") and step.get("form"):
                 escape = waive_it
-            worktree, _branch = _tree_info(wid, st)
-            if _dispatch_configured(worktree):
-                pasm = runmod.load_assembly(st["assembly"])
-                child_ids = [d[0] for d in _panel_descriptors(wid, pasm, step)]
-                records = _dispatch_records(wid)
-                counts = _dispatch_start_counts(wid)
-                _, name_wait = _outstanding_state(
-                    wid, child_ids, st["returns_by_child"], records, counts)
-                if name_wait:
-                    how = f"spine {wid} wait"
+            pasm = runmod.load_assembly(st["assembly"])
+            child_ids = [d[0] for d in _panel_descriptors(wid, pasm, step)]
+            records = _dispatch_records(wid)
+            counts = _dispatch_start_counts(wid)
+            _, name_wait = _outstanding_state(
+                wid, child_ids, st["returns_by_child"], records, counts)
+            if name_wait:
+                how = f"spine {wid} wait"
         elif runmod.paused(step):
             how = (f"its ask is standing at its parent, not here: spine {st.get('parent')}"
                   if st.get("parent") else
                   "its ask has no parent left to stand on -- see the blocked note above")
         elif step.get("dispatches"):
-            how = f"open its child: spine open {step['dispatches']} --parent {wid} " \
-                  f"--step {step['id']}"
-            worktree, _branch = _tree_info(wid, st)
-            if _dispatch_configured(worktree):
-                child_id = step.get("child") or f"{wid}.{step['id']}"
-                records = _dispatch_records(wid)
-                counts = _dispatch_start_counts(wid)
-                _, name_wait = _outstanding_state(
-                    wid, [child_id], st["returns_by_child"], records, counts)
-                how = f"spine {wid} wait" if name_wait else drop_it
+            child_id = step.get("child") or f"{wid}.{step['id']}"
+            records = _dispatch_records(wid)
+            counts = _dispatch_start_counts(wid)
+            _, name_wait = _outstanding_state(
+                wid, [child_id], st["returns_by_child"], records, counts)
+            how = f"spine {wid} wait" if name_wait else drop_it
         else:
             how = f"fill its form and submit it: spine {wid} submit"
         suffix = "" if how == escape else f"\n  or {escape}"

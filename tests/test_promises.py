@@ -849,6 +849,16 @@ def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc(
     assert "the assembly on disk names the implementer" not in V2_DESIGN
 
 
+def test_v2_design_drops_the_manual_conductor_mode_sentence():
+    """`o-stale-docs-drop-manual-mode`: manual-conductor mode is deleted, not
+    documented -- the sentence describing a human starting or resuming a
+    dispatched child by hand is gone from `V2_DESIGN.md`'s account of the
+    tier mechanism, not reworded to still describe it."""
+    assert "leaves starting the child" not in V2_DESIGN
+    assert "copies the brief's own" not in V2_DESIGN
+    assert "dispatches by hand" not in V2_DESIGN
+
+
 # [up-mints-nothing-property]
 # Rationale: four rounds in a row (issue84's plan, rounds 4, 6, 7, 8) each
 #   found one new site claiming a settled `up` adds nothing to the run,

@@ -17,6 +17,7 @@ choosing, never `claude`.
 import os
 import pathlib
 import subprocess
+import sys
 import tomllib
 
 import pytest
@@ -89,23 +90,22 @@ def test_a_repository_with_no_dispatch_entry_spawns_nothing(bare_workdir, capsys
 # -- commitment 12: four states, rendered -------------------------------------
 
 
-# -- gate 3's own regression: unconfigured stays byte-for-byte (commitment 17) --
-# This test and the two `test_gone_without_returning_*` tests below (in the
-# "commitment 15" section) are this gate's own commitment-17 regression:
-# `workdir` strips its copied `constellation.toml`'s `dispatch` entry, and
-# `bare_workdir` seeds no `constellation.toml` at all -- both leave
-# `_dispatch_configured` false, so all three exercise the unconfigured world
-# and must stay green byte-for-byte unchanged by this gate's diff.
+# -- o-single-dispatch-room: one room, whether or not the palette is configured --
+# The two fixtures below (`workdir` with no `dispatch` entry,
+# `test_a_repository_with_no_dispatch_entry_spawns_nothing`'s own
+# `bare_workdir` with none at all) used to exercise a second, byte-for-byte
+# rendering with its own hand-typed brief and respawn command. That second
+# rendering is deleted, not preserved: a child's row never carries a
+# hand-typed command in any state, so these prove the room's one remaining
+# shape on exactly the fixtures that used to diverge from it.
 
 
-def test_a_never_touched_child_renders_not_dispatched_with_its_brief(workdir, capsys):
-    """`workdir`'s own `constellation.toml` has no `dispatch` entry (see
-    `_without_dispatch_entry` in conftest.py), so a spawn attempt here is
-    always the quiet `None` commitment 3 describes -- no journal entry, no
-    log, no exception. That child's row still carries its own brief, with
-    the plain `open it:` command, exactly as a never-dispatched child's
-    ought to -- and a resolved tier and runner ride along with it
-    (commitment 23)."""
+def test_a_never_touched_child_renders_not_dispatched_with_no_brief(workdir, capsys):
+    """An unconfigured repository (`workdir`'s own `constellation.toml` has
+    no `dispatch` entry) renders the identical row a configured one does:
+    the status word alone, no brief, no `open it:` line -- `spine <work-id>
+    wait` is the only move that starts this child, whether or not the
+    palette can act on it."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
     capsys.readouterr()
 
@@ -113,20 +113,16 @@ def test_a_never_touched_child_renders_not_dispatched_with_its_brief(workdir, ca
     out = capsys.readouterr().out
 
     assert "d1.g1 (not dispatched)" in out
-    assert "brief -- d1.g1" in out
-    assert "tier         standard" in out
-    assert "runner       claude-sonnet-5" in out
-    line = next(l for l in out.splitlines() if "open it:" in l)
-    assert pathlib.Path(line.split("open it:", 1)[1].strip().split()[0]).is_file()
+    assert "brief -- d1.g1" not in out
+    assert "open it:" not in out
     assert not (journal.location("d1") / "dispatch.g1.log").exists()
 
 
 def test_a_returned_childs_row_still_renders_as_before(workdir, capsys):
     """Commitment 16, non-regression: a returned panelist's row is
     untouched by this gate -- the word, and no brief beside it, exactly as
-    it always rendered. Its still-outstanding sibling (`workdir` drops the
-    `dispatch` entry, so it reads as "not dispatched") keeps the step open
-    long enough for both rows to land on the same render."""
+    it always rendered. Its still-outstanding sibling reads "not dispatched"
+    with no brief of its own either, now regardless of the palette."""
     journal.append("g9", "run", title="t", assembly="run-a-gate")
     journal.append("g9", "step", id="review", segment="work",
                    panel=[{"worker": "reviewer", "criteria": "c1"},
@@ -140,21 +136,19 @@ def test_a_returned_childs_row_still_renders_as_before(workdir, capsys):
 
     assert "panelist p1 (returned)" in out
     assert "panelist p2 (not dispatched)" in out
-    lines = out.splitlines()
-    p1_line = next(i for i, l in enumerate(lines) if "panelist p1" in l)
-    p2_line = next(i for i, l in enumerate(lines) if "panelist p2" in l)
-    assert not any("brief --" in l for l in lines[p1_line:p2_line])
+    assert "brief --" not in out
 
 
-# -- commitment 15: the respawn command, both directions ----------------------
+# -- o-single-dispatch-room: a "gone without returning" child carries no --
+# -- respawn command either, configured or not --------------------------------
 
 
-def test_gone_without_returning_offers_open_it_when_the_run_was_never_opened(
+def test_gone_without_returning_carries_no_command_when_the_run_was_never_opened(
         bare_workdir, capsys):
     """A dead `dispatch-started` record whose own run was never actually
-    opened still offers the brief's plain `open it:` line:
-    `journal.exists(child_id)` is false, so there is nothing for
-    `_open_child`'s own refusal to collide with."""
+    opened used to offer the brief's plain `open it:` line in the
+    unconfigured world; now no row ever does. `spine <work-id> wait` is the
+    only move that restarts it."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
     journal.append("d1", "dispatch-started", child="d1.g1", pid=999999,
                    tree=str(bare_workdir), log=str(bare_workdir / "dispatch.g1.log"))
@@ -164,36 +158,21 @@ def test_gone_without_returning_offers_open_it_when_the_run_was_never_opened(
     out = capsys.readouterr().out
 
     assert "d1.g1 (gone without returning)" in out
-    # bare_workdir carries no constellation.toml at all, so tier still
-    # resolves from the assembly's own default while runner has nothing to
-    # resolve against -- both literals below are what this fixture actually
-    # produces, not the palette-backed `workdir` fixture's resolved runner.
-    assert "tier         standard" in out
-    assert "runner       (unresolved -- check constellation.toml [models])" in out
-    line = next(l for l in out.splitlines() if "open it:" in l)
-    parts = line.split("open it:", 1)[1].strip().split()
-    assert parts[1:] == ["open", "run-a-gate", "--parent", "d1", "--step", "g1"]
+    assert "open it:" not in out
+    assert "brief --" not in out
 
 
-def test_gone_without_returning_offers_the_resume_command_once_the_run_exists(
+def test_gone_without_returning_carries_no_resume_command_once_the_run_exists(
         bare_workdir, capsys):
-    """Round 2's own headline scenario: a harness dies mid-step after
-    already running the brief's `open it:` line once, so that child's own
-    run already exists by the time this room offers it again. The brief's
-    own original line now raises `SystemExit` with "already exists" in it,
-    proven directly; the respawn command this gate prints instead (`spine
-    {child_id}`) succeeds, landing on that run's own current room."""
+    """Round 2's own headline scenario, now retired: a harness that died
+    mid-step, after its own run already exists, used to be offered `spine
+    {child_id}` as a hand-typed resume command. That second command is gone
+    with the first -- the row states its word and nothing else, and `spine
+    <work-id> wait` is what restarts it."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
-    open_cmd = [render.spine_cmd(), "open", "run-a-gate", "--parent", "d1", "--step", "g1"]
-
     cli.main(["open", "run-a-gate", "--parent", "d1", "--step", "g1"])
     capsys.readouterr()
     assert journal.exists("d1.g1")
-
-    # the brief's own original command, run again, is exactly what raises
-    with pytest.raises(SystemExit) as e:
-        cli.main(open_cmd[1:])
-    assert "already exists" in str(e.value)
 
     # the harness died: its own dispatch-started record now points at a pid
     # that is gone
@@ -203,27 +182,8 @@ def test_gone_without_returning_offers_the_resume_command_once_the_run_exists(
     cli.main(["d1"])
     out = capsys.readouterr().out
     assert "d1.g1 (gone without returning)" in out
-    # bare_workdir carries no constellation.toml at all, so tier still
-    # resolves from the assembly's own default while runner has nothing to
-    # resolve against -- both literals below are what this fixture actually
-    # produces, not the palette-backed `workdir` fixture's resolved runner.
-    assert "tier         standard" in out
-    assert "runner       (unresolved -- check constellation.toml [models])" in out
-    line = next(l for l in out.splitlines() if "open it:" in l)
-    resume_cmd = line.split("open it:", 1)[1].strip().split()
-    assert resume_cmd == [render.spine_cmd(), "d1.g1"]
-
-    # and it actually succeeds, self-located and runnable exactly as printed
-    r = subprocess.run(resume_cmd, capture_output=True, text=True, env={},
-                       cwd=bare_workdir, timeout=20)
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert "d1.g1" in r.stdout
-
-    # while the brief's own original line, run the same way, still refuses
-    r2 = subprocess.run([str(p) for p in open_cmd], capture_output=True, text=True,
-                        env={}, cwd=bare_workdir, timeout=20)
-    assert r2.returncode != 0
-    assert "already exists" in (r2.stdout + r2.stderr)
+    assert "open it:" not in out
+    assert "brief --" not in out
 
 
 # -- commitment 20: `wait` never joins the trailing aside ---------------------
@@ -263,22 +223,26 @@ def test_constellation_toml_names_evals_harnesss_own_real_argv():
 # -- commitment 20: the fast suite spawns no real process ---------------------
 
 
-def test_the_fast_suites_workdir_never_touches_a_real_process(
+class _FakeProc:
+    """A stand-in for `Popen`'s own return, pid chosen far past any real
+    pid_max so `checkrun.alive` reads it as gone immediately -- nothing in
+    this test waits on or blocks over a liveness check."""
+    pid = 2**30
+
+
+def test_the_fast_suites_workdir_never_reaches_the_real_dispatch_entry(
         workdir, monkeypatch, capsys):
-    """Closes commitment 20's own proof where the hazard actually lives now
-    (commitment 35). `workdir` copies the host repo's real
-    `constellation.toml` and strips its `dispatch` entry back out
-    (`_without_dispatch_entry`, conftest.py) precisely so nothing in the
-    fast suite can start a real harness -- and after gate 2 the caller that
-    would have tried is `wait`, not `status`. So this asserts directly that
-    `cmd_wait` against a dispatch step and against a panel step, on that
-    exact fixture, never reaches `subprocess.Popen` at all, rather than
-    trusting that a green suite would have caught a silently-broken guard
-    (it would not: `Popen` is fire-and-forget and its own failures are
-    caught and logged, never raised). Rendering is asserted alongside it,
-    since after this gate a render must reach `Popen` even less."""
+    """`o-fast-suite-safety-by-substitution`: `workdir` now carries a
+    present, harmless `dispatch` entry (`conftest._HARMLESS_DISPATCH_ENTRY`)
+    rather than an absent one, so `wait` genuinely reaches `subprocess.Popen`
+    -- this is no longer the guard `test_the_fast_suites_workdir_never_
+    touches_a_real_process` proved. What still must hold, and what this
+    proves instead: the argv `Popen` actually receives, for a dispatch step
+    and a panel step alike, is exactly the harmless stand-in -- this
+    session's own interpreter -- never the real repo's own `claude`
+    invocation."""
     calls = []
-    monkeypatch.setattr(subprocess, "Popen", lambda *a, **k: calls.append((a, k)))
+    monkeypatch.setattr(subprocess, "Popen", lambda argv, **k: calls.append(argv) or _FakeProc())
 
     _mint_dispatch_step(wid="d1", child="d1.g1")
     assert cli.main(["d1", "wait"]) == 0
@@ -290,22 +254,28 @@ def test_the_fast_suites_workdir_never_touches_a_real_process(
     cli.main(["g9"])
     capsys.readouterr()
 
-    assert calls == []
-    assert _dispatch_entries("d1") == []
-    assert _dispatch_entries("g9") == []
+    assert len(calls) == 2
+    for argv in calls:
+        # the harmless stand-in's own first two words, verbatim -- not a
+        # substring scan of the whole argv, which also carries the brief
+        # text and legitimately names a runner like "claude-sonnet-5"
+        assert argv[:2] == [sys.executable, "-c"]
+        assert argv[0] != "claude"
+    assert len(_dispatch_entries("d1")) == 1
+    assert len(_dispatch_entries("g9")) == 1
 
 
-# -- [workdir-drops-dispatch]: the removal survives reformatting, and a miss is loud --
+# -- [workdir-substitutes-dispatch]: the substitution survives reformatting, and a miss is loud --
 
 
-def test_workdir_drops_dispatch_even_when_the_entry_is_wrapped_across_lines():
+def test_workdir_substitutes_dispatch_even_when_the_entry_is_wrapped_across_lines():
     """`o-guard-survives-reformat`: an ordinary, correct TOML edit --
     writing `dispatch` across several physical lines instead of one --
-    must not defeat the removal. The old line-oriented regex only ever
-    matched a `dispatch` key confined to one physical line; this drives
-    `conftest._without_dispatch_entry` against a wrapped array and checks
-    the result through the same postcondition function (`_dispatch_is_
-    absent`) the `workdir` fixture itself calls."""
+    must not defeat the substitution. The old line-oriented regex only
+    ever matched a `dispatch` key confined to one physical line; this
+    drives `conftest._with_a_harmless_dispatch_entry` against a wrapped
+    array and checks the result through the same postcondition function
+    (`_dispatch_is_harmless`) the `workdir` fixture itself calls."""
     wrapped = (
         '[commands]\n'
         'dispatch = [\n'
@@ -315,28 +285,29 @@ def test_workdir_drops_dispatch_even_when_the_entry_is_wrapped_across_lines():
         'test = "python3 -m pytest -q"\n'
     )
 
-    stripped = conftest._without_dispatch_entry(wrapped)
-    conftest._dispatch_is_absent(stripped)  # does not raise
+    substituted = conftest._with_a_harmless_dispatch_entry(wrapped)
+    conftest._dispatch_is_harmless(substituted)  # does not raise
 
-    palette = tomllib.loads(stripped)
-    assert "dispatch" not in palette["commands"]
+    palette = tomllib.loads(substituted)
+    assert palette["commands"]["dispatch"] == conftest._HARMLESS_DISPATCH_ENTRY
     assert palette["commands"]["test"] == "python3 -m pytest -q"
 
 
-def test_workdir_would_fail_loudly_if_a_dispatch_entry_survived_the_drop():
+def test_workdir_would_fail_loudly_if_the_real_dispatch_entry_survived():
     """`o-silent-miss-is-impossible`'s failure path, driven directly
     rather than merely asserted to exist: hand the fixture's own
-    postcondition function, `conftest._dispatch_is_absent`, a palette
-    whose `dispatch` command was never removed. It must fail loudly --
-    naming the surviving command -- rather than let it travel into the
-    fast suite quietly. The spawn side cannot tell a working guard from a
-    silently-dead one (see the anchor's rationale, conftest.py); this
-    postcondition is the only thing in the system that can, and it is
-    what `workdir` runs at fixture setup, before any test body."""
-    still_there = '[commands]\ndispatch = ["claude"]\n'
+    postcondition function, `conftest._dispatch_is_harmless`, a palette
+    whose `dispatch` command was never replaced. It must fail loudly --
+    naming what actually landed -- rather than let a real command travel
+    into the fast suite quietly. The spawn side cannot tell a working
+    substitution from a silently-dead one (see the anchor's rationale,
+    conftest.py); this postcondition is the only thing in the system that
+    can, and it is what `workdir` runs at fixture setup, before any test
+    body."""
+    still_real = '[commands]\ndispatch = ["claude"]\n'
 
     with pytest.raises(AssertionError, match="dispatch"):
-        conftest._dispatch_is_absent(still_there)
+        conftest._dispatch_is_harmless(still_real)
 
 
 # -- commitment 22 / commitment 16's first row: brief suppressed when configured --
@@ -649,29 +620,28 @@ def test_a_never_dispatched_dispatch_childs_room_still_names_wait_at_zero_count(
     assert "d1 wait is the move" in line
 
 
-# -- commitment 17: the line is absent entirely from an unconfigured room ----
+# -- o-single-dispatch-room: the outstanding line is never withheld ----------
 
 
-def test_an_unconfigured_dispatch_rooms_line_is_absent(workdir, capsys):
+def test_an_unconfigured_dispatch_rooms_line_is_present_too(workdir, capsys):
     """`workdir`'s own `constellation.toml` carries no `dispatch` entry
-    (`_without_dispatch_entry`, conftest.py), so `_dispatch_configured` reads
-    false and the whole new line is skipped, not merely emptied -- commitment
-    17's byte-for-byte rule: this world renders exactly as it did before this
-    gate. A hand-typed `spine open ...` in this world writes no
-    `dispatch-started` record on the parent (commitment 3's own process-only
-    definition), so nothing here could ever make the line report anything
-    true; the ruling is that it must not be printed at all, not that it must
-    always read zero."""
+    (`_with_a_harmless_dispatch_entry`, conftest.py), and the outstanding line used
+    to be skipped entirely for exactly this world. It is never withheld any
+    more (`o-single-dispatch-room`): `spine <work-id> wait` starts this
+    child whether or not the palette can actually act on it, and the line
+    says so."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
 
     cli.main(["d1"])
     out = capsys.readouterr().out
 
     assert "d1.g1 (not dispatched)" in out
-    assert "outstanding" not in out
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "d1 wait is the move" in line
 
 
-def test_an_unconfigured_panel_rooms_line_is_absent(workdir, capsys):
+def test_an_unconfigured_panel_rooms_line_is_present_too(workdir, capsys):
     """The panel-step half of the case above."""
     _mint_panel_step(wid="g9", worker="reviewer")
 
@@ -679,7 +649,9 @@ def test_an_unconfigured_panel_rooms_line_is_absent(workdir, capsys):
     out = capsys.readouterr().out
 
     assert "panelist p1 (not dispatched)" in out
-    assert "outstanding" not in out
+    line = next(l for l in out.splitlines() if "outstanding" in l)
+    assert "0 outstanding" in line
+    assert "g9 wait is the move" in line
 
 
 # -- commitment 19: a childless form step has nothing to be outstanding ------
@@ -861,20 +833,21 @@ def test_cmd_submits_dispatch_refusal_names_the_drop_it_escape_when_spent(
     assert "open its child" not in msg
 
 
-def test_cmd_submits_dispatch_refusal_is_unchanged_when_unconfigured(
+def test_cmd_submits_dispatch_refusal_names_wait_even_when_unconfigured(
         workdir, capsys):
     """`workdir`'s own `constellation.toml` carries no `dispatch` entry
-    (`_without_dispatch_entry`, conftest.py), so this refusal stays
-    byte-for-byte what it always printed -- commitment 17's rule, an
-    unconfigured repository is untouched by this gate."""
+    (`_with_a_harmless_dispatch_entry`, conftest.py); the refusal used to name a
+    hand-typed `open its child: ...` command for exactly this world. It
+    names `wait` instead now, the same as a configured repository's does
+    (`o-single-dispatch-room`)."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
 
     with pytest.raises(SystemExit) as e:
         cli.main(["d1", "submit"])
     msg = str(e.value)
 
-    assert "open its child: " in msg
-    assert "amend close" not in msg
+    assert "d1 wait" in msg
+    assert "open its child" not in msg
 
 
 def test_cmd_submits_panel_refusal_names_wait_when_a_panelist_is_startable(
@@ -913,16 +886,18 @@ def test_cmd_submits_panel_refusal_stays_who_is_outstanding_when_all_spent(
     assert "wait" not in msg
 
 
-def test_cmd_submits_panel_refusal_is_unchanged_when_unconfigured(
+def test_cmd_submits_panel_refusal_names_wait_even_when_unconfigured(
         workdir, capsys):
-    """The panel-step unconfigured regression."""
+    """The panel-step half: an unconfigured repository's never-dispatched
+    panelist is still startable by `wait`, so the refusal names it, the
+    same as a configured repository's does."""
     _mint_panel_step(wid="g9", worker="reviewer")
 
     with pytest.raises(SystemExit) as e:
         cli.main(["g9", "submit"])
     msg = str(e.value)
 
-    assert "who is outstanding" in msg
+    assert "g9 wait" in msg
 
 
 def test_cmd_closes_dispatch_refusal_names_wait_when_the_child_is_startable(
@@ -959,18 +934,19 @@ def test_cmd_closes_refusal_names_the_drop_it_escape_exactly_once_when_spent(
     assert "wait" not in msg
 
 
-def test_cmd_closes_dispatch_refusal_is_unchanged_when_unconfigured(
+def test_cmd_closes_dispatch_refusal_names_wait_even_when_unconfigured(
         workdir, capsys):
-    """The dispatch-branch unconfigured regression -- one generic suffix,
-    the same as it always printed."""
+    """The dispatch-branch half: `wait` is named even where the palette
+    cannot yet act on it -- the hand-typed `open its child: ...` escape
+    this refusal used to fall back to for exactly this world is gone."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
 
     with pytest.raises(SystemExit) as e:
         cli.main(["d1", "close"])
     msg = str(e.value)
 
-    assert "open its child: " in msg
-    assert msg.count("amend close") == 1
+    assert "d1 wait" in msg
+    assert "open its child" not in msg
 
 
 def test_cmd_closes_panel_refusal_names_wait_when_a_panelist_is_startable(
@@ -1007,13 +983,14 @@ def test_cmd_closes_panel_refusal_stays_its_panelists_complete_it_when_all_spent
     assert "wait" not in msg
 
 
-def test_cmd_closes_panel_refusal_is_unchanged_when_unconfigured(
+def test_cmd_closes_panel_refusal_names_wait_even_when_unconfigured(
         workdir, capsys):
-    """The panel-branch unconfigured regression."""
+    """The panel-branch half: an unconfigured repository's never-dispatched
+    panelist is still startable, so `wait` is named here too."""
     _mint_panel_step(wid="g9", worker="reviewer")
 
     with pytest.raises(SystemExit) as e:
         cli.main(["g9", "close"])
     msg = str(e.value)
 
-    assert "its panelists complete it" in msg
+    assert "g9 wait" in msg

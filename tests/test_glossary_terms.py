@@ -50,6 +50,10 @@ STALE_PHRASES = (
     # #80's gate 4: the fixed pair and the deleted merge function
     # `verdict panel`'s own entry used to describe.
     "is `pass | revise`, never a third word", "The merged verdict",
+    # issue119: manual-conductor mode is deleted, not documented -- the
+    # dispatch entry's own sentence describing a human starting a child by
+    # hand.
+    "leaves starting the child to the reader, who copies that same brief",
 )
 
 

@@ -22,7 +22,7 @@ import time
 import pytest
 
 from engine import cli, journal, rail, render, run as runmod
-from test_brief import _mint_dispatch_step
+from test_brief import _mint_dispatch_step, _wait_brief
 from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_plan, \
     _dispatch_and_close_plan, _dispatch_plan_critic, _select_panel, \
     _work_the_board, _fill_plan_to_execute
@@ -245,7 +245,10 @@ def test_a_gate_dispatched_from_a_cwd_that_is_not_the_parents_worktree_still_nes
     cli.main([child_wid])  # must not raise -- resolves from the top level too
 
 
-# -- render.brief names the worktree and the branch ------------------------
+# -- the brief still names the worktree and the branch ----------------------
+# The room itself never prints this any more (`o-single-dispatch-room`) --
+# `_wait_brief` (test_brief.py) drives the real spawn and hands back what
+# the process actually received.
 
 
 def test_dispatch_brief_names_the_worktree_and_branch_for_a_root_run(workdir, capsys):
@@ -262,11 +265,10 @@ def test_dispatch_brief_names_the_worktree_and_branch_for_a_root_run(workdir, ca
     cli.main([wid, "submit"])
     capsys.readouterr()
 
-    cli.main([wid])
-    out = capsys.readouterr().out
+    text = _wait_brief(wid, workdir)
     worktree = workdir / ".worktrees" / wid
-    assert str(worktree.resolve()) in out
-    assert "branch" in out and wid in out
+    assert str(worktree.resolve()) in text
+    assert "branch" in text and wid in text
 
 
 def test_review_panel_brief_on_a_nested_gate_names_the_parents_worktree_and_branch(
@@ -293,11 +295,10 @@ def test_review_panel_brief_on_a_nested_gate_names_the_parents_worktree_and_bran
     _select_panel(child_wid)               # mints the review step and its panel
     capsys.readouterr()
 
-    cli.main([child_wid])  # now standing on the review panel
-    out = capsys.readouterr().out
+    text = _wait_brief(child_wid, workdir)
     worktree = workdir / ".worktrees" / wid
-    assert str(worktree.resolve()) in out
-    assert f"branch {wid}" in out
+    assert str(worktree.resolve()) in text
+    assert f"branch {wid}" in text
 
 
 # -- #112 gate 2: a bound child cannot resolve outside its own subtree -----
@@ -447,11 +448,10 @@ def test_review_panel_brief_from_inside_a_bound_child_still_names_its_own_branch
     monkeypatch.setenv("CONSTELLATION_BOUND", child_wid)  # standing inside the bound child
     assert journal.read(wid) == []  # the climb this stamp replaces would find nothing here
 
-    cli.main([child_wid])  # now standing on the review panel, still fully resolvable
-    out = capsys.readouterr().out
+    text = _wait_brief(child_wid, workdir)  # still fully resolvable
     worktree = workdir / ".worktrees" / wid
-    assert str(worktree.resolve()) in out
-    assert f"branch {wid}" in out
+    assert str(worktree.resolve()) in text
+    assert f"branch {wid}" in text
 
 
 # -- #112 gate 2, ruling 4: a bound child's own close still reaches its ------

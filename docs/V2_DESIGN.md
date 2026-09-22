@@ -405,12 +405,9 @@ portable:
 The tier must be *used*, not merely recorded, and the mechanics make using it the path of
 least resistance. The child's `open` records the tier it was dispatched under; the ledger and
 the child's returns both surface it, so a mismatch is visible at the transition that
-adjudicates the child. In a repository whose palette carries a `dispatch` entry, `` `wait` ``
-is what starts a dispatch or panel step's child under that resolved tier, and what restarts one
-gone without returning, capped — `status` prints no command at that seam at all, because
-`wait` is the only move left to type. A repository with no such entry leaves starting the child
-to the conductor, who copies the brief's own `open it:` command into whatever harness it
-dispatches by hand.
+adjudicates the child. `` `wait` `` is what starts a dispatch or panel step's child under
+that resolved tier, and what restarts one gone without returning, capped — `status` prints
+no command at that seam at all, because `wait` is the only move left to type.
 
 ### The authority block
 
