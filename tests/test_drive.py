@@ -615,6 +615,34 @@ def test_for_overrides_the_default_bound(bare_workdir, monkeypatch):
     proc.wait()
 
 
+def test_a_live_child_does_not_cost_wait_bound_per_pass(bare_workdir, monkeypatch):
+    """The overrun this obligation fixes, proven with `checkrun.WAIT_BOUND`
+    left at its real default (90s), not monkeypatched low -- that
+    monkeypatch, in `test_for_overrides_the_default_bound` just above, is
+    this bug's own existing workaround standing in the suite, not a proof
+    the overrun is gone. Before the fix, `cmd_drive`'s own call into
+    `cmd_wait` carried no bound of its own, so this scenario cost a full
+    `WAIT_BOUND` per pass regardless of `--for` -- measured, `--for 6` ran
+    91.2s. Here `--for 1` must still finish within a poll cycle or two of
+    its own bound."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_dispatch(bare_workdir, marker)
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+    proc = _sleeper(5)
+    _record("d1", "d1.g1", proc.pid)
+
+    began = time.monotonic()
+    code = cli.main(["d1", "drive", "--for", "1"])
+    elapsed = time.monotonic() - began
+
+    assert code == 0
+    assert elapsed < 4, f"elapsed {elapsed}"
+    assert checkrun.alive(proc.pid)          # the bound expired, the child did not
+    proc.kill()
+    proc.wait()
+
+
 def test_the_bounds_own_expiry_exits_0_with_a_child_still_outstanding(
         bare_workdir, monkeypatch):
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)

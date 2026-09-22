@@ -7,6 +7,7 @@ never your run.
 """
 
 import json
+import math
 import os
 import pathlib
 import re
@@ -2233,7 +2234,16 @@ def cmd_drive(argv):
                 return cmd_status([wid])  # spent -- nothing left to spawn or poll
             time.sleep(checkrun.WAIT_POLL)
             continue
-        cmd_wait([wid])  # the spawn/poll/render mechanism, unchanged
+        # [drive-bounds-its-own-wait]
+        # Rationale: `cmd_wait` with no `--for` blocks up to `checkrun.WAIT_BOUND`
+        #   (90s) per call, regardless of how little of `drive`'s own deadline is
+        #   left -- measured, `--for 6` cost 91.2s wall-clock against a live child
+        #   that never returns. `--for` here passes what remains of `deadline`,
+        #   rounded up so a fractional remainder never truncates to the `0` that
+        #   `_wait_bound` refuses, capping the nested call's own worst case to one
+        #   `WAIT_POLL` past `drive`'s bound rather than to `WAIT_BOUND`'s.
+        remaining = max(1, math.ceil(deadline - time.monotonic()))
+        cmd_wait([wid, "--for", str(remaining)])
         fresh = runmod.state(wid)  # re-read post-`wait`, never the pre-call snapshot
         if all(cid in fresh["returns_by_child"] for cid in child_ids):
             continue  # resolved -- the next pass picks up whatever is now current
