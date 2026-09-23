@@ -379,27 +379,19 @@ def _dispatch_lines(role, tier, runner, worktree="", branch="", written_at=""):
     return lines
 
 
-def brief(child_id, role, tier, runner, open_cmd=None, finish_form="", worktree="", branch=""):
+def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
     """One dispatch's whole brief, shared by a gate dispatch and a panelist
     so the two never render this as two drifting copies: who the child will
-    be, what it runs under, the command that mints it (when there is one to
-    run), what finishing means for the assembly it is about to run, and --
-    a child inherits its parent's tree rather than making one of its own --
-    which tree that is and the branch it is on, plus the engine root a
-    form's `standards/...` citation resolves from. This is the text a
+    be, what it runs under, what finishing means for the assembly it is
+    about to run, and -- a child inherits its parent's tree rather than
+    making one of its own -- which tree that is and the branch it is on,
+    plus the engine root a form's `standards/...` citation resolves from. This is the text a
     conductor hands its harness -- nothing else should be needed to start.
-
-    `open_cmd` is omittable: an engine-spawned process is handed no `open`
-    command at all (`o-child-never-opens-its-own-run` -- the engine already
-    minted that run before starting this process), so the "open it:" line
-    prints only when a caller has one to give. The unconfigured room's own
-    status-view brief -- the only reader left with a human to type one by
-    hand -- still passes one, unchanged.
+    It names no `open` command: the engine mints the child's run itself
+    before starting the process (`o-child-never-opens-its-own-run`).
     """
     lines = [f"  brief -- {child_id}"]
     lines += _dispatch_lines(role, tier, runner, worktree, branch, written_at=posture(role))
-    if open_cmd:
-        lines.append(f"    open it:     {located(open_cmd)}")
     close_cmd = located(f"spine {child_id} close")
     if finish_form:
         lines.append(f"    finishing:   fill {finish_form}, then: {close_cmd}")
@@ -420,7 +412,7 @@ def destination(onward_to):
 
 # [off-the-board]
 # Rationale: an excursion was a word on the board and not a move an agent
-#   could make. A dispatch step prints `open it:` with the whole command;
+#   could make. A dispatch step printed `open it:` with the whole command;
 #   a board row printed nothing, so the one command that opens an excursion
 #   -- `spine open <assembly> --parent <wid> --row <row-id>` -- appeared
 #   nowhere a working agent could read it, and five light-model drives

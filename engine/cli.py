@@ -1927,9 +1927,7 @@ def _wait_bound(argv):
 #   re-scanned per child.
 # Rationale: `o-child-never-opens-its-own-run` means an engine-spawned
 #   process's own brief never names an `open` command at all, on a fresh
-#   dispatch or a restart alike -- so this loop stops calling `_respawn_cmd`
-#   (which chose between two open-style commands) and stops passing
-#   `render.brief` an `open_cmd`; the "open it:" line simply does not print.
+#   dispatch or a restart alike -- so `render.brief` takes no `open_cmd`.
 #   `assembly` and `pstep_id` -- the two extra fields `_spawn_outstanding`
 #   needs to mint the run itself, once the process it briefs has actually
 #   started (`o-mint-follows-start` -- never ahead of that, and never for a

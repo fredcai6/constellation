@@ -19,13 +19,15 @@ def test_dry_run_writes_nothing(tmp_path):
     assert not dest.exists()
 
 
-def test_copies_skills_assemblies_standards_engine_and_spine(tmp_path):
+def test_copies_skills_assemblies_standards_engine_tools_and_spine(tmp_path):
     dest = tmp_path / "dest"
     install.install(dest)
 
     assert (dest / "assemblies" / "run-an-issue" / "ASSEMBLY.toml").exists()
     assert (dest / "standards" / "glossary.md").exists()
     assert (dest / "engine" / "run.py").exists()
+    # the palette's `map` command runs `python3 -m tools.code_map`
+    assert (dest / "tools" / "code_map" / "__main__.py").exists()
     assert (dest / "spine").exists()
     assert (dest / "skills" / "implementer" / "forms" / "IMPLEMENT.toml").exists()
     assert (dest / "skills" / "interrogator" / "forms" / "UNDERSTAND.toml").exists()
@@ -92,13 +94,53 @@ def test_spine_stays_executable(tmp_path):
 
 def test_running_twice_is_idempotent(tmp_path):
     dest = tmp_path / "dest"
-    first = install.install(dest)
+    first, first_links = install.install(dest)
     snapshot = sorted(p.relative_to(dest) for p in dest.rglob("*"))
 
-    second = install.install(dest)
+    second, second_links = install.install(dest)
 
-    assert first == second
+    # Every engine-owned bundle is replaced again, exactly as before; the one
+    # reader-owned entry reports that it stood down rather than that it copied.
+    assert [e for e in first if e[0] != "constellation.toml"] == \
+           [e for e in second if e[0] != "constellation.toml"]
+    assert first_links == second_links
+    assert ("constellation.toml", "copied") in first
+    assert ("constellation.toml", "skipped: one is already there") in second
     assert sorted(p.relative_to(dest) for p in dest.rglob("*")) == snapshot
+
+
+def test_a_second_install_never_overwrites_an_edited_palette(tmp_path):
+    """The palette is the one thing in the plan that belongs to the reader --
+    their own `dispatch` entry, their own tiers. A reinstall replaces every
+    engine-owned bundle and leaves this one alone, saying so, for the same
+    reason `_place_link` refuses to remove a real directory: an upgrade that
+    silently swapped the harness out from under a working tree would be found
+    the next time a child failed to start, not the next time anyone read a
+    report."""
+    dest = tmp_path / "dest"
+    install.install(dest)
+    palette = dest / "constellation.toml"
+    edited = palette.read_text(encoding="utf-8").replace(
+        'light = "claude-haiku-4-5-20251001"', 'light = "some-other-shops-model"')
+    palette.write_text(edited, encoding="utf-8")
+
+    copied, _ = install.install(dest)
+
+    assert palette.read_text(encoding="utf-8") == edited
+    assert ("constellation.toml", "skipped: one is already there") in copied
+
+
+def test_the_report_says_the_palette_was_kept_rather_than_copied(tmp_path, capsys):
+    dest = tmp_path / "dest"
+    install.main(["--dest", str(dest), "--skills-dir", str(tmp_path / "skills")])
+    capsys.readouterr()
+
+    install.main(["--dest", str(dest), "--skills-dir", str(tmp_path / "skills")])
+    out = capsys.readouterr().out
+
+    assert "skipped: one is already there" in out
+    assert f"kept {dest / 'constellation.toml'} as it stands" in out
+    assert f"copied engine -> {dest / 'engine'}" in out   # the rest still copies
 
 
 def test_pycache_is_not_copied(tmp_path):
@@ -161,12 +203,10 @@ _TOOLS_IMPORT = re.compile(r'^\s*(?:import\s+tools\b|from\s+tools\b)', re.MULTIL
 
 
 def test_engine_imports_nothing_from_tools():
-    """`_plan` above ships exactly five things plus skill bundles:
-    assemblies, standards, engine, spine, constellation.toml, skills/<bundle>
-    -- `tools/` is not among them. An `engine/*.py` module that imports it
-    works only in this source tree, where `tools/` happens to sit beside
-    `engine/`; the same import in any installed copy raises `ModuleNotFoundError` the first
-    time a run's own path reaches the call, and only then. Static, not an
+    """`tools/` is decoupled tooling -- no verb, no step, no form field, no
+    import from `engine/` (docs/AGENT_GUIDE.md). Install ships it beside
+    `engine/` only so the palette's `map` command runs in a fresh tree;
+    that is not licence for the engine to reach into it. Static, not an
     import check, on purpose: a bad import three functions deep is dead
     until the runtime shape that calls it exists, and this catches it
     before that -- issue166's own `_land_reserved_rungs` first shipped
