@@ -1,14 +1,18 @@
-"""Self-location, and the brief a dispatch step renders.
+"""Self-location, and the brief a dispatched child actually receives.
 
 Two things, proven separately. First: every command the engine prints
 resolves to something a dispatched child -- no shell of its own, nothing on
 PATH -- can actually run, proven deterministically with PATH stripped
 entirely, no model involved. Second: a dispatch step and a panel step each
-render one brief gathering the child id, its role, where that role is
-written, the resolved tier and runner, a runnable open command, and what
-finishing means -- proven for a gate dispatch (role: the dispatched
-assembly's own conductor) and for a panelist (role: its own `worker`, which
-need not match the assembly's).
+build one brief gathering the child id, its role, where that role is
+written, the resolved tier and runner, and what finishing means -- proven
+for a gate dispatch (role: the dispatched assembly's own conductor) and for
+a panelist (role: its own `worker`, which need not match the assembly's).
+`o-single-dispatch-room` means the room itself never prints this brief any
+more -- no row carries a hand-typed command, ever -- so the one reader left
+for it is the process `wait` actually starts; `_wait_brief` below drives
+that spawn against a real, test-configured `dispatch` entry and hands back
+what the spawned process was actually given.
 
 Third: wherever a role is announced -- a dispatch brief, a panelist brief,
 or the room an agent stands in -- the rendered line names the file the
@@ -22,6 +26,30 @@ import subprocess
 from engine import cli, journal, render
 from conftest import REPO
 from test_nesting import _response
+
+
+def _wait_brief(wid, root):
+    """Drive `wait` against a real, test-configured `dispatch` entry and
+    return the brief text the spawned process actually received -- the one
+    place a dispatched child's ingredients still reach a reader now that no
+    room ever prints one (`o-single-dispatch-room`). Imported from
+    `test_wait` locally: that module imports `_mint_dispatch_step`/
+    `_mint_panel_step` from here, so a module-level import the other
+    direction would be circular.
+
+    The palette this call spawns through is written into `wid`'s own tree
+    (`cli._tree_info`), never `root` itself: an issue-tier run cuts a real
+    git worktree, whose own `constellation.toml` is a separate checkout of
+    whatever the remote carries, not a live view of `root`'s -- a dispatch
+    entry written only at `root` would never reach the process this spawns."""
+    from engine import run as runmod
+    from test_wait import _throwaway_dispatch, _await
+    tree, _branch = cli._tree_info(wid, runmod.state(wid))
+    marker = pathlib.Path(tree) / "spawned"
+    _throwaway_dispatch(tree, marker)
+    cli.main([wid, "wait", "--for", "2"])
+    assert _await(marker, 1)
+    return next(marker.iterdir()).read_text(encoding="utf-8")
 
 
 def _mint_dispatch_step(wid="d1", child="d1.g1"):
@@ -85,27 +113,21 @@ def test_self_located_command_runs_with_path_stripped_entirely(tmp_path):
 # -- the brief: every ingredient, together ------------------------------------
 
 
-def test_dispatch_brief_carries_every_ingredient(workdir, capsys):
+def test_dispatch_brief_carries_every_ingredient(bare_workdir, capsys):
     _mint_dispatch_step()
     capsys.readouterr()
 
-    cli.main(["d1"])
-    out = capsys.readouterr().out
+    text = _wait_brief("d1", bare_workdir)
 
-    assert "d1.g1" in out                                    # the child id
-    assert "role         gate-conductor" in out              # see role test below
-    assert "tier         standard" in out
-    assert "runner       claude-sonnet-5" in out              # the resolved runner
-    assert "finishing:" in out and "GATE_CLOSE.toml" in out   # what finishing means
-
-    line = next(l for l in out.splitlines() if "open it:" in l)
-    open_cmd = line.split("open it:", 1)[1].strip()
-    parts = open_cmd.split()
-    assert pathlib.Path(parts[0]).is_file()                  # self-located, not bare
-    assert parts[1:] == ["open", "run-a-gate", "--parent", "d1", "--step", "g1"]
+    assert "d1.g1" in text                                    # the child id
+    assert "role         gate-conductor" in text              # see role test below
+    assert "tier         standard" in text
+    assert "runner" in text
+    assert "finishing:" in text and "GATE_CLOSE.toml" in text  # what finishing means
+    assert "open it:" not in text                              # never a hand-typed command
 
 
-def test_dispatch_brief_names_the_engine_root(workdir, capsys):
+def test_dispatch_brief_names_the_engine_root(bare_workdir, capsys):
     """A form's `standards/...` citation is repo-relative and install copies
     `standards/` verbatim, so it resolves against the engine root -- not a
     dispatched child's own cwd, which may be some other repository entirely.
@@ -113,69 +135,42 @@ def test_dispatch_brief_names_the_engine_root(workdir, capsys):
     _mint_dispatch_step()
     capsys.readouterr()
 
-    cli.main(["d1"])
-    out = capsys.readouterr().out
+    text = _wait_brief("d1", bare_workdir)
 
-    line = next(l for l in out.splitlines() if l.strip().startswith("root "))
+    line = next(l for l in text.splitlines() if l.strip().startswith("root "))
     root = line.split("root", 1)[1].strip()
     assert root == render.engine_root()
     assert pathlib.Path(root).is_absolute()
 
 
-def test_panel_brief_carries_every_ingredient(workdir, capsys):
+def test_panel_brief_carries_every_ingredient(bare_workdir, capsys):
     _mint_panel_step(worker="reviewer")
     capsys.readouterr()
 
-    cli.main(["g9"])
-    out = capsys.readouterr().out
+    text = _wait_brief("g9", bare_workdir)
 
-    assert "g9.review.p1" in out                             # the child id
-    assert "role         reviewer" in out
-    assert "tier         standard" in out
-    assert "runner       claude-sonnet-5" in out
-    assert "finishing:" in out and "REVIEW.toml" in out
-    assert "not dispatched" in out
-
-    line = next(l for l in out.splitlines() if "open it:" in l)
-    open_cmd = line.split("open it:", 1)[1].strip()
-    parts = open_cmd.split()
-    assert pathlib.Path(parts[0]).is_file()
-    assert parts[1:] == ["open", "give-a-verdict", "--parent", "g9", "--step", "review.p1"]
-
-
-def test_the_dispatch_briefs_open_command_runs_with_path_stripped(workdir, capsys):
-    """Not just well-formed -- actually runnable by whoever has nothing but
-    what the brief handed them."""
-    _mint_dispatch_step()
-    capsys.readouterr()
-
-    cli.main(["d1"])
-    out = capsys.readouterr().out
-    line = next(l for l in out.splitlines() if "open it:" in l)
-    parts = line.split("open it:", 1)[1].strip().split()
-
-    r = subprocess.run(parts, capture_output=True, text=True, env={},
-                       cwd=workdir, timeout=20)
-    assert r.returncode == 0, r.stdout + r.stderr
-    assert journal.exists("d1.g1")
+    assert "g9.review.p1" in text                             # the child id
+    assert "role         reviewer" in text
+    assert "tier         standard" in text
+    assert "finishing:" in text and "REVIEW.toml" in text
+    assert "open it:" not in text
 
 
 # -- role resolution: a dispatch vs. a panelist -------------------------------
 
 
-def test_gate_dispatch_role_is_the_dispatched_assemblys_conductor(workdir, capsys):
+def test_gate_dispatch_role_is_the_dispatched_assemblys_conductor(bare_workdir, capsys):
     """run-a-gate's own conductor is `gate-conductor` -- the brief must name
     that, not the dispatching run-an-issue's own conductor (`issue-conductor`)."""
     _mint_dispatch_step()
     capsys.readouterr()
 
-    cli.main(["d1"])
-    out = capsys.readouterr().out
-    assert "role         gate-conductor" in out
-    assert "role         issue-conductor" not in out
+    text = _wait_brief("d1", bare_workdir)
+    assert "role         gate-conductor" in text
+    assert "role         issue-conductor" not in text
 
 
-def test_panelist_role_is_its_own_worker_not_the_assemblys_conductor(workdir, capsys):
+def test_panelist_role_is_its_own_worker_not_the_assemblys_conductor(bare_workdir, capsys):
     """give-a-verdict's own conductor is `reviewer`; a panel entry can name a
     different worker (a focused panelist), and the brief must show that
     entry's own role rather than the assembly's -- the reconciliation this
@@ -184,13 +179,12 @@ def test_panelist_role_is_its_own_worker_not_the_assemblys_conductor(workdir, ca
     _mint_panel_step(worker="implementer")
     capsys.readouterr()
 
-    cli.main(["g9"])
-    out = capsys.readouterr().out
-    assert "role         implementer" in out
-    assert "role         reviewer" not in out
+    text = _wait_brief("g9", bare_workdir)
+    assert "role         implementer" in text
+    assert "role         reviewer" not in text
 
 
-def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(workdir, capsys):
+def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(bare_workdir, capsys):
     """A panel entry may name its own form, and _open_child honours it. A brief
     quoting the assembly's default would name a file the agent is never handed
     -- the brief lying about the step it just told you to open. run-an-issue's
@@ -207,13 +201,14 @@ def test_a_panelist_brief_names_the_form_that_panelist_will_actually_get(workdir
     journal.append("i1", "submit", step="plan-1", fields={})
     capsys.readouterr()
 
-    cli.main(["i1"])
-    out = capsys.readouterr().out
-    assert "CRITIC.toml" in out, "the brief quoted the assembly default, not the override"
-    assert "REVIEW.toml" not in out
+    text = _wait_brief("i1", bare_workdir)
+    assert "CRITIC.toml" in text, "the brief quoted the assembly default, not the override"
+    assert "REVIEW.toml" not in text
 
-    # and the file it names is the one actually materialized
-    cli.main(["open", "give-a-verdict", "--parent", "i1", "--step", "plan.p1"])
+    # and the file it names is the one actually materialized -- `wait` above
+    # already minted the child; rendering its own room is what materializes
+    # its response form.
+    cli.main(["i1.plan.p1"])
     loc = journal.location("i1.plan.p1")
     live = _response("i1.plan.p1")
     assert live.parent == loc and live.name.startswith("CRITIC.") and live.exists()
@@ -251,28 +246,28 @@ def _assert_delivered(line, role):
     assert "read it" in line, f"the line names a file but never says to read it: {line}"
 
 
-def test_dispatch_brief_names_where_the_dispatched_role_is_written(workdir, capsys):
+def test_dispatch_brief_names_where_the_dispatched_role_is_written(bare_workdir, capsys):
     """The defect in this issue's title: the child was told a role name and
     never told where that role is written. The role here is run-a-gate's own
     conductor, so the file named follows the assembly's `conductor` field."""
     _mint_dispatch_step()
     capsys.readouterr()
 
-    cli.main(["d1"])
-    _assert_delivered(_posture_line(capsys.readouterr().out), "gate-conductor")
+    text = _wait_brief("d1", bare_workdir)
+    _assert_delivered(_posture_line(text), "gate-conductor")
 
 
-def test_panelist_brief_names_where_its_own_role_is_written(workdir, capsys):
+def test_panelist_brief_names_where_its_own_role_is_written(bare_workdir, capsys):
     """A panelist's role is its own `worker`, so the posture follows the
     worker and not give-a-verdict's conductor."""
     _mint_panel_step(worker="implementer")
     capsys.readouterr()
 
-    cli.main(["g9"])
-    _assert_delivered(_posture_line(capsys.readouterr().out), "implementer")
+    text = _wait_brief("g9", bare_workdir)
+    _assert_delivered(_posture_line(text), "implementer")
 
 
-def test_panelist_brief_names_no_file_for_a_role_that_has_no_skill(workdir, capsys):
+def test_panelist_brief_names_no_file_for_a_role_that_has_no_skill(bare_workdir, capsys):
     """A panelist worker with no SKILL.md gets no posture line: naming one
     anyway would be this issue's own defect inverted -- a path to nothing.
     Proven against a fixture role rather than a rostered one with no
@@ -282,10 +277,9 @@ def test_panelist_brief_names_no_file_for_a_role_that_has_no_skill(workdir, caps
     _mint_panel_step(worker="ghostwriter")
     capsys.readouterr()
 
-    cli.main(["g9"])
-    out = capsys.readouterr().out
-    assert "role         ghostwriter" in out
-    assert _posture_line(out) is None, "the brief named a posture that does not exist"
+    text = _wait_brief("g9", bare_workdir)
+    assert "role         ghostwriter" in text
+    assert _posture_line(text) is None, "the brief named a posture that does not exist"
 
 
 def test_the_room_names_where_the_filler_of_this_step_is_written(workdir, capsys):
@@ -351,7 +345,7 @@ def test_a_critic_panelists_room_names_the_critics_posture(workdir, capsys):
     _assert_delivered(_posture_line(out), "critic")
 
 
-def test_the_brief_and_the_room_name_the_same_posture_for_the_same_child(workdir, capsys):
+def test_the_brief_and_the_room_name_the_same_posture_for_the_same_child(bare_workdir, capsys):
     """The invariant the stamp buys and no other test states: the panel
     step's brief renders the posture from the panel entry's `worker`, and
     the panelist's own room -- once opened -- renders it from the child's
@@ -360,13 +354,13 @@ def test_the_brief_and_the_room_name_the_same_posture_for_the_same_child(workdir
     _mint_panel_step(worker="critic")
     capsys.readouterr()
 
-    cli.main(["g9"])
-    brief_line = _posture_line(capsys.readouterr().out)
+    brief_line = _posture_line(_wait_brief("g9", bare_workdir))
     _assert_delivered(brief_line, "critic")
 
-    cli.main(["open", "give-a-verdict", "--parent", "g9", "--step", "review.p1"])
+    # `wait` above already minted the panelist's own run (`o-mint-follows-
+    # start`); its own room renders the identical posture off its stamped
+    # `filler`.
     capsys.readouterr()
-
     cli.main(["g9.review.p1"])
     room_line = _posture_line(capsys.readouterr().out)
     _assert_delivered(room_line, "critic")

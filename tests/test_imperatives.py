@@ -105,27 +105,34 @@ def _dispatch_review_here():
 # -- the two sentences that were missing --------------------------------------
 
 
-def test_a_dispatch_step_says_the_conductor_is_the_one_who_runs_it(workdir, capsys):
+def test_a_dispatch_step_never_says_the_reader_is_the_one_who_runs_it(workdir, capsys):
+    """`o-honest-room-text`'s own proof: the room's imperative no longer
+    offers the reader the option to run the child themselves, and a "not
+    dispatched" child's row carries no hand-typed command to start it --
+    `spine <work-id> wait` is the only move named, whether or not the
+    palette is configured."""
     from test_brief import _mint_dispatch_step
     _mint_dispatch_step()
     out = _room(capsys, "d1")
     # wrapping can fold a long sentence across lines -- normalize before matching
     normalized = " ".join(out.split())
-    assert "you are the one who runs it" in normalized
-    # and it still carries the brief it always did
-    assert "open it:" in out and "d1.g1" in out
+    assert "you are the one who runs it" not in normalized
+    assert "d1.g1 (not dispatched)" in out
+    assert "open it:" not in out
 
 
-def test_a_panel_step_says_the_verdict_is_the_panels_to_give(workdir, capsys):
-    """The exact reading that stalled the implementer eval: a panelist is
-    listed, so surely someone else is coming. The room now says who acts."""
+def test_a_panel_step_never_says_the_reader_is_the_one_who_runs_it(workdir, capsys):
+    """The panel-step half: the panel's verdict is still named as the
+    panel's own to give, but no row offers the reader a command to run a
+    panelist by hand."""
     from test_brief import _mint_panel_step
     _mint_panel_step()
     out = _room(capsys, "g9")
     normalized = " ".join(out.split())
-    assert "you are the one who runs it" in normalized
+    assert "you are the one who runs it" not in normalized
     assert "the panel's to give" in normalized
-    assert "open it:" in out
+    assert "panelist p1 (not dispatched)" in out
+    assert "open it:" not in out
 
 
 PASSIVE_TAIL = re.compile(r"\b(wait|hold|monitor|expect)\b", re.IGNORECASE)

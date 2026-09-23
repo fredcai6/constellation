@@ -139,12 +139,17 @@ def test_a_nonzero_exit_is_still_a_successful_spawn(bare_workdir):
 # -- the shared substitution/launch logic, mirrored from spawn_dispatch ------
 
 
-def test_no_dispatch_key_is_not_started_and_not_a_failure(bare_workdir):
+def test_no_dispatch_key_fails_distinguishably_and_journals_nothing(bare_workdir):
+    """`o-absent-dispatch-raises`: an absent `dispatch` key raises here too,
+    the identical discipline the other three failure inputs already hold --
+    no journal entry, whatever the reason."""
     wid = "v1"
-    result = checks.spawn_form_filler({}, "brief", "runner", "/tmp", wid, "g1",
-                                      _log(wid, "absent"))
-    assert result is None
-    assert journal.read(wid) == []
+    with pytest.raises(checks.DispatchFailure) as exc:
+        checks.spawn_form_filler({}, "brief", "runner", "/tmp", wid, "g1",
+                                 _log(wid, "absent"))
+
+    assert exc.value.reason == checks.DISPATCH_ABSENT
+    assert _form_filler_entries(wid) == []
 
 
 def test_a_malformed_entry_fails_distinguishably_and_journals_nothing(bare_workdir):

@@ -47,6 +47,9 @@ heavy = "claude-opus-5"
 [roles]
 planner = "standard"
 implementer = "standard"
+excursion = "standard"
+reviewer = "standard"
+spec-writer = "standard"
 
 # Epic #138 finding 10: the documents a purpose chain is allowed to
 # terminate at, rather than climb past. A claim counts as a root when its

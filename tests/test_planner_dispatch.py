@@ -55,26 +55,30 @@ def test_cut_a_gate_is_one_anchored_terminal_step_naming_the_planner():
     assert t["filler"] == "planner"
 
 
-def test_plan_segments_dispatch_step_renders_a_brief_naming_cut_a_gate(workdir, capsys):
+def test_plan_segments_dispatch_step_resolves_a_brief_naming_cut_a_gate(workdir, capsys):
     """The shape `open` would mint, minted directly the way `test_brief.py`
-    mints an execute-segment dispatch step -- so this proves the render, not
-    a second copy of the open flow `test_roundtrip.py` already drives."""
+    mints an execute-segment dispatch step. The room itself never prints
+    this brief any more (`o-single-dispatch-room`), so this drives the same
+    resolution `_dispatch_descriptor` gives whatever process `wait` goes on
+    to start."""
     journal.append("i1", "run", title="t", assembly="run-an-issue")
     journal.append("i1", "step", id="plan-1", segment="plan", dispatches="cut-a-gate",
                    filler="planner", prefill={}, anchor=False, terminal=False,
                    validates="", source="open")
     capsys.readouterr()
 
+    st = runmod.state("i1")
+    asm = runmod.load_assembly(st["assembly"])
+    role, _tier, open_cmd, _finish_form = cli._dispatch_descriptor("i1", asm, st["current"])
+
+    assert role == "planner"                          # cut-a-gate's own conductor
+    parts = open_cmd.split()
+    assert parts == ["spine", "open", "cut-a-gate", "--parent", "i1", "--step", "plan-1"]
+
     cli.main(["i1"])
     out = capsys.readouterr().out
-
-    assert "i1.plan-1" in out                        # the child id
-    assert "role         planner" in out              # cut-a-gate's own conductor
-    line = next(l for l in out.splitlines() if "open it:" in l)
-    open_cmd = line.split("open it:", 1)[1].strip()
-    parts = open_cmd.split()
-    assert pathlib.Path(parts[0]).is_file()            # self-located, not bare
-    assert parts[1:] == ["open", "cut-a-gate", "--parent", "i1", "--step", "plan-1"]
+    assert "i1.plan-1" in out                          # the child id still renders
+    assert "open it:" not in out
 
 
 def test_a_dispatch_step_is_not_submitted_locally(workdir, capsys):
@@ -88,7 +92,9 @@ def test_a_dispatch_step_is_not_submitted_locally(workdir, capsys):
 
     with pytest.raises(SystemExit) as e:
         cli.main(["i1", "submit"])
-    assert "cut-a-gate" in str(e.value)
+    msg = str(e.value)
+    assert "not submitted -- it completes when its child closes" in msg
+    assert "i1 wait" in msg
 
 
 def test_resolve_skill_planner_returns_a_real_file():

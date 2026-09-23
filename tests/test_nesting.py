@@ -610,13 +610,19 @@ def test_consolidate_carries_only_the_spec_seam_fields_into_prefill(workdir, cap
 # -- 3. dispatch status renders the resolved runner and open command ---------
 
 
-def test_dispatch_status_renders_runner_and_open_command(workdir, capsys):
+def test_dispatch_status_resolves_runner_and_open_command(workdir, capsys):
+    """The room itself never prints a dispatch step's runner or open
+    command any more (`o-single-dispatch-room`) -- `_dispatch_descriptor`
+    is what still resolves both, for whatever process `wait` goes on to
+    start, so this drives that resolution directly rather than scanning a
+    room that no longer carries either."""
     _mint_first_gate()
     capsys.readouterr()
-    cli.main(["issue17"])
-    out = capsys.readouterr().out
-    assert "claude-sonnet-5" in out  # standard tier, resolved from constellation.toml
-    assert "spine open run-a-gate --parent issue17 --step g1" in out
+    st = runmod.state("issue17")
+    asm = runmod.load_assembly(st["assembly"])
+    _role, tier, open_cmd, _finish_form = cli._dispatch_descriptor("issue17", asm, st["current"])
+    assert cli._runner(tier) == "claude-sonnet-5"  # standard tier, resolved from constellation.toml
+    assert open_cmd == "spine open run-a-gate --parent issue17 --step g1"
 
     # a second gate's own model override rides the prefill and resolves too
     _dispatch_and_close_child("issue17", "g1")
@@ -624,12 +630,13 @@ def test_dispatch_status_renders_runner_and_open_command(workdir, capsys):
     capsys.readouterr()
     _replan_to_next_gate("issue17", "g1-adjudicate", model="light")
     capsys.readouterr()
-    g2 = next(s for s in runmod.state("issue17")["steps"]
+    st2 = runmod.state("issue17")
+    asm2 = runmod.load_assembly(st2["assembly"])
+    g2 = next(s for s in st2["steps"]
              if s.get("dispatches") == "run-a-gate" and s["id"] != "g1")
-    cli.main(["issue17"])
-    out = capsys.readouterr().out
-    assert "claude-haiku-4-5-20251001" in out
-    assert f"spine open run-a-gate --parent issue17 --step {g2['id']}" in out
+    _role2, tier2, open_cmd2, _finish_form2 = cli._dispatch_descriptor("issue17", asm2, g2)
+    assert cli._runner(tier2) == "claude-haiku-4-5-20251001"
+    assert open_cmd2 == f"spine open run-a-gate --parent issue17 --step {g2['id']}"
 
 
 # -- 4/5. child close returns to the parent, completes the dispatch step, --

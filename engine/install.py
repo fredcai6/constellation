@@ -30,12 +30,13 @@ _IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc")
 
 
 def _plan(dest):
-    """(source, dest, label), one entry per copied thing -- the fixed four
+    """(source, dest, label), one entry per copied thing -- the fixed five
     plus one entry per skill bundle, so a report can name each bundle."""
     plan = [(ROOT / "assemblies", dest / "assemblies", "assemblies"),
             (ROOT / "standards", dest / "standards", "standards"),
             (ROOT / "engine", dest / "engine", "engine"),
-            (ROOT / "spine", dest / "spine", "spine")]
+            (ROOT / "spine", dest / "spine", "spine"),
+            (ROOT / "constellation.toml", dest / "constellation.toml", "constellation.toml")]
     for bundle in sorted((ROOT / "skills").iterdir()):
         if bundle.is_dir():
             plan.append((bundle, dest / "skills" / bundle.name, f"skills/{bundle.name}"))

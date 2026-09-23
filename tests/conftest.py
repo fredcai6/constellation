@@ -19,10 +19,11 @@ real one under test. A plain requested fixture leaves that assertion
 meaning what it says.
 """
 
+import json
 import os
 import pathlib
 import re
-import shutil
+import sys
 import tempfile
 import tomllib
 
@@ -33,24 +34,29 @@ from gitremote import init_checkout
 REPO = pathlib.Path(__file__).resolve().parent.parent
 
 
-# [workdir-drops-dispatch]
+# [workdir-substitutes-dispatch]
 # Rationale: `workdir` copies this repo's own `constellation.toml`
-#   verbatim, and that file's `[commands]` now carries a real `dispatch`
-#   entry (a real `claude` invocation) -- so every existing fast-suite test
-#   that renders a dispatch or panel room through this fixture would spawn
-#   a real subprocess in the background the instant that entry became real,
-#   with the failure invisible (`_spawn`'s `Popen` is fire-and-forget, its
-#   errors caught and logged, never raised into the render). Dropping the
-#   key here is airtight rather than merely tidy: `engine/checks.py`'s own
-#   `spawn_dispatch` refuses to spawn anything when `"dispatch" not in
-#   commands`, so a workdir-based render has nothing left to call even if
-#   some later change to the engine forgot to guard the call site. The
-#   removal itself establishes key absence directly: a best-effort text
-#   strip is checked by its own postcondition, `_dispatch_is_absent`,
-#   which parses the result as TOML and looks for the key -- never at the
-#   text -- so no formatting of the entry (one line, several, reordered)
-#   can produce a false pass. A survival is not silent: the postcondition
-#   raises, naming the entry, before the fixture hands the copy to a test.
+#   verbatim, and that file's `[commands]` carries a real `dispatch` entry
+#   (a real `claude` invocation) -- so every fast-suite test that renders
+#   or drives a dispatch or panel room through this fixture must never
+#   reach that real entry. `o-fast-suite-safety-by-substitution` retires
+#   "no dispatch entry at all" as a state worth modelling for that: every
+#   way a start can fail now raises and is caught the same way
+#   (`o-absent-dispatch-raises`), so an absent entry is no longer a second
+#   world to render differently, only one more logged failure -- and a
+#   present, harmless entry serves the safety purpose at least as well as
+#   an absent one, which is the substitution `test_wait.py`'s own
+#   `_throwaway_dispatch` already uses. This entry is a real,
+#   near-instant `sys.executable` invocation -- never `claude` -- so a
+#   test that drives `wait` or `drive` through it spawns a real, harmless
+#   process rather than nothing at all; `test_dispatch_wiring.py`'s own
+#   `test_the_fast_suites_workdir_never_touches_a_real_process` is the
+#   proof that this never reaches `claude`, not that no process starts.
+#   The substitution is airtight the same way the removal it replaces was:
+#   `_dispatch_is_harmless` parses the result as TOML and confirms the
+#   `[commands]` entry equals this constant -- never at the text -- so no
+#   formatting of the entry (one line, several, reordered) can produce a
+#   false pass.
 # Rejected: an autouse fixture monkeypatching `checks.spawn_dispatch`.
 #   That guard would live beside the fixture rather than in it, covering
 #   every test in the session (including `test_spawn_dispatch.py`'s own
@@ -58,29 +64,32 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 #   a second thing to keep in sync with the first. Editing the one file
 #   `workdir` already writes needs nothing else to know about the guard.
 _DISPATCH_ENTRY_RE = re.compile(r"(?ms)^dispatch[ \t]*=[ \t]*(?:\[.*?\]|[^\n]*)\n?")
+_HARMLESS_DISPATCH_ENTRY = [sys.executable, "-c", "pass", "{brief}"]
 
 
-def _dispatch_is_absent(text):
-    """The removal's own postcondition: parse `text` as TOML and confirm
-    `[commands]` carries no `dispatch` key. Judged against the parsed
-    palette, never the text, so no line-wrapping or reordering of the
-    entry can fool it either way. Raises loudly, naming the surviving
-    entry, rather than letting a kept `dispatch` command travel into the
-    fast suite quietly -- the spawn side cannot tell the two cases apart
-    (see rationale above), so this is the only thing in the system that
-    can."""
+def _dispatch_is_harmless(text):
+    """The substitution's own postcondition: parse `text` as TOML and
+    confirm `[commands] dispatch` is exactly the harmless stand-in, never
+    the real entry it replaced. Judged against the parsed palette, never
+    the text, so no line-wrapping or reordering of the entry can fool it
+    either way. Raises loudly, naming what actually landed, rather than
+    letting a real `dispatch` command travel into the fast suite quietly
+    -- the spawn side cannot tell the two cases apart (see rationale
+    above), so this is the only thing in the system that can."""
     palette = tomllib.loads(text)
-    if "dispatch" in palette.get("commands", {}):
+    entry = palette.get("commands", {}).get("dispatch")
+    if entry != _HARMLESS_DISPATCH_ENTRY:
         raise AssertionError(
-            "workdir-drops-dispatch: constellation.toml's copy still "
-            "carries a `dispatch` command -- the removal meant to strip "
-            "it did not, and the fast suite would spawn a real process.")
+            "workdir-substitutes-dispatch: constellation.toml's copy does "
+            f"not carry the harmless stand-in -- got {entry!r}, and the "
+            "fast suite would spawn whatever that actually names.")
 
 
-def _without_dispatch_entry(text):
-    stripped = _DISPATCH_ENTRY_RE.sub("", text, count=1)
-    _dispatch_is_absent(stripped)
-    return stripped
+def _with_a_harmless_dispatch_entry(text):
+    substituted = _DISPATCH_ENTRY_RE.sub(
+        "dispatch = " + json.dumps(_HARMLESS_DISPATCH_ENTRY) + "\n", text, count=1)
+    _dispatch_is_harmless(substituted)
+    return substituted
 
 
 @pytest.fixture
@@ -89,9 +98,9 @@ def workdir(tmp_path, monkeypatch):
     monkeypatch.setenv("CONSTELLATION_SESSION", "test-session")
     # the command palette (models, check commands) is host-repo config;
     # tests run in an isolated tmp cwd, so it travels with them -- its real
-    # `dispatch` entry is dropped, see `_without_dispatch_entry` above.
+    # `dispatch` entry is replaced, see `_with_a_harmless_dispatch_entry` above.
     (tmp_path / "constellation.toml").write_text(
-        _without_dispatch_entry((REPO / "constellation.toml").read_text()))
+        _with_a_harmless_dispatch_entry((REPO / "constellation.toml").read_text()))
     init_checkout(tmp_path)
     return tmp_path
 

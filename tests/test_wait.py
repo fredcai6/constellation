@@ -343,7 +343,10 @@ def test_a_childless_form_step_renders_immediately(bare_workdir, capsys):
 
 def test_a_palette_with_no_dispatch_entry_renders_immediately(bare_workdir, capsys):
     """`bare_workdir` seeds no `constellation.toml` at all -- the room
-    still renders, and nothing is ever outstanding for `wait` to see."""
+    still renders, and nothing is ever outstanding for `wait` to see.
+    `o-absent-dispatch-raises` means the attempt is not a silent no-op any
+    more: it is caught the same way a malformed entry's failure already is,
+    and the reason lands in this child's own log."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
 
     began = time.monotonic()
@@ -356,8 +359,11 @@ def test_a_palette_with_no_dispatch_entry_renders_immediately(bare_workdir, caps
     # an unconfigured repository never mints through this path at all --
     # `_dispatch_entries` above only reads the parent's own
     # `dispatch-started` records, never whether the child's own run got
-    # minted, so this checks the other half directly.
+    # minted, so this checks the other half directly (`o-mint-follows-start`).
     assert not journal.exists("d1.g1")
+    log = journal.location("d1") / "dispatch.g1.log"
+    assert log.is_file()
+    assert checkrun.DISPATCH_ABSENT in log.read_text(encoding="utf-8")
 
 
 # -- commitment 5: an excursion never reaches wait's predicate ---------------
@@ -576,6 +582,7 @@ def test_a_failed_spawn_is_reported_not_crashed_and_its_reason_is_logged(
     assert elapsed < 1
     assert "d1.g1" in out
     assert _dispatch_entries("d1") == []        # no running process, no journal entry
+    assert not journal.exists("d1.g1")          # `o-mint-follows-start`: no mint for a failed start
     log = journal.location("d1") / "dispatch.g1.log"
     assert log.is_file()
     assert checkrun.DISPATCH_MALFORMED in log.read_text(encoding="utf-8")
@@ -588,22 +595,74 @@ def test_a_failed_spawn_is_reported_not_crashed_and_its_reason_is_logged(
     assert log.read_text(encoding="utf-8").count(checkrun.DISPATCH_MALFORMED) == 2
 
 
-def test_not_dispatched_from_absence_and_from_a_failed_attempt_differ_only_by_log(
+def test_an_unfilled_placeholder_leaves_no_mint_behind(bare_workdir, capsys):
+    """`o-mint-follows-start`'s third cause: a recognized placeholder the
+    caller supplied no value for. Through the ordinary `wait` path `tree`
+    is always a real path (`_tree_info` never gives it `None`), so this
+    drives `_spawn_outstanding` directly -- the one caller this obligation's
+    own end state actually covers -- with `tree=None` against an entry that
+    names `{tree}`, to prove the same catch/log/no-mint discipline holds for
+    this cause too."""
+    entry = [sys.executable, "-c", "pass", "{tree}"]
+    (bare_workdir / "constellation.toml").write_text(
+        "[commands]\ndispatch = " + json.dumps(entry) + "\n")
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    result = cli._spawn_outstanding(
+        "d1", "d1.g1", "brief text", "standard", None,
+        cli._dispatch_records("d1"), cli._dispatch_start_counts("d1"), False,
+        "run-a-gate", "g1")
+    capsys.readouterr()
+
+    assert result is None
+    assert _dispatch_entries("d1") == []
+    assert not journal.exists("d1.g1")
+    log = journal.location("d1") / "dispatch.g1.log"
+    assert log.is_file()
+    assert checkrun.DISPATCH_UNFILLED in log.read_text(encoding="utf-8")
+
+
+def test_a_process_that_fails_to_start_leaves_no_mint_behind(bare_workdir, capsys):
+    """`o-mint-follows-start`'s fourth cause: the entry is well-formed and
+    every placeholder is filled, but the executable itself does not exist --
+    the one cause that requires an actual attempt to detect, so this is the
+    one case that proves the mint really does wait for the launch to
+    succeed, not merely for the palette to look right."""
+    (bare_workdir / "constellation.toml").write_text(
+        '[commands]\ndispatch = '
+        '["/no/such/executable-constellation-issue119", "{brief}"]\n')
+    _mint_dispatch_step(wid="d1", child="d1.g1")
+
+    code = cli.main(["d1", "wait"])
+    capsys.readouterr()
+
+    assert code == 0
+    assert _dispatch_entries("d1") == []
+    assert not journal.exists("d1.g1")
+    log = journal.location("d1") / "dispatch.g1.log"
+    assert log.is_file()
+    assert checkrun.DISPATCH_SPAWN_FAILED in log.read_text(encoding="utf-8")
+
+
+def test_not_dispatched_from_absence_and_from_a_failed_attempt_both_log_their_reason(
         bare_workdir, capsys):
-    """Commitment 13: a spawn attempt that failed renders the same word a
-    wholly absent entry gets -- "not dispatched" both times -- distinguished
-    only by whether that child's own log holds a reason. `d1` here sees no
-    `constellation.toml` at all (a wholly absent entry, no log possible);
-    `d2` sees a malformed `[commands]` `dispatch` (today's single-string
-    shape, not a list) -- a real entry whose attempt fails and is logged.
-    Both are driven through `wait`, since after this gate that is the only
-    caller that attempts a spawn at all."""
+    """`o-absent-dispatch-raises` collapses the distinction this used to
+    draw: a spawn attempt against a wholly absent `dispatch` entry renders
+    the same word a malformed one does -- "not dispatched" both times -- and
+    now logs its own reason exactly as a malformed entry's attempt already
+    did, rather than leaving no trace at all. `d1` here sees no
+    `constellation.toml` at all (the absent case); `d2` sees a malformed
+    `[commands]` `dispatch` (today's single-string shape, not a list).
+    Both are driven through `wait`, since that is the only caller that
+    attempts a spawn at all."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
     cli.main(["d1", "wait"])
     out_absent = capsys.readouterr().out
 
     assert "d1.g1 (not dispatched)" in out_absent
-    assert not (journal.location("d1") / "dispatch.g1.log").exists()
+    absent_log = journal.location("d1") / "dispatch.g1.log"
+    assert absent_log.is_file()
+    assert checkrun.DISPATCH_ABSENT in absent_log.read_text(encoding="utf-8")
 
     (bare_workdir / "constellation.toml").write_text(
         '[commands]\ndispatch = "claude -p {brief}"\n')

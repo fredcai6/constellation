@@ -229,9 +229,17 @@ def test_plan_to_execute_dispatches_its_critic_before_any_gate_is_minted(workdir
     assert st["current"]["id"] == "plan"          # the transition, not past it
     assert not any(s["id"] == "g1" for s in st["steps"])  # nothing minted yet
 
+    # the room itself never prints this open command any more
+    # (`o-single-dispatch-room`); `_panel_descriptors` is what still
+    # resolves it, for whatever process `wait` goes on to start.
+    asm = runmod.load_assembly(st["assembly"])
+    descriptors = cli._panel_descriptors(wid, asm, st["current"])
+    _child_id, _role, _tier, open_cmd, _finish_form = descriptors[0]
+    assert open_cmd == f"spine open give-a-verdict --parent {wid} --step plan.p1"
+
     cli.main([wid])
     out = capsys.readouterr().out
-    assert f"spine open give-a-verdict --parent {wid} --step plan.p1" in out
+    assert "open it:" not in out
     assert "intent-fit" in out                     # the critic's own criteria
     assert "not dispatched" in out
     assert "PLAN_TO_EXECUTE" not in out             # the form is not offered yet
@@ -239,7 +247,7 @@ def test_plan_to_execute_dispatches_its_critic_before_any_gate_is_minted(workdir
     # the form cannot be filled around the critic either
     with pytest.raises(SystemExit) as e:
         cli.main([wid, "submit"])
-    assert "outstanding" in str(e.value)
+    assert f"{wid} wait" in str(e.value)
 
     _dispatch_panel(wid, "plan", verdict="pass")
     capsys.readouterr()
@@ -422,27 +430,33 @@ def test_submit_refuses_while_a_verdict_is_outstanding(workdir, capsys):
     with pytest.raises(SystemExit) as e:
         cli.main(["i2", "submit"])
     msg = str(e.value)
-    assert "outstanding" in msg
+    assert "i2 wait" in msg                            # both panelists are startable
     assert "waived:" not in msg                        # not the generic fill-or-waive escape
 
-    # the escape names is a real command -- type it and confirm it works
-    cli.main(["i2"])
-    out = capsys.readouterr().out
-    assert "spine open give-a-verdict --parent i2 --step plan.p1" in out
-    assert "spine open give-a-verdict --parent i2 --step plan.p2" in out
+    # `spine open ...` is still a real command for each panelist
+    # (`o-open-parent-step-stays`), just never printed in the room any more
+    # (`o-single-dispatch-room`) -- `_dispatch_critic` below runs it exactly
+    # the way the deleted room lines used to name it.
+    st2 = runmod.state("i2")
+    asm2 = runmod.load_assembly(st2["assembly"])
+    descriptors2 = cli._panel_descriptors("i2", asm2, st2["current"])
+    assert [d[3] for d in descriptors2] == [
+        "spine open give-a-verdict --parent i2 --step plan.p1",
+        "spine open give-a-verdict --parent i2 --step plan.p2",
+    ]
 
     _dispatch_critic("i2", "plan", verdict="pass", n=1)
-    # still outstanding -- p2 has not returned
+    # still outstanding -- p2 has not returned, and is still startable
     with pytest.raises(SystemExit) as e:
         cli.main(["i2", "submit"])
-    assert "outstanding" in str(e.value)
+    assert "i2 wait" in str(e.value)
 
     _dispatch_critic("i2", "plan", verdict="pass", n=2)
     capsys.readouterr()
     # now the form is reachable, so submit demands its fields instead
     with pytest.raises(SystemExit) as e:
         cli.main(["i2", "submit"])
-    assert "outstanding" not in str(e.value)            # past the panel now
+    assert "i2 wait" not in str(e.value)                # past the panel now
 
 
 # -- 5. a root objection is a revise finding; the room names a non-pass verdict

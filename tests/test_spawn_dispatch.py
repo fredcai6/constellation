@@ -161,16 +161,23 @@ def test_a_zombie_reads_as_not_alive(bare_workdir):
     finally:
         proc.wait()
 
-# -- the three failure inputs ---------------------------------------------------
+# -- the four failure inputs ---------------------------------------------------
 
 
-def test_no_dispatch_key_is_not_dispatched_and_not_a_failure(bare_workdir):
-    """Commitment 3's world: nothing to spawn, no failure -- a plain `None`,
-    no exception, and no journal entry."""
+def test_no_dispatch_key_fails_distinguishably_from_the_other_three(bare_workdir):
+    """`o-absent-dispatch-raises`: an absent `dispatch` key is one of four
+    ways this attempt can fail to produce a running, journaled process, no
+    longer a silent `None` -- it raises with its own reason and journals
+    nothing, the same discipline the other three failure inputs already
+    hold."""
     wid = "g1"
-    result = checks.spawn_dispatch({}, "brief", "runner", "/tmp", wid, "c1",
-                                    _log(wid, "absent"))
-    assert result is None
+    with pytest.raises(checks.DispatchFailure) as exc:
+        checks.spawn_dispatch({}, "brief", "runner", "/tmp", wid, "c1",
+                               _log(wid, "absent"))
+
+    assert exc.value.reason == checks.DISPATCH_ABSENT
+    assert exc.value.reason not in (
+        checks.DISPATCH_MALFORMED, checks.DISPATCH_UNFILLED, checks.DISPATCH_SPAWN_FAILED)
     assert journal.read(wid) == []
 
 
@@ -255,13 +262,12 @@ def test_a_process_that_fails_to_start_fails_distinguishably_too(bare_workdir):
     assert journal.read(wid) == []
 
 
-def test_the_three_failure_reasons_and_the_absent_case_are_all_distinguishable(
-        bare_workdir):
-    """The reasons a caller branches on, gathered in one place: three
-    distinct sentinels for the three failure inputs, and the absent-key case
-    is a different shape entirely (`None`, never raised), so none of the
+def test_the_four_failure_reasons_are_all_distinguishable(bare_workdir):
+    """The reasons a caller branches on, gathered in one place: four
+    distinct sentinels for the four failure inputs -- absence now raises
+    alongside the other three (`o-absent-dispatch-raises`) -- so none of the
     four can be mistaken for another by the time they leave the primitive."""
-    reasons = {checks.DISPATCH_MALFORMED, checks.DISPATCH_UNFILLED,
-               checks.DISPATCH_SPAWN_FAILED}
-    assert len(reasons) == 3
+    reasons = {checks.DISPATCH_ABSENT, checks.DISPATCH_MALFORMED,
+               checks.DISPATCH_UNFILLED, checks.DISPATCH_SPAWN_FAILED}
+    assert len(reasons) == 4
     assert all(isinstance(r, str) and r for r in reasons)

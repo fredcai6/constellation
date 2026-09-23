@@ -251,12 +251,10 @@ is joint. Coining a synonym for a term below is a defect.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.
 - **dispatch** — a step (a gate dispatch, or one panel entry) naming a child run for the engine
-  to start itself, through the repository's own `dispatch` command-palette entry when one is
-  configured — handing that harness the same brief its own room renders. A repository with no
-  such entry leaves starting the child to the reader, who copies that same brief into whatever
-  harness they run by hand. Names the step, not the child run it opens nor the CLI verb that
-  opens it. The `not dispatched -> working` transition happens only through `wait` now
-  (gate 2) — rendering the step starts nothing.
+  to start itself, through the repository's own `dispatch` command-palette entry — handing that
+  harness the same brief its own room renders. Names the step, not the child run it opens nor
+  the CLI verb that opens it. The `not dispatched -> working` transition happens only through
+  `wait` now (gate 2) — rendering the step starts nothing.
 - **liveness** — whether a dispatched child's own process is still there: `checks.alive` read
   against the pid its own `dispatch-started` record carries (a pid this reader may not signal
   reads as alive, the same rule a check's own in-flight proof already reads by). Read per child,

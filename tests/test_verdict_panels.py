@@ -105,12 +105,21 @@ def test_status_renders_one_dispatch_command_per_panelist_with_progress(workdir,
     review = _review_step("g1")
     capsys.readouterr()
 
+    # the room itself never prints a panelist's open command any more
+    # (`o-single-dispatch-room`) -- `_panel_descriptors` is what still
+    # resolves it, for whatever process `wait` goes on to start.
+    st = runmod.state("g1")
+    asm = runmod.load_assembly(st["assembly"])
+    _child_id, _role, tier, open_cmd, _finish_form = cli._panel_descriptors(
+        "g1", asm, st["current"])[0]
+    assert open_cmd == f"spine open give-a-verdict --parent g1 --step {review}.p1"
+    assert cli._runner(tier) == "claude-sonnet-5"   # tier resolved, same as a dispatch
+
     cli.main(["g1"])
     out = capsys.readouterr().out
-    assert f"spine open give-a-verdict --parent g1 --step {review}.p1" in out
     assert DEFAULT_LENS in out                     # the lens select just named
-    assert "claude-sonnet-5" in out                 # tier resolved, same as a dispatch
     assert "not dispatched" in out
+    assert "open it:" not in out
 
     panelist = _open_panelist("g1", review)
     _fill_review(panelist, "pass")
@@ -134,7 +143,15 @@ def test_a_multi_panelist_step_shows_each_returned_or_outstanding(workdir, capsy
     out = capsys.readouterr().out
     assert "panelist p1 (returned)" in out
     assert "panelist p2 (not dispatched)" in out
-    assert "claude-haiku-4-5-20251001" in out  # p2's own model override resolves
+    assert "open it:" not in out
+
+    # p2's own model override still resolves for whatever process `wait`
+    # goes on to start, even though the room no longer prints it
+    st = runmod.state("g2")
+    asm = runmod.load_assembly(st["assembly"])
+    _child_id, _role, tier2, _open_cmd, _finish_form = cli._panel_descriptors(
+        "g2", asm, st["current"])[1]
+    assert cli._runner(tier2) == "claude-haiku-4-5-20251001"
 
 
 # -- opening a panelist prefills the artifact and criteria, ids differ ------
@@ -374,7 +391,7 @@ def test_a_gate_cannot_reach_close_without_review_having_fired(workdir, capsys):
         cli.main(["g1", "close"])
     msg = str(e.value)
     assert review in msg
-    assert "panelists complete it" in msg      # the escape that fits this kind
+    assert "g1 wait" in msg                    # the escape that fits: the panelist is startable
     # review is a two-voices step -- panel plus its own route form -- so
     # the one that always exists is `amend waive`, not `amend close`:
     # dropping the step would drop that form along with the panel.
@@ -384,7 +401,7 @@ def test_a_gate_cannot_reach_close_without_review_having_fired(workdir, capsys):
 
     with pytest.raises(SystemExit) as e:
         cli.main(["g1", "submit"])  # a panel step is never itself submitted
-    assert "outstanding" in str(e.value)
+    assert "g1 wait" in str(e.value)
     assert "waived:" not in str(e.value)
 
 
@@ -397,7 +414,7 @@ def test_the_panel_step_refusal_offers_an_escape_that_fits(workdir, capsys):
     with pytest.raises(SystemExit) as e:
         cli.main(["gt", "submit"])
     msg = str(e.value)
-    assert "outstanding" in msg
+    assert "gt wait" in msg                    # the panelist is startable
     assert "waived:" not in msg
 
 
@@ -410,7 +427,7 @@ def test_every_close_refusal_escape_is_a_command_that_runs(workdir, capsys):
 
     with pytest.raises(SystemExit) as e:      # pending panel step
         cli.main(["g1", "close"])
-    assert "panelists complete it" in str(e.value)
+    assert "g1 wait" in str(e.value)           # the panelist is startable
 
     _pass_the_panel("g1")                      # now the pending step is a form
     capsys.readouterr()
