@@ -19,13 +19,15 @@ def test_dry_run_writes_nothing(tmp_path):
     assert not dest.exists()
 
 
-def test_copies_skills_assemblies_standards_engine_and_spine(tmp_path):
+def test_copies_skills_assemblies_standards_engine_tools_and_spine(tmp_path):
     dest = tmp_path / "dest"
     install.install(dest)
 
     assert (dest / "assemblies" / "run-an-issue" / "ASSEMBLY.toml").exists()
     assert (dest / "standards" / "glossary.md").exists()
     assert (dest / "engine" / "run.py").exists()
+    # the palette's `map` command runs `python3 -m tools.code_map`
+    assert (dest / "tools" / "code_map" / "__main__.py").exists()
     assert (dest / "spine").exists()
     assert (dest / "skills" / "implementer" / "forms" / "IMPLEMENT.toml").exists()
     assert (dest / "skills" / "interrogator" / "forms" / "UNDERSTAND.toml").exists()
@@ -201,12 +203,10 @@ _TOOLS_IMPORT = re.compile(r'^\s*(?:import\s+tools\b|from\s+tools\b)', re.MULTIL
 
 
 def test_engine_imports_nothing_from_tools():
-    """`_plan` above ships exactly five things plus skill bundles:
-    assemblies, standards, engine, spine, constellation.toml, skills/<bundle>
-    -- `tools/` is not among them. An `engine/*.py` module that imports it
-    works only in this source tree, where `tools/` happens to sit beside
-    `engine/`; the same import in any installed copy raises `ModuleNotFoundError` the first
-    time a run's own path reaches the call, and only then. Static, not an
+    """`tools/` is decoupled tooling -- no verb, no step, no form field, no
+    import from `engine/` (docs/AGENT_GUIDE.md). Install ships it beside
+    `engine/` only so the palette's `map` command runs in a fresh tree;
+    that is not licence for the engine to reach into it. Static, not an
     import check, on purpose: a bad import three functions deep is dead
     until the runtime shape that calls it exists, and this catches it
     before that -- issue166's own `_land_reserved_rungs` first shipped

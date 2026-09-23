@@ -2,7 +2,7 @@
 skill bundle into the host's flat skill directory. Nothing more.
 
 The repo is born bundle-shaped -- skills/, assemblies/, standards/, engine/,
-and spine are already exactly the shape an install needs, so installing is
+tools/ and spine are already exactly the shape an install needs, so installing is
 copying directories, verbatim, preserving every internal repo-relative path
 (a form's `skills/...` reference, `assemblies/<name>` lookups in run.py).
 Wanting to rewrite a path inside a copied file is a sign repo shape and
@@ -38,11 +38,12 @@ READER_OWNED = frozenset({"constellation.toml"})
 
 
 def _plan(dest):
-    """(source, dest, label), one entry per copied thing -- the fixed five
+    """(source, dest, label), one entry per copied thing -- the fixed entries
     plus one entry per skill bundle, so a report can name each bundle."""
     plan = [(ROOT / "assemblies", dest / "assemblies", "assemblies"),
             (ROOT / "standards", dest / "standards", "standards"),
             (ROOT / "engine", dest / "engine", "engine"),
+            (ROOT / "tools", dest / "tools", "tools"),
             (ROOT / "spine", dest / "spine", "spine"),
             (ROOT / "constellation.toml", dest / "constellation.toml", "constellation.toml")]
     for bundle in sorted((ROOT / "skills").iterdir()):
