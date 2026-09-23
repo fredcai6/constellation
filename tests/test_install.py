@@ -92,13 +92,53 @@ def test_spine_stays_executable(tmp_path):
 
 def test_running_twice_is_idempotent(tmp_path):
     dest = tmp_path / "dest"
-    first = install.install(dest)
+    first, first_links = install.install(dest)
     snapshot = sorted(p.relative_to(dest) for p in dest.rglob("*"))
 
-    second = install.install(dest)
+    second, second_links = install.install(dest)
 
-    assert first == second
+    # Every engine-owned bundle is replaced again, exactly as before; the one
+    # reader-owned entry reports that it stood down rather than that it copied.
+    assert [e for e in first if e[0] != "constellation.toml"] == \
+           [e for e in second if e[0] != "constellation.toml"]
+    assert first_links == second_links
+    assert ("constellation.toml", "copied") in first
+    assert ("constellation.toml", "skipped: one is already there") in second
     assert sorted(p.relative_to(dest) for p in dest.rglob("*")) == snapshot
+
+
+def test_a_second_install_never_overwrites_an_edited_palette(tmp_path):
+    """The palette is the one thing in the plan that belongs to the reader --
+    their own `dispatch` entry, their own tiers. A reinstall replaces every
+    engine-owned bundle and leaves this one alone, saying so, for the same
+    reason `_place_link` refuses to remove a real directory: an upgrade that
+    silently swapped the harness out from under a working tree would be found
+    the next time a child failed to start, not the next time anyone read a
+    report."""
+    dest = tmp_path / "dest"
+    install.install(dest)
+    palette = dest / "constellation.toml"
+    edited = palette.read_text(encoding="utf-8").replace(
+        'light = "claude-haiku-4-5-20251001"', 'light = "some-other-shops-model"')
+    palette.write_text(edited, encoding="utf-8")
+
+    copied, _ = install.install(dest)
+
+    assert palette.read_text(encoding="utf-8") == edited
+    assert ("constellation.toml", "skipped: one is already there") in copied
+
+
+def test_the_report_says_the_palette_was_kept_rather_than_copied(tmp_path, capsys):
+    dest = tmp_path / "dest"
+    install.main(["--dest", str(dest), "--skills-dir", str(tmp_path / "skills")])
+    capsys.readouterr()
+
+    install.main(["--dest", str(dest), "--skills-dir", str(tmp_path / "skills")])
+    out = capsys.readouterr().out
+
+    assert "skipped: one is already there" in out
+    assert f"kept {dest / 'constellation.toml'} as it stands" in out
+    assert f"copied engine -> {dest / 'engine'}" in out   # the rest still copies
 
 
 def test_pycache_is_not_copied(tmp_path):

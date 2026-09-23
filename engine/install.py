@@ -27,6 +27,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 DEFAULT_DEST = pathlib.Path.home() / ".claude" / "constellation"
 DEFAULT_SKILLS_DIR = pathlib.Path.home() / ".claude" / "skills"
 _IGNORE = shutil.ignore_patterns("__pycache__", "*.pyc")
+# The one thing in the plan below that belongs to the reader rather than the
+# engine: the palette is shipped so a fresh tree is configured on day one, and
+# is then theirs to edit -- a `dispatch` entry for their own harness, their own
+# model tiers. Every other entry is an engine-owned bundle whose whole purpose
+# in a reinstall is to be replaced. So this one is placed, never overwritten,
+# for the same reason `_place_link` refuses to remove a real directory: what a
+# person put there is not this installer's to take away.
+READER_OWNED = frozenset({"constellation.toml"})
 
 
 def _plan(dest):
@@ -74,16 +82,22 @@ def _place_link(target, link):
 def install(dest, skills_dir=None, dry_run=False):
     """Copy the plan to dest, then place a symlink for each skill bundle in
     skills_dir. skills_dir=None skips linking entirely. A dry run writes
-    nothing and reports every copy and link it would make."""
+    nothing and reports every copy and link it would make. Returns
+    `(copied, linked)` -- copied is `(label, status)` per plan entry, where
+    status is "copied" or "skipped: one is already there" for a
+    `READER_OWNED` entry a previous install already placed."""
     copied = []
     for src, dst, label in _plan(dest):
+        if label in READER_OWNED and dst.exists():
+            copied.append((label, "skipped: one is already there"))
+            continue
         if not dry_run:
             if src.is_dir():
                 shutil.copytree(src, dst, dirs_exist_ok=True, ignore=_IGNORE)
             else:
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(src, dst)
-        copied.append(label)
+        copied.append((label, "copied"))
 
     linked = []
     if skills_dir is not None:
@@ -105,8 +119,11 @@ def main(argv=None):
     copied, linked = install(dest, skills_dir=skills_dir, dry_run=args.dry_run)
 
     verb = "would copy" if args.dry_run else "copied"
-    for label in copied:
-        print(f"{verb} {label} -> {dest / label}")
+    for label, status in copied:
+        if status.startswith("skipped:"):
+            print(f"{status} -- kept {dest / label} as it stands")
+        else:
+            print(f"{verb} {label} -> {dest / label}")
     for label, link, status in linked:
         if status.startswith("skipped:"):
             print(f"{status} -- {label} -> {link}")
