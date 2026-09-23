@@ -94,8 +94,7 @@ def _materialized(st, step, form, wid, root=None):
 def test_brief_matches_dispatch_lines_construction_with_tree():
     role, tier, runner = "gate-conductor", "standard", "claude-sonnet-5"
     worktree, branch = "/tmp/some-tree", "issue100"
-    open_cmd = "spine open run-a-gate --parent d1 --step g1"
-    text = render.brief("d1.g1", role, tier, runner, open_cmd,
+    text = render.brief("d1.g1", role, tier, runner,
                          "GATE_CLOSE.toml", worktree=worktree, branch=branch)
 
     expected = render._dispatch_lines(role, tier, runner, worktree, branch,
@@ -103,15 +102,14 @@ def test_brief_matches_dispatch_lines_construction_with_tree():
     lines = text.splitlines()
     assert lines[0] == "  brief -- d1.g1"
     assert lines[1:1 + len(expected)] == expected
-    assert lines[1 + len(expected)] == f"    open it:     {render.located(open_cmd)}"
+    assert not any("open it:" in l for l in lines)
     assert lines[-1] == (f"    finishing:   fill GATE_CLOSE.toml, then: "
                          f"{render.located('spine d1.g1 close')}")
 
 
 def test_brief_matches_dispatch_lines_construction_without_tree():
     role, tier, runner = "reviewer", "standard", "claude-sonnet-5"
-    open_cmd = "spine open give-a-verdict --parent g9 --step review.p1"
-    text = render.brief("g9.review.p1", role, tier, runner, open_cmd, "REVIEW.toml")
+    text = render.brief("g9.review.p1", role, tier, runner, "REVIEW.toml")
 
     expected = render._dispatch_lines(role, tier, runner, "", "",
                                       written_at=render.posture(role))
@@ -151,9 +149,8 @@ def test_status_standalone_dispatch_lines_match_brief_given_same_values(workdir)
     tier, runner, worktree, branch = "standard", "claude-sonnet-5", "/tmp/tree", "issue100"
     status_out = render.status(st, form, dest, tier=tier, runner=runner,
                                 worktree=worktree, branch=branch, **kwargs)
-    brief_out = render.brief("v1.g1", kwargs["role"], tier, runner,
-                              "spine open x --parent v1 --step g1", "", worktree=worktree,
-                              branch=branch)
+    brief_out = render.brief("v1.g1", kwargs["role"], tier, runner, "",
+                              worktree=worktree, branch=branch)
 
     assert _dispatch_block(status_out) == _dispatch_block(brief_out)
     assert "role         implementer" in status_out
