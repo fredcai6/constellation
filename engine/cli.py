@@ -253,8 +253,19 @@ def _resolve_command(text, root=None):
 
     `root` is the run's own tree, not cwd -- a check both resolves and later
     runs there, so which command a `palette:` proof expands to stops
-    depending on the shell the agent happens to be standing in."""
-    return " && ".join(_resolve_one(part.strip(), root) for part in text.split("&&"))
+    depending on the shell the agent happens to be standing in.
+
+    A shell line continuation (backslash, newline) is folded to one space
+    before the split, which is what the shell itself does with it. Left in,
+    `.strip()` on each `&&` piece removed the newline but kept the backslash,
+    and the rejoin produced backslash-space: an escaped literal space glued
+    onto the previous word, so a proof that exits 0 typed into a shell exited
+    2 when the engine ran it (sports-market-manager issue156, 2026-09-23)."""
+    folded = _CONTINUATION.sub(" ", text)
+    return " && ".join(_resolve_one(part.strip(), root) for part in folded.split("&&"))
+
+
+_CONTINUATION = re.compile(r"[ \t]*\\[ \t]*\r?\n[ \t]*")
 
 
 def _resolve_one(text, root=None):
