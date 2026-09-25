@@ -202,7 +202,22 @@ def _is_short(field: dict) -> bool:
     return field["kind"] == "decision" and len(field["note"]) < 120
 
 
-def _slot(field_id: str, short: bool) -> str:
+# [command-slot-is-literal]
+# Rationale: #182 -- a planner wrote an awk clause, `RS="\n## "`, into a
+#   `"""` slot, and TOML read the two characters as a newline: the value was
+#   exactly what TOML meant and not what the planner typed, and the gate's
+#   own check died on it after the work was built. A command is text for a
+#   shell, and a basic string puts a second escape language in front of it.
+#   A literal string has none, so a command slot is minted as one and what is
+#   typed into it is what runs.
+# Rejected: a note asking planners to double their backslashes. It is one
+#   more thing to read on every cut, and the slot still decodes what it holds.
+COMMAND_KINDS = ("proof", "check")
+
+
+def _slot(field_id: str, short: bool, kind: str = "") -> str:
+    if kind in COMMAND_KINDS:
+        return f"{field_id} = '''\n'''"
     return f'{field_id} = ""' if short else f'{field_id} = """\n"""'
 
 
@@ -265,11 +280,11 @@ def materialize(form: dict, dest_path, work_id=None, submit=None, drafts=None) -
             lines.append(f'[[{field["id"]}]]')
             for item in field.get("item", []):
                 lines.append(_comment(item["note"], item["optional"]))
-                lines.append(_slot(item["id"], True))
+                lines.append(_slot(item["id"], True, item.get("kind", "")))
         else:
             if enforced_vocabulary(field):
                 lines.append(ESCAPES_REFUSED)
-            lines.append(_slot(field["id"], _is_short(field)))
+            lines.append(_slot(field["id"], _is_short(field), field["kind"]))
         lines.append("")
     dest_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
 
