@@ -104,6 +104,11 @@ def checks(entries):
 # Rejected: a fifth reading for "failed for the right reason". Whether exit
 #   1 was the test the planner meant or a typo in a path is the conductor's
 #   to read off the output, not a classification a shell exit can carry.
+# What bash says when it cannot parse a proof: `syntax error` for a stray
+# token, `unexpected EOF` for an unterminated quote.
+_UNPARSED = ("syntax error", "unexpected eof")
+
+
 def proof_readings(entries):
     """One block per proof the cut was trialled with: the command, then what
     its one run against the tree as it stands says about it."""
@@ -120,7 +125,7 @@ def proof_readings(entries):
             reading = f"passes (exit 0){against}"
         elif code == -1:
             reading = f"did not finish -- {output.strip() or 'no result'}; not awaited at the cut"
-        elif code in (126, 127) or "syntax error" in output.lower():
+        elif code in (126, 127) or any(w in output.lower() for w in _UNPARSED):
             reading = f"did not resolve (exit {code})" + (f" -- {first}" if first else "")
         elif changed == 0:
             reading = f"resolved, exit {code} -- a real check, failing before the work"
