@@ -51,6 +51,19 @@ def _seam_form(seg):
     return t.get("form") or seg.get("route-form", "")
 
 
+# [on-seam]
+# Rationale: #106 -- a panel-only transition has no form, and the two sides
+#   of this comparison spelled that absence differently: `_seam_form` says
+#   `""`, and `skeleton()` omits the key, so the step reads `None`. Strict
+#   equality then dropped every round at explore-an-idea's `spec` seam from
+#   the yield and from the round cap. One predicate reads both sides, and
+#   no form is one value on either.
+def _on_seam(step, seg):
+    """Whether `step` stands at this seam: in its segment, on its form."""
+    return (step.get("segment") == seg["id"]
+            and (step.get("form") or "") == _seam_form(seg))
+
+
 def seam_label(seg):
     """What a human calls this seam: the disposing form's own name where the
     transition declares one (`consolidate`, `plan-to-execute`) -- the form is
@@ -148,7 +161,7 @@ def _landed_round(st, seg, step):
     or was waived, which lands the round by the conductor's ruling -- or,
     where the round carries no panel (run-an-issue's plan seam after the
     opening cut, `panel-rounds = "opening"`), disposed of by its conductor."""
-    if step.get("segment") != seg["id"] or step.get("form") != _seam_form(seg):
+    if not _on_seam(step, seg):
         return False
     if step.get("panel"):
         return bool(st["returns"].get(step["id"]) or step.get("waived"))
@@ -209,7 +222,7 @@ def seam_round_steps_since_release(st, seg, assembly):
     opened starts the list over too."""
     since = []
     for step in st["steps"]:
-        if step.get("segment") != seg["id"] or step.get("form") != _seam_form(seg):
+        if not _on_seam(step, seg):
             continue
         # The round a paused seam's answer opened starts the count over: the
         # answer is the ruling the cap stopped to get (#177).

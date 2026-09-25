@@ -289,3 +289,16 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
     table = render.review_yield(entries)
     assert "r1  revise   1 finding   1 severe" in table
     assert f"r2  3 waived -- {reason}" in table
+
+
+def test_a_round_at_a_panel_only_seam_is_a_round():
+    """#106: explore-an-idea's `spec` seam fires a panel and fills no form.
+    Its steps carry no `form` key and the seam's form reads `""`, and the
+    two spellings of the same absence dropped every round there."""
+    asm = runmod.load_assembly("explore-an-idea")
+    seg = next(s for s in asm["segment"] if s["id"] == "spec")
+    step = next(s for s in runmod.skeleton(asm) if s["id"] == "spec")
+    assert "form" not in step
+    st = {"steps": [step], "returns": {"spec": [{"fields": {"verdict": "revise"}}]},
+          "done": {}}
+    assert review_yield.seam_round_steps(st, seg) == [step]
