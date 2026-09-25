@@ -182,6 +182,26 @@ def test_materialize_implement_omits_check_field(tmp_path):
     assert "deviations" in text
 
 
+@pytest.mark.parametrize("path, table", [
+    ("skills/planner/forms/PLAN.toml", None),
+    ("skills/planner/forms/REWORK.toml", None),
+    (GATE_TRANSITION, "gate-spec"),
+])
+def test_a_command_typed_into_a_minted_proof_slot_reads_back_as_typed(tmp_path, path, table):
+    """#182: an awk clause typed into the proof slot came back from TOML with
+    its backslash-n turned into a newline. The slot a command is typed into
+    holds it byte for byte."""
+    command = r"""awk 'BEGIN{RS="\n## "} /ok/ {f=1} END{exit !f}' LOG.md && test "$(grep -c 'a\.b' f)" -ge 2"""
+    dest = tmp_path / "FORM.toml"
+    forms.materialize(forms.load(path), dest)
+    slot = "\nproof = '''\n'''"
+    text = dest.read_text()
+    assert slot in text
+    raw = tomllib.loads(text.replace(slot, f"\nproof = '''\n{command}\n'''", 1))
+    got = raw["proof"] if table is None else raw[table][0]["proof"]
+    assert got.strip() == command
+
+
 def test_materialize_header_names_work_id_and_submit_command(tmp_path):
     form = forms.load(IMPLEMENT)
     dest = tmp_path / "issue17" / "IMPLEMENT.toml"
