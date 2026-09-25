@@ -182,13 +182,7 @@ def test_a_refusal_at_the_panel_only_seam_mints_nothing_and_still_closes(workdir
     spelling per surface.
 
     The review yield is the third surface that convention is for, and it
-    does not reach this seam: `seam_rounds` matches a round by its seam's
-    own disposing form, and this seam has none, so a panel-only round is
-    invisible to the yield today. That is unchanged by this gate and pinned
-    here rather than left to be discovered -- `test_review_yield.py`'s own
-    docstring already records the same seam as the one it never exercises.
-    The yield's own refusal rendering is driven at run-a-gate's review
-    below, where a round does reach it."""
+    reaches this seam too: a panel-only round is a round (#106)."""
     wid, panel = _to_the_spec_panel(capsys)
     journal.append(wid, "return", step=panel, child=f"{wid}.{panel}.p1",
                    fields={"findings": "waived: clean", "verdict": "sound"})
@@ -205,7 +199,9 @@ def test_a_refusal_at_the_panel_only_seam_mints_nothing_and_still_closes(workdir
 
     assert cli._returned_verdict(st, asm) == "unreadable p1"
     assert cli._summary(st)["verdict"] == "unreadable p1"
-    assert review_yield.run_yield(wid) == []
+    [spec] = review_yield.run_yield(wid)
+    assert spec["label"] == "spec"
+    assert [r["verdict"] for r in spec["rounds"]] == ["unreadable p1"]
 
     _fill(_response(wid), 'confirmed = "Tommy: yes, cut it"\nrouted = "issue 81"\n'
           'residue = "waived: none"\n')
