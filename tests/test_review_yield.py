@@ -14,7 +14,7 @@ from gitremote import stub_gh
 from test_nesting import (
     _dispatch_and_close_plan, _fill_close, _fill_consolidate,
     _fill_consolidate_route_with_calls, _fill_critic, _fill_open, _fill_plan_rework,
-    _fill_plan_route_with_calls, _fill_plan_to_execute, _fill_spec, _rule_impasse,
+    _fill_plan_route_with_calls, _fill_plan_to_execute, _fill_spec,
     _work_the_board,
 )
 from test_verdict_panels import (
@@ -50,7 +50,7 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     back with findings. It counts voices whose own word the seam's table
     says *does* something, and plan-to-execute declares both `pass` and
     `revise` as `release` (ruling 3, 2026-09-02) -- the conductor's own
-    `rework` on PLAN_TO_EXECUTE.toml is what sends the round back here, not
+    `incorporate` on PLAN_TO_EXECUTE.toml is what sends the round back here, not
     the panel's word. So the head line reads `revise` rather than `2
     revise`: the verdict is still the panel's, and the count it used to
     carry was a literal `== "revise"` that agreed with the table at this
@@ -67,18 +67,17 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     _dispatch_and_close_plan(wid)
 
     # round one: two critics find something, one passes clean; the
-    # conductor calls one finding blocking and rejects the other.
+    # conductor hands one finding to the writer and sends the other to triage.
     _dispatch_plan_panel(wid, [
         ("revise", "gap: the loop bound is untested"),
         ("revise", "gap: the risk section is thin"),
         ("pass", "none: waived: clean"),
     ])
     _fill_plan_route_with_calls(
-        wid, "rework",
-        ("gap: the loop bound is untested", "blocking"),
-        ("gap: the risk section is thin", "rejected: below the bar a plan is held to"))
+        wid, "incorporate",
+        ("gap: the loop bound is untested", "writer"),
+        ("gap: the risk section is thin", "beyond"))
     cli.main([wid, "submit"])
-    _rule_impasse(wid)  # the send-back is a ruling (`impasse-after = 0`)
 
     fresh = next(s for s in runmod.state(wid)["steps"]
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
@@ -96,13 +95,13 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"blocking": 1, "rejected": 1}, "waived": 0, "reason": ""}
+                  "calls": {"writer": 1, "beyond": 1}, "waived": 0, "reason": ""}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "plan-to-execute" in table
-    assert "r1  revise   2 findings   1 blocking 1 rejected" in table
+    assert "r1  revise   2 findings   1 writer 1 beyond" in table
     assert "r2  pass" in table
 
     # skip the projected gate -- this test's subject is the plan seam's own
@@ -122,11 +121,11 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     stub_gh(monkeypatch)
     cli.main([wid, "close"])
     out = capsys.readouterr().out
-    assert "plan-to-execute" in out and "1 blocking 1 rejected" in out
+    assert "plan-to-execute" in out and "1 writer 1 beyond" in out
 
     archived = pathlib.Path(workdir) / ".agent-work" / "archive" / wid / "YIELD.md"
     assert archived.exists()
-    assert "1 blocking 1 rejected" in archived.read_text()
+    assert "1 writer 1 beyond" in archived.read_text()
 
 
 def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
@@ -198,29 +197,25 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     assert step_id == "understand"
 
     # round one: two critics find something, one passes clean; the
-    # conductor calls one finding blocking and rejects the other.
+    # conductor hands one finding to the writer and sends the other to triage.
     _dispatch_plan_panel(wid, [
         ("revise", "gap: the glossary check ran on the wrong word"),
         ("revise", "gap: the settle field is thin"),
         ("pass", "none: waived: clean"),
     ])
     _fill_consolidate_route_with_calls(
-        wid, "rework",
-        ("gap: the glossary check ran on the wrong word", "blocking"),
-        ("gap: the settle field is thin", "rejected: below the bar a spec is held to"))
+        wid, "incorporate",
+        ("gap: the glossary check ran on the wrong word", "writer"),
+        ("gap: the settle field is thin", "beyond"))
     cli.main([wid, "submit"])
-    _rule_impasse(wid)  # the send-back is a ruling (`impasse-after = 0`)
 
-    # round two: a fresh spec-writer pass, filled in place (no dispatch --
-    # understand declares no `dispatches`), then a clean panel: the round
-    # releases with nothing to call.
+    # round two: the spec-writer's one pass, filled in place (no dispatch --
+    # understand declares no `dispatches`), and no panel on what it returns
+    # (one look): the conductor's own word is the round's record -- a pass,
+    # with nothing to call.
     _fill_spec(wid)
     cli.main([wid, "submit"])
-    _dispatch_plan_panel(wid, [
-        ("pass", "none: waived: clean"),
-        ("pass", "none: waived: clean"),
-        ("pass", "none: waived: clean"),
-    ])
+    assert not runmod.state(wid)["current"].get("panel")
     _fill_consolidate(wid, "pass")
     cli.main([wid, "submit"])
 
@@ -229,14 +224,14 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     assert len(consolidate["rounds"]) == 2
     r1, r2 = consolidate["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"blocking": 1, "rejected": 1}, "waived": 0, "reason": ""}
+                  "calls": {"writer": 1, "beyond": 1}, "waived": 0, "reason": ""}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "consolidate" in table
     assert "r1  revise   2 findings" in table
-    assert "1 blocking 1 rejected" in table
+    assert "1 writer 1 beyond" in table
     assert "uncalled" not in table
 
 
@@ -248,10 +243,9 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
     the seam's history shows the round happened and says why rather than
     dropping it as one nobody returned to.
 
-    Driven at the understand seam, the one that still re-mints its panel on
-    a later round: the plan seam's panel reads the opening cut only
-    (`panel-rounds = "opening"`), so a plan-seam round two has no panel to
-    waive."""
+    Driven through a `rewrite`, the one later round that carries a panel of
+    its own under one look (`[one-look]`): an incorporation's round has no
+    panel to waive."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -267,9 +261,10 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
         ("pass", "none: waived: clean"),
         ("pass", "none: waived: clean"),
     ])
-    _fill_consolidate_route_with_calls(wid, "rework", ("gap: the loop bound is untested", "blocking"))
+    _fill_consolidate(wid, "rewrite", calls=(
+        'orders = "state the problem as EOF handling alone"\n\n'
+        '[[calls]]\nfinding = "gap: the loop bound is untested"\ncall = "severe"\n'))
     cli.main([wid, "submit"])
-    _rule_impasse(wid)  # the send-back is a ruling (`impasse-after = 0`)
 
     _fill_spec(wid)
     cli.main([wid, "submit"])
@@ -287,10 +282,10 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 1, "called": True,
-                  "calls": {"blocking": 1}, "waived": 0, "reason": ""}
+                  "calls": {"severe": 1}, "waived": 0, "reason": ""}
     assert r2 == {"verdict": "", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 3, "reason": reason}
 
     table = render.review_yield(entries)
-    assert "r1  revise   1 finding   1 blocking" in table
+    assert "r1  revise   1 finding   1 severe" in table
     assert f"r2  3 waived -- {reason}" in table

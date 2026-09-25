@@ -205,11 +205,16 @@ def seam_round_steps_since_release(st, seg, assembly):
     without a panel on the releasing step, since an impasse `advance` mints
     the form alone and the release lands there. Every round left in the
     list was sent back, paused, or is still being decided; a seam that has
-    never released carries its whole history here."""
+    never released carries its whole history here. A round a pause's answer
+    opened starts the list over too."""
     since = []
     for step in st["steps"]:
         if step.get("segment") != seg["id"] or step.get("form") != _seam_form(seg):
             continue
+        # The round a paused seam's answer opened starts the count over: the
+        # answer is the ruling the cap stopped to get (#177).
+        if step.get("resumed"):
+            since = []
         if _landed_round(st, seg, step):
             since.append(step)
         done = st["done"].get(step["id"])

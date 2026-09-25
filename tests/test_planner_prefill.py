@@ -102,10 +102,10 @@ def test_a_gate_child_still_receives_its_own_spec_unchanged(workdir, capsys):
     assert prefill["proof"] == "true"
 
 
-# -- 4. a rework round opens as a dispatch and reaches the rework form -------
+# -- 4. an incorporation round opens as a dispatch and reaches the rework form
 
 
-def test_a_rework_round_opens_as_a_dispatch_and_reaches_the_rework_form(workdir, capsys):
+def test_an_incorporation_round_opens_as_a_dispatch_and_reaches_the_rework_form(workdir, capsys):
     """Before the fix, `_mint_segment_round` always minted a local form --
     the conductor that will judge the round was also the hand that filled
     it, on every round after the first. Now a segment that declares
@@ -122,8 +122,7 @@ def test_a_rework_round_opens_as_a_dispatch_and_reaches_the_rework_form(workdir,
     _dispatch_and_close_plan(wid)
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable",
-                          rule="rework")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable")
     capsys.readouterr()
 
     st = runmod.state(wid)

@@ -1,31 +1,32 @@
 # Step: plan. Owned by the planner skill; filled by the planner.
-# The consolidate's spec and key terms arrive as prefill. A revise
+# The consolidate's spec and key terms arrive as prefill. An `incorporate`
 # mints REWORK.toml for the next round, so this form is always a first cut --
-# including the second time it is minted: a `replan` outcome closes the
-# pending gates and recuts the plan here, and what the gate that forced it
-# learned arrives as `findings`. Those are the ground the new cut answers to,
-# not an objection to rebut.
+# including every later time it is minted: after a gate lands, the next
+# chunk is cut here; a `replan` outcome closes the pending gates and recuts
+# the plan here, and what the gate that forced it learned arrives as
+# `findings` -- the ground the new cut answers to, not an objection to rebut;
+# and a `rewrite` recuts it from the conductor's `orders` alone.
 
 imperative = """
-Cut the gate that lands the spec: purpose, scope, proof, and, when you know
-them, a model override and a direction for what it should teach. One gate is
-the default, and a plan that cuts more than one argues the split: a second
-gate earns its place only where one diff would be unreviewable, or where the
-second piece needs a ruling from the first's evidence. Work that is merely
-sequential is one gate; each gate buys its own review rounds, and that is the
-cost a split has to beat. Purpose says what the run
-takes as true, proof says what verifies it, scope says where -- the how is
-the implementer's, and that is the bar this gate is held to. A fresh-context
-reader -- the critic panel on the run's opening cut, the conductor alone on
-every cut after -- must be able to attack it from the spec and the plan
-alone, and a fresh-context implementer must be able to execute it from the
-gate spec alone. `standards/approach.md`, under the engine root the brief
-named, is what this project builds by; name in `purpose` which of its five
-this gate serves, and cut the gate that serves it
-and nothing beside it. Sketch the horizon behind it -- coarsely, and only as
-far as you can actually commit to before the ground shifts. The plan document itself
-carries the approach and the risks that would change it; this gate's
-purpose, scope and proof are the fields below, not restated there."""
+Choose the next chunk of work toward the spec's done, and cut it as one
+gate: purpose, scope, proof, and, when you know them, a model override and
+a direction for what it should teach. Prefer a small chunk -- the smallest
+that moves the run, and one diff a reviewer can run and read -- since the
+engine reopens this segment after every gate while an obligation stays
+open, and each cut is chosen knowing what the last one landed. Start at the
+code map (`map/INDEX.md`; `palette:map` builds it where the tree has none)
+and read the code it points you to. Purpose says what the run takes as true
+once this gate lands, proof says what verifies it, scope says where, at
+the grain of modules and seams -- the how is the implementer's, who reads
+the same code and chooses it there. `standards/approach.md`, under the
+engine root the brief named, is what this project builds by; name in
+`purpose` which of its five this gate serves, and cut the gate that serves
+it and nothing beside it. Sketch the horizon behind it -- coarsely, and only
+as far as you can actually commit to before the ground shifts. The plan
+document itself carries the approach and the risks that would change it;
+this gate's purpose, scope and proof are the fields below, not restated
+there. Where your prefill holds `orders` alone, the last cut was severely
+wrong and is gone: cut fresh from the orders."""
 
 [[field]]
 id = "plan"
@@ -51,8 +52,7 @@ id = "proof"
 kind = "proof"
 note = """
 A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised -- one check per obligation. It exercises
-purpose's claim too: a proof that passes while purpose is false has proved
+covers less than `scope` promised. It exercises purpose's claim: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string to run, never a description of it:
 this field rides into the dispatched child as its own `proof`, shell-executed
 there. The engine runs it once when you submit, against the run's tree as it

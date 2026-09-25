@@ -109,6 +109,15 @@ is joint. Coining a synonym for a term below is a defect.
   (or its `step-form` where none is declared), carrying forward the deciding step's own
   prefill — what caused the impasse — rather than the ruling fields just submitted. Where
   `refill` forwards what was just decided, `rework` forwards what was already there.
+- **incorporate** — an outcome verb at run-an-issue's spec and plan seams: the writer's one
+  pass over the panel's findings (those called `writer`, where a `calls` table is present),
+  the conductor's `orders` ahead of them, taken or rejected on the writer's own judgement. The
+  round it mints carries no panel, and a second incorporate on the same artifact refuses: what
+  comes back is released (the one-look ruling, 2026-09-25).
+- **rewrite** — an outcome verb at the same two seams, for a `severe` finding — one that
+  changes which problem the run is solving, or the fundamental thing its next step codes. A
+  fresh artifact written from the conductor's `orders` alone, forward-looking, with no findings
+  and no draft carried; its round restarts the send-back count and carries its own panel.
 - **skip** — an outcome verb: amend-closes every not-done, non-terminal step of the named
   segment. Its own terminal step is excluded, so sweeping a segment's gates never closes the
   run's own close step sitting not-done alongside them.
@@ -135,22 +144,23 @@ is joint. Coining a synonym for a term below is a defect.
   which `amend add --transition` already mints today with no pause behind it at all.
 - **impasse** — a segment ruling reached once its transition has sent the same artifact back
   `impasse-after` times: the segment's own impasse form — not a fresh round — reaches whoever
-  conducts it. At run-an-issue's spec and plan seams the count is 0, so the first send-back of a
-  spec or a cut is itself the ruling (2026-09-11: one look over, then the proof is in
-  execution); at run-a-gate's `work` it is 2, the loop itself being the question there. `advance`
+  conducts it. Declared at run-a-gate's `work`, at 2, the loop itself being the question there.
+  run-an-issue's spec and plan seams declare none: a send-back there is **incorporate** or
+  **rewrite**, and neither loops (the one-look ruling, 2026-09-25). `advance`
   closes the segment on the artifact as it stands, over a live objection; `rework` is the answer
   only when it names what the round changes that a reading did not; `up` pauses the segment as
   an ask at the run that dispatched it, the same as any other pause.
 - **round-cap** — a segment property beside `impasse-after`, in a different kind: a ceiling on
   the **round**s a **seam** sends back in a row, counted since the seam last released one
   (`engine/review_yield.py`'s `seam_round_steps_since_release`) — a release starts the count
-  over, a fresh artifact or an impasse ruling does not — where `impasse-after` counts one
+  over, and so does a round a pause's answer opened (#177); a fresh artifact or an impasse
+  ruling does not — where `impasse-after` counts one
   artifact's own rework rounds and resets on a new one. A round with no panel (run-an-issue's
   plan seam after the opening cut) counts once its conductor disposes of it. Declared on
   `run-an-issue`'s `understand` and `plan`, and on `run-a-gate`'s `review`. Where a send-back
   would land the count at the cap, it mints an ask to the run's principal instead — naming the
-  seam, the count, and the findings of every round counted — and `impasse-after`'s own outlet
-  is not consulted on that send-back, having nothing left to fire on: the cap outranks it where
+  seam, the count, and the findings of every round counted — and `impasse-after`'s own outlet,
+  where a segment declares one, is not consulted on that send-back: the cap outranks it where
   both would otherwise fire on the same round. At the issue tier the ask is the principal's to
   fill, never a form filler's.
 - **plan field** — a field whose submitted content is minted as steps: the next segment's
@@ -228,9 +238,11 @@ is joint. Coining a synonym for a term below is a defect.
 - **finding** — something real that was observed and recorded, and is not yet work. A reviewer's
   finding classed `beyond`, and an epic's unfiled finding, are the same thing at two scopes.
 - **call** — one route-step ruling on a single finding raised against the artifact it names —
-  a panel's finding at either tier, or (a gate's own) a declared deviation too: `blocking |
-  accepted | beyond | rejected`. Every panel-bearing transition's own route form carries the
-  field, the same shape wherever one exists. Distinct from the issue tier's **disposition**
+  a panel's finding at either tier, or (a gate's own) a declared deviation too. The words are
+  the route form's own: `blocking | accepted | beyond | rejected` at a gate's review, and
+  `writer | severe | beyond` at run-an-issue's spec and plan seams, where the call says where
+  the finding goes — to the writer's one pass, to a **rewrite**, or to triage. Every
+  panel-bearing transition's own route form carries the field. Distinct from the issue tier's **disposition**
   (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges one finding or deviation once;
   a disposition judges one obligation across the run's whole life.
 - **review yield** — a closed run's own record of its review seams, derived and printed at
@@ -302,10 +314,11 @@ is joint. Coining a synonym for a term below is a defect.
   the board. Judged by a cold critic panel on the segment's transition, the same panel
   plan-to-execute's own transition carries. Both of the panel's own words release now (ruling 3's
   2026-09-03 follow-up): `CONSOLIDATE.toml` is the conductor's own route form here too, the same
-  shape plan-to-execute's `PLAN_TO_EXECUTE.toml` already has — a conductor's own `rework`, not
-  the panel's bare revise, is what sends the round back, narrowed to the calls ruled blocking.
-  There is still no rework-form: the step-form (this same round's own `SPEC.toml`) refills in
-  its place — a second round is another first cut, not a patch.
+  shape plan-to-execute's `PLAN_TO_EXECUTE.toml` already has. A spec states the problem — what
+  is being solved, why, where it stops, how anyone would tell it is done — and gets one look:
+  the conductor's **incorporate** hands the writer the panel's findings to take or reject, and a
+  **rewrite** starts a fresh spec from the conductor's orders. There is no rework-form: the
+  step-form (this same round's own `SPEC.toml`) refills for both.
 - **gate spec** — the purpose, scope, proof and optional model, optional direction a planner
   writes per round of the plan segment — one gate spec per round, the round's own artifact.
   Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only

@@ -17,7 +17,7 @@ import pathlib
 import pytest
 
 from engine import cli, journal, run as runmod
-from test_nesting import _response, _rule_impasse
+from test_nesting import _response
 
 
 def _fill(path, text):
@@ -163,7 +163,7 @@ def test_the_spec_writers_returns_reach_the_critic_panel(workdir, capsys):
     capsys.readouterr()
     prefill = runmod.state(f"{wid}.understand.p1")["prefill"]
     assert prefill["spec"] == f".agent-work/{wid}/spec.md"
-    assert prefill["criteria"].startswith("standalone")
+    assert prefill["criteria"].startswith("purpose")
 
 
 # -- 3. the transition's three routes -----------------------------------------
@@ -192,14 +192,16 @@ def test_a_revise_holds_the_form_for_the_conductor_rather_than_refiring_the_roun
                    for s in st["steps"]), "the panel's own revise minted a round"
 
 
-def test_the_conductors_rework_sends_only_the_blocking_calls_carrying_no_spec_and_seeding_no_board(
+def test_the_conductors_incorporate_sends_only_the_writer_calls_carrying_no_spec_and_seeding_no_board(
         workdir, capsys):
-    """Only the conductor's own `rework` -- ruled finding by finding on
+    """Only the conductor's own `incorporate` -- ruled finding by finding on
     CONSOLIDATE.toml's `calls` table -- sends the round back, narrowed to
-    what it called blocking, the same as PLAN_TO_EXECUTE.toml's own
-    `rework` does at the plan seam. A rework carries no spec (there is
-    nothing intact to carry) and seeds no execution-state board row (there
-    is no spec settled yet to seed one from)."""
+    what it called `writer`, the same as PLAN_TO_EXECUTE.toml's own
+    `incorporate` does at the plan seam (one look, ruling 2026-09-25). An
+    incorporate carries no spec (there is nothing intact to carry) and
+    seeds no execution-state board row (there is no spec settled yet to
+    seed one from). No panel reads what the writer's own pass returns --
+    the fresh round stands CONSOLIDATE alone."""
     wid = _open_to_spec_writer()
     _fill_spec(wid)
     cli.main([wid, "submit"])
@@ -207,22 +209,14 @@ def test_the_conductors_rework_sends_only_the_blocking_calls_carrying_no_spec_an
 
     _dispatch_panel(wid, "understand", verdict="revise",
                     findings=(r"gap: commitment 1 is not numbered\n\n"
-                              r"gap: the parser needs a full rewrite"))
+                              r"gap: the parser needs a fresh caching layer"))
     capsys.readouterr()
 
     _fill_consolidate_route_with_calls(
-        wid, "rework",
-        ("gap: commitment 1 is not numbered", "blocking"),
-        ("gap: the parser needs a full rewrite", "rejected: unfounded -- the parser is untouched by this spec"))
+        wid, "incorporate",
+        ("gap: commitment 1 is not numbered", "writer"),
+        ("gap: the parser needs a fresh caching layer", "beyond"))
     cli.main([wid, "submit"])
-    capsys.readouterr()
-
-    # the send-back is a ruling first (`impasse-after = 0`), narrowed the
-    # same way; the spec-writer round exists once the conductor rules it
-    st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/IMPASSE.toml"
-    assert st["current"]["prefill"]["findings"] == "gap: commitment 1 is not numbered"
-    _rule_impasse(wid, why="waived: none")
     capsys.readouterr()
 
     st = runmod.state(wid)
@@ -230,18 +224,18 @@ def test_the_conductors_rework_sends_only_the_blocking_calls_carrying_no_spec_an
                         if s["segment"] == "understand" and s.get("source") == "mint"
                         and s["form"] == "skills/spec-writer/forms/SPEC.toml")
     assert fresh_writer["prefill"]["findings"] == "gap: commitment 1 is not numbered"
-    assert "full rewrite" not in fresh_writer["prefill"]["findings"]  # called rejected, not blocking
+    assert "caching layer" not in fresh_writer["prefill"]["findings"]  # called beyond, not writer
 
-    fresh_panel = next(s for s in st["steps"]
-                       if s.get("panel") and s["segment"] == "understand"
+    fresh_route = next(s for s in st["steps"]
+                       if s.get("source") == "panel" and s["segment"] == "understand"
                        and s["id"] != "understand")
-    original = next(s for s in st["steps"] if s["id"] == "understand")
-    assert fresh_panel["panel"] == original["panel"]
+    assert fresh_route["form"] == "forms/CONSOLIDATE.toml"
+    assert "panel" not in fresh_route   # incorporate's own round has no panel
     assert st["current"]["id"] == fresh_writer["id"]   # the writer resumes, not the mint form
 
-    assert "spec" not in (st.get("prefill") or {}), "a rework has nothing intact to carry"
+    assert "spec" not in (st.get("prefill") or {}), "an incorporate has nothing intact to carry"
     assert not pathlib.Path(f".agent-work/{wid}/EXECUTION_STATE.toml").exists(), (
-        "a rework has no spec settled yet to seed a board row from")
+        "an incorporate has no spec settled yet to seed a board row from")
 
 
 def test_pass_routes_forward_once_consolidate_is_filled(workdir, capsys):

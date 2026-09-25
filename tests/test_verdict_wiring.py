@@ -103,8 +103,9 @@ def test_the_same_seam_with_every_critic_clean_routes_exactly_as_it_did(workdir,
     alone. Three critics answer `revise` -- a word CRITIC.toml declares and
     consolidate's own table resolves -- and the seam behaves as it did
     before `verdict_fold` reached it: the step holds for CONSOLIDATE.toml,
-    the room reports no refusal, and the conductor's own `rework` is what
-    mints the fresh spec-writer round.
+    the room reports no refusal, and the conductor's own `incorporate` (one
+    look, 2026-09-25 -- `rework` is gone from this table) is what mints the
+    fresh spec-writer round.
 
     The room's line is `""` rather than the word itself, because
     consolidate declares both of the panel's words `release` (ruling 3's
@@ -125,14 +126,14 @@ def test_the_same_seam_with_every_critic_clean_routes_exactly_as_it_did(workdir,
     assert "unreadable" not in room
     assert room == ""
 
-    _fill_consolidate(wid, resolution="rework")
+    _fill_consolidate(wid, resolution="incorporate")
     cli.main([wid, "submit"])
     capsys.readouterr()
 
     st = runmod.state(wid)
     fresh = [s for s in st["steps"]
             if s["segment"] == "understand" and s.get("source") == "mint"]
-    assert fresh, "the conductor's own rework minted no fresh round"
+    assert fresh, "the conductor's own incorporate minted no fresh round"
     assert st["current"]["id"] == fresh[0]["id"]
 
 
@@ -309,14 +310,16 @@ def _renamed_consolidate(tmp_path):
     """run-an-issue's consolidate seam with its own table and its panelists'
     own vocabulary renamed together -- the rename this issue exists to make
     free, which no seam in the tree can be driven under without editing
-    `skills/`. `go` releases; `stop` is the row that acts."""
+    `skills/`. `go` releases; `stop` is the row that acts -- the conductor's
+    own `incorporate` (one look, 2026-09-25; `rework` is no longer a row on
+    this table at all)."""
     (tmp_path / "RENAMED_CRITIC.toml").write_text(RENAMED_CRITIC)
     asm = runmod.load_assembly("run-an-issue")
     asm["dir"] = tmp_path
     seg = next(s for s in asm["segment"] if s["id"] == "understand")
     rows = seg["transition"]["outcome"]
     next(o for o in rows if o["value"] == "pass")["value"] = "go"
-    next(o for o in rows if o["value"] == "rework")["value"] = "stop"
+    next(o for o in rows if o["value"] == "incorporate")["value"] = "stop"
     return asm, seg
 
 

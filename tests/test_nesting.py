@@ -87,12 +87,13 @@ def _fill_spec(wid):
 
 def _fill_consolidate(wid, resolution="pass", calls=""):
     """The conductor's own route form at the understand seam (ruling 3's
-    2026-09-03 follow-up): `resolution` is now the conductor's own typed
-    decision, and the release-only fields -- `spec`, `key-terms`, `settle`
-    -- are filled only where the round releases with something to record.
-    `calls` (default none) is one or more `[[calls]]` blocks, verbatim, for
-    a caller narrowing a `rework` to the blocking findings alone -- see
-    `_fill_consolidate_route_with_calls` below."""
+    2026-09-03 follow-up, and one look, 2026-09-25): `resolution` is now the
+    conductor's own typed decision, and the release-only fields -- `spec`,
+    `key-terms`, `settle` -- are filled only where the round releases with
+    something to record. `calls` (default none) is either one or more
+    `[[calls]]` blocks, verbatim, for a caller narrowing an `incorporate` to
+    the `writer` findings alone -- see `_fill_consolidate_route_with_calls`
+    below -- or a bare `orders = "..."` line for a `rewrite`."""
     body = 'resolution = "%s"\n' % resolution
     if resolution in ("pass", "revise"):
         body += ('\nspec = ".agent-work/%s/spec.md"\n'
@@ -163,12 +164,14 @@ def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
 
 
 def _fill_plan_to_execute(wid, resolution="pass", calls=""):
-    """The conductor's own route form at the plan seam (ruling 3): `resolution`
-    is now the conductor's own typed decision, and `plan` -- the pointer that
-    projects the gate -- is filled only where the round releases with
-    something to project. `calls` (default none) is one or more `[[calls]]`
-    blocks, verbatim, for a caller narrowing a `rework` to the blocking
-    findings alone -- see `_fill_plan_route_with_calls` below."""
+    """The conductor's own route form at the plan seam (ruling 3, and one
+    look, 2026-09-25): `resolution` is now the conductor's own typed
+    decision, and `plan` -- the pointer that projects the gate -- is filled
+    only where the round releases with something to project. `calls`
+    (default none) is either one or more `[[calls]]` blocks, verbatim, for a
+    caller narrowing an `incorporate` to the `writer` findings alone -- see
+    `_fill_plan_route_with_calls` below -- or a bare `orders = "..."` line
+    for a `rewrite`."""
     body = 'resolution = "%s"\n' % resolution
     if resolution in ("pass", "revise"):
         _write_plan_artifact(pathlib.Path(f".agent-work/{wid}/plan.md"))
@@ -363,30 +366,44 @@ key-terms = "waived: none"
 ''' % (loc, purpose, scope, proof, findings_addressed, deleted))
 
 
-def _drive_plan_to_impasse(wid, findings="gap: wrong artifact entirely"):
-    """The first review's revise plus `impasse-after` reworks, each landing on
-    the same objection, is the only way a root objection reaches the plan
-    segment's impasse form now that the panel's vocabulary is `pass |
-    revise`, not a third word that jumps there in one. The count is read off
-    the assembly (0 since the 2026-09-11 ruling: the first send-back is the
-    ruling), never pinned here."""
-    _dispatch_plan_critic(wid, verdict="revise", findings=findings)
+def _drive_plan_to_pause(wid, findings="gap: wrong artifact entirely"):
+    """Round-cap (`round-cap = 5`) is the only outlet left on this seam now
+    that plan (and understand, the same shape) declare no impasse of their
+    own (ruling, 2026-09-25): the opening cut's own revise is an
+    `incorporate`, spent once per artifact and minting no panel of its own;
+    every send-back after it is a `rewrite` -- a fresh cut from the
+    conductor's own orders, judged by a fresh panel of its own
+    (`[one-look]`) -- until the fifth landed round pauses the seam rather
+    than minting a sixth."""
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings, resolution="incorporate")
+    st = runmod.state(wid)
+    reworked = next(s for s in st["steps"]
+                    if s["segment"] == "plan" and s.get("source") == "mint"
+                    and s["id"] not in st["done"] and s.get("dispatches"))
+    _dispatch_and_close_plan(wid, reworked["id"], _fill_plan_rework)
+    # round two's own send-back has no panel (`incorporate` mints none) --
+    # the conductor rewrites it directly
+    _fill_plan_to_execute(wid, "rewrite", calls='orders = "%s -- replace it in kind"\n' % findings)
+    cli.main([wid, "submit"])
+
     plan = next(s for s in runmod.load_assembly("run-an-issue")["segment"] if s["id"] == "plan")
-    for _ in range(plan["impasse-after"]):
+    cap = plan["round-cap"]
+    for _ in range(cap - 2):   # rounds three on, each rewrite minting its own panel
         st = runmod.state(wid)
+        if st["current"].get("segment") != "plan" or not st["current"].get("dispatches"):
+            break   # paused already, one landed round short of the cap
         fresh = next(s for s in st["steps"]
                     if s["segment"] == "plan" and s.get("source") == "mint"
                     and s["id"] not in st["done"] and s.get("dispatches"))
-        _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
-        _dispatch_plan_critic(wid, verdict="revise", findings=findings)
+        _dispatch_and_close_plan(wid, fresh["id"], _fill_plan)
+        _dispatch_plan_critic(wid, verdict="revise", findings=findings, resolution="rewrite")
 
 
 def _rule_impasse(wid, ruling="rework", why="the next round replaces the proof in kind"):
-    """Rule on the impasse form the run is standing on. Both of run-an-issue's
-    seams declare `impasse-after = 0` (ruling, 2026-09-11), so the first
-    send-back of a spec or a cut mints this form rather than a free round: a
-    driver that wants a rework round asks for it here, by ruling, the way a
-    conductor does."""
+    """Rule on the impasse form the run is standing on -- run-a-gate's
+    `work` segment, unchanged by the one-look ruling (2026-09-25): only
+    run-an-issue's `understand` and `plan` seams lost their impasse outlet,
+    since a spec or a cut gets one round of review now, not a loop of them."""
     st = runmod.state(wid)
     assert st["current"].get("form") == "forms/IMPASSE.toml", (
         f"not standing on the impasse form: {st['current']}")
@@ -395,7 +412,7 @@ def _rule_impasse(wid, ruling="rework", why="the next round replaces the proof i
 
 
 def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
-                          resolution=None, rule=None):
+                          resolution=None):
     """Open every panelist the current transition's own panel declares --
     plan-to-execute's or consolidate's, whichever is `current` -- fill and
     close each. Both of a two-voices transition's own words release (ruling
@@ -403,15 +420,17 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
     for its own form either way, the same shape run-a-gate's review/ROUTE.toml
     already has: where the panel just returned is still `current` after this.
     A `verdict="revise"` also disposes of the round on that form, defaulting
-    to `resolution` (`"rework"` unless the caller names another).
+    to `resolution` (`"incorporate"` unless the caller names another).
 
     A round with no panel -- every plan-seam round after the run's opening
-    cut (`panel-rounds = "opening"`) -- dispatches nothing; a `revise` there
-    is the conductor's own send-back, `findings` riding as its `orders`.
-    A `rework` at either seam lands on the impasse form now (`impasse-after
-    = 0`): `rule` names the ruling to make there (`"rework"` for the fresh
-    round a caller used to reach directly), and `None` leaves the run
-    standing on the ruling form.
+    cut, save a `rewrite`'s own fresh one (`panel-rounds = "opening"`,
+    `[one-look]`) -- dispatches nothing; a `revise` there is the
+    conductor's own send-back, `findings` riding as its `orders`. One look
+    (2026-09-25): a spec or a cut gets no impasse outlet any more -- the
+    first revise is `incorporate` by default here, and a caller wanting a
+    `rewrite` instead names `resolution="rewrite"`, which always carries
+    `findings` forward as `orders` (a rewrite starts from orders alone,
+    whether or not a panel judged the round it replaces).
 
     Driven off the assembly's own panel length rather than a pinned count:
     the step completes on the last verdict, so a test that closes one of
@@ -431,15 +450,18 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
     form = current.get("form") if current else ""
     if (verdict == "revise" and current and current["id"] == step_id
             and form in ("forms/PLAN_TO_EXECUTE.toml", "forms/CONSOLIDATE.toml")):
-        orders = "" if panel else 'orders = "%s"\n' % findings
-        if form == "forms/PLAN_TO_EXECUTE.toml":
-            _fill_plan_to_execute(wid, resolution or "rework", calls=orders)
+        word = resolution or "incorporate"
+        if word == "rewrite":
+            body = 'orders = "%s"\n' % findings
+        elif panel:
+            body = ""   # no calls table: carries every finding the panel returned, as `writer`
         else:
-            _fill_consolidate(wid, resolution or "rework", calls=orders)
+            body = 'orders = "%s"\n' % findings
+        if form == "forms/PLAN_TO_EXECUTE.toml":
+            _fill_plan_to_execute(wid, word, calls=body)
+        else:
+            _fill_consolidate(wid, word, calls=body)
         cli.main([wid, "submit"])
-        after = runmod.state(wid).get("current") or {}
-        if rule and after.get("form") == "forms/IMPASSE.toml":
-            _rule_impasse(wid, rule)
     return step_id
 
 
@@ -883,16 +905,16 @@ def test_amend_waive_after_a_return_keeps_it_and_waives_only_the_rest(workdir, c
             f"counts. Reason: {reason}") in flat
 
     _fill_plan_route_with_calls(
-        wid, "pass", ("gap: the loop bound is untested", "rejected: below the bar"))
+        wid, "pass", ("gap: the loop bound is untested", "writer"))
     cli.main([wid, "submit"])
     assert "plan" in runmod.state(wid)["done"]
 
     entries = review_yield.run_yield(wid)
     plan = next(e for e in entries if e["label"] == "plan-to-execute")
     assert plan["rounds"] == [{"verdict": "revise", "revising": 0, "findings": 1,
-                               "called": True, "calls": {"rejected": 1},
+                               "called": True, "calls": {"writer": 1},
                                "waived": 2, "reason": reason}]
-    assert f"r1  revise   1 finding   1 rejected   2 waived -- {reason}" in \
+    assert f"r1  revise   1 finding   1 writer   2 waived -- {reason}" in \
         render.review_yield(entries)
 
 
@@ -1303,11 +1325,12 @@ def test_replan_reenters_plan_with_a_fresh_step_and_the_conductors_route_form_ge
     assert new_gates[0]["prefill"]["purpose"] == "redo the cut correctly"
 
 
-def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsys):
-    """A ruled rework mints through `_mint_segment_round`, the same primitive
-    replan uses -- this pins the rework round's shape: the rework form as the
-    fresh interior, findings attributed, and the route form re-minted with no
-    panel (the panel reads the opening cut only)."""
+def test_incorporate_still_goes_through_the_shared_primitive_unchanged(workdir, capsys):
+    """An `incorporate` mints through `_mint_segment_round`, the same
+    primitive replan uses -- this pins its round's shape: the rework form as
+    the fresh interior, findings attributed, and the route form re-minted
+    with no panel of its own (the panel reads the opening cut, and a
+    rewrite's fresh one, only -- `[one-look]`)."""
     wid = "issue18"
     cli.main(["open", "run-an-issue", "--issue", "18", "--title", "t"])
     _fill_open(wid)
@@ -1319,28 +1342,28 @@ def test_revise_still_goes_through_the_shared_primitive_unchanged(workdir, capsy
     capsys.readouterr()
 
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable",
-                          rule="rework")
+                          resolution="incorporate")
     capsys.readouterr()
 
     st = runmod.state(wid)
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint"
                       and s.get("dispatches"))
-    assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"  # a rework reworks
+    assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"  # incorporate reworks
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]
     assert "[p1]" in fresh_plan["prefill"]["findings"]
 
     fresh_route = next(s for s in st["steps"]
                        if s.get("source") == "panel" and s["segment"] == "plan")
     assert fresh_route["form"] == "forms/PLAN_TO_EXECUTE.toml"
-    assert "panel" not in fresh_route  # `panel-rounds = "opening"`
+    assert "panel" not in fresh_route  # incorporate's own round has no panel
     assert st["current"]["id"] == fresh_plan["id"]
 
 
 def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeypatch):
     """The summary's verdict was read off panel-only steps, so a run whose
     critics had ruled on the plan closed carrying the empty string where the
-    panel's word belongs -- and a run that reached its impasse this way, which
+    panel's word belongs -- and a run that reached round-cap this way, which
     is exactly the one a principal reads the summary of, said nothing at all.
 
     An issue-tier close now pushes and opens a PR before it archives, so
@@ -1355,21 +1378,27 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeyp
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
-    _drive_plan_to_impasse(wid)
+    _drive_plan_to_pause(wid)
     capsys.readouterr()
 
-    # the outlet four revises minted: `up`, ruled here, now pauses this
-    # segment rather than releasing it to close (commitment 3, issue84.g2),
-    # and this test's own subject is the close summary once the run *does*
-    # reach `forms/CLOSE.toml`, not the impasse ruling itself -- so the
-    # impasse step is amend-closed directly rather than routed through a
-    # round trip this test does not exist to drive.
-    impasse = runmod.state(wid)["current"]
-    assert impasse["form"] == "forms/IMPASSE.toml"
-    journal.append(wid, "amend", action="close", segment=impasse["segment"],
-                   step=impasse["id"],
+    # round-cap paused the seam rather than releasing it to close (plan and
+    # understand declare no impasse of their own any more, ruling
+    # 2026-09-25), and this test's own subject is the close summary once the
+    # run *does* reach `forms/CLOSE.toml`, not the pause itself -- so the ask
+    # it minted is amend-closed directly rather than routed through a resume
+    # this test does not exist to drive.
+    paused = runmod.state(wid)["current"]
+    assert paused["form"] == "skills/gate-conductor/forms/ASK.toml"
+    journal.append(wid, "amend", action="close", segment=paused["segment"],
+                   step=paused["id"],
                    reason="the critics read the plan against the wrong issue",
-                   anchor=impasse.get("anchor", False))
+                   anchor=paused.get("anchor", False))
+    marker = next(s for s in runmod.state(wid)["steps"]
+                 if s["segment"] == paused["segment"] and s.get("paused")
+                 and s["id"] not in runmod.state(wid)["done"])
+    journal.append(wid, "amend", action="close", segment=marker["segment"],
+                   step=marker["id"], reason="not resuming this pause",
+                   anchor=marker.get("anchor", False))
     _fill_close(wid)
     cli.main([wid, "submit"])
     stub_gh(monkeypatch)
@@ -1378,5 +1407,5 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeyp
 
     closed = read_archived(workdir, wid, "closed")
     assert closed["summary"]["verdict"] == "revise", (
-        "the close summary of a run that reached its impasse carries "
+        "the close summary of a run that hit round-cap carries "
         f"{closed['summary']['verdict']!r} where the panel last ruled revise")

@@ -1,11 +1,15 @@
-"""One look over a cut, then the proof is in execution (ruling, 2026-09-11).
+"""One look over a cut, then the proof is in execution (ruling, 2026-09-11,
+extended to both review seams 2026-09-25).
 
-Two declarations on `assemblies/run-an-issue/ASSEMBLY.toml` carry it. The
-plan transition's `panel-rounds = "opening"` mints its critic panel on the
-run's opening cut alone: a re-cut after a gate lands, a ruled rework round
-and a resumed round each stand the conductor's route form with no panel
-beside it. And `impasse-after = 0` at both seams makes the first send-back
-of a spec or a cut the ruling itself -- the impasse form, not a free round.
+One declaration on `assemblies/run-an-issue/ASSEMBLY.toml` now carries it on
+both seams: `panel-rounds = "opening"` mints a transition's critic panel on
+the run's opening artifact (spec or cut) alone, plus a `rewrite`'s fresh one
+-- an `incorporate`'s round, a re-cut after a gate lands, and a resumed
+round each stand the conductor's route form with no panel beside it. There
+is no free round to police any more either: `_check_one_look` refuses a
+second `incorporate` of the same artifact outright, in place of the old
+`impasse-after = 0` ruling-on-the-first-send-back mechanism, which was
+removed along with the impasse outlet itself on these two seams.
 
 The first outside run is the evidence: the understand seam ran three panel
 rounds and four of round 3's five findings were introduced fixing round
@@ -14,11 +18,11 @@ after the first finding almost nothing a reading could find, while a
 reviewer with a diff to run found what nine critic reports on one gate's
 three cuts had missed.
 
-`tests/test_rework.py` drives the first send-back to the impasse form at
-both seams; this file pins the declarations the engine reads, the shape of
-every later plan round, and that `0` is read as a count rather than as an
-absence.
+This file pins the declarations the engine reads and the shape of every
+later plan or understand round.
 """
+
+import pytest
 
 from engine import cli, journal, run as runmod
 
@@ -41,10 +45,12 @@ def _seg(seg_id):
 def test_the_plan_transition_declares_its_panel_for_the_opening_round_only():
     """The declaration the engine reads, on the assembly rather than in a
     mint-time rule: which rounds a seam's panel reads is that seam's own
-    call, and `understand` keeps the default, every round."""
+    call. One look (2026-09-25) put the same declaration on `understand`
+    too -- both seams read their opening artifact's panel alone now, not
+    just `plan`."""
     assert _seg("plan")["transition"]["panel-rounds"] == "opening"
     assert len(_seg("plan")["transition"]["panel"]) == 3
-    assert "panel-rounds" not in _seg("understand")["transition"]
+    assert _seg("understand")["transition"]["panel-rounds"] == "opening"
     assert _seg("understand")["transition"]["panel"]
 
 
@@ -79,10 +85,11 @@ def test_a_re_cut_after_a_gate_lands_carries_the_route_form_and_no_panel(workdir
     assert len(next(s for s in st["steps"] if s["id"] == "plan")["panel"]) == 3
 
 
-def test_understands_re_minted_transition_still_carries_its_panel(workdir, capsys):
-    """The default, `every`, on the seam that keeps it: a fresh understand
-    round re-mints CONSOLIDATE with its panel, so the declaration changes
-    exactly one seam."""
+def test_understands_re_minted_transition_no_longer_carries_its_panel(workdir, capsys):
+    """One look (2026-09-25) put `panel-rounds = "opening"` on `understand`
+    too, so a fresh CONSOLIDATE round now stands with no panel, the same
+    shape a re-minted PLAN_TO_EXECUTE round already had -- the declaration
+    that used to distinguish the two seams no longer does."""
     journal.append("i1", "run", title="t", assembly=ASM)
     for step in runmod.skeleton(runmod.load_assembly(ASM)):
         journal.append("i1", "step", **step)
@@ -95,26 +102,34 @@ def test_understands_re_minted_transition_still_carries_its_panel(workdir, capsy
     understand = [s for s in st["steps"]
                   if s["segment"] == "understand" and s.get("source") == "panel"]
     plan = [s for s in st["steps"] if s["segment"] == "plan" and s.get("source") == "panel"]
-    assert len(understand) == 1 and len(understand[0]["panel"]) == 3
+    assert len(understand) == 1 and "panel" not in understand[0]
+    assert understand[0]["form"] == "forms/CONSOLIDATE.toml"
     assert len(plan) == 1 and "panel" not in plan[0]
     assert plan[0]["form"] == "forms/PLAN_TO_EXECUTE.toml"
 
 
-# -- B. zero is a count, not an absence ---------------------------------------
+# -- B. no free round, by refusal rather than by ruling ------------------------
 
 
 def test_both_seams_declare_no_free_round():
-    assert _seg("understand")["impasse-after"] == 0
-    assert _seg("plan")["impasse-after"] == 0
+    """One look (2026-09-25) replaces the old `impasse-after = 0` ruling --
+    the first send-back was the ruling itself, on a form dedicated to it.
+    Both segments dropped `impasse-after` (and the impasse outlet)
+    entirely: `_check_one_look` now refuses a second `incorporate` of the
+    same artifact outright, in code rather than in a conductor's ruling.
+    `round-cap` is the ceiling still declared here, unchanged."""
+    assert "impasse-after" not in _seg("understand")
+    assert "impasse-after" not in _seg("plan")
+    assert "impasse-form" not in _seg("understand")
+    assert "impasse-form" not in _seg("plan")
     assert _seg("understand")["round-cap"] == _seg("plan")["round-cap"] == 5
 
 
-def test_impasse_after_zero_fires_the_outlet_on_the_first_send_back(workdir, capsys):
-    """`_panel_judged_rework` reads `impasse-after = 0` as a declaration: the
-    opening round was never sent back (`rework_rounds` is 0 there), so the
-    first send-back reaches the outlet. A segment that declares no
-    `impasse-after` at all never does -- the reading run-a-gate's `review`
-    and explore-an-idea's `spec` depend on."""
+def test_a_second_incorporate_of_the_same_artifact_is_refused(workdir, capsys):
+    """`_check_one_look` is what replaced `impasse-after = 0`'s ruling-on-
+    the-first-send-back: an `incorporate` is legal once per artifact, and a
+    second one on the same round is refused before the submit lands, rather
+    than reaching an outlet a conductor rules on."""
     journal.append("i1", "run", title="t", assembly=ASM)
     for step in runmod.skeleton(runmod.load_assembly(ASM)):
         journal.append("i1", "step", **step)
@@ -123,19 +138,22 @@ def test_impasse_after_zero_fires_the_outlet_on_the_first_send_back(workdir, cap
     route = next(s for s in runmod.state("i1")["steps"] if s["id"] == "plan")
     capsys.readouterr()
 
-    _, outlet = cli._panel_judged_rework("i1", asm, seg, route, {"orders": "tighten it"})
-    assert outlet == "forms/IMPASSE.toml"
+    outcome = (seg, "incorporate")
+    # the opening round was never sent back, so the first incorporate is legal
+    cli._check_one_look(asm, runmod.state("i1"), outcome, {"orders": "tighten it"})
 
-    undeclared = {k: v for k, v in seg.items() if k != "impasse-after"}
-    _, outlet = cli._panel_judged_rework("i1", asm, undeclared, route, {"orders": "tighten it"})
-    assert outlet == ""
+    # a second incorporate on top of one already minted is refused
+    cli._mint_segment_round("i1", asm, "plan")
+    with pytest.raises(SystemExit):
+        cli._check_one_look(asm, runmod.state("i1"), outcome, {"orders": "tighten it again"})
 
 
-def test_a_panel_less_route_round_sent_back_carries_the_conductors_orders(workdir, capsys):
-    """A later plan round stands the route form with no panel, and the
-    conductor's `rework` there is still a send-back: it spends the count and
-    owes the next round its own `orders`. Keyed on the step standing on the
-    segment's own transition form, not on a panel it no longer has."""
+def test_a_panel_less_route_round_incorporated_carries_the_conductors_orders(workdir, capsys):
+    """A later plan round stands the route form with no panel, and an
+    `incorporate` there still carries the conductor's `orders` ahead of
+    whatever findings the round holds, into the dispatched writer's
+    prefill. Keyed on the step standing on the segment's own transition
+    form, not on a panel it no longer has."""
     journal.append("i1", "run", title="t", assembly=ASM)
     for step in runmod.skeleton(runmod.load_assembly(ASM)):
         journal.append("i1", "step", **step)
@@ -147,14 +165,5 @@ def test_a_panel_less_route_round_sent_back_carries_the_conductors_orders(workdi
     assert "panel" not in route
     capsys.readouterr()
 
-    prefill, outlet = cli._panel_judged_rework(
-        "i1", asm, _seg("plan"), route, {"orders": "one gate, not two"})
+    prefill = cli._incorporated("i1", _seg("plan"), route, {"orders": "one gate, not two"})
     assert prefill["findings"] == "[conductor] one gate, not two"
-    assert outlet == "forms/IMPASSE.toml"
-
-    # the impasse ruling itself is still the one step that spends nothing
-    ruling = {"id": "plan-a1", "segment": "plan", "form": "forms/IMPASSE.toml",
-              "prefill": {"findings": "carried"}}
-    prefill, outlet = cli._panel_judged_rework(
-        "i1", asm, _seg("plan"), ruling, {"ruling": "rework", "why": "waived: none"})
-    assert outlet == "" and prefill is None

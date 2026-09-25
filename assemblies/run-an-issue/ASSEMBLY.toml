@@ -29,62 +29,34 @@ model = "standard"
 # The hat the conductor wears while working the board in place, and at this
 # segment's own transition -- `hat`, engine/run.py. The spec-writer step
 # below is a second, later round of the same segment, a distinct hand, not
-# a second hat on this one: the spec is standalone -- a reader with no
-# tracker reach can plan from it alone -- so drafting it is not
-# interrogation. No dispatch: unlike the plan segment below, nothing here
+# a second hat on this one: the spec states the problem standalone -- a
+# reader with no tracker reach can say from it what is being solved and when
+# it is done -- so drafting it is not interrogation. No dispatch: unlike the plan segment below, nothing here
 # judges the spec apart from the cold panel on the transition, so ruling 6
 # does not apply -- the spec-writer's own round and the panel that attacks
 # it are already two hands.
 board-worker = "interrogator"
 step-form = "skills/spec-writer/forms/SPEC.toml"
 worker = "spec-writer"
-# This segment has no rework-form, so the conductor's own `rework` (on
-# CONSOLIDATE.toml below) is another pass at the same spec-writer round --
-# the step-form refills in its place. `impasse-after` is how many such
-# passes a spec gets before a further rework mints the impasse form
-# instead, counted since the last step-form mint, same as `plan` below --
-# `forms/IMPASSE.toml` is shared with it, worded at the artifact each
-# segment produces rather than at "plan" by name. Zero: the first send-back
-# is itself the ruling, so a second spec-writer round happens only where the
-# conductor can name what it changes (ruling, 2026-09-11: "we overextended
-# by having multi pass on the spec and plan; once you give it a look over,
-# the proof is in execution" -- the first outside run's understand seam ran
-# three panel rounds, and four of round 3's five findings were introduced
-# fixing round 2's). `round-cap` below is unchanged: it counts rounds ruled
-# into being too.
-# Follow-up, 2026-09-03: consolidate holds the plan seam's own shape too --
-# the panel's two words both release below, and CONSOLIDATE.toml is the
-# conductor's route form, left open on purpose when the plan seam got it.
-impasse-after = 0
-impasse-form = "forms/IMPASSE.toml"
-# A run-level ceiling on this seam's own rounds (`consolidate`, below) --
-# distinct from `impasse-after`'s per-artifact one, and counted the way
-# `engine/review_yield.py` already counts a seam's rounds: since this run
-# opened, never reset by a fresh artifact. The cap outranks the impasse
-# outlet where both would fire on the same send-back (issue113).
+# This segment has no rework-form, so an `incorporate` (on CONSOLIDATE.toml
+# below) refills the step-form: the spec-writer's own pass over the panel's
+# findings, taken or rejected on its own judgement. A `rewrite` refills it
+# too, as a fresh first cut holding the conductor's orders alone
+# (`[one-look]`, engine/cli.py; ruling, 2026-09-25).
+# A run-level ceiling on this seam's own rounds (`consolidate`, below),
+# counted the way `engine/review_yield.py` already counts a seam's rounds:
+# since this seam last released, or since a pause's answer opened a round.
+# Under one look it bounds a chain of rewrites, the one loop left.
 round-cap = 5
-decides = "ruling"     # IMPASSE.toml's; UNDERSTAND.toml and SPEC.toml have no such field
-
-  [[segment.outcome]]
-  value = "advance"
-  does = "transition"     # mints CONSOLIDATE alone, over the live revise
-
-  [[segment.outcome]]
-  value = "rework"
-  does = "rework"     # another spec-writer round, findings as prefill
-
-  [[segment.outcome]]
-  value = "up"
-  does = "pause"     # mints an ask into the parent and a marker here; see [pause-gate]
 
 [segment.transition]
 anchor = true
 form = "forms/CONSOLIDATE.toml"
 filler = "conductor"
-validates = "board"   # refuses an open row or a self-answered decision on a release; a rework or an up does not have to close it first (`_releases`, engine/cli.py)
+validates = "board"   # refuses an open row or a self-answered decision on a release; an incorporate, a rewrite or an up does not have to close it first (`_releases`, engine/cli.py)
 # The spec joins the run's prefill, so every later dispatch carries it -- on
-# a release only, the same guard as `validates` above: a rework or an up
-# leaves nothing intact to carry, and `_releases` is what keeps this fold
+# a release only, the same guard as `validates` above: an incorporate, a
+# rewrite or an up leaves nothing intact to carry, and `_releases` is what keeps this fold
 # from writing a blank spec over prefill's own.
 # A list, not `true`, for the same reason `open` above carries one: `true`
 # folds every field the step submitted, and this form's own `resolution`,
@@ -102,9 +74,10 @@ carries = ["spec", "key-terms", "settle", "obligations", "rungs"]
 # and plan-to-execute's shape above. The critic panel's own two words are
 # both inert (`release`, below), so the step stays open on either verdict --
 # the conductor reads every finding and says where the round goes, the same
-# as the other two route forms do. Named apart from `ruling` above so the
-# two outcome tables stay disjoint: a word in one is never a legal answer
-# read from the other.
+# as the other two route forms do.
+# One look (`[one-look]`, engine/cli.py): the panel reads the opening spec
+# and a rewrite's fresh one, never an incorporation's pass.
+panel-rounds = "opening"
 decides = "resolution"
 
   [[segment.transition.outcome]]
@@ -116,8 +89,12 @@ decides = "resolution"
   does = "release"     # ditto -- the findings are the record, the form is the ruling on them
 
   [[segment.transition.outcome]]
-  value = "rework"
-  does = "rework"     # another spec-writer pass; no rework-form, so the step-form refills
+  value = "incorporate"
+  does = "incorporate"     # the spec-writer's one pass over the findings; no panel on what it returns
+
+  [[segment.transition.outcome]]
+  value = "rewrite"
+  does = "rewrite"     # severe only: a fresh spec from the conductor's orders, and its own panel
 
   [[segment.transition.outcome]]
   value = "up"
@@ -127,19 +104,19 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "standalone: could a fresh-context reader with no tracker reach plan from this spec alone, and say what the work is for"
+  criteria = "purpose: is this the right problem, and does solving it serve the root purpose the spec climbs to"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "obligations: is every obligation an observable end state or an invariant with its test, and which of them is a how, or a note about the spec, wearing a number"
+  criteria = "scope: is the boundary drawn, and is anything inside it meandering -- work the problem does not need"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "simplicity: argue for the smaller version and name what to delete -- anything added beside an existing thing rather than through it is the first suspect"
+  criteria = "done: could someone tell from the obligations alone when this problem is solved, and which of them says how rather than what"
 
 # A board with no transition of its own: nothing here stands the run on a
 # step, so `skeleton` mints none for it (no `form`, no `panel`) -- it exists
@@ -160,48 +137,20 @@ interior = "steps"
 # planner's own child run, not a form on the issue-conductor's own worklist.
 dispatches = "cut-a-gate"
 step-form = "skills/planner/forms/PLAN.toml"
-# A revise mints this in place of the step-form: rework is its own move, not
-# a second first draft. A replan still mints the step-form. A rework round
-# dispatches the same way the first cut does -- ruling 6 does not lapse on
-# round two -- carried to the child as a form override so it fills REWORK.toml
-# in place of cut-a-gate's own PLAN.toml. The verdict that forces the round,
-# and the loop it may become, stay the issue-conductor's to hold; only the
-# drafting hand moves.
+# An `incorporate` mints this in place of the step-form: the planner's one
+# pass over the panel's findings, taken or rejected on its own judgement, and
+# dispatched the same way the first cut is -- ruling 6 does not lapse on a
+# second pass -- carried to the child as a form override so it fills
+# REWORK.toml in place of cut-a-gate's own PLAN.toml. A `rewrite` mints the
+# step-form instead: a fresh cut from the conductor's orders alone
+# (`[one-look]`, engine/cli.py; ruling, 2026-09-25).
 rework-form = "skills/planner/forms/REWORK.toml"
-# After this many rework rounds on one artifact, a further send-back mints
-# the impasse form instead. Counted since the last step-form mint, so a
-# replan starts over. Zero: the first send-back of a cut is itself the
-# ruling -- no free rework round -- so a second planner pass on one cut
-# happens only where the conductor can name what it changes (ruling,
-# 2026-09-11: "we overextended by having multi pass on the spec and plan;
-# once you give it a look over, the proof is in execution" -- the first
-# outside run's plan seam ran 14 critic panels across 8 gates, and the
-# re-cut panels after the first found almost nothing a reading could find
-# while the gates built without one found the spec's defects as rework, with
-# a real diff to run). The count latches: an impasse `rework` (below) counts
-# the same as an ordinary one, so a ruling that sends the cut back does not
-# buy it a fresh allowance -- `rework_rounds` (engine/run.py) counts every
-# mint since the last step-form mint with no exception for where the mint
-# came from.
-impasse-after = 0
-impasse-form = "forms/IMPASSE.toml"
 # See the same field on `understand` above: this seam is `plan-to-execute`.
+# A release after every gate is what keeps a rolling horizon's many cuts
+# from reading as churn here; the cap bounds a chain of rewrites.
 round-cap = 5
 worker = "planner"
 model = "standard"
-decides = "ruling"     # IMPASSE.toml's; PLAN.toml and REWORK.toml have no such field
-
-  [[segment.outcome]]
-  value = "advance"
-  does = "transition"     # mints PLAN_TO_EXECUTE alone, over the live revise
-
-  [[segment.outcome]]
-  value = "rework"
-  does = "rework"     # another pass, through the rework-form
-
-  [[segment.outcome]]
-  value = "up"
-  does = "pause"     # mints an ask into the parent and a marker here; see [pause-gate]
 
 [segment.transition]
 anchor = true
@@ -213,28 +162,25 @@ filler = "conductor"
 # says where the round goes, the same as run-a-gate's route form does.
 # `projects` still fires off this same submit, but conditionally now:
 # `_mint_projected_gate` (engine/cli.py) mints only where the submit names a
-# `plan`, since this form's own `rework` and `up` also reach this step and
-# neither has passed critique intact.
+# `plan`, since this form's own `incorporate`, `rewrite` and `up` also
+# reach this step and none of them has passed critique intact.
 projects = "run-a-gate"
-# The panel below reads the run's opening cut and no later one: a re-cut
-# after a gate lands (`settle`, `replan`), a ruled rework round and a
-# resumed round each stand this form alone, the conductor reading the
-# planner's cut and the engine's one run of its `proof` (`_trial_proofs`,
-# engine/cli.py) in the room. Read by `_mint_segment_round`; `skeleton()`
-# mints the opening round's panel regardless. `every` is the other value
-# and the default -- what `understand`'s transition above still does.
+# The panel below reads the run's opening cut, and a `rewrite`'s fresh one
+# (`[one-look]`), and no other: a re-cut after a gate lands (`settle`,
+# `replan`), an incorporation and a resumed round each stand this form
+# alone, the conductor reading the planner's cut and the engine's one run
+# of its `proof` (`_trial_proofs`, engine/cli.py) in the room. Read by
+# `_mint_segment_round`; `skeleton()` mints the opening round's panel
+# regardless. `every` is the other value and the default.
 # Ruling, 2026-09-11: on the first outside run the first cut's panel found
 # real defects (an import-boundary scan that would have failed on day one)
 # and the re-cut panels after each gate found almost nothing a reading
 # could find; a reviewer with a diff to run found what nine critic reports
 # on one gate's three cuts missed.
 panel-rounds = "opening"
-# The panel's own decides field, distinct from `ruling` above: this one is
 # PLAN_TO_EXECUTE.toml's `resolution`, answered by both voices -- the
 # panel's merged verdict first (always `release`, so it mints nothing), then
-# the conductor's own typed word. Named apart from `ruling` so the two
-# outcome tables stay disjoint: a word in one is never a legal answer read
-# from the other.
+# the conductor's own typed word.
 decides = "resolution"
 
   [[segment.transition.outcome]]
@@ -246,8 +192,12 @@ decides = "resolution"
   does = "release"     # ditto -- the findings are the record, the form is the ruling on them
 
   [[segment.transition.outcome]]
-  value = "rework"
-  does = "rework"     # another pass through the rework-form, carrying the calls ruled blocking and nothing else
+  value = "incorporate"
+  does = "incorporate"     # the planner's one pass over the findings, through the rework-form
+
+  [[segment.transition.outcome]]
+  value = "rewrite"
+  does = "rewrite"     # severe only: a fresh cut from the conductor's orders, and its own panel
 
   [[segment.transition.outcome]]
   value = "up"
@@ -262,13 +212,13 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "intent-fit: does the plan serve the spec it was built on, and is each gate's purpose a claim the run will rest on"
+  criteria = "next step: is this gate the right next chunk toward the spec's done, and is it the smallest one that moves the run"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "testability: can each gate's proof be exercised, and does it exercise the claim its purpose makes"
+  criteria = "proof: would the gate's proof tell whether this chunk landed -- failing now, passing only once its purpose is true"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"

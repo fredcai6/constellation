@@ -267,6 +267,17 @@ MINT_TARGETS = {
     # `rework` verb, whose prefill is either the deciding step's own
     # (forwarded, not a literal this sweep can see) or `_panel_judged_rework`'s
     # findings, built there rather than as a literal dict at the mint.
+    # One look (2026-09-25): `incorporate`'s own writer round, minted by
+    # `_incorporated`'s literal `{"findings": ...}` -- `horizon` rides in
+    # too, but only through a subscript assignment this sweep does not read
+    # as a dict-literal key, so it stays off the swept set here. Narrowed to
+    # run-an-issue's own two seams, the only ones with an `incorporate`
+    # outcome: understand declares no `rework-form` of its own, so its
+    # incorporate refills the step-form (SPEC.toml); plan's own has one
+    # (REWORK.toml) -- the same `step-form|rework-form` fallback
+    # `_forms_in_role` already reads for every other rework-shaped mint.
+    ("_incorporated", None): (("step-form|rework-form", "understand"),
+                              ("step-form|rework-form", "plan")),
 }
 
 # A form that receives a minted key its own prose never names, and the file
