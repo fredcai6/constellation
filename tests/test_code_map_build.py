@@ -107,3 +107,22 @@ def test_build_still_prints_the_summary_when_render_fails_on_a_duplicate_id(tmp_
     out = capsys.readouterr().out
     assert "parents:" in out
     assert "python3 -m tools.code_map.parents" in out
+
+
+def test_check_narrows_the_store_the_way_the_tree_it_reads_was_rendered(tmp_path):
+    """#160: `check` compared the whole store against a tree the palette had
+    rendered with `--render-only`, and failed by hundreds. The tree records
+    its own narrowing, and `check` -- given no narrowing of its own -- reads
+    the store the same way."""
+    from tools.code_map import checks, render
+    _git_repo(tmp_path, {"pkg/__init__.py": "", "pkg/mod.py": _MOD_PY,
+                         "other/__init__.py": "",
+                         "other/mod.py": _MOD_PY.replace("anchor-a", "anchor-b")})
+    out = tmp_path / "map"
+    assert build.build(tmp_path, artifacts=tmp_path / ".code-map", out=out,
+                       packages=("pkg",)) == 0
+    assert render.read_scope(out) == ("pkg",)
+
+    m = checks.MapUnderCheck(tmp_path, tmp_path / ".code-map", out, render.read_scope(out))
+    assert checks.page_accounting(m) == []
+    assert checks.anchor_accounting(m) == []

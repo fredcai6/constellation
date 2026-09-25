@@ -1,9 +1,7 @@
 """Checks over the built map that CAN FAIL.
 
-`check` exits non-zero when any invariant below is violated. Before gate g1
-every function here printed a measurement, asserted nothing, and `run()` ended
-in a literal `return 0`, so a completely broken map passed. The measurements are
-gone: they were diagnostics wearing a suite's clothes.
+`check` exits non-zero when any invariant below is violated. Every check
+asserts; a measurement that only prints is not one of them.
 
 What belongs here
 -----------------
@@ -16,7 +14,7 @@ shape's numbers.
 A **baseline** pins a remembered constant -- "103 modules", "3411 entities", a
 page's rendered text, the header format, the section order. It goes red at every
 gate that legitimately moves the map, so it would be deleted rather than
-believed. Baselines belong to `gB`, after the last gate that moves the numbers.
+believed.
 
 The distinction is not "does it mention a count". It is: does the expected value
 come from a memory of this corpus, or from the map itself?
@@ -32,13 +30,6 @@ the RENDERED PAGES -- the artifact a reader actually gets -- rather than against
 the renderer's own in-memory state.
 
 What they do NOT prove is recorded honestly beside each check.
-
-`check` EXITS 1 ON THIS REPO TODAY, and that is correct
-------------------------------------------------------
-`page_accounting` is red by exactly one page: two entities named `Verdict` and
-`verdict` resolve to one filename on a case-insensitive filesystem, so the map
-advertises a page it does not have. Gate `g2` owns the rename; `g1` only asserts
-it. Do not silence the check to make the command green.
 """
 import ast
 import collections
@@ -78,10 +69,11 @@ class MapUnderCheck:
         self.artifacts = pathlib.Path(artifacts)
         self.out = pathlib.Path(out)
         #: The dotted package prefixes the render was NARROWED to, empty for a
-        #: whole-corpus render. The CALLER's argument, restated to `check` --
-        #: never read back out of the render report. A check that asked the
-        #: renderer which pages it decided to write could only ever agree with
-        #: it, and every check below joins the store to the tree.
+        #: whole-corpus render: the caller's own argument to the render, as
+        #: the tree records it (`run`). An input, never the render report --
+        #: a check that asked the renderer which pages it decided to write
+        #: could only ever agree with it, and every check below joins the
+        #: store to the tree.
         self.packages = tuple(packages)
         self._pages = None
         self._scan = None
@@ -449,10 +441,6 @@ def page_accounting(m):
     agrees with the tree by construction and cannot notice (that is `tc18`, and
     `tc24` rules that counting the tree a second time is NOT the fix).
 
-    RED ON THIS REPO TODAY, by exactly one page: `scripts.run_skill_eval:Verdict`
-    and `:verdict` land on one file. Gate `g2` owns the rename; `g1` only
-    asserts it. See the `xfail(strict=True)` in tests/test_code_map.py.
-
     TWO ARMS, and the second is the durable one.
 
     - COVERAGE: every module and every entity the store declares must be the
@@ -549,7 +537,10 @@ def anchor_accounting(m):
     read straight -- counted the same way `page_accounting` counts pages: by
     what is actually there, not by what a write attempt claims."""
     authored = 0
-    for rel in sorted({v["file"] for v in m.modules.values()}):
+    # The whole walk, not the narrowed render: `extract` binds every anchor
+    # in the corpus whatever the render was narrowed to, and `bound` counts
+    # the store it wrote.
+    for rel in sorted({v["file"] for v in m.scan.modules.values()}):
         text = (m.root / rel).read_text(encoding="utf-8")
         bindable = _anchorable_lines(text)
         for line, slugs in anchors_in(text).items():
@@ -1116,12 +1107,14 @@ def run(root, artifacts, out, packages=()):
     A check stage that cannot look must not report success -- a missing page
     tree or a missing store is a failure, not a skip.
 
-    `packages` is the render narrowing the tree at `out` was built with, and it
-    has to be the same value: these checks join the store to the tree, and a
+    The render narrowing is the one the tree at `out` records
+    (`render.SCOPE_FILENAME`): these checks join the store to the tree, and a
     store narrowed differently than the tree was rendered disagrees with it on
-    every module in between. Getting it wrong is loud, not silent -- the join
-    fails by hundreds."""
-    m = MapUnderCheck(root, artifacts, out, packages)
+    every module in between (#160). `packages` is read only for a tree that
+    records none."""
+    from .render import read_scope
+    recorded = read_scope(out)
+    m = MapUnderCheck(root, artifacts, out, packages if recorded is None else recorded)
     missing = [str(p) for p in (m.out, m.artifacts / STATEMENTS_NAME)
                if not p.exists()]
     if missing:

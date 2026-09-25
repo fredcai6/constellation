@@ -807,6 +807,18 @@ def top_index(title):
 
 # ---------------------------------------------------------------- stage
 
+SCOPE_FILENAME = "render-scope.json"
+
+
+def read_scope(out):
+    """The package narrowing the tree at `out` records, or None where it
+    records none (a tree rendered before the record existed)."""
+    try:
+        return tuple(json.loads((pathlib.Path(out) / SCOPE_FILENAME).read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        return None
+
+
 def run(root, artifacts, out, packages=()):
     """Render the page tree for `root` from `artifacts` into `out`. Returns an
     exit code.
@@ -840,6 +852,11 @@ def run(root, artifacts, out, packages=()):
     out.mkdir(parents=True)
     if preserved_parents is not None:
         (out / PARENTS_FILENAME).write_bytes(preserved_parents)
+    # The narrowing this tree was rendered under, written into the tree
+    # itself: `check` joins the store to the tree and has to narrow the store
+    # the same way, and reading the tree's own record is what keeps a second
+    # invocation from restating it differently (#160).
+    (out / SCOPE_FILENAME).write_text(json.dumps(sorted(packages)) + "\n", encoding="utf-8")
     sizes = []
     for mod in MODULES:
         d = out / mod

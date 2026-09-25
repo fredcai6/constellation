@@ -111,8 +111,8 @@ def mint_id(issue=None, kind="issue"):
         return f"issue{issue}"
     while True:
         wid = f"{kind}{secrets.token_hex(2)}"
-        # See: `[write-guard-is-not-scope]`, `cmd_open` below -- the same
-        #   on-disk question, not `journal.exists`'s in-scope one.
+        # See: `cmd_open`'s write-guard rationale below -- the same on-disk
+        #   question, not `journal.exists`'s in-scope one.
         if not journal.journal_path(wid).exists():
             return wid
 
