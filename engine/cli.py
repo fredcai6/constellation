@@ -4053,14 +4053,36 @@ def _resume_paused_child(pwid, step, fields):
                         form=marker.get("resume_form", ""),
                         filler=marker.get("resume_filler", ""), resumed=True)
     if sibling:
-        fresh = [s["id"] for s in runmod.state(child)["steps"]
-                if s["segment"] == tseg_id and s["id"] not in before_ids]
-        for fid in fresh:
-            journal.append(child, "amend", action="reorder", segment=tseg_id,
-                           step=fid, before=sibling,
-                           reason="the resumed round stands ahead of the sibling "
-                                  "the pause already leapfrogged, not behind it again",
-                           anchor=False)
+        steps = runmod.state(child)["steps"]
+        fresh = [s for s in steps if s["segment"] == tseg_id and s["id"] not in before_ids]
+        old = next((s for s in steps if s["id"] == sibling), None)
+        # [resume-supersedes-the-sibling]
+        # Rationale: #123 -- the fresh round carries its own transition, so a
+        # sibling of the same kind left open was a second copy of it: once the
+        # fresh round's select landed, `current` fell through to the stale one
+        # and a second review round was minted on the same diff. The sibling
+        # was untouched when the pause captured it, and its replacement now
+        # stands, so it is closed. A sibling the fresh round did not replace
+        # -- an ask left owed by `up` (`[an-ask-outlives-its-up]`) -- stays,
+        # behind the fresh round.
+        if old and any(_same_kind(f, old) for f in fresh):
+            journal.append(child, "amend", action="close", segment=tseg_id, step=sibling,
+                           reason="superseded by the resumed round",
+                           anchor=old.get("anchor", False))
+        else:
+            for f in fresh:
+                journal.append(child, "amend", action="reorder", segment=tseg_id,
+                               step=f["id"], before=sibling,
+                               reason="the resumed round stands ahead of the sibling "
+                                      "the pause already leapfrogged, not behind it again",
+                               anchor=False)
+
+
+def _same_kind(a, b):
+    """Whether two steps stand for the same thing in a segment: the same form
+    to fill and the same panel to fire, or neither."""
+    return ((a.get("form") or "") == (b.get("form") or "")
+            and bool(a.get("panel")) == bool(b.get("panel")))
 
 
 def _unique_id(base, existing):
