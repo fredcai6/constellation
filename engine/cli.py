@@ -2772,9 +2772,9 @@ def _check_release_artifacts(form, fields, outcome):
 #   `finding` item says to quote rather than number.
 def _blocking_calls(fields, word="blocking"):
     """The `word`-called blocks of a submitted `calls` table (`blocking`
-    unless the caller names another), verbatim and in the order the
-    conductor ruled them -- `None` where the submit carried no such table
-    at all.
+    unless the caller names another word, or a tuple of words), verbatim and
+    in the order the conductor ruled them -- `None` where the submit carried
+    no such table at all.
 
     `None` and `""` are different answers: no table means carry what the panel
     returned, a table calling nothing `word` means carry nothing.
@@ -2782,9 +2782,10 @@ def _blocking_calls(fields, word="blocking"):
     rows = (fields or {}).get("calls")
     if not isinstance(rows, list):
         return None
+    words = (word,) if isinstance(word, str) else word
     return "\n\n".join(
         str(r.get("finding", "")).strip() for r in rows
-        if isinstance(r, dict) and forms.leading_word(r.get("call", "")) == word)
+        if isinstance(r, dict) and forms.leading_word(r.get("call", "")) in words)
 
 
 # [beyond-calls]
@@ -2829,6 +2830,13 @@ def _beyond_calls(fields):
 #   the one step `_perform` is deciding. Living beside `_blocking_calls`
 #   rather than in `review_yield.py` reuses that reader directly rather
 #   than a second copy of its own narrowing rule.
+# The calls an ask still owes its reader: every word that sends a finding
+# on to work -- a gate review's `blocking`, a spec or plan seam's `writer`
+# and `severe` -- and none that disposes of it (`accepted`, `rejected`,
+# `beyond`).
+_OPEN_CALLS = ("blocking", "writer", "severe")
+
+
 def _seam_findings_history(st, round_steps):
     """The findings of each round in `round_steps`, oldest first, each block
     formatted exactly as `_panel_judged_rework` formats the current round's
@@ -2836,7 +2844,8 @@ def _seam_findings_history(st, round_steps):
     done-entry carried a `calls` table, else every panelist's own
     non-empty `findings` joined and attributed."""
     return "\n\n".join(
-        _round_findings(st, rstep, st["done"].get(rstep["id"], {}).get("fields"))
+        _round_findings(st, rstep, st["done"].get(rstep["id"], {}).get("fields"),
+                        carry=_OPEN_CALLS)
         for rstep in round_steps)
 
 
@@ -3053,6 +3062,32 @@ def _round_capped(wid, asm, seg, tseg):
     return True
 
 
+# [rewrite-cap]
+# Rationale: ruling, 2026-09-25 (after one look landed): a spec or a plan
+#   gets one major rewrite, then the question goes up. Counting rounds could
+#   not say that -- an incorporation and a rewrite's own look are rounds too
+#   -- so these seams count rewrites instead, since the seam last released
+#   or since a pause's answer opened a round (the answer is the ruling).
+#   Incorporation needs no cap of its own: it is refused a second time on
+#   one artifact, and only a rewrite or an answer makes a new one.
+def _rewrite_capped(wid, asm, seg, tseg):
+    """Pause `tseg` up and return True where this seam has already been
+    rewritten `rewrite-cap` times since it last released."""
+    cap = seg.get("rewrite-cap")
+    if not cap:
+        return False
+    st = runmod.state(wid)
+    since = review_yield.seam_round_steps_since_release(st, seg, asm)
+    rewrites = sum(1 for s in since if s.get("rewrite"))
+    if rewrites < cap:
+        return False
+    why = (f"{review_yield.seam_label(seg)} has been rewritten {rewrites} "
+           f"time{'s' if rewrites != 1 else ''} since it last released, at its "
+           f"rewrite-cap of {cap}, and a finding still calls for another")
+    _pause_gate(wid, tseg, why, {"why": _seam_findings_history(st, since)})
+    return True
+
+
 def _incorporated(wid, seg, step, fields):
     """The prefill an `incorporate` mints its writer's round with: every
     finding the panel returned, attributed -- or, where the conductor's
@@ -3137,11 +3172,11 @@ def _perform(wid, asm, seg, does, fields, step):
                                 prefill=_incorporated(wid, tseg, step, fields),
                                 form=tseg.get("rework-form", ""))
         elif word == "rewrite":
-            if _round_capped(wid, asm, seg, tseg):
+            if _round_capped(wid, asm, seg, tseg) or _rewrite_capped(wid, asm, seg, tseg):
                 continue
             rewrite = {"orders": str(fields.get("orders", "")).strip()}
             _mint_segment_round(wid, asm, tseg["id"], prefill=rewrite,
-                                restarts=True, panel=True)
+                                restarts=True, panel=True, rewrite=True)
         elif word == "rework":
             if _round_capped(wid, asm, seg, tseg):
                 continue
@@ -4314,7 +4349,7 @@ def _amend_waive(wid, st, step_id, reason):
 #   second shape to reach the same form would be a second thing to keep in
 #   sync with the planner's skill for no behaviour gained.
 def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
-                        restarts=False, panel=False, resumed=False):
+                        restarts=False, panel=False, resumed=False, rewrite=False):
     """Mint one fresh round of a segment: its step-form (or the form the
     caller names -- a revise passes the segment's rework form) as a fresh
     interior step, plus its transition -- with its panel where the
@@ -4326,6 +4361,9 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     `resumed` stamps the fresh transition as the round a paused seam's
     answer opened, which is where the round-cap's count starts over (#177:
     the answer is the ruling the cap exists to obtain).
+
+    `rewrite` stamps the fresh transition as a rewrite's round, which is
+    what `[rewrite-cap]` counts.
 
     `panel` mints the transition's panel on this round whatever its
     `panel-rounds` says: a `rewrite` is a fresh artifact, and a fresh
@@ -4415,6 +4453,8 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
         fresh["form"] = t["form"]  # the two-voices shape survives a fresh round
     if resumed:
         fresh["resumed"] = True
+    if rewrite:
+        fresh["rewrite"] = True
     # [fresh-round-is-the-only-round]
     # Rationale: when the segment has no real interior, this transition
     #   round is the ONLY round minted -- so it is what the resuming

@@ -17,7 +17,9 @@ id = "authority"
 kind = "decision"
 note = """
 Who your principal is, what you own, your latitude, where gaps go — the
-principal's recorded answer. Derived automatically when this run has a parent;
+principal's recorded answer. Say too whether you may answer a rewrite-cap
+ask yourself: a spec or a cut gets one rewrite, and a second becomes an ask
+at the principal, yours to answer only where this latitude grants it. Derived automatically when this run has a parent;
 recorded from the human when it does not."""
 
 [[field]]

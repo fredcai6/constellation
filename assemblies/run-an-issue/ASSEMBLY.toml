@@ -43,11 +43,12 @@ worker = "spec-writer"
 # findings, taken or rejected on its own judgement. A `rewrite` refills it
 # too, as a fresh first cut holding the conductor's orders alone
 # (`[one-look]`, engine/cli.py; ruling, 2026-09-25).
-# A run-level ceiling on this seam's own rounds (`consolidate`, below),
-# counted the way `engine/review_yield.py` already counts a seam's rounds:
-# since this seam last released, or since a pause's answer opened a round.
-# Under one look it bounds a chain of rewrites, the one loop left.
-round-cap = 5
+# One major rewrite, then the question goes up (ruling, 2026-09-25): a
+# second `rewrite` before this seam releases mints an ask instead, counted
+# since the seam last released or a pause's answer opened a round
+# (`[rewrite-cap]`, engine/cli.py). Whether the conductor may answer that
+# ask itself is the run's authority's to say (OPEN.toml).
+rewrite-cap = 1
 
 [segment.transition]
 anchor = true
@@ -146,9 +147,9 @@ step-form = "skills/planner/forms/PLAN.toml"
 # (`[one-look]`, engine/cli.py; ruling, 2026-09-25).
 rework-form = "skills/planner/forms/REWORK.toml"
 # See the same field on `understand` above: this seam is `plan-to-execute`.
-# A release after every gate is what keeps a rolling horizon's many cuts
-# from reading as churn here; the cap bounds a chain of rewrites.
-round-cap = 5
+# A release after every gate starts the count over, so each cut in a
+# rolling horizon gets its own one rewrite.
+rewrite-cap = 1
 worker = "planner"
 model = "standard"
 

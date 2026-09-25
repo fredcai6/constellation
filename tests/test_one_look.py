@@ -44,6 +44,7 @@ from test_nesting import (
     _fill_critic,
     _fill_open,
     _fill_plan,
+    _fill_plan_rework,
     _fill_plan_route_with_calls,
     _fill_plan_to_execute,
     _fill_spec,
@@ -350,8 +351,8 @@ def _open_to_plan(wid, issue):
     _dispatch_and_close_plan(wid)
 
 
-def test_round_cap_still_pauses_after_five_non_released_rounds_built_from_rewrites(
-        workdir, capsys):
+def test_a_second_rewrite_before_release_goes_up_as_an_ask(workdir, capsys):
+    """One major rewrite, then the question goes up (`rewrite-cap = 1`)."""
     wid = "issue8"
     _open_to_plan(wid, "8")
     _drive_plan_to_pause(wid)
@@ -361,7 +362,36 @@ def test_round_cap_still_pauses_after_five_non_released_rounds_built_from_rewrit
     assert paused["form"] == "skills/gate-conductor/forms/ASK.toml"
     reason = paused["prefill"]["ask"]
     assert "plan" in reason
-    assert "5" in reason
+    assert "rewritten 1 time" in reason and "rewrite-cap of 1" in reason
+
+
+def test_the_one_rewrite_is_still_incorporated_and_released(workdir, capsys):
+    """The cap counts rewrites, not rounds: a rewritten cut gets its own
+    look, the writer's one pass over it, and a release -- nothing about
+    having spent the seam's one rewrite stops the ordinary path."""
+    wid = "issue10"
+    _open_to_plan(wid, "10")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: wrong chunk entirely",
+                          resolution="rewrite")
+    capsys.readouterr()
+
+    st = runmod.state(wid)
+    _dispatch_and_close_plan(wid, st["current"]["id"], fill_fn=lambda w: _fill_plan(
+        w, purpose="the right chunk", scope="src/parser.c only"))
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: the proof is thin",
+                          resolution="incorporate")
+    capsys.readouterr()
+    st = runmod.state(wid)
+    assert st["current"]["form"] == "skills/planner/forms/REWORK.toml", (
+        f"the rewritten cut was not handed back to the planner: {st['current'].get('form')}")
+
+    _dispatch_and_close_plan(wid, st["current"]["id"], fill_fn=_fill_plan_rework)
+    _fill_plan_to_execute(wid, "pass")
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    st = runmod.state(wid)
+    assert any(s["segment"] == "execute" and s.get("dispatches") for s in st["steps"]), (
+        "the incorporated rewrite did not release into a gate")
 
 
 def test_a_round_a_resumed_pause_opens_is_not_capped_again_on_the_very_next_send_back(

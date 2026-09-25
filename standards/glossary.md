@@ -150,6 +150,10 @@ is joint. Coining a synonym for a term below is a defect.
   closes the segment on the artifact as it stands, over a live objection; `rework` is the answer
   only when it names what the round changes that a reading did not; `up` pauses the segment as
   an ask at the run that dispatched it, the same as any other pause.
+- **rewrite-cap** — run-an-issue's spec and plan seams' own ceiling: how many **rewrite**s a
+  seam may make before it releases, counted since the last release or since a pause's answer
+  opened a round. At 1 (ruling, 2026-09-25): one major rewrite, then a second becomes an ask
+  at the run's principal — the conductor's to answer only where the run's authority grants it.
 - **round-cap** — a segment property beside `impasse-after`, in a different kind: a ceiling on
   the **round**s a **seam** sends back in a row, counted since the seam last released one
   (`engine/review_yield.py`'s `seam_round_steps_since_release`) — a release starts the count
@@ -157,7 +161,7 @@ is joint. Coining a synonym for a term below is a defect.
   ruling does not — where `impasse-after` counts one
   artifact's own rework rounds and resets on a new one. A round with no panel (run-an-issue's
   plan seam after the opening cut) counts once its conductor disposes of it. Declared on
-  `run-an-issue`'s `understand` and `plan`, and on `run-a-gate`'s `review`. Where a send-back
+  `run-a-gate`'s `review`; run-an-issue's spec and plan seams use **rewrite-cap** instead. Where a send-back
   would land the count at the cap, it mints an ask to the run's principal instead — naming the
   seam, the count, and the findings of every round counted — and `impasse-after`'s own outlet,
   where a segment declares one, is not consulted on that send-back: the cap outranks it where
