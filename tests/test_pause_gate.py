@@ -595,6 +595,30 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdi
     assert resumed["id"] != "work-1"
 
 
+
+def test_a_resumed_round_is_the_only_round_that_reaches_review(workdir, capsys):
+    """#123: the untouched `select` the pause leapfrogged stayed open beside
+    the fresh round's own. Once the fresh select landed, `current` fell
+    through to the stale one, and submitting it minted a second review round
+    on the same diff. The fresh round supersedes it."""
+    cli.main(["open", "run-a-gate", "--id", "gzp"])
+    cli.main(["gzp", "up", "the purpose itself is unclear before any round lands"])
+    _fill(_response("gzp"), 'answer = "narrow the purpose"\n')
+    cli.main(["gzp", "submit"])
+    capsys.readouterr()
+
+    st = runmod.state("gzp")
+    assert not any(s["id"] == "select" for s in st["steps"])
+
+    _fill_implement("gzp")
+    cli.main(["gzp", "submit"])
+    _select("gzp")
+    st = runmod.state("gzp")
+    reviews = [s for s in st["steps"] if s.get("panel")]
+    assert len(reviews) == 1, [s["id"] for s in reviews]
+    assert not any(s.get("form") == "forms/SELECT.toml" and s["id"] not in st["done"]
+                   for s in st["steps"])
+
 def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_an_issue(workdir, capsys):
     """Same shape as the `run-a-gate` test above, for `understand`'s own
     consolidate sibling, driven through a real resume."""
