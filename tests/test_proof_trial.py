@@ -162,17 +162,30 @@ def test_a_proof_that_passes_on_a_tree_carrying_work_reads_as_its_measure(workdi
 
 def test_a_prose_proof_reads_as_not_resolving(workdir, capsys):
     """issue116's own string: a description naming the palette entry, which
-    `/bin/sh` reads as an unterminated quote."""
+    the shell reads as an unterminated quote."""
     child = _to_the_first_cut()
     _cut(child, "constellation.toml's `test` entry: python3 -m pytest -q")
     cli.main([child, "submit"])
     cli.main([child, "close"])
 
     [ran] = _checks(child)
-    assert ran["exit"] == 2 and "Syntax error" in ran["output"]
+    assert ran["exit"] == 2 and "unexpected EOF" in ran["output"]
     out = _route_room("issue17", capsys)
     assert "did not resolve (exit 2)" in out
-    assert "Syntax error" in out
+    assert "unexpected EOF" in out
+
+
+def test_a_bash_proof_runs_as_written(workdir, capsys):
+    """#191: tennis_elo issue126's gate proof compared two outputs with
+    process substitution, which is bash's. It is run in bash, so it reads as
+    a command, not as a parse error."""
+    child = _to_the_first_cut()
+    _cut(child, "! echo a | diff -q - <(echo b) > /dev/null")
+    cli.main([child, "submit"])
+    cli.main([child, "close"])
+
+    [ran] = _checks(child)
+    assert ran["exit"] == 0, ran["output"]
 
 
 def test_a_palette_name_with_no_entry_reads_as_not_resolving(workdir, capsys):

@@ -30,6 +30,7 @@ proof in flight.
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -563,10 +564,23 @@ def _as_text(stream):
     return stream or ""
 
 
+# [proofs-run-in-bash]
+# Rationale: #191 -- a proof is written and verified in bash, the shell every
+#   agent's tool runs, and `shell=True` alone runs it in `/bin/sh`, which is
+#   dash on Debian and Ubuntu. tennis_elo issue126's gate proof used `<(...)`:
+#   it passed by hand and exited 2 on every submit, and a minted proof cannot
+#   be edited. Running it in the shell it was written in makes that
+#   difference impossible instead of reporting it.
+# Rejected: POSIX-only proofs checked at the cut -- a rule every author has
+#   to remember, enforced by a refusal, for a shell nobody writes in.
+_SHELL = shutil.which("bash")
+
+
 def _run(cmd, cwd, budget):
     """(exit, output) for one check; exit `None` when it outran the budget."""
     try:
-        r = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+        r = subprocess.run(cmd, shell=True, executable=_SHELL,
+                           capture_output=True, text=True,
                            encoding="utf-8", errors="replace",
                            timeout=budget, cwd=cwd)
     except subprocess.TimeoutExpired as e:
