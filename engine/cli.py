@@ -322,6 +322,7 @@ def _trial_proofs(wid, step, form, fields, root):
     or every one of them is a status word rather than a command, and
     possibly short of every field where one outran the handback and is
     still running, detached, when this returns."""
+    changed = _changed_since_cut(wid, root)
     resolved = []
     for f in form["fields"]:
         text = str(fields.get(f["id"], "") or "").strip()
@@ -333,7 +334,8 @@ def _trial_proofs(wid, step, form, fields, root):
             cmd = _resolve_command(text, root)
         except SystemExit as e:
             journal.append(wid, "check", step=step["id"], field=f["id"],
-                           command=text, exit=127, output=str(e))
+                           command=text, exit=127, output=str(e), trial=True,
+                           changed=changed)
             continue
         resolved.append((f["id"], cmd))
     if resolved:
@@ -341,8 +343,33 @@ def _trial_proofs(wid, step, form, fields, root):
             budget = checkrun.budget_for(fields)
         except SystemExit:
             budget = checkrun.BUDGET
-        checkrun.hand_in_trial(wid, step["id"], resolved, root, budget)
-    return list(runmod.state(wid)["checks"])
+        checkrun.hand_in_trial(wid, step["id"], resolved, root, budget, changed)
+    return list(runmod.state(wid)["proof_trials"])
+
+
+# [trial-measures-its-tree]
+# Rationale: #181 -- a trial's exit 0 was read as "passes on an empty diff"
+#   wherever it ran, and a proof field is trialled at a gate's adjudication
+#   and at a rework cut too, both against a tree already carrying work. The
+#   reading asserted a fact nobody measured. So the trial measures it: the
+#   paths the tree differs from its root run's cut point by, tracked or not,
+#   the engine's own `.agent-work/` record aside. The reading then says what
+#   was measured, and "proves nothing" belongs to a count of zero alone. The
+#   cut point is read off the run's own opening entry: a child opens carrying
+#   its parent's, since a dispatched child bound to its own id cannot read
+#   the root journal it would otherwise come from.
+def _changed_since_cut(wid, root):
+    """How many paths the tree at `root` differs from its run's cut point by,
+    or None where the run records no cut point or git cannot say."""
+    sha = (runmod.state(wid).get("from") or "").rpartition("@")[2]
+    if not sha:
+        return None
+    tracked = _git(root, "diff", "--name-only", sha, "--")
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard")
+    if tracked.returncode or untracked.returncode:
+        return None
+    paths = set(tracked.stdout.splitlines()) | set(untracked.stdout.splitlines())
+    return len({p for p in paths if p and not p.startswith(".agent-work/")})
 
 
 def _tier(step, asm):
@@ -939,7 +966,7 @@ def _mint_child(assembly, parent, pstep_id):
     journal.append(wid, "run", title=title, assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
                    parent_step=step_id, model=tier, root=proot,
-                   branch=pst.get("branch", ""))
+                   branch=pst.get("branch", ""), **{"from": pst.get("from", "")})
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
         # A panel names the form its panelist fills -- a critic reads a plan
@@ -988,7 +1015,7 @@ def _open_excursion(assembly, parent, pst, row_id, proot):
     journal.append(wid, "run", title=boards.label(row)[:72], assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
                    parent_step=seg_id, row=row_id, model=seg.get("model", ""),
-                   root=proot)
+                   root=proot, **{"from": pst.get("from", "")})
     journal.append(wid, "prefill", fields=prefill)
     for step in runmod.skeleton(asm):
         journal.append(wid, "step", **step)
@@ -1772,7 +1799,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     proofs = []
     proof_wait = None
     if returns and disposed:
-        returns.pop("checks", None)
+        returns.pop("proof_trials", None)
         # Not the frozen snapshot `_summary` took at the child's own close
         # time: `[trial-wait]` (`cmd_wait`, below) is exactly the case where
         # a proof outran the handback and is still running, detached, when
@@ -1785,7 +1812,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         # it is rendered.
         cst = runmod.state(disposed)
         if cst:
-            proofs = render.proof_readings(cst.get("checks") or [])
+            proofs = render.proof_readings(cst.get("proof_trials") or [])
             pending = runmod.outstanding_trial(cst)
             if pending and checkrun.alive(pending.get("pid")):
                 proof_wait = {"wid": disposed, "pid": pending.get("pid"),
@@ -1800,13 +1827,14 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         # CLOSE.toml's `triage`) is a string that already overrode the
         # summary's list by the time it lands here, so only a survivor gets
         # rendered; the isinstance check is what tells the two apart.
-        for key, fn in (("checks", render.checks), ("cycles", render.cycles),
-                        ("amends", render.amends), ("triage", render.triage)):
+        for key, fn in (("checks", render.checks), ("proof_trials", render.proof_readings),
+                        ("cycles", render.cycles), ("amends", render.amends),
+                        ("triage", render.triage)):
             if isinstance(returns.get(key), list):
                 returns[key] = "; ".join(fn(returns[key])) or "none"
         # A child's own plan field returns as a list of blocks too --
         # GATE_CLOSE.toml's `claims` -- and has no renderer of its own, so
-        # whatever list survives the four above prints block by block.
+        # whatever list survives the five above prints block by block.
         for key, val in list(returns.items()):
             if isinstance(val, list):
                 returns[key] = "; ".join(render.blocks(val)) or "none"
@@ -4630,6 +4658,7 @@ def _summary(st):
         "change": change,
         "deviations": deviations,
         "checks": list(st.get("checks", [])),
+        "proof_trials": list(st.get("proof_trials", [])),
         "model": st.get("model", ""),
         "amends": amends,
         "triage": triage,

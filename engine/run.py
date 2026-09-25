@@ -720,7 +720,7 @@ def state(work_id):
         return None
     st = {"id": work_id, "steps": [], "done": {}, "boards": {}, "notes": [],
           "returns": {}, "returns_by_child": {}, "row_returns": {}, "amends": [],
-          "checks": [], "measures": [], "in_flight": {}, "trials": {}, "closed": False}
+          "checks": [], "proof_trials": [], "measures": [], "in_flight": {}, "trials": {}, "closed": False}
     raw_steps = []
     held_on_a_missing_form = {}
     for e in entries:
@@ -732,9 +732,10 @@ def state(work_id):
                       row=e.get("row", ""), branch=e.get("branch", ""),
                       worktree=e.get("worktree", ""))
             # "from" is a keyword, so it cannot ride the `update(...)` call
-            # above as an ordinary argument -- set by subscript instead. Only
-            # a root run's own opening entry ever carries one (#67): the cut
-            # point a worktree was branched from, `"<ref>@<sha>"`.
+            # above as an ordinary argument -- set by subscript instead. The
+            # cut point a worktree was branched from, `"<ref>@<sha>"` (#67):
+            # a root run records it, and each child opens carrying its
+            # parent's, since they stand in the same tree.
             st["from"] = e.get("from", "")
         elif kind == "step":
             raw_steps.append(dict(e))
@@ -799,8 +800,15 @@ def state(work_id):
             elif unreadable:
                 held_on_a_missing_form[e["step"]] = e
         elif kind == "check":
-            st["checks"].append({"command": e.get("command"), "exit": e.get("exit"),
-                                 "output": e.get("output")})
+            # A trial and a gate's own check are two kinds of evidence -- one
+            # ran before the work, one after it -- so each lands in its own
+            # list, and a reading written for one never meets the other.
+            read = {"command": e.get("command"), "exit": e.get("exit"),
+                    "output": e.get("output")}
+            if e.get("trial"):
+                st["proof_trials"].append({**read, "changed": e.get("changed")})
+            else:
+                st["checks"].append(read)
             st["in_flight"].pop(e.get("step"), None)
             st["trials"].pop(e.get("step"), None)
         elif kind == "board":

@@ -140,8 +140,24 @@ def test_a_proof_that_passes_on_an_empty_diff_reads_as_proving_nothing(workdir, 
     cli.main([child, "close"])
 
     out = _route_room("issue17", capsys)
-    assert "passes on an empty diff (exit 0)" in out
+    assert "passes with no work in the tree (exit 0)" in out
     assert "proves nothing" in out
+
+
+def test_a_proof_that_passes_on_a_tree_carrying_work_reads_as_its_measure(workdir, capsys):
+    """#181: a proof field is trialled wherever a form carries one -- at a
+    gate's adjudication, at a rework cut -- and there the tree already holds
+    work. The reading says what the trial measured, and "proves nothing"
+    belongs to a tree with no work in it."""
+    child = _to_the_first_cut()
+    (journal.root_for(child) / "landed.txt").write_text("work\n")
+    _cut(child, "true")
+    cli.main([child, "submit"])
+    cli.main([child, "close"])
+
+    out = _route_room("issue17", capsys)
+    assert "passes (exit 0) against 1 path changed since the cut" in out
+    assert "no work in the tree" not in out
 
 
 def test_a_prose_proof_reads_as_not_resolving(workdir, capsys):
@@ -322,10 +338,10 @@ def test_the_route_forms_own_submit_does_not_run_the_proof_again(workdir, capsys
     assert g1["prefill"]["proof"] == "exit 1"
 
 
-def test_the_reading_reaches_the_close_summary_with_the_gates_own_checks(workdir, capsys):
-    """The `check` entry is the kind the gate's runner already writes, so the
-    child's close summary carries it up exactly as a gate's checks travel:
-    the parent's return holds it under `checks`."""
+def test_the_reading_reaches_the_close_summary_apart_from_the_gates_own_checks(workdir, capsys):
+    """The child's close summary carries its trial up under `proof_trials`,
+    and `checks` -- the gate's own runs, read as exit codes -- holds none of
+    it (#181: a gate's real pass read as "passes on an empty diff")."""
     child = _to_the_first_cut()
     _cut(child, "exit 1")
     cli.main([child, "submit"])
@@ -333,4 +349,5 @@ def test_the_reading_reaches_the_close_summary_with_the_gates_own_checks(workdir
     capsys.readouterr()
 
     ret = runmod.state("issue17")["returns_by_child"][child]
-    assert ret["summary"]["checks"] == [{"command": "exit 1", "exit": 1, "output": ""}]
+    assert ret["summary"]["proof_trials"] == [{"command": "exit 1", "exit": 1, "output": "", "changed": 0}]
+    assert ret["summary"]["checks"] == []

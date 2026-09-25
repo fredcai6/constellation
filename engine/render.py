@@ -95,7 +95,12 @@ def checks(entries):
 #   find it (127, 126), could not parse it (a syntax error, issue116's
 #   apostrophe), or the palette had no such entry -- is #122's defect, read
 #   where it can still be sent back. A proof past its bound is the fourth,
-#   said as what happened rather than guessed at.
+#   said as what happened rather than guessed at. The first two are
+#   readings of a tree with no work in it, and a proof field is trialled
+#   wherever a form carries one -- at a rework cut, at a gate's
+#   adjudication -- so each trial carries the tree it ran against, measured
+#   (`[trial-measures-its-tree]`, engine/cli.py), and a tree carrying work
+#   reads as its exit and that count (#181).
 # Rejected: a fifth reading for "failed for the right reason". Whether exit
 #   1 was the test the planner meant or a typo in a path is the conductor's
 #   to read off the output, not a classification a shell exit can carry.
@@ -106,14 +111,21 @@ def proof_readings(entries):
     for c in entries or []:
         code, output = c.get("exit"), str(c.get("output") or "")
         first = next((l for l in output.splitlines() if l.strip()), "").strip()
-        if code == 0:
-            reading = "passes on an empty diff (exit 0) -- proves nothing"
+        changed = c.get("changed")
+        against = ("" if changed is None else
+                   f" against {changed} path{'s' if changed != 1 else ''} changed since the cut")
+        if code == 0 and changed == 0:
+            reading = "passes with no work in the tree (exit 0) -- proves nothing"
+        elif code == 0:
+            reading = f"passes (exit 0){against}"
         elif code == -1:
             reading = f"did not finish -- {output.strip() or 'no result'}; not awaited at the cut"
         elif code in (126, 127) or "syntax error" in output.lower():
             reading = f"did not resolve (exit {code})" + (f" -- {first}" if first else "")
-        else:
+        elif changed == 0:
             reading = f"resolved, exit {code} -- a real check, failing before the work"
+        else:
+            reading = f"resolved, exit {code}{against}"
         out.append(f"`{c.get('command', '')}`\n{reading}")
     return out
 
