@@ -3659,6 +3659,58 @@ def _commit_gate(wid, asm, step):
 # Rejected: validating dispositions the way `validates = "board"` does for
 #   the understand board. The principal's own ruling: execution state is
 #   mechanical-lane fields, not a second gate the engine adjudicates.
+# [satisfied-is-rechecked]
+# Rationale: #74 -- a row read `satisfied` for the rest of the run on the
+#   word of the gate that settled it, and rolling horizon means later gates
+#   change the code earlier ones proved: issue57's o10 was satisfied at g2
+#   and g4's first cut would have made it false, caught by a critic and by
+#   nothing in the engine. So `satisfied` is not a word that stays true on
+#   its own. At close each satisfied row's gate proof runs again against the
+#   finished tree -- each distinct command once -- and a row whose proof no
+#   longer passes becomes `owed:` with the command and its exit, the word
+#   that already holds a run open and recuts its plan.
+# Rejected: a close report listing dispositions whose code later gates
+#   touched, for a human to judge. It would say "maybe" about every row a
+#   later gate came near; the proof says which ones broke.
+def _recheck_satisfied(wid, asm):
+    st = runmod.state(wid)
+    path = pathlib.Path(st["boards"].get("execution-state", ""))
+    seg = next((s for s in asm["segment"] if s["id"] == "execution-state"), None)
+    if not (seg and path.name and path.exists()):
+        return
+    gates = {s["id"]: s for s in st["steps"] if s.get("dispatches")}
+    root = journal.root_for(wid)
+    rows, ran, broke = boards.rows(path), {}, False
+    for row in rows:
+        orders = (gates.get(str(row.get("gate", ""))) or {}).get("prefill") or {}
+        proof = str(orders.get("proof", "")).strip()
+        if str(row.get("status", "")) != "satisfied" or not proof \
+                or forms.leading_word(proof) in forms.NULL_WORDS:
+            continue
+        if proof not in ran:
+            try:
+                cmd = _resolve_command(proof, root)
+                budget = checkrun.budget_for(orders)
+            except SystemExit as e:
+                ran[proof] = (proof, 127, str(e))
+            else:
+                print(f"re-running {row['gate']}'s proof: {cmd}")
+                code, output = checkrun._run(cmd, str(root), budget)
+                ran[proof] = (cmd, code, output)
+            cmd, code, output = ran[proof]
+            journal.append(wid, "check", step="close", command=cmd,
+                           exit=-1 if code is None else code, output=output)
+        cmd, code, _ = ran[proof]
+        if code != 0:
+            said = "did not finish" if code is None else f"exited {code}"
+            row["status"] = (f"owed: {row['gate']}'s proof no longer passes at close "
+                             f"-- `{cmd}` {said}")
+            broke = True
+    if broke:
+        _seed_board(runmod.resolve_form(asm, seg["board"]), path, rows)
+        journal.append(wid, "board", segment=seg["id"], path=str(path), rows=rows)
+
+
 def _settle_execution(wid, asm):
     st = runmod.state(wid)
     path = st["boards"].get("execution-state", "")
@@ -4877,6 +4929,7 @@ def cmd_close(argv):
     #   "not complete" -- would be two things to keep saying the same
     #   thing.
     if not pending:
+        _recheck_satisfied(wid, asm)
         _settle_execution(wid, asm)
         st = runmod.state(wid)
         pending = [s for s in st["steps"] if s["id"] not in st["done"]]

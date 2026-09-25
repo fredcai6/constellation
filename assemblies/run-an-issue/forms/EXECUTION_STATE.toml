@@ -10,11 +10,12 @@
 # at close, whichever of those a run's own route to its terminal step
 # actually takes: a row still `open`, or claimed `owed:`, refills the plan
 # segment for another round; every other word mints nothing, and the run
-# walks on. The engine reads dispositions and refuses nothing -- deferred,
-# invalidated, handed-off and rejected all count as settled, exactly like
-# satisfied, and no word here is checked against anything. `owed` is the one
-# exception: it is a claim, not a disposition, and it holds the run open on
-# purpose -- see the status line below.
+# walks on. Deferred, invalidated, handed-off and rejected all count as
+# settled, exactly like satisfied. `owed` is the one exception: it is a
+# claim, not a disposition, and it holds the run open on purpose -- see the
+# status line below. At close, each `satisfied` row's gate proof runs again
+# against the finished tree, and a row whose proof no longer passes is
+# written back `owed:` with the command that failed.
 
 [[obligation]]
 id = "o1"

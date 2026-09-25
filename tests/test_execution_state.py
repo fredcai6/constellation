@@ -314,3 +314,65 @@ def test_a_worklist_emptied_outside_every_outcome_verb_still_settles_at_close(
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
     assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact
+
+
+# -- #74: a satisfied row is rechecked at close ------------------------------
+
+
+def _to_close_with_g1_satisfied(proof):
+    """One obligation, one gate whose proof is `proof`, the row disposed
+    `satisfied` by that gate, and the run standing on its close form."""
+    from functools import partial
+    from test_nesting import _fill_plan
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
+    _fill_open("issue17")
+    cli.main(["issue17", "submit"])
+    _work_the_board("issue17")
+    _fill_consolidate_with_obligation("issue17")
+    cli.main(["issue17", "submit"])
+    _dispatch_and_close_plan("issue17", fill_fn=partial(_fill_plan, proof=proof))
+    _dispatch_plan_critic("issue17")
+    _fill_plan_to_execute("issue17")
+    cli.main(["issue17", "submit"])
+    path = pathlib.Path(_execution_state_path("issue17"))
+    path.write_text(path.read_text().replace('status = "open"',
+                                             'status = "satisfied"\ngate = "g1"'))
+    (journal.root_for("issue17") / "landed.txt").write_text("the fix\n")
+    _dispatch_and_close_child("issue17", "g1")
+    _fill_gate_transition("issue17")
+    cli.main(["issue17", "submit"])
+    _fill_close("issue17")
+    cli.main(["issue17", "submit"])
+
+
+def test_a_satisfied_obligation_a_later_change_broke_is_owed_again_at_close(
+        workdir, capsys, monkeypatch):
+    """#74: the gate proved its obligation, and something after it undid the
+    proof. Close runs that proof again, and the row it no longer holds up is
+    owed -- the run recuts its plan rather than closing on a false word."""
+    stub_gh(monkeypatch)
+    _to_close_with_g1_satisfied("test -f landed.txt")
+    assert runmod.state("issue17")["awaiting_close"]
+    (journal.root_for("issue17") / "landed.txt").unlink()   # a later change undid it
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "close"])
+    assert "not complete" in str(e.value)
+
+    [row] = boards.rows(_execution_state_path("issue17"))
+    assert row["status"].startswith("owed: g1's proof no longer passes at close")
+    assert "test -f landed.txt" in row["status"]
+    assert runmod.state("issue17")["current"]["segment"] == "plan"
+    assert not runmod.state("issue17")["closed"]
+
+
+def test_a_satisfied_obligation_whose_proof_still_passes_closes(workdir, capsys, monkeypatch):
+    stub_gh(monkeypatch)
+    _to_close_with_g1_satisfied("test -f landed.txt")
+    capsys.readouterr()
+
+    cli.main(["issue17", "close"])
+
+    assert "re-running g1's proof" in capsys.readouterr().out
+    assert runmod.state("issue17") is None or runmod.state("issue17")["closed"]
