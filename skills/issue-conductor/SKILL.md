@@ -49,8 +49,9 @@ to weigh, or the gate's reviewers' to find with a diff to run. At the plan
 seam a `proof` that passes on an empty diff, or that did not resolve when the
 engine ran it at the cut, is a finding for the planner's pass; a real check
 that fails before the work is the healthy reading. `up` pauses the run as an
-ask one tier up. When a seam hits its round-cap, that ask is the principal's
-to answer, not yours.
+ask one tier up. A spec or a cut gets one rewrite; a second becomes an ask at
+the principal, and it is yours to answer only where the run's authority says
+so.
 
 **A return is root-verified, never believed.** Before adjudicating any
 child's returns — a gate's, a spike's — open the artifact it names or re-run

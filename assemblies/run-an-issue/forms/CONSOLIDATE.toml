@@ -42,7 +42,9 @@ called `writer`, taken or rejected on its own judgement; the spec it
 returns stands here with no panel, and your next word on it is a release,
 or a `rewrite` if the pass itself went severely wrong -- a second
 incorporate refuses. `rewrite` is a fresh spec, written from your `orders`
-alone, with its own panel: the call for a finding you called `severe`.
+alone, with its own panel: the call for a finding you called `severe`. A
+spec gets one rewrite; a second, before this seam releases, becomes an ask
+at the run's principal instead.
 `up` is the round you cannot rule on from here, the issue itself being
 wrong the usual reason: it pauses this segment rather than releasing it,
 your reason standing as an ask one tier up, with whatever it answers

@@ -117,12 +117,15 @@ def test_both_seams_declare_no_free_round():
     Both segments dropped `impasse-after` (and the impasse outlet)
     entirely: `_check_one_look` now refuses a second `incorporate` of the
     same artifact outright, in code rather than in a conductor's ruling.
-    `round-cap` is the ceiling still declared here, unchanged."""
+    The ceiling here is `rewrite-cap = 1`: one major rewrite, then an ask
+    -- `round-cap` stays on run-a-gate's review alone."""
     assert "impasse-after" not in _seg("understand")
     assert "impasse-after" not in _seg("plan")
     assert "impasse-form" not in _seg("understand")
     assert "impasse-form" not in _seg("plan")
-    assert _seg("understand")["round-cap"] == _seg("plan")["round-cap"] == 5
+    assert _seg("understand")["rewrite-cap"] == _seg("plan")["rewrite-cap"] == 1
+    assert "round-cap" not in _seg("understand")
+    assert "round-cap" not in _seg("plan")
 
 
 def test_a_second_incorporate_of_the_same_artifact_is_refused(workdir, capsys):

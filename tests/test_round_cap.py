@@ -1,36 +1,20 @@
-"""issue113: a run-level round-cap on `run-an-issue`'s understand and plan
-seams, and `run-a-gate`'s review seam -- once a seam has sent back
+"""The ceilings on a seam's send-backs, and the ask each one mints.
+
+`run-a-gate`'s review keeps issue113's `round-cap`: once it has sent back
 `round-cap` rounds in a row with none released, the next send-back pauses
-to an ask instead of minting another round, naming the seam, the count, and
-the findings of every round counted (spec.md's C1-C5).
+to an ask naming the seam, the count, and the findings of every round
+counted. run-an-issue's spec and plan seams use `rewrite-cap` instead
+(ruling, 2026-09-25): one look, the writer's one pass, one major rewrite --
+and a second rewrite before the seam releases goes up as the same ask.
 
-The count is the rounds landed since the seam last released one
-(`review_yield.seam_round_steps_since_release`), never the seam's whole
-history: a rolling-horizon run re-enters the plan seam once per gate by
-design, and issue811's first run (2026-09-06) reached its sixth gate with no
-send-back at all and was stopped by a cap counting every round since open.
-Two fixtures here draw the line -- send-backs with no release reach the cap,
-one released cut per gate never does.
+Both count since the seam last released, never over its whole history: a
+rolling-horizon run re-enters the plan seam once per gate by design, and
+issue811's first run (2026-09-06) was stopped by a cap counting every round
+since open. A round a pause's answer opened starts the count over too
+(#177).
 
-One look (ruling, 2026-09-25) changed what a send-back *is* on the plan and
-understand seams: `impasse-after` and the impasse outlet are gone from both,
-so the loop the cap exists to interrupt is no longer a chain of impasse
-rulings (issue99's nineteen rounds) -- it is an `incorporate` (spent once
-per artifact, refused a second time by `_check_one_look`) followed by a
-chain of `rewrite`s, each judged by its own fresh panel
-(`panel-rounds = "opening"` reads a rewrite's round too). `round-cap` is
-what is left to bound that chain, and this file still exercises it exactly
-that way -- five rounds sent back in a row with nothing released.
-
-Reuses `test_nesting.py`/`test_review_yield.py`'s own plan-seam fixtures and
-`test_pause_gate.py`'s own gate-review fixtures rather than hand-rolling a
-journal -- the same mechanics those files already stand on.
-
-Also exercises #177: a paused seam's answer mints a `resumed` round, and
-`review_yield.seam_round_steps_since_release` restarts its own count there
--- the answer is the ruling the cap stopped to get, so it buys the seam a
-fresh run of `round-cap` send-backs, not the single round the pre-#177 seam
-had no way to buy more than.
+Reuses `test_nesting.py`'s plan-seam fixtures and `test_pause_gate.py`'s
+gate-review fixtures rather than hand-rolling a journal.
 """
 
 import pathlib
@@ -123,19 +107,13 @@ def _release_gates(wid, gates):
 
 
 def _drive_plan_seam_to_its_cap(wid="issue113c1"):
-    """Five rounds at the plan-to-execute seam sent back in a row with none
-    released -- one artifact, `incorporate`d once (a second incorporate on
-    top of it is refused, `_check_one_look`), then four `rewrite`s, each
-    judged by its own fresh panel (`panel-rounds = "opening"` reads a
-    rewrite's round too). Read off the assembly, never pinned: the cap is
-    `round-cap`, and the rounds before it are each sent back plain. The cap
-    round's own deciding form carries a `[[calls]]` table narrowing it to
-    one severe finding among two raised
-    (`_dispatch_plan_critic_with_calls`) -- the only round here that does,
-    so C1-findings below also proves `_seam_findings_history`'s
-    calls-narrowed branch, not only its plain-join fallback every other
-    round exercises."""
-    cap = PLAN_SEG["round-cap"]
+    """The plan-to-execute seam driven to its `rewrite-cap` (1): the opening
+    cut `incorporate`d, the pass that comes back rewritten -- the seam's one
+    rewrite -- and that fresh cut's own panel finding the scope still wrong,
+    so the conductor's second `rewrite` goes up instead. The cap round's own
+    deciding form carries a `[[calls]]` table ruling one finding `severe` and
+    one `beyond` (`_dispatch_plan_critic_with_calls`), so the ask below also
+    proves `_seam_findings_history`'s calls-narrowed branch."""
     _open_to_plan(wid)
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: r1 needs another look",
@@ -145,59 +123,43 @@ def _drive_plan_seam_to_its_cap(wid="issue113c1"):
     _fill_plan_to_execute(wid, "rewrite",
         calls='orders = "gap: r2 needs another look -- replace it in kind"\n')
     cli.main([wid, "submit"])
-    for n in range(3, cap):
-        fresh = _fresh_plan_mint(wid)
-        _dispatch_and_close_plan(wid, fresh["id"], _fill_plan)
-        _dispatch_plan_critic(wid, verdict="revise",
-                              findings=f"gap: r{n} needs another look",
-                              resolution="rewrite")
     fresh = _fresh_plan_mint(wid)
     _dispatch_and_close_plan(wid, fresh["id"], _fill_plan)
-    _dispatch_plan_critic_with_calls(wid, f"gap: r{cap} the scope creeps again")
+    _dispatch_plan_critic_with_calls(wid, "gap: r3 the scope creeps again")
     return wid
 
 
 # -- C1: the plan seam stops at the cap and asks -----------------------------
 
 
-def test_round_cap_pauses_the_plan_seam_after_five_send_backs_with_no_release(workdir, capsys):
+def test_a_second_rewrite_pauses_the_plan_seam_to_an_ask(workdir, capsys):
     wid = _drive_plan_seam_to_its_cap()
     capsys.readouterr()
 
     pst = runmod.state(wid)
     ask = pst["current"]
-    assert ask["form"] == ASK_FORM, "the fifth send-back minted a round instead of an ask"
+    assert ask["form"] == ASK_FORM, "the second rewrite minted a cut instead of an ask"
     assert ask["resumes"] == wid  # a root run, no parent to reach: self-mint
     assert ask["filler"] == runmod.PRINCIPAL  # the issue tier's ask is the human's, never the run's own
 
-    # -- C3: the room names the seam and the count --------------------------
+    # the room names the seam and the count
     reason = ask["prefill"]["ask"]
     assert "plan-to-execute" in reason
-    assert "5" in reason
+    assert "rewrite-cap of 1" in reason
 
-    # -- C1-findings: every one of the five counted rounds' own findings, not
-    # only the one that tripped the cap -- the sent-back rounds each carry
-    # "r<n> needs another look", the cap round its own text ------------------
+    # every counted round's own findings, oldest first: round one's panel,
+    # round two's rewrite orders, round three's severe call
     findings = ask["prefill"].get("findings", "")
-    sent_back = [n for n in range(1, 5) if f"r{n} needs another look" in findings]
-    assert sent_back and sent_back[0] == 1, "round 1's own findings missing from the ask"
-    assert "r5 the scope creeps again" in findings
-
-    # -- oldest first: `_seam_findings_history`'s own contract, not only that
-    # every round's text is present but that it lands in landed order --------
-    positions = [findings.index(f"r{n} needs another look") for n in sent_back]
-    positions.append(findings.index("r5 the scope creeps again"))
+    marks = ["r1 needs another look", "r2 needs another look", "r3 the scope creeps again"]
+    assert all(m in findings for m in marks), findings
+    positions = [findings.index(m) for m in marks]
     assert positions == sorted(positions), (
         "the ask's findings landed out of round order (oldest first)")
 
-    # -- the calls-narrowed branch: round 5's own `[[calls]]` table calls its
-    # other finding `beyond`, not `severe`, so that finding is absent even
-    # though the panel that raised it returned it -- proof
-    # `_seam_findings_history` (engine/cli.py) actually reads a round's own
-    # narrowed text for a round whose done-entry carries a table, not only
-    # its plain-join fallback every other round here exercises ---------------
+    # round three's own calls table ruled its other finding `beyond`: it left
+    # as triage, so the ask does not carry it
     assert BEYOND_FINDING not in findings, (
-        "the ask carried a finding round 5's own calls table ruled beyond, not severe")
+        "the ask carried a finding round 3's own calls table ruled beyond")
 
 
 # -- a release starts the count over: one cut per gate never reaches it -----
@@ -235,16 +197,13 @@ def test_round_cap_never_fires_on_a_plan_seam_released_once_per_gate(workdir, ca
     assert since[0]["id"] in st["done"]  # gate 7's own round, the one just sent back
 
 
-# -- C4: an answer buys one round, and the next send-back asks again --------
+# -- C4: an answer buys one more rewrite ------------------------------------
 
 
-def test_round_cap_answer_restarts_the_count_then_asks_again_after_a_full_cap(workdir, capsys):
-    """#177: the round a paused seam's answer opens is stamped `resumed`,
-    and `review_yield.seam_round_steps_since_release` restarts its count
-    there -- the answer is the ruling the cap stopped to get, so it buys the
-    seam a fresh run of `round-cap` send-backs, not one. Before #177 this
-    seam had no way to buy more than a single round back; this is the new
-    behaviour, not a port of the old one-round test."""
+def test_an_answer_buys_the_seam_one_more_rewrite(workdir, capsys):
+    """#177: the principal's answer is the ruling the cap stopped to get, so
+    the round it opens starts the count over -- the seam gets one more
+    rewrite, and only a second one after the answer asks again."""
     wid = _drive_plan_seam_to_its_cap()
     capsys.readouterr()
 
@@ -255,50 +214,32 @@ def test_round_cap_answer_restarts_the_count_then_asks_again_after_a_full_cap(wo
 
     cst = runmod.state(wid)
     assert not runmod.paused(cst["current"])
-    assert cst["current"]["segment"] == "plan"
     assert cst["current"]["form"] == "skills/planner/forms/PLAN.toml"
     assert cst["current"]["prefill"] == {"answer": answer}
 
-    resumed_step = next(s for s in runmod.state(wid)["steps"]
-                        if s["segment"] == "plan" and s.get("resumed"))
-    assert resumed_step.get("resumed") is True
-
-    cap = PLAN_SEG["round-cap"]
-    # round one after the resume: the resumed transition mints no panel of
-    # its own (`panel-rounds = "opening"`), so this send-back is the
-    # conductor's alone, same shape every panel-less round after the
-    # opening cut takes
+    # the answer's own round has no panel: the conductor rewrites it -- the
+    # one rewrite the answer bought
     _dispatch_and_close_plan(wid, cst["current"]["id"], fill_fn=lambda w: _fill_plan(
         w, purpose="gate 2 purpose, narrowed", scope="src/parser.c only"))
     _fill_plan_to_execute(wid, "rewrite",
-        calls='orders = "gap: r6 still too broad -- replace it in kind"\n')
+        calls='orders = "gap: a1 still too broad -- replace it in kind"\n')
     cli.main([wid, "submit"])
     capsys.readouterr()
+    assert runmod.state(wid)["current"]["form"] == "skills/planner/forms/PLAN.toml", (
+        "the first rewrite after the answer asked again")
 
-    # the count restarted at the resumed round: it takes `cap` more
-    # send-backs, not one, to reach the ask a second time
-    for n in range(2, cap):
-        fresh = _fresh_plan_mint(wid)
-        _dispatch_and_close_plan(wid, fresh["id"], _fill_plan)
-        _dispatch_plan_critic(wid, verdict="revise",
-                              findings=f"gap: round {n} since the resume, still too broad",
-                              resolution="rewrite")
-        capsys.readouterr()
-        assert not runmod.paused(runmod.state(wid)["current"]), (
-            f"the cap fired after only {n} rounds since the resume, not {cap}")
-
+    # its panel finds the same thing, and a second rewrite asks again
     fresh = _fresh_plan_mint(wid)
     _dispatch_and_close_plan(wid, fresh["id"], _fill_plan)
-    _dispatch_plan_critic(wid, verdict="revise",
-                          findings="gap: the same gap, still, since the resume",
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: a2 the same gap, still",
                           resolution="rewrite")
     capsys.readouterr()
-
-    pst = runmod.state(wid)
-    ask = pst["current"]
-    assert ask["form"] == ASK_FORM, "round-cap did not fire a second time after the resume"
+    ask = runmod.state(wid)["current"]
+    assert ask["form"] == ASK_FORM, "a second rewrite after the answer did not ask"
     assert ask["resumes"] == wid
-    assert "the same gap, still, since the resume" in ask["prefill"].get("findings", "")
+    assert "a2 the same gap, still" in ask["prefill"].get("findings", "")
+    assert "r1 needs another look" not in ask["prefill"].get("findings", ""), (
+        "the ask still counted rounds from before the answer")
 
 
 # -- C2: the same stop holds at a gate's own review seam ---------------------
@@ -353,11 +294,11 @@ def test_round_cap_pauses_a_gates_review_seam_at_five_send_backs(workdir, capsys
 # -- C5: undeclared, the cap changes nothing ---------------------------------
 
 
-def test_round_cap_is_declared_at_exactly_three_sites_in_assemblies():
+def test_round_cap_is_declared_at_run_a_gates_review_alone():
     root = pathlib.Path(__file__).resolve().parent.parent / "assemblies"
     sites = [f"{p.relative_to(root)}:{n}"
              for p in sorted(root.glob("**/ASSEMBLY.toml"))
              for n, line in enumerate(p.read_text().splitlines(), start=1)
              if line.strip().startswith("round-cap")]
-    assert len(sites) == 3, sites
-    assert all("run-an-issue" in s or "run-a-gate" in s for s in sites)
+    assert len(sites) == 1, sites
+    assert sites[0].startswith("run-a-gate"), sites

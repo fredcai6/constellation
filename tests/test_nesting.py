@@ -367,36 +367,30 @@ key-terms = "waived: none"
 
 
 def _drive_plan_to_pause(wid, findings="gap: wrong artifact entirely"):
-    """Round-cap (`round-cap = 5`) is the only outlet left on this seam now
-    that plan (and understand, the same shape) declare no impasse of their
-    own (ruling, 2026-09-25): the opening cut's own revise is an
-    `incorporate`, spent once per artifact and minting no panel of its own;
-    every send-back after it is a `rewrite` -- a fresh cut from the
-    conductor's own orders, judged by a fresh panel of its own
-    (`[one-look]`) -- until the fifth landed round pauses the seam rather
-    than minting a sixth."""
+    """`rewrite-cap = 1` is the only outlet left on this seam (ruling,
+    2026-09-25): one major rewrite, then the question goes up. The opening
+    cut's own revise is an `incorporate`, spent once per artifact and
+    minting no panel; the conductor rewrites what comes back -- the one
+    rewrite -- and that fresh cut's own panel finds the same gap, so the
+    second `rewrite` pauses the seam rather than minting a third cut."""
     _dispatch_plan_critic(wid, verdict="revise", findings=findings, resolution="incorporate")
     st = runmod.state(wid)
     reworked = next(s for s in st["steps"]
                     if s["segment"] == "plan" and s.get("source") == "mint"
                     and s["id"] not in st["done"] and s.get("dispatches"))
     _dispatch_and_close_plan(wid, reworked["id"], _fill_plan_rework)
-    # round two's own send-back has no panel (`incorporate` mints none) --
-    # the conductor rewrites it directly
+    # round two has no panel (`incorporate` mints none) -- the conductor
+    # rewrites it directly: the seam's one rewrite
     _fill_plan_to_execute(wid, "rewrite", calls='orders = "%s -- replace it in kind"\n' % findings)
     cli.main([wid, "submit"])
 
-    plan = next(s for s in runmod.load_assembly("run-an-issue")["segment"] if s["id"] == "plan")
-    cap = plan["round-cap"]
-    for _ in range(cap - 2):   # rounds three on, each rewrite minting its own panel
-        st = runmod.state(wid)
-        if st["current"].get("segment") != "plan" or not st["current"].get("dispatches"):
-            break   # paused already, one landed round short of the cap
-        fresh = next(s for s in st["steps"]
-                    if s["segment"] == "plan" and s.get("source") == "mint"
-                    and s["id"] not in st["done"] and s.get("dispatches"))
-        _dispatch_and_close_plan(wid, fresh["id"], _fill_plan)
-        _dispatch_plan_critic(wid, verdict="revise", findings=findings, resolution="rewrite")
+    st = runmod.state(wid)
+    fresh = next(s for s in st["steps"]
+                 if s["segment"] == "plan" and s.get("source") == "mint"
+                 and s["id"] not in st["done"] and s.get("dispatches"))
+    _dispatch_and_close_plan(wid, fresh["id"], _fill_plan)
+    # the rewrite's own panel: a second rewrite goes up instead
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings, resolution="rewrite")
 
 
 def _rule_impasse(wid, ruling="rework", why="the next round replaces the proof in kind"):

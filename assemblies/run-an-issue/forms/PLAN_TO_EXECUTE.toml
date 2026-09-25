@@ -38,7 +38,9 @@ does. `incorporate` is the planner's one pass over the findings you called
 here with no panel, and your next word on it is a release, or a `rewrite`
 if the pass itself went severely wrong -- a second incorporate refuses.
 `rewrite` is a fresh cut, written from your `orders` alone, with its own
-panel: the call for a finding you called `severe`. `up` is the round you
+panel: the call for a finding you called `severe`. A cut gets one rewrite;
+a second, before this seam releases, becomes an ask at the run's principal
+instead. `up` is the round you
 cannot rule on from here, the spec being wrong the usual reason: it pauses
 this segment rather than releasing it, your reason standing as an ask one
 tier up, with whatever it answers carried back as the next round's
