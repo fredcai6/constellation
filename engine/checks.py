@@ -198,7 +198,7 @@ def hand_in(wid, step, fields, commands, check_root, budget):
 #   so the fold (`engine/run.py`) can tell the two apart -- a plan step's
 #   own submit does not wait on this the way a gate's submit waits on
 #   `hand_in`'s, so the two cannot share one bookkeeping key.
-def hand_in_trial(wid, step_id, commands, cwd, budget):
+def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
     """Spawn every resolved `proof`-kind field this submit carries as one
     detached trial, and wait no longer than the handback for it to land.
     `commands` is `[(field_id, resolved_command), ...]`, already resolved by
@@ -216,7 +216,7 @@ def hand_in_trial(wid, step_id, commands, cwd, budget):
     where = str(pathlib.Path(cwd).resolve())
     payload.write_text(json.dumps({
         "wid": wid, "step": step_id, "commands": commands, "cwd": where,
-        "budget": budget, "trial": True}), encoding="utf-8")
+        "budget": budget, "trial": True, "changed": changed}), encoding="utf-8")
     proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
     try:
         code = proc.wait(timeout=HANDBACK)
@@ -529,15 +529,17 @@ def _trial_main(payload):
     the handback, and one that outruns it and keeps running here, detached,
     after the caller has already been handed back."""
     wid, step_id, budget = payload["wid"], payload["step"], payload["budget"]
+    changed = payload.get("changed")
     for fid, cmd in payload["commands"]:
         code, output = _run(cmd, payload["cwd"], budget)
         _attempt(fid, cmd, code, output)
         if code is None:
             journal.append(wid, "check", step=step_id, field=fid, command=cmd,
-                           exit=-1, output=f"no result after {budget}s")
+                           exit=-1, output=f"no result after {budget}s", trial=True,
+                           changed=changed)
         else:
             journal.append(wid, "check", step=step_id, field=fid, command=cmd,
-                           exit=code, output=output)
+                           exit=code, output=output, trial=True, changed=changed)
     return 0
 
 
