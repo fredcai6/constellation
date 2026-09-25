@@ -64,12 +64,10 @@ what the repo already carries that it no longer needs.
 `standards/glossary.md` fixes one name for one thing. A term enters it once it has crossed to
 the human and the human has used it back: the key-terms field proposes a term, and that
 acknowledgement admits it. The file holds shared understanding, so its length tracks how much
-of the vocabulary is genuinely shared rather than coined in passing. Pairs that can look like
-padding at a glance — `run-an-issue` and `run-a-gate` each carrying their own `IMPASSE.toml`,
-and `run-an-issue/forms/CLOSE.toml` beside `run-a-gate/forms/GATE_CLOSE.toml` — read that
-length because each answers the same question at two different tiers in deliberately
-different words (a spec or a cut being sent back at all, versus a diff a third review still
-sends back). `run-a-gate`
+of the vocabulary is genuinely shared rather than coined in passing. A pair that can look like
+padding at a glance — `run-an-issue/forms/CLOSE.toml` beside
+`run-a-gate/forms/GATE_CLOSE.toml` — reads that length because each answers the same question
+at two different tiers in deliberately different words. `run-a-gate`
 has no `OPEN.toml` at all: its `ASSEMBLY.toml` states there is nothing to fill at open, so
 gate-tier open carries no form and no words.
 

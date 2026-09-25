@@ -1,15 +1,20 @@
-# Step: rework round of plan. Owned by the planner skill; filled by the planner.
-# A revise verdict mints this form in place of PLAN.toml; the panel's merged
-# findings arrive as prefill.
+# Step: the planner's one pass over its review. Owned by the planner skill;
+# filled by the planner. The conductor's `incorporate` mints this form in
+# place of PLAN.toml, the panel's findings as prefill (`[one-look]`,
+# engine/cli.py); the cut it returns is released with no second panel.
 
 imperative = """
-Work the findings into the plan and the gate spec both. Delete the restated.
-Move accepted detail into the gate's latitude. Replace a twice-patched proof
-in kind. A round that grew because its gates gained proofs is not the round
-that grew because a settled argument came back. Say which this was, in
-`deleted`. Purpose says the result, proof says what verifies it, scope says
-where -- the how is the implementer's, and that is the bar a finding is held
-to. The plan document itself carries the approach and the risks that would
+The panel has read your cut, and its findings are in your prefill, with any
+orders the conductor wrote ahead of them. They are advice: take each one
+that makes this a better next step, reject each one that does not, and
+record which in `findings-addressed`. Then cut the gate that results -- the
+same bar as the first cut: the next chunk toward the spec's done, small,
+with purpose saying what the run takes as true, proof what verifies it,
+scope where. The how is the implementer's, so a finding about how is one
+you can reject on that bar alone. Delete the restated. No panel reads this
+cut again: the conductor releases it, and the gate's own reviewers read the
+diff.
+The plan document itself carries the approach and the risks that would
 change it; this gate's purpose, scope and proof are the fields below, not
 restated there."""
 
@@ -79,23 +84,21 @@ id = "findings-addressed"
 kind = "evidence"
 record-only = true
 note = """
-Rework only, and only the round just past: each finding accepted, naming the
-edit, or contested, with the reason. A ledger, not a narrative.
+Each finding taken, naming the edit, or rejected, with the reason. A
+ledger, not a narrative.
 
 This is for the record and the conductor, never for the next critic — it
 stays out of a panelist's prefill, because a reviewer told what was wrong
-last time is aimed at those spots and steered off everything else. First
-pass: waived: first pass."""
+last time is aimed at those spots and steered off everything else."""
 
 [[field]]
 id = "deleted"
 kind = "evidence"
 record-only = true
 note = """
-What came out of the plan this round, and why each cut was safe, and which of
-this round's growth was the work getting more checkable and which was
-argument returning. Cutting meaning to make it smaller is the failure this
-field exists to catch, not the behaviour it asks for.
+What came out of the plan this pass, and why each cut was safe. Cutting
+meaning to make it smaller is the failure this field exists to catch, not
+the behaviour it asks for.
 For the record and the conductor, never the next critic — it stays out of a
 panelist's prefill."""
 

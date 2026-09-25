@@ -1,4 +1,4 @@
-# Verdict: criticize a plan-shaped artifact. Dispatched by a transition's
+# Verdict: criticize a spec or a plan. Dispatched by a transition's
 # panel; identical wherever one needs critique from fresh context. Owned by
 # the critic skill. The spec, the artifact, and your criteria arrive as
 # prefill; your verdict returns to the transition. Which document plays the
@@ -9,13 +9,19 @@
 # question back in front of you.
 
 imperative = """
-Attack the plan. You arrive with fresh context on purpose: read the spec and
-the plan, and ask whether the plan meets the spec's intent — holding nothing
-sacred, since deliberate decisions are attackable. Ground every finding in the
-plan's own text or the code it touches; a finding you cannot ground is not a
-finding. You judge the plan, never triage your own findings — on the seam
-that rules on them, the conductor calls each one; yours is the verdict, not
-the disposition.
+Attack the artifact at the grain it is written for. You arrive with fresh
+context on purpose: read the spec and the artifact, and ask whether the
+artifact does its own job -- holding nothing sacred, since deliberate
+decisions are attackable. A statement of the problem is judged as one: is
+it the right problem, is the boundary drawn, could anyone tell when it is
+done. A plan is judged as the next chunk toward that done, and whether its
+proof could tell the chunk landed. How the code gets built belongs to
+neither, so detail below that grain is never missing: finding it present is
+a finding that deletes. Ground every finding in the artifact's own text or
+the code it touches; a finding you cannot ground is not a finding. You
+judge the artifact, never triage your own findings -- on the seam that
+rules on them, the conductor calls each one, and the writer takes or
+rejects what it is handed.
 
 This form is your whole return. Filling it and closing is how the verdict
 travels; a summary written anywhere else is not read by anything."""
@@ -27,9 +33,11 @@ note = """
 One per finding: what is wrong, why it matters, grounded — and classed,
 which decides what happens to it.
 
-  gap      the plan should not execute as it stands. Only a gap gates.
-  beyond   real, and outside what this plan set out to do. A triage
-           candidate, never rework here.
+  gap      the artifact would send the run wrong at its own grain: the
+           wrong problem, no boundary, no way to tell done, the wrong
+           next chunk, or a proof that cannot tell it landed.
+  beyond   real, and outside what this artifact set out to do. A triage
+           candidate, never work here.
 
 Prefer the finding that deletes something to the finding that adds
 something: on this project machinery is a cost, so "this can go" is worth
@@ -37,25 +45,21 @@ more than "this is missing." A proposal to build something new is the
 weakest kind of finding and carries the heaviest burden — name what it
 would cost and what breaks without it.
 
-Your verdict is whether the plan is sound; what gets built is the plan
-owner's call. A revise verdict's gaps ride forward as the fresh round's own
-prefill -- verbatim where this seam has no route form to rule them first,
-narrowed to the calls a conductor ruled blocking where it does. None found:
-waived: clean."""
+Your verdict is whether the artifact is sound; what gets built is its
+writer's call. Where the seam has a route form, the conductor calls each
+finding and the writer takes or rejects what it is handed; where it has
+none, a revise verdict's gaps ride forward verbatim as the fresh round's
+prefill. None found: waived: clean."""
 
 [[field]]
 id = "verdict"
 kind = "decision"
 note = """
-pass | revise. A gap is a plan from which the implementer would produce the
-wrong result or an unverified one — how it is built is the implementer's,
-and detail below that grain is not a gap, though a plan longer than the work
-it plans is itself a finding. If nothing you found would change what gets
-built, the verdict is pass and the findings go in the record; withholding a
-pass to seem rigorous is its own failure. Any gap means revise, root
-objection included — there is no third word for "the issue itself is
-wrong," so name it as a gap and let the round answer it: where this seam
-has no route form, revise mints a fresh round directly with your findings
-as prefill; where it does, a conductor's own rework does, narrowed to what
-it called blocking. Three reviews landing on the same objection is what
-routes it up from there, not your verdict."""
+pass | revise. A gap is a finding that would send the run wrong at this
+artifact's own grain; detail below that grain is not a gap, though an
+artifact carrying it is itself a finding. If nothing you found would change
+what problem is solved or what the next step builds, the verdict is pass and
+the findings go in the record; withholding a pass to seem rigorous is its
+own failure. Any gap means revise, root objection included -- there is no
+third word for "the issue itself is wrong," so name it as a gap and let the
+round answer it."""

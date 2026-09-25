@@ -90,7 +90,10 @@ def test_two_rounds_produce_a_drift_the_rooms_renders(workdir, capsys):
     cli.main([child, "close"])
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin", rule="rework")
+    # one look (2026-09-25): the opening cut's first send-back is an
+    # `incorporate` -- `_dispatch_plan_critic`'s own default now that the
+    # impasse ruling (`rule="rework"`) is gone from this seam
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
 
     fresh = _fresh_mint(runmod.state(wid), "plan")
@@ -157,7 +160,10 @@ key-terms = "waived: none"
     cli.main([child, "close"])
     capsys.readouterr()
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin", rule="rework")
+    # one look (2026-09-25): the opening cut's first send-back is an
+    # `incorporate` -- `_dispatch_plan_critic`'s own default now that the
+    # impasse ruling (`rule="rework"`) is gone from this seam
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
 
     # the crossing, at the parent: the freshly minted round already carries

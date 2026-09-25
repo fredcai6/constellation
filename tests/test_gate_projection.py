@@ -25,7 +25,6 @@ from test_nesting import (
     _fill_plan_rework,
     _fill_plan_to_execute,
     _response,
-    _rule_impasse,
     _work_the_board,
 )
 
@@ -303,31 +302,37 @@ def test_a_release_with_a_blank_plan_is_refused(workdir, capsys):
     assert runmod.state(wid)["current"]["id"] == "plan"  # never advanced
 
 
-def test_a_rework_with_a_blank_plan_is_still_accepted(workdir, capsys):
-    """The fork `_check_release_artifacts` turns on: a `rework` has nothing
-    intact to project, so leaving `plan` blank there is the correct answer,
-    not a gap -- `_releases` is what keeps the new check off this path."""
+def test_an_incorporate_with_a_blank_plan_is_still_accepted(workdir, capsys):
+    """The fork `_check_release_artifacts` turns on: an `incorporate` has
+    nothing intact to project, so leaving `plan` blank there is the correct
+    answer, not a gap -- `_releases` is what keeps the new check off this
+    path."""
     wid = _drive_to_plan_to_execute()
-    _fill_plan_to_execute(wid, "rework")
+    _fill_plan_to_execute(wid, "incorporate")
     cli.main([wid, "submit"])  # must not raise
     capsys.readouterr()
 
     assert any(e.get("kind") == "submit" for e in journal.read(wid))
 
 
-# -- 6. #87: an impasse advance projects the round the ruling approved -------
+# -- 6. #87: a release after several sent-back rounds projects the round --
+#         that actually released, not the first or the middle one
 
 
-def _drive_to_impasse_with_varying_gates(wid="issue17"):
-    """The same shape `test_rework._drive_to_impasse` drives -- one plan
-    round, two reworks, the third revise landing on the ruling form -- but
-    with each round cutting a *different* purpose/scope, unlike
-    `_fill_plan`'s and `_fill_rework`'s own fixed defaults. Every fixture
-    upstream fills the same three literal strings every round, so "most
-    recent" and "first found" agree by accident and no test can tell the
-    backward walk apart from a forward one. This is what lets a caller
-    assert the minted gate actually carries the *last* round's own
-    values, not merely a round's."""
+def _drive_to_several_sent_back_rounds_with_varying_gates(wid="issue17"):
+    """The same shape the old `_drive_to_impasse_with_varying_gates` drove --
+    one plan round, then several more, each cutting a *different*
+    purpose/scope, unlike `_fill_plan`'s and `_fill_rework`'s own fixed
+    defaults -- but under one look (ruling, 2026-09-25): plan declares no
+    impasse of its own any more, so the first revise is the writer's own
+    `incorporate` (spent once per artifact, no panel on the round it mints)
+    and every send-back after it is the conductor's own `rewrite` -- a fresh
+    cut from orders alone, judged by its own panel. Every fixture upstream
+    fills the same three literal strings every round, so "most recent" and
+    "first found" agree by accident and no test can tell the backward walk
+    apart from a forward one. This is what lets a caller assert the minted
+    gate actually carries the *last* round's own values, not merely a
+    round's."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(wid)
     cli.main([wid, "submit"])
@@ -336,52 +341,52 @@ def _drive_to_impasse_with_varying_gates(wid="issue17"):
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
         w, purpose="round 1 purpose", scope="round 1 scope"))
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: round 1 is untestable")
-    # every send-back is a ruling (`impasse-after = 0`), so each later round
-    # is ruled into being here -- two of them, the last the one the final
-    # ruling approves; a later round carries no panel, so its send-back is
-    # the conductor's own
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: round 1 is untestable",
+                          resolution="incorporate")
+    st = runmod.state(wid)
+    round2 = next(s for s in st["steps"]
+                 if s["segment"] == "plan" and s.get("source") == "mint"
+                 and s["id"] not in st["done"] and s.get("dispatches"))
+    _dispatch_and_close_plan(wid, round2["id"], lambda w: _fill_plan_rework(
+        w, purpose="round 2 purpose", scope="round 2 scope"))
+    # round two's own send-back has no panel (`incorporate` mints none) --
+    # the conductor rewrites it directly, from orders alone
     last = LAST_RULED_ROUND
-    rounds = [(f"round {n} purpose", f"round {n} scope") for n in range(2, last)]
-    rounds.append((f"round {last} purpose -- the one the ruling approves",
-                   f"round {last} scope -- the one the ruling approves"))
-    for n, (purpose, scope) in enumerate(rounds, start=2):
-        _rule_impasse(wid, why=f"round {n} changes the proof, not the prose")
-        st = runmod.state(wid)
-        fresh = next(s for s in st["steps"]
-                    if s["segment"] == "plan" and s.get("source") == "mint"
-                    and s["id"] not in st["done"] and s.get("dispatches"))
-        _dispatch_and_close_plan(
-            wid, fresh["id"],
-            lambda w, p=purpose, s=scope: _fill_plan_rework(w, purpose=p, scope=s))
-        _dispatch_plan_critic(wid, verdict="revise", findings=f"gap: round {n} is untestable")
-    assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
+    _fill_plan_to_execute(
+        wid, "rewrite",
+        calls='orders = "round %d: cut the gate that actually releases"\n' % last)
+    cli.main([wid, "submit"])
+    st = runmod.state(wid)
+    round3 = next(s for s in st["steps"]
+                 if s["segment"] == "plan" and s.get("source") == "mint"
+                 and s["id"] not in st["done"] and s.get("dispatches"))
+    _dispatch_and_close_plan(wid, round3["id"], lambda w: _fill_plan(
+        w, purpose=f"round {last} purpose -- the one that releases",
+        scope=f"round {last} scope -- the one that releases"))
+    # a rewrite gets its own panel (`[one-look]`) -- pass it so the round
+    # stands ready for the release below
+    _dispatch_plan_critic(wid)
+    assert runmod.state(wid)["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
     return wid
 
 
-def test_impasse_advance_projects_the_round_the_ruling_approved(workdir, capsys):
-    """#87: an `advance` mints this same transition, and the step
-    immediately behind it is then the ruling form -- `ruling`, `why`, never
-    a gate field. Walking the segment's own prior steps backward instead of
+def test_a_release_after_several_sent_back_rounds_projects_the_round_that_released(
+        workdir, capsys):
+    """#87, ported off the impasse outlet plan no longer has (ruling,
+    2026-09-25): walking the segment's own prior steps backward instead of
     reading only the one immediately behind the transition finds the round
-    the ruling actually approved -- the last rework round -- and this drive
-    gives each of the three rounds its own purpose/scope, so the assertion
-    below actually distinguishes "most recent" from "earliest" or "any":
-    the review's own gap, mutating `reversed(prior)` into a forward walk
-    left this test green until the gates it minted differed round to
-    round. Obligations 4, 5 and 8 are one drive and one test, not three:
-    the dispatch and adjudication pair this produces is numbered as the
+    that actually got released -- the last rewrite -- and this drive gives
+    each of the three rounds its own purpose/scope, so the assertion below
+    actually distinguishes "most recent" from "earliest" or "any": the
+    review's own gap, mutating `reversed(prior)` into a forward walk left
+    this test green until the gates it minted differed round to round.
+    Obligations 4, 5 and 8 are one drive and one test, not three: the
+    dispatch and adjudication pair this produces is numbered as the
     segment's next child and shaped exactly like the pair an ordinary
     release produces, and its prefill carries only the last round's own
     fields, not the first round's or the middle one's."""
-    wid = _drive_to_impasse_with_varying_gates()
+    wid = _drive_to_several_sent_back_rounds_with_varying_gates()
     capsys.readouterr()
-    _fill(_response(wid),
-          'ruling = "advance"\nwhy = "all three rounds landed on the proof"\n')
-    cli.main([wid, "submit"])
-    capsys.readouterr()
-    # advance mints the transition alone -- no panel to argue with
-    assert runmod.state(wid)["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
 
     _fill_plan_to_execute(wid)
     cli.main([wid, "submit"])
@@ -395,21 +400,21 @@ def test_impasse_advance_projects_the_round_the_ruling_approved(workdir, capsys)
 
     g1 = next(s for s in st["steps"] if s["id"] == "g1")
     last = LAST_RULED_ROUND
-    assert g1["prefill"]["purpose"] == f"round {last} purpose -- the one the ruling approves"
-    assert g1["prefill"]["scope"] == f"round {last} scope -- the one the ruling approves"
+    assert g1["prefill"]["purpose"] == f"round {last} purpose -- the one that releases"
+    assert g1["prefill"]["scope"] == f"round {last} scope -- the one that releases"
     assert g1["prefill"]["proof"] == "true"
-    # not the first round's, and not any middle one's either
+    # not the first round's, and not the middle one's either
     assert g1["prefill"]["purpose"] not in {f"round {n} purpose" for n in range(1, last)}
 
 
-def test_a_rework_on_the_transition_still_projects_nothing(workdir, capsys):
+def test_an_incorporate_on_the_transition_still_projects_nothing(workdir, capsys):
     """Obligation 6's other half, the one `test_one_gate_minted_per_pass_
     not_k` (the pass side) doesn't cover: a transition submitted with its
     round sent back releases nothing, so `_projected_source` returns
     `None` -- off `_releases`, before the walk ever runs -- and no gate is
     minted."""
     wid = _drive_to_plan_to_execute()
-    _fill_plan_to_execute(wid, "rework")
+    _fill_plan_to_execute(wid, "incorporate")
     cli.main([wid, "submit"])
     capsys.readouterr()
 

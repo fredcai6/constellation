@@ -1,64 +1,60 @@
 # Transition: plan → execute. Owned by run-an-issue; filled by whoever
 # conducts the issue. Ruling 3 (2026-09-02): mirrors run-a-gate's own
-# review/ROUTE.toml shape. Two voices on the run's opening cut: the critic
-# panel reads the plan and rules first -- both of its words release, so
-# nothing mints on the panel's say alone -- and this form is where its round
-# is disposed of, on a revise as much as on a pass, since a round with
-# findings in it is exactly the round somebody has to rule on. Every cut
-# after the first (`panel-rounds = "opening"`, ASSEMBLY.toml) stands this
-# form alone: the conductor reads the planner's cut, and the engine's one
-# run of its `proof`, in the room above. The panel's verdict, where there
-# was a panel, is above in the room; this is the answer to it.
+# review/ROUTE.toml shape. Two voices on the run's opening cut, and on a
+# rewrite's fresh one (one look, 2026-09-25): the critic panel reads the
+# plan and rules first -- both of its words release, so nothing mints on the
+# panel's say alone -- and this form is where its round is disposed of.
+# Every other cut (an incorporation, a re-cut after a gate lands, a resumed
+# round) stands this form alone: the conductor reads the planner's cut, and
+# the engine's one run of its `proof`, in the room above.
 
 imperative = """
 The cut is in the room above, with what its `proof` did when the engine ran
 it once against the tree as it stands: a real check fails there, before the
 work; one that passes on an empty diff proves nothing; a string the shell
-could not run will fail the gate after the work is done. Where a panel read
-this cut, read its findings as written -- a revise is not an invitation to
-argue the verdict you were given -- and call every finding it returned, one
-by one; a `rework` carries the ones you call blocking and nothing else, and
-blocking means the gate would build the wrong thing or could not be proven
--- a true finding that is neither is `accepted`, which costs you one word
-and sends the round on. Then say where this round goes: on to execute, or
-back. One look is the default (ruling, 2026-09-11): the gate's own reviewers
-can run the code a reader can only read, and across the runs so far nothing
-a plan seam found after its first look changed what shipped. A send-back
-here is a ruling, made on the impasse form, so make it where you can name
-what another cut changes. The round that just landed already cut the gate
-whole -- purpose, scope, proof, and any model or direction override -- so a
-`pass` (or a `revise` you are not sending back) needs nothing retyped, only
-the plan artifact pointed at."""
+could not run will fail the gate after the work is done. A plan gets one
+look: where the panel found nothing severe, the planner's own judgement
+finishes it -- `incorporate` hands it every finding to take or reject, and
+what comes back is released here, not read by another panel. Where you are
+standing on that returned cut, or on a re-cut after a gate landed, release
+it. A finding is severe when it changes which problem the run is solving,
+or the fundamental thing this gate would code; for that, `rewrite`, and
+write in `orders` what the next gate must do, forward, with nothing about
+what the last cut got wrong -- the rewrite starts from your orders alone,
+and gets its own look. Call every finding the panel returned. The round
+that just landed already cut the gate whole -- purpose, scope, proof, and
+any model or direction override -- so a release needs nothing retyped,
+only the plan artifact pointed at."""
 
 [[field]]
 id = "resolution"
 kind = "decision"
 note = """
-pass | revise | rework | up. The first two are the panel's own words,
-resolved onto this same table when its verdict returned -- record one if you
-want the record explicit, but both release the round exactly as leaving the
-plan field filled and submitting does, so `revise` typed here does not send
-anything back. Your own two are the last two: `rework` is another planner
-pass, carrying the findings you call `blocking` below and your `orders`, and
-nothing else -- this segment declares `impasse-after = 0`, so the ruling form
-comes first, and the pass follows only where you rule it. `up` is the
-round you cannot rule on from here, the spec being wrong the usual reason:
-it pauses this segment rather than releasing it, your reason standing as an
-ask one tier up -- with whatever it answers carried back as this round's
-own next orders, the same as the impasse form's own `up` beside it. Say the
-ask in `calls` below where it belongs to a finding, since that call is what
-the ask itself carries up."""
+pass | revise | incorporate | rewrite | up. The first two are the panel's
+own words, resolved onto this same table when its verdict returned -- both
+release the round exactly as leaving the plan field filled and submitting
+does. `incorporate` is the planner's one pass over the findings you called
+`writer`, taken or rejected on its own judgement; the cut it returns stands
+here with no panel, and your next word on it is a release, or a `rewrite`
+if the pass itself went severely wrong -- a second incorporate refuses.
+`rewrite` is a fresh cut, written from your `orders` alone, with its own
+panel: the call for a finding you called `severe`. `up` is the round you
+cannot rule on from here, the spec being wrong the usual reason: it pauses
+this segment rather than releasing it, your reason standing as an ask one
+tier up, with whatever it answers carried back as the next round's
+orders."""
 
 [[field]]
 id = "orders"
 kind = "evidence"
 optional = true
 note = """
-Your own words for the next round, where you are sending one back: a ruling
-the rework must hold that no finding says, a boundary you are drawing. It
-rides into the rework's prefill ahead of the blocking findings, as yours.
-`waived: none` where the findings say it all. Never write an order into
-`calls` as if the panel had returned it."""
+Your own words for the next round. On a `rewrite` they are the whole of
+what the fresh planner holds: the next chunk the run needs and why, stated
+forward -- never the findings or the cut they were about. On an
+`incorporate` they ride ahead of the findings, as yours. `waived: none`
+where the findings say it all. Never write an order into `calls` as if the
+panel had returned it."""
 
 [[field]]
 id = "plan"
@@ -67,8 +63,8 @@ optional = true
 note = """
 The plan artifact that passed critique, in this run's work location
 (.agent-work/<work-id>/) -- filled when this round releases (a `pass`, or a
-`revise` you are not sending back) and left blank on a `rework` or an `up`,
-since neither has anything intact to project. Filling it projects the one
+`revise` you are not sending back) and left blank on any other word, since
+none has anything intact to project. Filling it projects the one
 gate the round ahead cut into its own dispatch -- a projection of the
 planner's own form, never a copy typed here: purpose, scope, proof and any
 model or direction override cross into the child's prefill; the horizon
@@ -87,45 +83,23 @@ kind = "plan"
 optional = true
 note = """
 One block per finding the panel returned -- every one of them gets a
-call, and this form is the only place any of them is ruled on.
+call, and the call is where the finding goes.
 
-`blocking` -- the gate this plan cut would build the wrong thing, or its
-proof could not show it built the right one; nothing else is blocking,
-and a finding that is true and neither of those is `accepted`.
-`accepted` -- you are not acting on it, and you owe no reason why. The
-rubber stamp, and the call most findings should take: the round stands,
-nothing carries, and the record is that you called it. A finding that
-proposes deleting something -- an obligation, a gate, a field, a file --
-takes `blocking` or `rejected: <reason>` and never `accepted`: three
-runs running, an accepted call on a deletion was read by the next round
-as consent to it, and a deletion the round stands anyway on is a
-deletion nobody made. Keeping the thing is the call that owes the
-argument.
-
+`writer` -- the planner's to take or reject on an `incorporate`. The call
+most findings take, true or not: the planner judges its own cut, and how
+the gate gets built is the implementer's, below either of you.
+`severe` -- the finding changes which problem the run is solving, or the
+fundamental thing this gate would code. A round with one is a `rewrite`,
+and your `orders` say what the fresh cut must do instead.
 `beyond` -- real, and outside what this plan set out to do. It is
 journaled as a triage note when you submit and reaches the close form
-from there, so it leaves as a candidate without anyone retyping it, and
-never as work here. `rejected` -- not true of this plan, or below the
-bar a plan is held to (purpose says the result, proof says what verifies
-it, scope says where; how is the implementer's, and a finding about how
-is rejected on that bar alone) -- and the one call that owes a reason:
-fold it in after a colon, the way `rejected: the how is the
-implementer's, not this plan's` reads. A `rejected` call on a finding
-that claims something about what the code does names the command that
-refuted it, the way an issue's `measured` type carries its command.
+from there, and never becomes work here.
 
-Where each call goes is the whole vocabulary. A `rework` carries the
-blocking ones and nothing else, so a blocking call is that round's
-orders. An `up` carries the whole table -- every call beside its finding
--- to the tier the ask stands at. A `beyond` is journaled as a triage
-note the moment you submit, and arrives at this run's close form for
-routing into an issue. `accepted` and `rejected` go nowhere by design:
-the record is that you called them.
-
-Quote what you are calling as it was written rather than numbering it:
-on a `rework` the blocking blocks are literally what the next round
-arrives holding, so a call naming `F1` hands that round the string `F1`.
-Leave the field out only where the panel returned no findings."""
+An `up` carries the whole table, every call beside its finding, to the
+tier the ask stands at. Quote each finding as it was written rather than
+numbering it: on an `incorporate` the `writer` blocks are literally what
+the planner arrives holding. Leave the field out only where no panel
+returned findings -- every cut after a release has none."""
 
   [[field.item]]
   id = "finding"
@@ -134,4 +108,4 @@ Leave the field out only where the panel returned no findings."""
   [[field.item]]
   id = "call"
   kind = "decision"
-  note = "blocking | accepted | beyond | rejected: <reason>"
+  note = "writer | severe | beyond"

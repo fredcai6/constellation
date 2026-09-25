@@ -1,59 +1,62 @@
 # Anchor: understand → plan. Owned by run-an-issue; filled by the conductor,
 # under the interrogator's own hat -- the spec itself is the spec-writer's
 # round, judged cold by the panel above, not summarized again here.
-# Ruling 3's follow-up (2026-09-03): mirrors run-a-gate's own review/ROUTE.toml
-# shape, and plan-to-execute's below it. Two voices: the
-# critic panel reads the spec-writer's round and rules first -- both of its
-# words release, so nothing advances on the panel's say alone -- and this
-# form is where its round is disposed of, on a revise as much as on a pass,
-# since a round with findings in it is exactly the round somebody has to
-# rule on. The panel's verdict is above in the room; this is the answer to
-# it. On a release the engine also validates the understand board: an open
-# row refuses, a decision answered without the principal's words refuses;
-# the escape is deferred: <reason>, journaled -- a rework or an up does not
-# reach that check, since the board is not done until the spec passes.
+# Ruling 3's follow-up (2026-09-03), and one look (2026-09-25): the
+# critic panel reads the opening spec, and a rewrite's fresh one, and rules
+# first -- both of its words release, so nothing advances on the panel's say
+# alone -- and this form is where its round is disposed of. An
+# incorporation's round stands this form alone, with no panel, since the
+# spec-writer has already ruled on every finding it carried. On a release
+# the engine also validates the understand board: an open row refuses, a
+# decision answered without the principal's words refuses; the escape is
+# deferred: <reason>, journaled -- an incorporate, a rewrite or an up does
+# not reach that check, since the board is not done until the spec passes.
 
 imperative = """
-The panel has returned. Read its findings as written -- a revise is not an
-invitation to argue the verdict you were given -- and say where this round
-goes: on to consolidation, or back for another pass. Then call every finding
-it returned, one by one; a `rework` carries the ones you call blocking and
-nothing else. On a release (a `pass`, or a `revise` you are not sending
-back) this step will not complete while a row is open on the board above, or
-while a decision is recorded with no words from the principal -- close what
-is left there, every row answered, mooted, or deferred with a reason -- and
-record this segment's own bookkeeping below: the glossary and what the
-board's excursions produced, neither of them the spec, both staying behind
-in this run's own record."""
+Read the round above and say where it goes. A spec gets one look: where the
+panel found nothing severe, the spec-writer's own judgement finishes it --
+`incorporate` hands it every finding to take or reject, and what comes back
+is released here, not read by another panel. Where you are standing on that
+returned spec, release it. A finding is severe when it changes which
+problem this run is solving, or the fundamental thing its next step would
+code; for that, `rewrite`, and write in `orders` what the spec must say,
+forward, with nothing about what the last one got wrong -- the rewrite
+starts from your orders alone, and gets its own look. Call every finding
+the panel returned. On a release (a `pass`, or a `revise` you are not
+sending back) this step will not complete while a row is open on the board
+above, or while a decision is recorded with no words from the principal --
+close what is left there, every row answered, mooted, or deferred with a
+reason -- and record this segment's own bookkeeping below: the glossary and
+what the board's excursions produced, neither of them the spec, both
+staying behind in this run's own record."""
 
 [[field]]
 id = "resolution"
 kind = "decision"
 note = """
-pass | revise | rework | up. The first two are the panel's own words,
-resolved onto this same table when its verdict returned -- record one if you
-want the record explicit, but both release the round exactly as leaving the
-fields below filled and submitting does, so `revise` typed here does not
-send anything back. Your own two are the last two: `rework` is another
-spec-writer pass, carrying the findings you call `blocking` below and
-nothing else -- this segment declares `impasse-after = 0`, so the ruling
-form comes first and the pass follows only where you rule it: a second look
-at a spec is a ruling, never a default (ruling, 2026-09-11).
-`up` is the round you cannot rule on from here, the spec being wrong the
-usual reason: it pauses this segment rather than releasing it, your reason
-standing as an ask one tier up -- with whatever it answers carried back as
-this round's own next orders, the same as the impasse form's own `up`
-beside it. Say the ask in `calls` below where it belongs to a finding, since
-that call is what the ask itself carries up."""
+pass | revise | incorporate | rewrite | up. The first two are the panel's
+own words, resolved onto this same table when its verdict returned -- both
+release the round exactly as leaving the fields below filled and submitting
+does. `incorporate` is the spec-writer's one pass over the findings you
+called `writer`, taken or rejected on its own judgement; the spec it
+returns stands here with no panel, and your next word on it is a release,
+or a `rewrite` if the pass itself went severely wrong -- a second
+incorporate refuses. `rewrite` is a fresh spec, written from your `orders`
+alone, with its own panel: the call for a finding you called `severe`.
+`up` is the round you cannot rule on from here, the issue itself being
+wrong the usual reason: it pauses this segment rather than releasing it,
+your reason standing as an ask one tier up, with whatever it answers
+carried back as the next round's orders."""
 
 [[field]]
 id = "orders"
 kind = "evidence"
 optional = true
 note = """
-Your own words for the next round, where you are sending one back: a ruling
-the rework must hold that no finding says, a boundary you are drawing. It
-rides into the rework's prefill ahead of the blocking findings, as yours.
+Your own words for the next round. On a `rewrite` they are the whole of
+what the fresh spec-writer holds: the problem, the boundary, and what done
+looks like, stated forward -- never the findings or the draft they were
+about. On an `incorporate` they ride ahead of the findings, as yours.
 `waived: none` where the findings say it all. Never write an order into
 `calls` as if the panel had returned it."""
 
@@ -64,7 +67,7 @@ optional = true
 note = """
 The specification that just passed critique, in this run's work location --
 filled when this round releases (a `pass`, or a `revise` you are not
-sending back) and left blank on a `rework` or an `up`, since neither has
+sending back) and left blank on an `incorporate`, a `rewrite` or an `up`, since none has
 anything intact to carry. Point at it — never retype it: `carries` puts this
 field in the run's own prefill, which is the only way the plan segment's
 planner and its critics, a different segment entirely, ever see it. The
@@ -78,7 +81,7 @@ optional = true
 note = """
 This work's load-bearing terms; each cites its glossary entry or proposes a
 new one. Coining a synonym is a defect. Filled on a release, the same as
-`spec`; left blank on a `rework` or an `up`."""
+`spec`; left blank on any other word."""
 
 [[field]]
 id = "settle"
@@ -92,7 +95,7 @@ on the board already. The row asks; this reports. It is the only path by which a
 per-row brief reaches the planner, the fresh-context panel, and the next
 reader of the journal — the board stays behind in the work location, and
 these fields are what join the run's prefill. Filled on a release, the same
-as `spec`; left blank on a `rework` or an `up`."""
+as `spec`; left blank on any other word."""
 
 # [plan-fields-last]
 # Rationale: `forms.materialize` writes a `kind = "plan"` field as a bare
@@ -115,7 +118,7 @@ by key. Minted as rows on the execution-state board (EXECUTION_STATE.toml) the
 moment this releases -- every gate's advance reads their dispositions
 afterward to decide whether the run is done, never the spec's prose again.
 Leave blank on a run whose gates already close it out some other way, or on
-a `rework` or an `up`, where there is no spec settled yet to seed rows from;
+any word but a release, where there is no spec settled yet to seed rows from;
 a run that fills nothing here settles trivially, exactly as before this
 board existed."""
 
@@ -134,8 +137,8 @@ sits under. `carries` puts this field in the run's own prefill, which is
 the only way a gate's own commit ever sees it -- the engine writes
 `map/parents.jsonl`'s row itself once that gate actually lands the
 anchor; nothing here writes the line by hand. Filled on a release, the
-same as `spec`; left blank on a `rework` or an `up`, where there is
-nothing intact to carry. Leave blank where the spec reserved none."""
+same as `spec`; left blank on any word but a release, where there
+is nothing intact to carry. Leave blank where the spec reserved none."""
 
   [[field.item]]
   id = "anchor"
@@ -157,43 +160,22 @@ kind = "plan"
 optional = true
 note = """
 One block per finding the panel returned -- every one of them gets a
-call, and this form is the only place any of them is ruled on.
+call, and the call is where the finding goes.
 
-`blocking` -- a fresh planner cutting from this spec would cut the wrong
-gate, or could not tell from it what to cut; nothing else is blocking,
-and a finding that is true and neither of those -- wording, a duplicated
-paragraph, a sentence that could be sharper -- is `accepted`. `accepted`
--- you are not acting on it, and you owe no reason why. The rubber
-stamp, and the call most findings should take: the round stands, nothing
-carries, and the record is that you called it. A finding that proposes
-deleting something -- an obligation, a gate, a field, a file -- takes
-`blocking` or `rejected: <reason>` and never `accepted`: three runs
-running, an accepted call on a deletion was read by the next round as
-consent to it, and a deletion the round stands anyway on is a deletion
-nobody made. Keeping the thing is the call that owes the argument.
-
+`writer` -- the spec-writer's to take or reject on an `incorporate`. The
+call most findings take, true or not: the writer judges its own spec.
+`severe` -- the finding changes which problem this run is solving, or the
+fundamental thing its next step would code. A round with one is a
+`rewrite`, and your `orders` say what the fresh spec must hold instead.
 `beyond` -- real, and outside what this spec set out to do. It is
 journaled as a triage note when you submit and reaches the close form
-from there, so it leaves as a candidate without anyone retyping it, and
-never as work here. `rejected` -- not true of this spec, or not this
-seam's to answer, and the one call that owes a reason: fold it in after
-a colon, the way `rejected: the board already settled this` reads. A
-`rejected` call on a finding that claims something about what the code
-does names the command that refuted it, the way an issue's `measured`
-type carries its command.
+from there, and never becomes work here.
 
-Where each call goes is the whole vocabulary. A `rework` carries the
-blocking ones and nothing else, so a blocking call is that round's
-orders. An `up` carries the whole table -- every call beside its finding
--- to the tier the ask stands at. A `beyond` is journaled as a triage
-note the moment you submit, and arrives at this run's close form for
-routing into an issue. `accepted` and `rejected` go nowhere by design:
-the record is that you called them.
-
-Quote what you are calling as it was written rather than numbering it:
-on a `rework` the blocking blocks are literally what the next round
-arrives holding, so a call naming `F1` hands that round the string `F1`.
-Leave the field out only where the panel returned no findings."""
+An `up` carries the whole table, every call beside its finding, to the
+tier the ask stands at. Quote each finding as it was written rather than
+numbering it: on an `incorporate` the `writer` blocks are literally what
+the spec-writer arrives holding. Leave the field out only where no panel
+returned findings -- an incorporation's round has none."""
 
   [[field.item]]
   id = "finding"
@@ -202,4 +184,4 @@ Leave the field out only where the panel returned no findings."""
   [[field.item]]
   id = "call"
   kind = "decision"
-  note = "blocking | accepted | beyond | rejected: <reason>"
+  note = "writer | severe | beyond"

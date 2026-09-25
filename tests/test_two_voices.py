@@ -188,8 +188,9 @@ def _dispatch_panel(pwid, step_id, verdict="pass", findings="none: waived: clean
     standing open on its own form rather than folding shut. Where that is
     what just happened (the step is still `current`, standing on
     PLAN_TO_EXECUTE.toml or CONSOLIDATE.toml), this also disposes of the
-    round on that form, defaulting `resolution` to `"rework"` so a caller
-    driving straight through still reaches the fresh round it always did."""
+    round on that form, defaulting `resolution` to `"incorporate"` (one
+    look, 2026-09-25) so a caller driving straight through still reaches the
+    fresh round it always did."""
     panel = next(s for s in runmod.state(pwid)["steps"] if s["id"] == step_id)["panel"]
     for n in range(1, len(panel) + 1):
         _dispatch_critic(pwid, step_id, verdict, findings, n=n)
@@ -198,9 +199,9 @@ def _dispatch_panel(pwid, step_id, verdict="pass", findings="none: waived: clean
     if (verdict == "revise" and current and current["id"] == step_id
             and form in ("forms/PLAN_TO_EXECUTE.toml", "forms/CONSOLIDATE.toml")):
         if form == "forms/PLAN_TO_EXECUTE.toml":
-            _fill_plan_to_execute(pwid, resolution or "rework")
+            _fill_plan_to_execute(pwid, resolution or "incorporate")
         else:
-            _fill_consolidate(pwid, resolution=resolution or "rework")
+            _fill_consolidate(pwid, resolution=resolution or "incorporate")
         cli.main([pwid, "submit"])
 
 
@@ -240,7 +241,7 @@ def test_plan_to_execute_dispatches_its_critic_before_any_gate_is_minted(workdir
     cli.main([wid])
     out = capsys.readouterr().out
     assert "open it:" not in out
-    assert "intent-fit" in out                     # the critic's own criteria
+    assert "next step" in out                       # the critic's own criteria
     assert "not dispatched" in out
     assert "PLAN_TO_EXECUTE" not in out             # the form is not offered yet
 
@@ -286,7 +287,7 @@ def test_the_understanding_reaches_the_critic_across_the_segment_boundary(workdi
     # the artifact still rides -- the segment's own most recent non-panel
     # step is `plan-1`'s single dispatch, so its own artifact is what lands
     assert prefill["plan"] == f".agent-work/{wid}/plan-1/plan.md"
-    assert prefill["criteria"].startswith("intent-fit")
+    assert prefill["criteria"].startswith("next step")
 
 
 # [settle-carries]
@@ -330,12 +331,15 @@ def test_settle_carries_the_boards_answers(workdir, capsys):
 # -- 2. revise sends the plan back with findings attributed, panel re-fires -
 
 
-def test_a_revise_holds_the_form_and_the_conductors_rework_sends_findings_back_attributed(workdir, capsys):
+def test_a_revise_holds_the_form_and_the_conductors_incorporate_sends_findings_back_attributed(workdir, capsys):
     """Ruling 3 (2026-09-02): both of the panel's own words release now, so a
     revise no longer refires the round on its own -- it holds `plan` open for
     the conductor's own form, the same as run-a-gate's review/ROUTE.toml.
-    Only the conductor's own `rework` (not the panel's `revise`) sends the
-    round back, and it still carries the panel's findings, attributed."""
+    Only the conductor's own `incorporate` (not the panel's `revise`) sends
+    the round back, and it still carries the panel's findings, attributed.
+    One look (2026-09-25) removed the impasse form this send-back used to
+    land on first (`impasse-after = 0`) -- an `incorporate` mints the fresh
+    round directly."""
     wid = _drive_to_plan_to_execute()
     capsys.readouterr()
 
@@ -351,17 +355,7 @@ def test_a_revise_holds_the_form_and_the_conductors_rework_sends_findings_back_a
     assert not any(s["segment"] == "plan" and s.get("source") == "mint"
                    for s in st["steps"]), "the panel's own revise minted a round"
 
-    _fill_plan_to_execute(wid, "rework")
-    cli.main([wid, "submit"])
-    capsys.readouterr()
-
-    # the send-back is a ruling (`impasse-after = 0`): the ruling form arrives
-    # holding the panel's findings, attributed, and the rework round exists
-    # only once the conductor rules it into being
-    st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/IMPASSE.toml"
-    assert "[p1] gap: gate 1 is untestable" in st["current"]["prefill"]["findings"]
-    _fill(_response(wid), 'ruling = "rework"\nwhy = "waived: none"\n')
+    _fill_plan_to_execute(wid, "incorporate")
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -369,7 +363,7 @@ def test_a_revise_holds_the_form_and_the_conductors_rework_sends_findings_back_a
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint"
                       and s.get("dispatches"))
-    # rework, not a second first draft -- and it dispatches, like every round
+    # incorporate, not a second first draft -- and it dispatches, like every round
     assert fresh_plan["dispatches"] == "cut-a-gate"
     assert fresh_plan["form"] == "skills/planner/forms/REWORK.toml"
     assert "gate 1 is untestable" in fresh_plan["prefill"]["findings"]

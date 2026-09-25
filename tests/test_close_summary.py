@@ -11,7 +11,7 @@ empty rather than with no keys at all.
 from engine import cli, journal, run as runmod
 from gitremote import read_archived, stub_gh
 from test_nesting import (
-    _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _drive_plan_to_impasse,
+    _dispatch_and_close_plan, _dispatch_plan_critic, _dispatch_review, _drive_plan_to_pause,
     _fill, _fill_close, _fill_consolidate, _fill_gate_close, _fill_open, _fill_plan,
     _mint_first_gate, _response, _work_the_board,
 )
@@ -52,7 +52,7 @@ def test_gate_close_summary_carries_the_last_implement_round(workdir):
 
 
 def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, monkeypatch):
-    """A run-an-issue closing after its critics reached an impasse fills no
+    """A run-an-issue closing after its plan seam hits round-cap fills no
     implement form anywhere. Both keys are present and empty -- a parent
     reading the summary asks for them the same way whatever closed.
 
@@ -68,19 +68,26 @@ def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, mo
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
-    _drive_plan_to_impasse(wid)
-    # `up`, ruled here, now pauses this segment rather than releasing it to
-    # close (commitment 3, issue84.g2) -- this test's own subject is the
-    # close summary once the run *does* reach `forms/CLOSE.toml`, not the
-    # impasse ruling itself, so the impasse step is amend-closed directly
-    # rather than routed through a round trip this test does not exist to
-    # drive.
-    impasse = runmod.state(wid)["current"]
-    assert impasse["form"] == "forms/IMPASSE.toml"
-    journal.append(wid, "amend", action="close", segment=impasse["segment"],
-                   step=impasse["id"],
+    _drive_plan_to_pause(wid)
+    # round-cap pauses this segment rather than releasing it to close
+    # (plan declares no impasse of its own any more, ruling 2026-09-25;
+    # commitment 3, issue84.g2, is what keeps a pause from releasing) --
+    # this test's own subject is the close summary once the run *does*
+    # reach `forms/CLOSE.toml`, not the pause itself, so the ask it minted,
+    # and the marker behind it, are amend-closed directly rather than
+    # routed through a resume this test does not exist to drive.
+    paused = runmod.state(wid)["current"]
+    assert paused["form"] == "skills/gate-conductor/forms/ASK.toml"
+    journal.append(wid, "amend", action="close", segment=paused["segment"],
+                   step=paused["id"],
                    reason="the critics read the plan against the wrong issue",
-                   anchor=impasse.get("anchor", False))
+                   anchor=paused.get("anchor", False))
+    marker = next(s for s in runmod.state(wid)["steps"]
+                 if s["segment"] == paused["segment"] and s.get("paused")
+                 and s["id"] not in runmod.state(wid)["done"])
+    journal.append(wid, "amend", action="close", segment=marker["segment"],
+                   step=marker["id"], reason="not resuming this pause",
+                   anchor=marker.get("anchor", False))
     _fill_close(wid)
     cli.main([wid, "submit"])
 

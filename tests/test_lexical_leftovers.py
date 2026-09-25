@@ -147,30 +147,12 @@ def _note(form, field_id):
     return next(f for f in fields if f["id"] == field_id)["note"]
 
 
-def test_the_plan_imperative_names_the_critics_real_inputs():
-    """A panelist's prefill is the run's prefill plus the producing step's
-    fields plus its criteria, and the run's prefill is fed by the one
-    transition marked `carries` -- the consolidate. The critic therefore holds
-    a statement of the problem and the plan, never the issue, which
-    `skills/critic/forms/CRITIC.toml` states in its own header.
-
-    The word is `spec`. What run-an-issue hands a critic is the consolidate's
-    output and what explore-an-idea hands one is SPEC.toml's artifact; both
-    play the same part, and a critic told the name of the document that
-    produced it learns nothing it can act on. Scoped to the sentence that names
-    the critic's inputs: the imperative's first sentence says "how this issue
-    gets solved" and is legal."""
-    imperative = tomllib.load(open(PLAN_FORM, "rb"))["imperative"]
-    named = [s for s in SENTENCE.split(imperative) if "critic" in s]
-    assert len(named) == 1, f"expected one sentence naming the critic, got {named}"
-    # That sentence carries the implementer's bar too, in its own clause ending
-    # "from its spec alone" -- so a bare `"spec" in sentence` passes on wording
-    # that never mentions the critic's spec at all. Cut at the implementer.
-    sentence = " ".join(named[0].split())
-    clause, _, rest = sentence.partition("implementer")
-    assert rest, f"expected the implementer's clause to follow the critic's: {sentence!r}"
-    assert "spec" in clause, f"does not name the spec: {clause!r}"
-    assert "issue" not in clause, f"promises the critic the issue: {clause!r}"
+# test_the_plan_imperative_names_the_critics_real_inputs was deleted here:
+# the one-look ruling (2026-09-25) rewrote PLAN.toml's imperative to no
+# longer name the critic or the implementer's "from the gate spec alone"
+# bar at all (a planner reads the code map now, not a promise about what a
+# fresh-context reader gets), so the sentence this test scoped itself to no
+# longer exists -- there is no clear counterpart to rewrite it onto.
 
 
 def test_the_open_forms_issue_note_offers_no_tracker_branch():

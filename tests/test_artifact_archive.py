@@ -24,7 +24,6 @@ from test_nesting import (
     _fill_consolidate,
     _fill_open,
     _fill_spec,
-    _rule_impasse,
     _response,
     _work_the_board,
 )
@@ -88,10 +87,9 @@ def test_a_rework_round_does_not_destroy_the_round_it_reworks(workdir, capsys):
         .write_text('spec = ".agent-work/issue17/spec.md"\n')
     cli.main(["issue17", "submit"])
     _dispatch_plan_critic("issue17")
-    _fill_consolidate("issue17", "rework",
-                      calls='[[calls]]\nfinding = "f"\ncall = "blocking"\n')
-    cli.main(["issue17", "submit"])
-    _rule_impasse("issue17")  # the send-back is a ruling (`impasse-after = 0`)
+    _fill_consolidate("issue17", "incorporate",
+                      calls='[[calls]]\nfinding = "f"\ncall = "writer"\n')
+    cli.main(["issue17", "submit"])  # the send-back mints the fresh writer round directly
     capsys.readouterr()
 
     second = runmod.state("issue17")["current"]["id"]

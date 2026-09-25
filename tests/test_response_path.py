@@ -12,30 +12,23 @@ already argues for.
 
 from engine import cli, run as runmod
 
-from test_nesting import (
-    _dispatch_and_close_plan,
-    _fill,
-    _fill_consolidate,
-    _response,
-)
+from test_nesting import _fill_spec, _response
 from test_rework import (
     _dispatch_rework_round,
     _drive_to_revise,
-    _drive_understand_to_impasse,
+    _drive_understand_to_revise,
     _dispatch_plan_critic,
-    _plan_impasse_after,
-    _round,
 )
 from test_select_mint import _drive_gate_through
 
 
 def test_two_rounds_at_one_seam_resolve_to_different_paths(workdir, capsys):
     """Round one's own plan-to-execute round already disposed of itself with
-    `resolution = "rework"` by the time `_drive_to_revise` returns -- that
-    step is `done`, not `current`, but its response path is still
-    resolvable. Round two's rework mints a fresh plan-to-execute step, and
+    `resolution = "incorporate"` by the time `_drive_to_revise` returns --
+    that step is `done`, not `current`, but its response path is still
+    resolvable. The planner's pass mints a fresh plan-to-execute step, and
     the two must not name the same file."""
-    wid = _drive_to_revise(rule="rework")
+    wid = _drive_to_revise()
     st = runmod.state(wid)
     round_one = next(s for s in st["steps"]
                      if s.get("form") == "forms/PLAN_TO_EXECUTE.toml" and s["id"] in st["done"])
@@ -53,9 +46,9 @@ def test_two_rounds_at_one_seam_resolve_to_different_paths(workdir, capsys):
 
 def test_round_two_at_a_seam_renders_a_blank_route_form(workdir, capsys):
     """#118's own measurement, as a test: round one disposed of its round
-    with `resolution = "rework"`; the room round two materializes must not
-    still be holding that word."""
-    wid = _drive_to_revise(rule="rework")
+    with `resolution = "incorporate"`; the room round two materializes must
+    not still be holding that word."""
+    wid = _drive_to_revise()
     _dispatch_rework_round(wid)
     _dispatch_plan_critic(wid, verdict="pass")  # no panel on round two: a no-op, the form stands
     capsys.readouterr()
@@ -66,41 +59,31 @@ def test_round_two_at_a_seam_renders_a_blank_route_form(workdir, capsys):
     cli.main([wid])  # the room materializes round two's blank form
     capsys.readouterr()
     body = cli._response_path(st, st["current"]).read_text()
-    assert 'resolution = "rework"' not in body, (
+    assert 'resolution = "incorporate"' not in body, (
         "round two's room opened round one's filled route form:\n" + body)
 
 
-def test_understand_and_plan_impasses_share_a_form_but_not_a_path(workdir, capsys):
-    """`understand` and `plan` both declare `forms/IMPASSE.toml`, so under
-    the old naming they shared one live path -- a consolidate ruling left
-    behind at `understand`'s impasse is what `plan`'s own impasse would
-    have opened, sequentially, in the same run's own work location."""
-    wid = _drive_understand_to_impasse("issue84")
+def test_two_consolidate_rounds_resolve_to_different_paths(workdir, capsys):
+    """The understand seam's own counterpart: the opening consolidate round
+    and the one the spec-writer's pass mints stand on the same form, and
+    must not share a live path -- the first is filled, the second is the
+    conductor's next word on the returned spec."""
+    wid = _drive_understand_to_revise("issue84")
     capsys.readouterr()
     st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/IMPASSE.toml"
-    understand_path = cli._response_path(st, st["current"])
+    round_one = next(s for s in st["steps"]
+                     if s.get("form") == "forms/CONSOLIDATE.toml" and s["id"] in st["done"])
+    round_one_path = cli._response_path(st, round_one)
 
-    _fill(_response(wid),
-          'ruling = "advance"\nwhy = "both rounds landed on the wording"\n')
-    cli.main([wid, "submit"])  # mints CONSOLIDATE alone, over the live revise
-    capsys.readouterr()
-
-    _fill_consolidate(wid)
+    _fill_spec(wid)
     cli.main([wid, "submit"])
-    _dispatch_and_close_plan(wid)
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: gate 1 is untestable")
-    for n in range(1, _plan_impasse_after() + 1):
-        _round(wid, f"gap: the proof still passes on an empty diff ({n})")
     capsys.readouterr()
-
     st2 = runmod.state(wid)
-    assert st2["current"]["form"] == "forms/IMPASSE.toml", (
-        "this test no longer stands on the impasse form: "
+    assert st2["current"]["form"] == "forms/CONSOLIDATE.toml", (
+        "this test no longer stands on the route form: "
         f"{st2['current'].get('form')}")
-    plan_path = cli._response_path(st2, st2["current"])
 
-    assert understand_path != plan_path
+    assert cli._response_path(st2, st2["current"]) != round_one_path
 
 
 def test_a_respawned_filler_adopts_its_step_but_a_fresh_one_does_not(workdir, capsys):

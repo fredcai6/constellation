@@ -43,11 +43,12 @@ def test_load_open():
 
 
 def test_load_consolidate():
-    """Follow-up to ruling 3, 2026-09-03: consolidate is the conductor's own
-    route form now, the same shape PLAN_TO_EXECUTE.toml has -- `resolution`
-    leads, every scalar it declares stands before its plan fields
-    (`obligations`, `rungs`, then `calls`, all optional now that a rework or
-    an up reaches this same form with nothing released to record). `rungs`
+    """Follow-up to ruling 3, 2026-09-03, and one look (2026-09-25):
+    consolidate is the conductor's own route form now, the same shape
+    PLAN_TO_EXECUTE.toml has -- `resolution` leads, every scalar it
+    declares stands before its plan fields (`obligations`, `rungs`, then
+    `calls`, all optional now that an incorporate, a rewrite or an up
+    reaches this same form with nothing released to record). `rungs`
     is issue166's reservation transcription: the spec's own `rungs` field,
     carried here so `carries` can fold it into the run's prefill for the
     gate that actually lands the anchor to see -- `engine/cli.py`'s
@@ -61,7 +62,7 @@ def test_load_consolidate():
     assert kinds["obligations"] == kinds["rungs"] == kinds["calls"] == "plan"
     assert kinds["resolution"] == "decision"
     assert forms.vocabulary(_note(CONSOLIDATE, "resolution")) == [
-        "pass", "revise", "rework", "up"]
+        "pass", "revise", "incorporate", "rewrite", "up"]
     obligations = next(f for f in form["fields"] if f["id"] == "obligations")
     assert obligations["mints"] == "board rows"
     assert obligations["board"] == "execution-state"

@@ -22,10 +22,13 @@ from test_nesting import (
     _fill_route,
     _fill,
     _fill_consolidate,
+    _fill_consolidate_route_with_calls,
+    _fill_critic,
     _fill_gate_transition_replan,
     _fill_implement,
     _fill_open,
     _fill_plan,
+    _fill_plan_route_with_calls,
     _fill_spec,
     _mint_n_gates,
     _response,
@@ -34,11 +37,14 @@ from test_nesting import (
 )
 
 
-def _drive_to_revise(wid="issue17", findings="gap: gate 1 is untestable", rule=None):
+def _drive_to_revise(wid="issue17", findings="gap: gate 1 is untestable", resolution=None):
     """Open a real run-an-issue, drive it to the plan-to-execute panel, and
-    have the critic say revise. The conductor's `rework` on that round lands
-    on the impasse form (`impasse-after = 0`); `rule="rework"` rules the
-    fresh round into being there, `None` leaves the run on the ruling."""
+    have the critic say revise. One look (2026-09-25): the conductor's own
+    default word after a revise is `incorporate` -- one pass by the planner
+    over the panel's findings, dispatched the same way the first cut is,
+    with no panel on what it returns. `resolution` lets a caller choose a
+    different word instead (`rewrite`, `up`, ...); `_dispatch_plan_critic`
+    is what actually fills and submits the route form."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(wid)
     cli.main([wid, "submit"])
@@ -46,7 +52,7 @@ def _drive_to_revise(wid="issue17", findings="gap: gate 1 is untestable", rule=N
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
     _dispatch_and_close_plan(wid)
-    _dispatch_plan_critic(wid, verdict="revise", findings=findings, rule=rule)
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings, resolution=resolution)
     return wid
 
 
@@ -76,7 +82,7 @@ def _dispatch_rework_round(wid, fill_fn=None):
 
 
 def test_revise_mints_rework_form_with_findings_as_prefill(workdir, capsys):
-    wid = _drive_to_revise(rule="rework")
+    wid = _drive_to_revise()
     capsys.readouterr()
 
     st = runmod.state(wid)
@@ -116,13 +122,14 @@ def test_a_replan_restarts_the_rework_count(workdir, capsys):
     """The count is of rounds on one artifact, so a replan -- which is a new
     artifact -- starts it over. The principal ruled this against the
     alternative of counting every send-back."""
-    wid = _drive_to_revise(rule="rework")
+    wid = _drive_to_revise()
     asm = runmod.load_assembly("run-an-issue")
     assert runmod.rework_rounds(runmod.state(wid), asm, "plan") == 1
 
-    # carry that plan through to a gate, then replan from the gate transition
+    # carry that plan through to a gate, then replan from the gate transition.
+    # The incorporated round mints no panel of its own (`[one-look]`), so the
+    # route form stands here alone for the conductor's own fill below.
     _dispatch_rework_round(wid)
-    _dispatch_plan_critic(wid, verdict="pass")
     capsys.readouterr()
     _write_plan_artifact(runmod.journal.location(wid) / "plan.md")
     _fill(_response(wid), '''
@@ -171,7 +178,7 @@ def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdi
     the real round's journal rather than through a panelist that the seam no
     longer dispatches; the conductor's own route room, by the form's own
     words, is meant to see the ledger."""
-    wid = _drive_to_revise(rule="rework")
+    wid = _drive_to_revise()
     capsys.readouterr()
 
     fresh = _fresh_mint(runmod.state(wid), "plan")
@@ -253,11 +260,11 @@ def test_the_plan_segments_measures_fold_into_the_parent_each_round(workdir, cap
     # the round's return folded its own measure into the parent
     assert _plan_measures(wid) == [10]
 
-    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin", rule="rework")
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
 
-    # the rework round dispatches too -- measured in its own child's journal
-    # first, same as round one
+    # the incorporated round dispatches too -- measured in its own child's
+    # journal first, same as round one
     fresh = _fresh_mint(runmod.state(wid), "plan")
     assert fresh["dispatches"] == "cut-a-gate"
     rework_child = f"{wid}.{fresh['id']}"
@@ -283,7 +290,11 @@ key-terms = "waived: none"
     assert _plan_measures(wid) == [10, 12]
 
 
-# -- 5. the outlet: a third revise mints a ruling, not a third round ---------
+# -- 5. one look: incorporate is refused a second time, and an invalid word
+#    is refused outright -- there is no impasse ruling left on this seam
+#    (ruling, 2026-09-25). Repeated send-backs are bounded by round-cap
+#    instead (`_drive_plan_to_pause`, test_nesting.py); `up` is still a
+#    conductor's word here, just answered straight off the route form.
 
 
 def _fill_rework(wid):
@@ -301,135 +312,87 @@ key-terms = "none"
 ''' % loc)
 
 
-def _round(wid, findings):
-    """One rework round: dispatch the fresh REWORK.toml round, fill it,
-    submit and close the child, and have the fresh panel say revise
-    again."""
-    _dispatch_rework_round(wid)
-    _dispatch_plan_critic(wid, verdict="revise", findings=findings)
-
-
-def _plan_impasse_after():
-    """The plan segment's own `impasse-after`, read off the assembly rather
-    than pinned: 0 since the 2026-09-11 ruling that the first send-back of
-    a cut is itself the ruling."""
-    return next(s for s in runmod.load_assembly("run-an-issue")["segment"]
-                if s["id"] == "plan")["impasse-after"]
-
-
-def _drive_to_impasse(wid="issue17"):
-    """`impasse-after` rework rounds, then the send-back after them -- which
-    is the one the segment turns into a ruling. At 0 that is the first
-    revise's own send-back."""
-    _drive_to_revise(wid)
-    for n in range(1, _plan_impasse_after() + 1):
-        _round(wid, f"gap: the proof still passes on an empty diff ({n})")
-    return wid
-
-
-def test_the_first_send_back_mints_the_impasse_form_not_a_free_round(workdir, capsys):
-    """`impasse-after = 0`: the opening cut was never sent back, so the first
-    `rework` reaches the outlet at once -- no rework round is minted unless
-    the conductor rules one into being, and the ruling form arrives holding
-    the findings that sent the cut back."""
-    wid = _drive_to_impasse()
-    capsys.readouterr()
-
+def _panel_says_revise(wid, findings):
+    """Dispatch every panelist the transition current at `wid` declares,
+    each saying revise, and stop -- short of `_dispatch_plan_critic`'s own
+    auto-resolution (which always defaults to `incorporate`), so a caller
+    can rule its own word on the live revise instead, `up` among them."""
     st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/IMPASSE.toml", (
-        f"the send-back past impasse-after minted {st['current']['form']!r} -- "
-        f"the segment declares impasse-after = {_plan_impasse_after()}, so "
-        "this round is the ruling")
-    assert "gate 1 is untestable" in st["current"]["prefill"]["findings"]
-    assert st["current"]["prefill"]["sent-back"] == str(_plan_impasse_after())
-    assert not any(s["segment"] == "plan" and s.get("dispatches")
-                   and s["id"] not in st["done"] for s in st["steps"]), (
-        "a free rework round was minted ahead of the ruling")
-    # no further panel: another fresh-context reader is the loop, not the way out
-    assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
-                   for s in st["steps"]), "the impasse minted a panel"
+    step_id = st["current"]["id"]
+    panel = next(s for s in st["steps"] if s["id"] == step_id).get("panel") or []
+    for n in range(1, len(panel) + 1):
+        cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
+        panelist = f"{wid}.{step_id}.p{n}"
+        _fill_critic(panelist, "revise", findings)
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
 
 
-def test_the_count_latches_so_every_later_send_back_is_a_ruling_too(workdir, capsys):
-    """The boundary, both sides. The opening cut reads 0 and the outlet fires
-    at 0; a ruled rework round reads 1, and its own send-back -- the
-    conductor's alone, no panel on a later cut -- reaches the outlet again
-    rather than a free round."""
-    wid = _drive_to_impasse()
-    asm = runmod.load_assembly("run-an-issue")
-    assert runmod.rework_rounds(runmod.state(wid), asm, "plan") == 0
-    _fill(_response(wid),
-          'ruling = "rework"\nwhy = "the proof, not the prose, is what changes"\n')
+def test_an_invalid_resolution_refuses_rather_than_releasing_the_step(workdir, capsys):
+    """No hand-rolled reader: an unhandled `resolution` is refused by the
+    same generic mechanism that refuses CYCLE.toml's `decision` -- the
+    segment's own declared `[[outcome]]` rows. The old impasse ruling had
+    its own version of this test (`ruling = "keep going"`); this is the
+    same guard at the one route form the seam now has."""
+    wid = "issue17"
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open(wid)
     cli.main([wid, "submit"])
-    capsys.readouterr()
-    assert runmod.state(wid)["current"]["form"] == "skills/planner/forms/REWORK.toml"
-    assert runmod.rework_rounds(runmod.state(wid), asm, "plan") == 1
-
-    _round(wid, "gap: still passes on an empty diff")
-    capsys.readouterr()
-    st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/IMPASSE.toml"
-    assert st["current"]["prefill"]["sent-back"] == "1"
-    assert "still passes on an empty diff" in st["current"]["prefill"]["findings"]
-
-
-def test_an_unhandled_ruling_refuses_rather_than_releasing_the_step(workdir, capsys):
-    """The ruling has no check of its own any more: it is refused by the same
-    generic mechanism that refuses CYCLE.toml's `decision` -- the segment's
-    own declared `[[outcome]]` rows, not a hand-rolled reader."""
-    wid = _drive_to_impasse()
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid)
+    _dispatch_plan_critic(wid, verdict="pass")
     capsys.readouterr()
     before = len(runmod.journal.read(wid))
-    _fill(_response(wid),
-          'ruling = "keep going"\nwhy = "it is nearly there"\n')
+    _fill(_response(wid), 'resolution = "keep going"\n')
     with pytest.raises(SystemExit) as e:
         cli.main([wid, "submit"])
     msg = str(e.value)
-    assert "ruling" in msg and "is not an outcome this step declares" in msg
-    assert "advance | rework | up" in msg        # the assembly's own outcome rows
+    assert "resolution" in msg and "is not an outcome this step declares" in msg
+    assert "pass | revise | incorporate | rewrite | up" in msg  # the assembly's own outcome rows
     assert len(runmod.journal.read(wid)) == before  # not even the submit landed
-    assert runmod.state(wid)["current"]["form"] == "forms/IMPASSE.toml"
+    assert runmod.state(wid)["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
 
 
-def test_advance_takes_the_plan_to_its_transition_over_a_live_revise(workdir, capsys):
-    wid = _drive_to_impasse()
+def test_a_second_incorporate_on_the_same_cut_is_refused(workdir, capsys):
+    """`_check_one_look`: the writer gets one pass over the panel's findings;
+    a second `incorporate` on the round it returns is refused before the
+    submit lands, the release-or-rewrite fork the ruling actually drew."""
+    wid = _drive_to_revise()
     capsys.readouterr()
-    _fill(_response(wid),
-          'ruling = "advance"\nwhy = "both rounds landed on the proof"\n')
+    _dispatch_rework_round(wid)
+    capsys.readouterr()
+    before = len(runmod.journal.read(wid))
+    _fill(_response(wid), 'resolution = "incorporate"\n')
+    with pytest.raises(SystemExit) as e:
+        cli.main([wid, "submit"])
+    msg = str(e.value)
+    assert "resolution" in msg
+    assert "already incorporated" in msg
+    assert len(runmod.journal.read(wid)) == before  # not even the submit landed
+
+
+def test_up_pauses_the_plan_seam_rather_than_releasing(workdir, capsys):
+    """commitment 3's ruling (issue84.g2): `up` stands an ask one tier up
+    (self-minted here: this run's own run-an-issue has no parent) and the
+    run stays open, rather than walking to its terminal form the way a bare
+    `release` did. One look (2026-09-25) moved this off a dedicated ruling
+    form onto the seam's own route form -- `up` still carries the panel's
+    findings forward, now through the `calls` table rather than a `why`
+    field of its own."""
+    wid = "issue17"
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open(wid)
     cli.main([wid, "submit"])
-    capsys.readouterr()
-
-    st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
-    assert st["current"].get("source") == "mint"
-    assert not st["current"].get("panel"), "advance minted a fresh panel to argue with"
-
-
-def test_rework_runs_the_round_the_outlet_displaced(workdir, capsys):
-    wid = _drive_to_impasse()
-    capsys.readouterr()
-    _fill(_response(wid),
-          'ruling = "rework"\nwhy = "round three changes the proof, not the prose"\n')
+    _work_the_board(wid)
+    _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    capsys.readouterr()
-
-    st = runmod.state(wid)
-    assert st["current"]["form"] == "skills/planner/forms/REWORK.toml"
-    assert "gate 1 is untestable" in st["current"]["prefill"]["findings"]
-
-
-def test_up_pauses_the_plan_impasse_rather_than_releasing(workdir, capsys):
-    """commitment 3's ruling (issue84.g2): `up` is kept as a conductor's
-    shorthand at this impasse, repointed from `release` to `pause` -- so
-    ruling it here now stands an ask one tier up (self-minted: `_drive_to_
-    impasse`'s own run-an-issue has no parent) and the run stays open,
-    rather than walking to its terminal form the way a bare `release` did."""
-    wid = _drive_to_impasse()
+    _dispatch_and_close_plan(wid)
+    _panel_says_revise(wid, "gate 1 is untestable")
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
-    why = "the plan may be solving the wrong problem"
-    _fill(_response(wid),
-          'ruling = "up"\nwhy = "%s"\n' % why)
+    _fill_plan_route_with_calls(wid, "up", ("gate 1 is untestable", "severe"))
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -440,26 +403,28 @@ def test_up_pauses_the_plan_impasse_rather_than_releasing(workdir, capsys):
     assert ask["form"] == "skills/gate-conductor/forms/ASK.toml", (
         f"up must mint an ask, not release -- current is {ask!r}")
     assert ask["resumes"] == wid
-    assert ask["prefill"].get("findings") == why
-    ruling_step = next(s for s in st["steps"] if s.get("form") == "forms/IMPASSE.toml")
-    ruling = st["done"][ruling_step["id"]]["fields"]
-    assert ruling["ruling"] == "up" and "wrong problem" in ruling["why"]
+    assert "gate 1 is untestable" in ask["prefill"].get("findings", "")
 
 
-def test_up_pauses_the_understand_impasse_rather_than_releasing(workdir, capsys):
-    """The same ruling (commitment 3), at `understand`'s own impasse --
-    shares `forms/IMPASSE.toml` with `plan` above, and now shares the
-    outcome verb too: named separately from the test above, the way
-    `test_understands_third_revise_mints_the_impasse_form_not_another_
-    spec_round` already stands apart from `plan`'s own impasse tests,
-    since the two segments dispatch their rounds differently even though
-    the ruling itself is one policy."""
-    wid = _drive_understand_to_impasse()
+def test_up_pauses_the_understand_seam_rather_than_releasing(workdir, capsys):
+    """The same ruling (commitment 3), at `understand`'s own seam -- named
+    separately from the test above since the two segments dispatch their
+    rounds differently even though `up` itself is one policy."""
+    wid = "issue84"
+    cli.main(["open", "run-an-issue", "--issue", "84", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    b = pathlib.Path(f".agent-work/{wid}/UNDERSTAND.toml")
+    b.write_text(b.read_text().replace(
+        'status = "open"',
+        'status = "answered"\nanswer = "EOF without a trailing newline only."'))
+    _fill_spec(wid)
+    cli.main([wid, "submit"])
+    _panel_says_revise(wid, "gap: assumes a trailing newline exists")
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
-    why = "the spec may be answering the wrong question"
-    _fill(_response(wid),
-          'ruling = "up"\nwhy = "%s"\n' % why)
+    _fill_consolidate_route_with_calls(
+        wid, "up", ("gap: assumes a trailing newline exists", "severe"))
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -470,7 +435,7 @@ def test_up_pauses_the_understand_impasse_rather_than_releasing(workdir, capsys)
     assert ask["form"] == "skills/gate-conductor/forms/ASK.toml", (
         f"up must mint an ask, not release -- current is {ask!r}")
     assert ask["resumes"] == wid
-    assert ask["prefill"].get("findings") == why
+    assert "assumes a trailing newline exists" in ask["prefill"].get("findings", "")
 
 
 # -- 6. the same outlet on run-a-gate, which has no rework form ---------------
@@ -611,27 +576,29 @@ def test_a_gates_impasse_step_is_filled_by_its_conductor(workdir, capsys):
     assert _dispatched_role(child) == ("gate-conductor", "gate-conductor")
 
 
-# -- 7. the same outlet on `understand`, whose round is local, not dispatched -
+# -- 7. the same one-look shape on `understand`, whose round is local, not
+#    dispatched --------------------------------------------------------------
 
-# [understand-impasse]
+# [understand-one-look]
 # Rationale: `understand`'s revise is judged by the transition's own panel
 #   the same way `plan`'s plan-to-execute panel is, so the driver below
 #   reuses `_dispatch_plan_critic` unchanged. What differs is the round
-#   itself: `understand` declares no `dispatches`, so a revise refills the
-#   segment's step-form (SPEC.toml) as a local step, filled directly at
+#   itself: `understand` declares no `dispatches` and no `rework-form`, so
+#   an `incorporate` (or a `rewrite`) refills the segment's own step-form
+#   (SPEC.toml) as a local step, filled directly at
 #   `.agent-work/<wid>/SPEC.<step-id>.toml` -- never a dispatched child the
 #   way a plan round, or a gate's implement round, are.
-# See: `_drive_to_impasse` and `_drive_gate_to_impasse` above, the same
+# See: `_drive_to_revise` and `_drive_gate_to_impasse` above, the same
 #   shape for `plan`'s dispatched round and `work`'s undispatched one.
 
 
 def _drive_understand_to_revise(wid="issue84", findings="gap: assumes a trailing newline exists",
-                                rule=None):
+                                resolution=None):
     """Open a real run-an-issue and drive it through the board and the first
     spec-writer round to the consolidate panel, then have the critic say
-    revise -- the send-back `understand`'s rework loop counts. `rule` is
-    what to rule on the impasse form that send-back mints (`impasse-after =
-    0`); `None` leaves the run standing on it."""
+    revise. `resolution` is forwarded to `_dispatch_plan_critic`, which
+    defaults to `incorporate` -- the writer's own one pass over the panel's
+    findings."""
     cli.main(["open", "run-an-issue", "--issue", "84", "--title", "t"])
     _fill_open(wid)
     cli.main([wid, "submit"])
@@ -641,60 +608,29 @@ def _drive_understand_to_revise(wid="issue84", findings="gap: assumes a trailing
         'status = "answered"\nanswer = "EOF without a trailing newline only."'))
     _fill_spec(wid)
     cli.main([wid, "submit"])
-    _dispatch_plan_critic(wid, verdict="revise", findings=findings, rule=rule)
+    _dispatch_plan_critic(wid, verdict="revise", findings=findings, resolution=resolution)
     return wid
 
 
-def _understand_round(wid, findings):
-    """One more spec-writer round: no rework-form, so the revise refills the
-    same step-form (SPEC.toml) as a fresh local step -- then the fresh panel
-    says revise again."""
-    _fill_spec(wid)
-    cli.main([wid, "submit"])
-    _dispatch_plan_critic(wid, verdict="revise", findings=findings)
-
-
-def _understand_impasse_after():
-    """`understand`'s own `impasse-after`, read off the assembly rather than
-    pinned: 0 since the 2026-09-11 ruling."""
-    return next(s for s in runmod.load_assembly("run-an-issue")["segment"]
-                if s["id"] == "understand")["impasse-after"]
-
-
-def _drive_understand_to_impasse(wid="issue84"):
-    """`impasse-after` more spec-writer rounds after the first revise, then
-    the send-back after them -- the one the segment turns into a ruling. At
-    0 that is the first revise's own send-back."""
-    _drive_understand_to_revise(wid)
-    for n in range(1, _understand_impasse_after() + 1):
-        _understand_round(wid, f"gap: still assumes a trailing newline ({n})")
-    return wid
-
-
-def test_understands_first_send_back_mints_the_impasse_form_not_another_spec_round(
-        workdir, capsys):
-    """Pins the fix: before it, `understand`'s transition decided on
-    `resolution` alone, an outcome table of `pass | revise` with no third
-    word, so a spec the panel kept sending back had no exit but a passing
-    panel. `understand` declares `impasse-after`, `impasse-form` and its
-    own `decides = "ruling"`, the same shape `plan` has -- at 0, so the
-    first send-back mints the impasse form instead of a free spec-writer
-    round."""
-    wid = _drive_understand_to_impasse()
+def test_understands_revise_mints_the_step_form_with_findings_as_prefill(workdir, capsys):
+    """`understand` declares no rework-form, so an `incorporate` here refills
+    the segment's own step-form (SPEC.toml) as a fresh local step -- never a
+    dispatched child, since this segment declares no `dispatches` at all --
+    carrying the panel's findings as prefill, no panel on the round it
+    mints. The plan seam's own counterpart is
+    `test_revise_mints_rework_form_with_findings_as_prefill` above; this is
+    what the same one-look mechanism looks like where the segment has no
+    rework-form of its own to override with."""
+    wid = _drive_understand_to_revise()
     capsys.readouterr()
 
     st = runmod.state(wid)
-    assert st["current"]["form"] == "forms/IMPASSE.toml", (
-        f"the send-back past impasse-after minted {st['current']['form']!r} -- "
-        f"the segment declares impasse-after = {_understand_impasse_after()}, "
-        "so this round is the ruling")
-    assert "assumes a trailing newline exists" in st["current"]["prefill"]["findings"]
-    assert st["current"]["prefill"]["sent-back"] == str(_understand_impasse_after())
-    # no further panel: another fresh-context reader is the loop, not the way out
-    assert not any(s.get("source") == "panel" and s["id"] not in st["done"]
-                   for s in st["steps"]), "the impasse minted a panel"
-    asm = runmod.load_assembly("run-an-issue")
-    assert runmod.rework_rounds(st, asm, "understand") == _understand_impasse_after()
+    fresh = _fresh_mint(st, "understand")
+    assert not fresh.get("dispatches")
+    assert fresh["form"] == "skills/spec-writer/forms/SPEC.toml"
+    assert "assumes a trailing newline exists" in fresh["prefill"]["findings"]
+    assert st["current"]["id"] == fresh["id"]
+    assert not st["current"].get("panel"), "no panel after the opening cut"
 
 
 # -- 8. `_mint_segment_round`'s fresh transition round carries `filler` too --
@@ -708,7 +644,7 @@ def test_a_revised_understands_re_minted_transition_carries_its_declared_filler(
     carried no `filler` key at all, though the transition declares one.
     Confirmed against the assembly's own declared value, the same one
     `skeleton()` gives round one."""
-    wid = _drive_understand_to_revise(rule="rework")
+    wid = _drive_understand_to_revise()
     capsys.readouterr()
 
     st = runmod.state(wid)
@@ -727,7 +663,7 @@ def test_a_revised_understands_re_minted_transition_carries_its_declared_guards(
     spec into the run's prefill -- silently, with nothing refused and nothing
     journaled. Confirmed against the assembly's own declared values, the same
     ones `skeleton()` gives round one."""
-    wid = _drive_understand_to_revise(rule="rework")
+    wid = _drive_understand_to_revise()
     capsys.readouterr()
 
     st = runmod.state(wid)
