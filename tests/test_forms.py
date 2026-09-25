@@ -392,22 +392,27 @@ def test_seeded_row_carries_excursion(tmp_path):
     assert "excursion" in dest.read_text().split("# --- the board ---")[1]
 
 
-def test_excursion_follows_question():
-    """`boards.label` takes a row's first non-empty string after id and status,
-    so a filled `excursion` above `question` would hijack the label in every
-    render. The order is pinned in the template and in the seed form that mints
-    from it."""
-    columns = list(tomllib.loads(pathlib.Path(UNDERSTAND).read_text())["question"][0])
-    assert columns.index("excursion") > columns.index("question")
+def test_a_row_is_labelled_by_its_boards_own_column_in_any_order(tmp_path):
+    """#47, #86: a row's label was its first string, so a column above the
+    real one -- a flat `recommend`, a `verdict` a plan listed first --
+    labelled the row everywhere it rendered. The label is the column the
+    board names its array after, wherever it sits in the row."""
+    board = tmp_path / "UNDERSTAND.toml"
+    board.write_text('''[[question]]
+id = "q1"
+recommend = "an offered draft"
+excursion = "prior-art: what the ecosystem does with retries"
+question = "Who owns the retry budget?"
+type = "decision"
+status = "open"
+''')
+    assert boards.column(board) == "question"
+    assert boards.label(boards.rows(board)[0], boards.column(board)) == "Who owns the retry budget?"
 
-    questions = next(f for f in forms.load(OPEN)["fields"] if f["id"] == "questions")
-    items = [it["id"] for it in questions["item"]]
-    assert items.index("excursion") > items.index("question")
-
-    row = {"id": "q1", "status": "open", "question": "Who owns the retry budget?",
-           "excursion": "prior-art: what the ecosystem does with retries",
-           "type": "fact"}
-    assert boards.label(row) == "Who owns the retry budget?"
+    ideas = tmp_path / "IDEAS.toml"
+    cli._seed_board(pathlib.Path("skills/explorer/forms/IDEAS.toml"), ideas,
+                    [{"verdict": "a verdict listed first", "idea": "the real idea"}])
+    assert boards.label(boards.rows(ideas)[0], boards.column(ideas)) == "the real idea"
 
 
 def test_move_note_drops_excursions():

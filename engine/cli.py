@@ -999,8 +999,8 @@ def _mint_child(assembly, parent, pstep_id):
 # Rejected: the engine writing the return into the board. Two writers on one
 #   file is the hazard a board avoids; the return renders, the agent folds.
 def _open_excursion(assembly, parent, pst, row_id, proot):
-    seg_id, row = next(((sid, r) for sid, p in pst["boards"].items()
-                        for r in boards.rows(p) if r.get("id") == row_id), ("", None))
+    seg_id, row, col = next(((sid, r, boards.column(p)) for sid, p in pst["boards"].items()
+                             for r in boards.rows(p) if r.get("id") == row_id), ("", None, ""))
     if row is None:
         raise SystemExit(render.refusal(row_id, "no board row by that id",
                                         escape=f"the board: spine {parent}"))
@@ -1012,7 +1012,7 @@ def _open_excursion(assembly, parent, pst, row_id, proot):
     prefill = {k: v for k, v in row.items()
                if k not in ("id", "status") and isinstance(v, str) and v.strip()}
     asm = runmod.load_assembly(assembly)
-    journal.append(wid, "run", title=boards.label(row)[:72], assembly=assembly,
+    journal.append(wid, "run", title=boards.label(row, col)[:72], assembly=assembly,
                    conductor=asm.get("conductor", ""), parent=parent,
                    parent_step=seg_id, row=row_id, model=seg.get("model", ""),
                    root=proot, **{"from": pst.get("from", "")})
@@ -1661,11 +1661,11 @@ def _board_state(path):
     read a board itself."""
     if not path:
         return None
-    found = boards.rows(path)
+    found, col = boards.rows(path), boards.column(path)
     return {"path": path, "prose": boards.prose(path), "summary": boards.summary(path),
-            "tree": [(d, r.get("id", ""), str(r.get("status", "")), boards.label(r))
+            "tree": [(d, r.get("id", ""), str(r.get("status", "")), boards.label(r, col))
                      for d, r in boards.tree(found)],
-            "askable": [(r.get("id", ""), boards.label(r)) for r in boards.askable(found)],
+            "askable": [(r.get("id", ""), boards.label(r, col)) for r in boards.askable(found)],
             "held": [(r.get("id", ""), "held by " + ", ".join(ids))
                      for r, ids in boards.held(found)],
             "clusters": boards.clusters(found)}
