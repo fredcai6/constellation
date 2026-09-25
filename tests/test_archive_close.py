@@ -15,6 +15,7 @@ constantly and a test that could open a real pull request against this
 repo is not a test, it is an accident waiting for a contributor.
 """
 
+import pathlib
 import subprocess
 
 import pytest
@@ -45,6 +46,13 @@ def _drive_issue_to_awaiting_close(wid="issue17"):
     cli.main([wid, "submit"])
     _fill_close(wid)
     cli.main([wid, "submit"])
+    # The gates here change nothing, so the branch is given the one commit a
+    # real gate's work would have left: a run with work on it is what opens
+    # a PR (`[close-publishes-what-the-branch-holds]`).
+    worktree = runmod.state(wid)["worktree"]
+    (pathlib.Path(worktree) / "fix.txt").write_text("the fix\n")
+    _git(worktree, "add", "fix.txt")
+    _git(worktree, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "the fix")
 
 
 # -- the happy path: push, PR, archive, sweep --------------------------------
@@ -88,6 +96,61 @@ def test_close_archives_the_work_location_and_its_children_pushes_and_prs(
     out = capsys.readouterr().out
     assert "issue17" not in out
     assert "archive" not in out
+
+
+def test_the_pr_close_opens_is_a_draft_carrying_the_runs_disposition(
+        workdir, capsys, monkeypatch):
+    _drive_issue_to_awaiting_close()
+    capsys.readouterr()
+    calls = []
+    stub_gh(monkeypatch, calls=calls)
+
+    cli.main(["issue17", "close"])
+
+    create = next(c for c in calls if c[:3] == ["gh", "pr", "create"])
+    assert "--draft" in create
+    body = create[create.index("--body") + 1]
+    assert body.startswith("merged to main")
+    assert "Work-Id: issue17" in body
+
+
+def test_close_adopts_a_pr_already_open_on_the_branch(workdir, capsys, monkeypatch):
+    """#176: a conductor opened the PR by hand. It is the run's PR."""
+    _drive_issue_to_awaiting_close()
+    capsys.readouterr()
+    calls = []
+    stub_gh(monkeypatch, calls=calls, open_pr="https://example.invalid/pr/9")
+
+    cli.main(["issue17", "close"])
+    out = capsys.readouterr().out
+
+    assert not any(c[:3] == ["gh", "pr", "create"] for c in calls), calls
+    assert "https://example.invalid/pr/9" in out
+    assert not (workdir / ".worktrees" / "issue17").exists()
+
+
+def test_a_run_with_no_commits_past_its_cut_closes_with_no_pr_and_no_branch(
+        workdir, capsys, monkeypatch):
+    """#176: a run that ends with no change -- ruled not needed -- has nothing
+    to publish. It archives its record and its empty branch goes."""
+    _drive_issue_to_awaiting_close()
+    capsys.readouterr()
+    worktree = workdir / ".worktrees" / "issue17"
+    cut = runmod.state("issue17")["from"].rpartition("@")[2]
+    _git(worktree, "reset", "--hard", cut)
+    calls = []
+    stub_gh(monkeypatch, calls=calls)
+
+    cli.main(["issue17", "close"])
+    out = capsys.readouterr().out
+
+    assert calls == []
+    assert "no PR" in out
+    assert (workdir / ".agent-work" / "archive" / "issue17" / "journal.toml").exists()
+    assert not worktree.exists()
+    assert _git(workdir, "branch", "--list", "issue17").stdout.strip() == ""
+    remote = workdir.parent / f"{workdir.name}-remote.git"
+    assert _git(remote, "branch", "--list", "issue17").stdout.strip() == ""
 
 
 # -- refusals: named, and moving nothing -------------------------------------
