@@ -215,7 +215,7 @@ def test_the_conductors_incorporate_sends_only_the_writer_calls_carrying_no_spec
     _fill_consolidate_route_with_calls(
         wid, "incorporate",
         ("gap: commitment 1 is not numbered", "writer"),
-        ("gap: the parser needs a fresh caching layer", "beyond"))
+        ("gap: the parser needs a fresh caching layer", "rejected: outside this spec's own scope"))
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -224,7 +224,7 @@ def test_the_conductors_incorporate_sends_only_the_writer_calls_carrying_no_spec
                         if s["segment"] == "understand" and s.get("source") == "mint"
                         and s["form"] == "skills/spec-writer/forms/SPEC.toml")
     assert fresh_writer["prefill"]["findings"] == "gap: commitment 1 is not numbered"
-    assert "caching layer" not in fresh_writer["prefill"]["findings"]  # called beyond, not writer
+    assert "caching layer" not in fresh_writer["prefill"]["findings"]  # rejected, not writer
 
     fresh_route = next(s for s in st["steps"]
                        if s.get("source") == "panel" and s["segment"] == "understand"

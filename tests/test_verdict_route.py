@@ -160,16 +160,16 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
     #
     # One round is not enough to tell carry-everything from carry-blocking:
     # with a single finding, both answers are the same string. So the second
-    # round returns three things to rule on -- a gap, a `beyond`, and the
-    # implementer's own declared deviation -- and exactly one is called
-    # blocking.
+    # round returns three things to rule on -- a gap, a finding real but
+    # outside this gate, and the implementer's own declared deviation -- and
+    # exactly one is called blocking.
     _fill_implement("g1")
     cli.main(["g1", "submit"])
     second_review = _select("g1")
     panelist = _open_panelist("g1", second_review)
     _fill_review(panelist, "revise",
                  findings=(r"gap: the bound is off by one still\n\n"
-                           r"beyond: the whole parser wants rewriting"))
+                           r"the whole parser wants rewriting"))
     cli.main([panelist, "submit"])
     cli.main([panelist, "close"])
     capsys.readouterr()
@@ -177,14 +177,14 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
     _route_with_calls(
         "g1", "rework",
         ("gap: the bound is off by one still", "blocking"),
-        ("beyond: the whole parser wants rewriting", "beyond"),
+        ("the whole parser wants rewriting", "rejected: outside this gate's own scope"),
         ("renamed two locals in the file the gate already touches", "accepted"))
     cli.main(["g1", "submit"])
     capsys.readouterr()
 
     carried = runmod.state("g1")["current"]["prefill"]["findings"]
     assert carried == "gap: the bound is off by one still"
-    assert "parser wants rewriting" not in carried      # called beyond, not work here
+    assert "parser wants rewriting" not in carried      # rejected, not work here
     assert "renamed two locals" not in carried          # a deviation, accepted
 
 
@@ -477,7 +477,7 @@ def test_a_plan_revise_holds_the_form_and_the_conductors_incorporate_mints_the_r
     for n in range(1, len(panel) + 1):
         _dispatch_critic(wid, "plan", verdict="revise",
                          findings=(r"gap: the proof is untestable\n\n"
-                                   r"beyond: the whole parser wants rewriting"), n=n)
+                                   r"the whole parser wants rewriting"), n=n)
     capsys.readouterr()
 
     st = runmod.state(wid)
@@ -488,7 +488,7 @@ def test_a_plan_revise_holds_the_form_and_the_conductors_incorporate_mints_the_r
     _fill_plan_route_with_calls(
         wid, "incorporate",
         ("gap: the proof is untestable", "writer"),
-        ("beyond: the whole parser wants rewriting", "beyond"))
+        ("the whole parser wants rewriting", "rejected: outside this plan's own scope"))
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -497,7 +497,7 @@ def test_a_plan_revise_holds_the_form_and_the_conductors_incorporate_mints_the_r
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
     carried = fresh["prefill"]["findings"]
     assert carried == "gap: the proof is untestable"
-    assert "wants rewriting" not in carried      # called beyond, not work here
+    assert "wants rewriting" not in carried      # rejected, not work here
 
     # and nothing projected: an incorporate releases nothing to execute
     assert not any(s.get("dispatches") == "run-a-gate" for s in st["steps"])

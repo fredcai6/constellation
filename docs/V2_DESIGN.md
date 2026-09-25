@@ -53,16 +53,16 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | **open** | engine | — | the worktree at `<top-level checkout>/.worktrees/<work-id>` on a pushed branch; the work area at `.agent-work/<work-id>/`; the issue and the authority block captured as prefill | understand |
 | **understand** · do 1 | issue-conductor with the human; a subagent under a delegated principal | `UNDERSTAND` board | every row answered, mooted, or deferred with a reason; decisions and understandings in the principal's words; excursions dispatched from rows, returns stamped to the row | do 2 |
 | understand · do 2 | subagent, the spec writer | `SPEC` | the **problem specification** — standalone, every category considered, each obligation carrying a disposition | review |
-| understand · review | critic subagents, cold | `CRITIC` | completeness and ambiguity: findings classed gap / beyond; `pass | revise` | route |
+| understand · review | critic subagents, cold | `CRITIC` | completeness and ambiguity: findings classed gap; `pass | revise` | route |
 | understand · route | issue-conductor | `CONSOLIDATE`; `IMPASSE` on a send-back | forward when the spec is sufficient; back to do 2 only by ruling — `impasse-after = 0`, one look over a spec and the rest is found by the gates that build from it; up when the issue itself is wrong | the gate cycle |
 | **gate cycle** · route | engine | — | every obligation in the spec has a disposition → close; otherwise → plan | plan, or close |
 | **plan** · do | subagent, the planner | `PLAN` (first cut), `REWORK` (a revise) | the **next gate** from the spec and what has landed, plus a coarse horizon | review |
-| plan · review | critic subagents, cold — on the run's opening cut only (`panel-rounds = "opening"`); every cut after is the conductor's to read, with the engine's one run of its `proof` beside it | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap / beyond; `pass | revise` | route |
+| plan · review | critic subagents, cold — on the run's opening cut only (`panel-rounds = "opening"`); every cut after is the conductor's to read, with the engine's one run of its `proof` beside it | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap; `pass | revise` | route |
 | plan · route | issue-conductor | `PLAN_TO_EXECUTE`; `IMPASSE` on a send-back | pass → the **gate spec** (purpose, scope, proof, model, direction) minted as a dispatch and its review step; a send-back → a ruling (`impasse-after = 0`: another cut only where the conductor names what it changes); up → an ask for help | execute |
 | **execute** · do | subagent, the gate-conductor, as a `run-a-gate` child | the spec as prefill | the **gate report** — the diff on the worktree, residue, and the engine's record of cycles, verdict, checks, amends | review |
 | execute · review | issue-conductor | `GATE_TRANSITION` | root-verify the returns; did the spec achieve the goal; what this gate taught | route |
 | execute · route | issue-conductor | same form | **advance** commits the gate on the run's branch and records, in the run's execution state, the obligations it satisfied; **remint** cuts a fresh gate; **drop** closes a pending one; **replan** recuts; **up** asks for help | the top of the gate cycle |
-| **close** | engine, then issue-conductor | `CLOSE` | the report the human or epic-conductor reads — what landed, evidence, decisions, open triage, residue; the work folder moved to `.agent-work/archive/<work-id>/` in the top-level checkout, out of the worktree's way; the PR pushed | returns to the parent, or the human |
+| **close** | engine, then issue-conductor | `CLOSE` | the report the human or epic-conductor reads — what landed, evidence, decisions, residue; the work folder moved to `.agent-work/archive/<work-id>/` in the top-level checkout, out of the worktree's way; the PR pushed | returns to the parent, or the human |
 
 **The gate tier.** The spec is the opening prefill, so there is nothing to fill at open.
 
@@ -71,8 +71,8 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | **open** | engine | — | the gate's work area under its parent's; the spec as prefill | do |
 | **do** | subagent, the implementer | `IMPLEMENT` | the change; deviations, including any forward-leaning fix; the proof command's output, run by the engine | select |
 | **select** | gate-conductor | its own form | which reviewers read this diff — spec-fit and test adequacy by default, more where the diff calls for it — and why an omitted one was omitted, or `waived:` | review |
-| **review** | reviewer subagents, cold | `REVIEW` | what was exercised and what was not; findings classed gap / beyond; `pass | revise` | route |
-| **route** | gate-conductor | its own form; `IMPASSE` after three | each finding **blocking / accepted / beyond / rejected**; rework → do with the blocking findings as prefill; pass → close; up → an ask for help, the spec being wrong the usual reason | do, or close |
+| **review** | reviewer subagents, cold | `REVIEW` | what was exercised and what was not; findings classed gap; `pass | revise` | route |
+| **route** | gate-conductor | its own form; `IMPASSE` after three | each finding **blocking / accepted / rejected**; rework → do with the blocking findings as prefill; pass → close; up → an ask for help, the spec being wrong the usual reason | do, or close |
 | **close** | gate-conductor | `GATE_CLOSE` | the residue; the engine appends the rest — together, the gate report. Nothing is committed here: git is the issue tier's | the parent's execute · review |
 
 ## Layer 1 — the engine is a secretary
@@ -125,10 +125,12 @@ child runs.
 - **A finding is advice, and scope belongs to the plan.** Independent review is the main way
   scope growth enters a bounded change: a reviewer is rewarded for finding something, and the
   cheapest something is "you should also add." So every finding is classed — **gap** (the spec
-  or plan is not filled; only a gap gates) or **beyond** (real, and outside this scope; a
-  triage candidate, never rework here) — and the tier that owns the plan disposes of each one:
-  accept with the edit named, contest with a reason, or file it. Reviewers judge whether the
-  work was filled; they never enlarge what it is. On this project a finding that deletes
+  or plan is not filled; only a gap gates) or, real but outside this scope, not a gap — and the
+  tier that owns the plan disposes of each one: accept with the edit named, or `rejected:
+  <reason>`, never rework here. Two destinations, never a third (docs/PURPOSE.md): a finding is
+  done now, or dropped with its reason recorded where a later run can find it. Reviewers judge
+  whether the work was filled; they never enlarge what it is. On this project a finding that
+  deletes
   outweighs a finding that adds, because machinery is a cost.
 - **Anchors.** A template step may be marked `anchor` (open, transitions, close). Amending an
   anchor away works like any amend — one journaled step with a reason — but the ledger and the
@@ -172,7 +174,7 @@ and state — generated on demand from the journals, never stored.
 | `status` | where you are: the step's prefill and imperative rendered as prose, the path of the materialized response form, and the other legal moves spelled out as typeable commands — a read with no side effect |
 | `submit` | read the filled response form; the engine validates fields, runs its command checks and appends their output, journals, advances. A refusal names the missing or failing field and nothing else |
 | `amend` | edit a segment's worklist — add, close, reorder; one required `reason` string, journaled |
-| `note` | append an observation, triage candidate, or decision to the record |
+| `note` | append an observation or decision to the record |
 | `close` | terminal; stamps return fields into the parent's waiting step if the run is parented; archives |
 | `trace` | this run and everything it dispatched, as one timeline; for debugging the seam, and deliberately not offered among `status`'s legal moves |
 | `up` | pause the current step: mint an ask into the run that dispatched this one, and a paused marker here; the parent's answer resumes this step as a fresh round |
@@ -330,7 +332,7 @@ answers *did the work fill the spec* — `pass` releases to close, `revise` refi
 with the findings; a panel that thinks the spec itself is wrong writes that as a revise finding,
 not a third verdict word. The gate-conductor answers *what does
 this review mean* — it picks the panel, and disposes of each finding before any refill:
-blocking, accepted, beyond, or rejected with a reason, because a panel finding is advice and
+blocking, accepted, or rejected with a reason, because a panel finding is advice and
 never a work order. The issue-conductor at its gate-adjudication step answers *did the spec achieve
 the goal* — it acts on the plan (advance / remint the gate / drop a now-pointless gate /
 replan), never on the diff. The reviewer's form cites the gate spec and nothing else; the gate
@@ -456,14 +458,14 @@ the implementer produces the diff; the reviewer judges whether it fills the spec
 gate-conductor decides what the review means. The gate-conductor conducts `run-a-gate`: it
 dispatches the implementer, picks the review panel for this diff, synthesizes the findings —
 each one **blocking**, **accepted** (real, and lands in the gate's latitude or a note),
-**beyond** (triage), or **rejected** with a reason — decides whether a round of rework is
+or **rejected** with a reason — decides whether a round of rework is
 owed, and returns the gate report. It does not redefine the spec; that goes up. Decision
 authority, encoded rather than inferred:
 
 | Who | Decides |
 |---|---|
 | implementer | local implementation detail inside the spec; routine refactors inside the gate; forward-leaning fixes under ruling 4 |
-| gate-conductor | sequencing inside the gate; which lenses read the diff; whether a finding gates; whether the evidence is sufficient; what becomes triage |
+| gate-conductor | sequencing inside the gate; which lenses read the diff; whether a finding gates; whether the evidence is sufficient; what gets rejected and why |
 | issue-conductor | whether the gate achieved the issue's intent; what the next gate is; whether the plan holds; whether the issue is done; what goes up |
 | human / epic-conductor | architecture that crosses a stated boundary; scope changes; changes to intent; tradeoffs that turn on priorities outside the run |
 
@@ -520,7 +522,7 @@ planner could work from it without guessing what the human meant. Sufficient, no
 filled by hand. Each accepted gate is one commit on that branch, made at execute·route on
 `advance` — a gate is small enough to be the unit of commit, and nothing below the issue tier
 touches git. Close builds the report the human or epic-conductor reads — what landed, the
-evidence, the decisions, open triage, residue — moves the run's work folder to
+evidence, the decisions, residue — moves the run's work folder to
 `.agent-work/archive/<work-id>/` in the top-level checkout so a swept worktree does not take
 the record with it, and pushes the PR. The archive stays gitignored: it lands under
 `.agent-work/`, the same entry every run's own work location already sits under, so there is no

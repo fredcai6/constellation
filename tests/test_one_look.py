@@ -303,10 +303,10 @@ def test_a_rewrite_mints_the_step_form_with_orders_alone_restarting_the_count_an
     assert st["current"]["id"] == fresh["id"]
 
 
-# -- 7. writer narrows what incorporate carries; beyond still journals -----
+# -- 7. writer narrows what incorporate carries; rejected leaves a record --
 
 
-def test_a_writer_called_calls_table_narrows_what_incorporate_carries_and_beyond_still_journals(
+def test_a_writer_called_calls_table_narrows_what_incorporate_carries_and_rejected_leaves_a_record(
         workdir, capsys):
     wid = "issue7"
     findings = ("gap: the boundary sentence needs fixing",
@@ -314,11 +314,12 @@ def test_a_writer_called_calls_table_narrows_what_incorporate_carries_and_beyond
                 "gap: nothing else to add here")
     _open_to_spec_reviewed(wid, "7", findings)
     capsys.readouterr()
+    route_step = runmod.state(wid)["current"]["id"]
 
     _fill_consolidate_route_with_calls(
         wid, "incorporate",
         (findings[0], "writer"),
-        (findings[1], "beyond"),
+        (findings[1], "rejected: outside this spec's own scope"),
         (findings[2], "writer"))
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -331,11 +332,11 @@ def test_a_writer_called_calls_table_narrows_what_incorporate_carries_and_beyond
     assert findings[0] in prefill_findings
     assert findings[2] in prefill_findings
     assert findings[1] not in prefill_findings, (
-        f"a beyond call rode into the incorporate round: {prefill_findings!r}")
+        f"a rejected call rode into the incorporate round: {prefill_findings!r}")
 
-    triage = [n.get("text", "") for n in runmod.state(wid)["notes"]
-             if n.get("kind_detail") == "triage"]
-    assert triage == [findings[1]], triage
+    calls = runmod.state(wid)["done"][route_step]["fields"]["calls"]
+    rejected = next(c for c in calls if c["finding"] == findings[1])
+    assert rejected["call"] == "rejected: outside this spec's own scope"
 
 
 # -- 8. round-cap still pauses after five non-released rounds ---------------

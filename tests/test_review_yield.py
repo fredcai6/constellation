@@ -67,7 +67,7 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     _dispatch_and_close_plan(wid)
 
     # round one: two critics find something, one passes clean; the
-    # conductor hands one finding to the writer and sends the other to triage.
+    # conductor hands one finding to the writer and rejects the other.
     _dispatch_plan_panel(wid, [
         ("revise", "gap: the loop bound is untested"),
         ("revise", "gap: the risk section is thin"),
@@ -76,7 +76,7 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     _fill_plan_route_with_calls(
         wid, "incorporate",
         ("gap: the loop bound is untested", "writer"),
-        ("gap: the risk section is thin", "beyond"))
+        ("gap: the risk section is thin", "rejected: outside this plan's own scope"))
     cli.main([wid, "submit"])
 
     fresh = next(s for s in runmod.state(wid)["steps"]
@@ -95,13 +95,13 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"writer": 1, "beyond": 1}, "waived": 0, "reason": ""}
+                  "calls": {"writer": 1, "rejected": 1}, "waived": 0, "reason": ""}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "plan-to-execute" in table
-    assert "r1  revise   2 findings   1 writer 1 beyond" in table
+    assert "r1  revise   2 findings   1 writer 1 rejected" in table
     assert "r2  pass" in table
 
     # skip the projected gate -- this test's subject is the plan seam's own
@@ -121,11 +121,11 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     stub_gh(monkeypatch)
     cli.main([wid, "close"])
     out = capsys.readouterr().out
-    assert "plan-to-execute" in out and "1 writer 1 beyond" in out
+    assert "plan-to-execute" in out and "1 writer 1 rejected" in out
 
     archived = pathlib.Path(workdir) / ".agent-work" / "archive" / wid / "YIELD.md"
     assert archived.exists()
-    assert "1 writer 1 beyond" in archived.read_text()
+    assert "1 writer 1 rejected" in archived.read_text()
 
 
 def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
@@ -197,7 +197,7 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     assert step_id == "understand"
 
     # round one: two critics find something, one passes clean; the
-    # conductor hands one finding to the writer and sends the other to triage.
+    # conductor hands one finding to the writer and rejects the other.
     _dispatch_plan_panel(wid, [
         ("revise", "gap: the glossary check ran on the wrong word"),
         ("revise", "gap: the settle field is thin"),
@@ -206,7 +206,7 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     _fill_consolidate_route_with_calls(
         wid, "incorporate",
         ("gap: the glossary check ran on the wrong word", "writer"),
-        ("gap: the settle field is thin", "beyond"))
+        ("gap: the settle field is thin", "rejected: outside this spec's own scope"))
     cli.main([wid, "submit"])
 
     # round two: the spec-writer's one pass, filled in place (no dispatch --
@@ -224,14 +224,14 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     assert len(consolidate["rounds"]) == 2
     r1, r2 = consolidate["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"writer": 1, "beyond": 1}, "waived": 0, "reason": ""}
+                  "calls": {"writer": 1, "rejected": 1}, "waived": 0, "reason": ""}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "consolidate" in table
     assert "r1  revise   2 findings" in table
-    assert "1 writer 1 beyond" in table
+    assert "1 writer 1 rejected" in table
     assert "uncalled" not in table
 
 

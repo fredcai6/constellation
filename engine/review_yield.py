@@ -12,7 +12,7 @@ round carries a panel, the conductor's route form alone where it does not
 (run-an-issue's plan seam after the opening cut) -- the count
 `run.rework_rounds` uses, plus the first. A finding is one block a panelist returned in its own
 `findings` field, empty or `waived:`/`none:` counting as zero. A call is the
-conductor's `blocking | accepted | beyond | rejected` on one finding, read
+conductor's `blocking | accepted | rejected` on one finding, read
 from a route form's `calls` table where the deciding submit carried one --
 run-a-gate's `ROUTE.toml`, run-an-issue's `PLAN_TO_EXECUTE.toml` and
 `CONSOLIDATE.toml`. A seam with no route form of its own (explore-an-idea's

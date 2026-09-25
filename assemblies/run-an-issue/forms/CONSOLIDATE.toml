@@ -169,9 +169,9 @@ call most findings take, true or not: the writer judges its own spec.
 `severe` -- the finding changes which problem this run is solving, or the
 fundamental thing its next step would code. A round with one is a
 `rewrite`, and your `orders` say what the fresh spec must hold instead.
-`beyond` -- real, and outside what this spec set out to do. It is
-journaled as a triage note when you submit and reaches the close form
-from there, and never becomes work here.
+`rejected: <reason>` -- real, but not this spec's to answer, or outside
+what this spec set out to do. Fold the reason in after the colon; it never
+becomes work here, and the record is that you called it.
 
 An `up` carries the whole table, every call beside its finding, to the
 tier the ask stands at. Quote each finding as it was written rather than
@@ -186,4 +186,4 @@ returned findings -- an incorporation's round has none."""
   [[field.item]]
   id = "call"
   kind = "decision"
-  note = "writer | severe | beyond"
+  note = "writer | severe | rejected: <reason>"

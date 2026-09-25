@@ -43,7 +43,7 @@ def _fresh_plan_mint(wid):
                 and s["id"] not in st["done"] and s.get("dispatches"))
 
 
-BEYOND_FINDING = "beyond: the migration angle is a separate piece of work"
+REJECTED_FINDING = "the migration angle is a separate piece of work"
 
 
 def _dispatch_plan_critic_with_calls(wid, finding):
@@ -52,21 +52,23 @@ def _dispatch_plan_critic_with_calls(wid, finding):
     (`_blocking_calls`, engine/cli.py) actually runs: without a `calls`
     table on some round's own done-entry, that branch never executes and a
     defect in it would pass every other test in this file. This round's own
-    panel returns a `severe` finding and a `beyond` one, and the
-    conductor's `[[calls]]` table calls each in kind, folding the severe
-    one into `orders` -- a `rewrite`'s prefill is `orders` alone."""
+    panel returns a `severe` finding and one real but not this plan's to
+    answer, and the conductor's `[[calls]]` table calls each in kind,
+    folding the severe one into `orders` -- a `rewrite`'s prefill is
+    `orders` alone."""
     st = runmod.state(wid)
     step_id = st["current"]["id"]
     panel = next(s for s in st["steps"] if s["id"] == step_id).get("panel") or []
     for n in range(1, len(panel) + 1):
         cli.main(["open", "give-a-verdict", "--parent", wid, "--step", f"{step_id}.p{n}"])
         panelist = f"{wid}.{step_id}.p{n}"
-        _fill_critic(panelist, "revise", f"{finding}\\n\\n{BEYOND_FINDING}")
+        _fill_critic(panelist, "revise", f"{finding}\\n\\n{REJECTED_FINDING}")
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
     body = ('orders = "%s -- replace it in kind"\n\n'
             '[[calls]]\nfinding = "%s"\ncall = "severe"\n\n'
-            '[[calls]]\nfinding = "%s"\ncall = "beyond"\n\n') % (finding, finding, BEYOND_FINDING)
+            '[[calls]]\nfinding = "%s"\ncall = "rejected: a separate piece of work"\n\n'
+            ) % (finding, finding, REJECTED_FINDING)
     _fill_plan_to_execute(wid, "rewrite", calls=body)
     cli.main([wid, "submit"])
 
@@ -112,8 +114,8 @@ def _drive_plan_seam_to_its_cap(wid="issue113c1"):
     rewrite -- and that fresh cut's own panel finding the scope still wrong,
     so the conductor's second `rewrite` goes up instead. The cap round's own
     deciding form carries a `[[calls]]` table ruling one finding `severe` and
-    one `beyond` (`_dispatch_plan_critic_with_calls`), so the ask below also
-    proves `_seam_findings_history`'s calls-narrowed branch."""
+    one `rejected` (`_dispatch_plan_critic_with_calls`), so the ask below
+    also proves `_seam_findings_history`'s calls-narrowed branch."""
     _open_to_plan(wid)
     _dispatch_and_close_plan(wid)
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: r1 needs another look",
@@ -156,10 +158,10 @@ def test_a_second_rewrite_pauses_the_plan_seam_to_an_ask(workdir, capsys):
     assert positions == sorted(positions), (
         "the ask's findings landed out of round order (oldest first)")
 
-    # round three's own calls table ruled its other finding `beyond`: it left
-    # as triage, so the ask does not carry it
-    assert BEYOND_FINDING not in findings, (
-        "the ask carried a finding round 3's own calls table ruled beyond")
+    # round three's own calls table ruled its other finding `rejected`: it
+    # is a record on that round alone, so the ask does not carry it
+    assert REJECTED_FINDING not in findings, (
+        "the ask carried a finding round 3's own calls table rejected")
 
 
 # -- a release starts the count over: one cut per gate never reaches it -----

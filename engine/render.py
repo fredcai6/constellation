@@ -141,19 +141,25 @@ def cycles(entries):
     return [f"{c.get('segment','')} x{c.get('count')}" for c in entries or []]
 
 
-def triage(entries):
-    """One line per triage note this run journaled -- the record CLOSE.toml's
-    own triage field asks for, so it is filled from what was said, not
-    memory."""
-    return [e.get("text", "") for e in entries or []]
-
-
 def blocks(entries):
     """One line per returned block -- a child's own `[[field]]` rows,
     GATE_CLOSE.toml's `claims` the first -- each value beside its key, so a
     list of tables never prints as a Python repr."""
     return [", ".join(f"{k} {v}" for k, v in e.items()) if isinstance(e, dict) else str(e)
             for e in entries or []]
+
+
+def prior_drops(entries):
+    """One line per prior drop -- `engine.drops.rejected_calls`'s own rows,
+    already narrowed to this gate's diff: the run it was called in, the
+    finding trimmed to its own first line, and the reason it was called
+    `rejected`."""
+    out = []
+    for d in entries or []:
+        finding = (d.get("finding", "") or "").strip().splitlines()[:1]
+        out.append(f"{d.get('run', '')} -- {finding[0] if finding else ''} -- "
+                   f"{d.get('reason', '')}")
+    return out
 
 
 def _pairs(rows, indent="    "):
@@ -204,7 +210,7 @@ def preamble(st, blocked=(), position=None):
 # Rejected: leaving the vocabulary in `cli` beside the verb and spelling it
 #   a second time here. That is the drift `_dispatch_lines` was extracted to
 #   stop, in a file whose whole job is not making a reader guess a word.
-NOTE_KINDS = ("blocked", "resumed", "observation", "decision", "triage")
+NOTE_KINDS = ("blocked", "resumed", "observation", "decision")
 
 
 # [legal-moves-names-the-kinds]
@@ -216,8 +222,8 @@ NOTE_KINDS = ("blocked", "resumed", "observation", "decision", "triage")
 #   other command this file renders is typeable as printed; this one was not.
 # Rejected: a `<kind>` placeholder. A placeholder in argument position is the
 #   guess `_off_the_board` already refuses to make a reader perform.
-# Rejected: defaulting the kind when it is omitted. Only `blocked`, `resumed`
-#   and `triage` do anything; a default would silently turn a `blocked` a
+# Rejected: defaulting the kind when it is omitted. Only `blocked` and
+#   `resumed` do anything; a default would silently turn a `blocked` a
 #   reader meant into a note nothing reads, and a block that does not block
 #   is the one failure shape nothing downstream can catch.
 def legal_moves(wid, kinds=NOTE_KINDS):
@@ -538,9 +544,10 @@ def drift(measures):
 
 def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            position=None, board=None, in_hand=None, answered=(), onward_to=None,
-           returns_from="", triage_notes=(), role="", verdict="",
+           returns_from="", role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
-           filler_status="", waived=None, proofs=(), proof_wait=None):
+           filler_status="", waived=None, proofs=(), proof_wait=None,
+           drops=()):
     """The room description.
 
     `proofs` is `proof_readings`' own lines for the cut this room disposes
@@ -589,6 +596,11 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     `legal_moves` -- a room's own `note`/`amend` escape hatch, not a
     filler's -- is left off. `role`'s own posture line is unaffected either
     way: it is this function's, not `_dispatch_lines`'s, in both cases.
+
+    `drops` is `engine.drops.rejected_calls`'s own rows, already narrowed
+    to the ones whose files intersect this room's diff (see `[prior-drops]`,
+    engine/cli.py) -- empty everywhere but the gate's own route room, since
+    only there is there a diff to narrow against.
     """
     wid = st["id"]
     out = preamble(st, blocked, position)
@@ -686,15 +698,16 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
             out.append(_pairs(list((r.get("fields") or {}).items())))
             out.append("")
 
-    if triage_notes:
-        # The candidates this run has already noted, so CLOSE.toml's triage
-        # field is filled from the record rather than reconstructed from
-        # memory at the last step. Notes joined by a blank line before a
-        # single _para call, not one call per note: that blank line is what
-        # marks a note's own continuation as still part of it, rather than
-        # letting a wrapped line read as the start of the next note.
-        out.append("  triage noted")
-        out.append(_para("\n\n".join(triage(triage_notes)), indent="    "))
+    if drops:
+        # Framed neutrally, never as a verdict on the finding in front of
+        # you -- see `[prior-drops]` (engine/cli.py) for why this run's own
+        # route room is where a `rejected` call from an earlier one comes
+        # back into view. Lines joined by a blank line before a single
+        # _para call, not one call per line, the same reason a triage note
+        # once needed it: a wrapped line should not read as the start of
+        # the next drop.
+        out.append("  dropped before in runs touching these files")
+        out.append(_para("\n\n".join(prior_drops(drops)), indent="    "))
         out.append("")
 
     out.append(_para(form.get("imperative", "")))

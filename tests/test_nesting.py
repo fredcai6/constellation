@@ -333,7 +333,6 @@ def _mint_n_gates(n, wid="issue17"):
 def _fill_close(wid):
     _fill(_response(wid), '''
 disposition = "merged to main"
-triage = "waived: none"
 residue = "waived: none"
 ''')
 

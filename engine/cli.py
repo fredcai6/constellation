@@ -20,6 +20,7 @@ import tomllib
 
 from engine import boards
 from engine import checks as checkrun
+from engine import drops as dropsmod
 from engine import forms
 from engine import journal
 from engine import render
@@ -358,9 +359,12 @@ def _trial_proofs(wid, step, form, fields, root):
 #   cut point is read off the run's own opening entry: a child opens carrying
 #   its parent's, since a dispatched child bound to its own id cannot read
 #   the root journal it would otherwise come from.
-def _changed_since_cut(wid, root):
-    """How many paths the tree at `root` differs from its run's cut point by,
-    or None where the run records no cut point or git cannot say."""
+def _changed_paths_since_cut(wid, root):
+    """The paths the tree at `root` differs from its run's cut point by, or
+    None where the run records no cut point or git cannot say -- the same
+    read `_changed_since_cut` counts, kept here as the one place that reads
+    the diff itself so a second caller wanting the paths (`[prior-drops]`)
+    is a second reader of this, not a second `git diff`."""
     sha = (runmod.state(wid).get("from") or "").rpartition("@")[2]
     if not sha:
         return None
@@ -369,7 +373,14 @@ def _changed_since_cut(wid, root):
     if tracked.returncode or untracked.returncode:
         return None
     paths = set(tracked.stdout.splitlines()) | set(untracked.stdout.splitlines())
-    return len({p for p in paths if p and not p.startswith(".agent-work/")})
+    return {p for p in paths if p and not p.startswith(".agent-work/")}
+
+
+def _changed_since_cut(wid, root):
+    """How many paths the tree at `root` differs from its run's cut point by,
+    or None where the run records no cut point or git cannot say."""
+    changed = _changed_paths_since_cut(wid, root)
+    return None if changed is None else len(changed)
 
 
 def _tier(step, asm):
@@ -1748,7 +1759,7 @@ def _drafts(st, step, form):
 #   needs beyond `st`/`form`/`response_path` themselves -- the returned
 #   child's fields folded flat, the board (now via `_board_path`, re-derived
 #   fresh rather than trusted from whatever cwd minted it), prefill, in-hand
-#   fields, the returned verdict, blocks, position, triage notes, the role,
+#   fields, the returned verdict, blocks, position, prior drops, the role,
 #   row returns -- lifted out here so `_form_filler_brief` can build the
 #   identical room off the same derivation rather than a second hand-copy
 #   of it. `dest` is a parameter, not recomputed, because both callers
@@ -1836,18 +1847,17 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     if returns:
         # Every structured value the summary can carry, spelled out rather
         # than left as a raw list -- str() on a list prints Python reprs, not
-        # something a conductor can act on. A field's own form answer (e.g.
-        # CLOSE.toml's `triage`) is a string that already overrode the
-        # summary's list by the time it lands here, so only a survivor gets
-        # rendered; the isinstance check is what tells the two apart.
+        # something a conductor can act on. A field's own form answer that
+        # already overrode the summary's list by the time it lands here is a
+        # string, so only a survivor gets rendered; the isinstance check is
+        # what tells the two apart.
         for key, fn in (("checks", render.checks), ("proof_trials", render.proof_readings),
-                        ("cycles", render.cycles), ("amends", render.amends),
-                        ("triage", render.triage)):
+                        ("cycles", render.cycles), ("amends", render.amends)):
             if isinstance(returns.get(key), list):
                 returns[key] = "; ".join(fn(returns[key])) or "none"
         # A child's own plan field returns as a list of blocks too --
         # GATE_CLOSE.toml's `claims` -- and has no renderer of its own, so
-        # whatever list survives the five above prints block by block.
+        # whatever list survives the four above prints block by block.
         for key, val in list(returns.items()):
             if isinstance(val, list):
                 returns[key] = "; ".join(render.blocks(val)) or "none"
@@ -1855,6 +1865,33 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     # whether submit refuses on it. The ideas board is read at every cycle
     # and refused at none.
     board = _board_state(_board_path(wid, st, step, root))
+    # [prior-drops]
+    # Rationale: a finding has two destinations (docs/PURPOSE.md) -- done
+    #   now, or dropped with its reason recorded where a later run can find
+    #   it. The record already exists: a `rejected` call is a row on the
+    #   submit entry that ruled it, in the run's own journal, archived under
+    #   `<top>/.agent-work/archive/` once that run closes. Reading it back
+    #   here is the "where a later run can find it" half of the ruling --
+    #   nothing new is written, `engine/drops.py` only reads what already
+    #   landed. Whether a `rejected` finding recurring here is worth acting
+    #   on is the conductor's own call to make, at the seam calls are made;
+    #   this only puts the prior ones in front of it, narrowed to the files
+    #   this gate's own diff touches so the list is what could plausibly
+    #   repeat and not every drop the archive has ever recorded.
+    #   Shown at the route room and not at open: `_changed_paths_since_cut`
+    #   needs a cut point and a tree to diff against, and open stands before
+    #   either exists -- the files a finding could repeat on are not known
+    #   until there is a diff.
+    # Rejected: a stored `drops.toml`, or a field an agent fills. The record
+    #   is already the archived journals; a second file is a second place
+    #   for the two to drift, and this reads straight off the first.
+    seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
+    drops = []
+    if step.get("form") and step.get("form") == seg.get("route-form"):
+        cut_root = root if root is not None else journal.root_for(wid)
+        top = _toplevel_checkout(cut_root) or cut_root
+        touched = _changed_paths_since_cut(wid, cut_root)
+        drops = dropsmod.touching(dropsmod.rejected_calls(top), touched)
     prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     # A `carries` transition folds its plan fields into the run's prefill as
     # lists of blocks (consolidate's `obligations`), and str() on one of
@@ -1878,7 +1915,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         "board": board,
         "in_hand": forms.in_hand(filled),
         "answered": forms.answered(filled),
-        "triage_notes": [n for n in st["notes"] if n.get("kind_detail") == "triage"],
+        "drops": drops,
         "role": runmod.hat(asm, step, st),
         "row_returns": st["row_returns"],
         "filler_status": filler_status,
@@ -2484,13 +2521,6 @@ def complete_submit(wid, step_id, fields, ran):
     outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
                    checks=ran or None)
-    # A `beyond` call is a triage candidate by every route form's own words;
-    # journaling it as the note kind CLOSE.toml already asks for is what
-    # carries it there without the conductor retyping it (`[beyond-calls]`).
-    for candidate in _beyond_calls(fields):
-        journal.append(wid, "note", id=f"n{secrets.token_hex(2)}",
-                       kind_detail="triage", text=candidate, about="",
-                       step=step["id"])
     _measure_artifacts(wid, step, form, fields)
 
     # A transition marked `carries` folds its fields into the run's own
@@ -2796,10 +2826,10 @@ def _check_release_artifacts(form, fields, outcome):
 # Rationale: the deciding form's own per-finding `calls` is what makes a
 #   rework round's prefill the *blocking* findings rather than all of them --
 #   docs/V2_DESIGN.md's route row, "rework -> do with the blocking findings
-#   as prefill". A finding the conductor accepted, sent to triage as beyond,
-#   or rejected is a record, not an order for the next round, and handing it
-#   forward verbatim is how a round gets worked on something already ruled
-#   settled. Read off the submitted fields alone, never off a form or
+#   as prefill". A finding the conductor accepted or rejected is a record,
+#   not an order for the next round, and handing it forward verbatim is how
+#   a round gets worked on something already ruled settled. Read off the
+#   submitted fields alone, never off a form or
 #   assembly name: run-an-issue's consolidate and plan-to-execute,
 #   explore-an-idea's spec, and run-a-gate's own `work`-segment impasse
 #   ruling all reach the same `rework` verb submitting no such table, and
@@ -2829,37 +2859,6 @@ def _blocking_calls(fields, word="blocking"):
         if isinstance(r, dict) and forms.leading_word(r.get("call", "")) in words)
 
 
-# [beyond-calls]
-# Rationale: every route form says a `beyond` finding "leaves as a triage
-#   candidate", and until now nothing carried it: the conductor was expected
-#   to remember, several rounds later at the close form, what it had called
-#   beyond and retype it there. That is the transcription bug `[gate-projection]`
-#   already refused once -- "a second typing is a second chance to drift from
-#   what the panel actually judged" -- and the evidence that it leaks is in
-#   the archives, where a planner with no triage channel of its own put a
-#   triage candidate in `direction` instead.
-#   The destination already exists and is already wired: a `triage` note is
-#   journaled by `cmd_note`, rendered into every room, collected by `trace`,
-#   and asked for by name on CLOSE.toml, whose own header promises the engine
-#   appends "the run's triage notes -- the candidates raised". So a beyond
-#   call becomes one of those notes at submit, and reaches the close form the
-#   way every other candidate already does.
-# Rejected: a new prefill key carried to the close step. It would arrive only
-#   at close, so nothing between here and there could see it, and the run's
-#   own room would stop showing a candidate the moment it was called -- the
-#   note mechanism shows it from the submit that raised it onward.
-def _beyond_calls(fields):
-    """The findings a submitted `calls` table called `beyond`, verbatim -- the
-    triage candidates this submit raises. `[]` where the submit carried no
-    such table, which is every seam with no route form."""
-    rows = (fields or {}).get("calls")
-    if not isinstance(rows, list):
-        return []
-    return [str(r.get("finding", "")).strip() for r in rows
-            if isinstance(r, dict) and forms.leading_word(r.get("call", "")) == "beyond"
-            and str(r.get("finding", "")).strip()]
-
-
 # [seam-findings-history]
 # Rationale: issue113's run-level round-cap owes its ask the findings of
 #   every round it counted, not only the round that tripped it (C1-findings)
@@ -2873,8 +2872,7 @@ def _beyond_calls(fields):
 #   than a second copy of its own narrowing rule.
 # The calls an ask still owes its reader: every word that sends a finding
 # on to work -- a gate review's `blocking`, a spec or plan seam's `writer`
-# and `severe` -- and none that disposes of it (`accepted`, `rejected`,
-# `beyond`).
+# and `severe` -- and none that disposes of it (`accepted`, `rejected`).
 _OPEN_CALLS = ("blocking", "writer", "severe")
 
 
@@ -4699,9 +4697,7 @@ def _summary(st):
     each segment beyond its first (the implement/review loop count), the
     review panel's verdict where this run had one, the change and deviations
     the last implement step wrote, every check the engine ran, the tier this
-    run was dispatched under, one line per amend, and every triage note --
-    the candidates this run raised, so a parent adjudicating the return sees
-    them without opening the child's journal."""
+    run was dispatched under, and one line per amend."""
     cycles = {}
     for s in st["steps"]:
         if s.get("source") in ("mint", "amend"):
@@ -4729,8 +4725,6 @@ def _summary(st):
     amends = [{"action": a.get("action", ""), "step": a.get("step", ""),
                "segment": a.get("segment", ""), "reason": a.get("reason", ""),
                "anchor": a.get("anchor", False)} for a in st.get("amends", [])]
-    triage = [{"text": n.get("text", "")} for n in st["notes"]
-              if n.get("kind_detail") == "triage"]
     # Rationale: an implement step is the step whose fields carry `change`,
     #   which holds for IMPLEMENT.toml in whatever assembly declares it. The
     #   last submitted one wins, because a revise round rewrites the diff and
@@ -4756,7 +4750,6 @@ def _summary(st):
         "proof_trials": list(st.get("proof_trials", [])),
         "model": st.get("model", ""),
         "amends": amends,
-        "triage": triage,
     }
 
 
