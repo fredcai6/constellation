@@ -4,7 +4,7 @@
     python -m tools.code_map discover       print the mappable corpus
     python -m tools.code_map extract        the statement store only
     python -m tools.code_map render         the page tree only
-    python -m tools.code_map check          the print-only diagnostics
+    python -m tools.code_map check          the checks over the built map
 
 Every subcommand takes `--root`, so nothing here is pinned to one checkout; the
 prototype this was ported from hardcoded an absolute path to another repository.

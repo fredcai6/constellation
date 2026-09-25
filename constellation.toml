@@ -24,7 +24,9 @@ validate-gate-loop = "python3 -m pytest -q && python3 -m pytest 'evals/test_impl
 # both gitignored. Never committed -- a stale committed map is the failure #7 names.
 # `--render-only` narrows the page tree to one package; the walk behind it stays
 # whole, so the referenced-by-tests column survives. Repeat it to add packages.
-map = "python3 -m tools.code_map build --root . --artifacts .code-map --out map --render-only engine"
+# `check` then holds the tree to its own invariants, reading the narrowing the
+# tree records rather than being told it again.
+map = "python3 -m tools.code_map build --root . --artifacts .code-map --out map --render-only engine && python3 -m tools.code_map check --root . --artifacts .code-map --out map"
 # `dispatch` is the real harness `wait` actually starts a dispatch or panel
 # room's outstanding child through -- `evals/harness.py`'s own `cmd` in
 # full (around evals/harness.py:128-129), so the one process every eval
