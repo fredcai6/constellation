@@ -51,10 +51,29 @@ def load(board_path) -> dict:
 #   declares -- `[[question]]` on one board, `[[idea]]` on the other -- so
 #   the engine reads the one array the file holds rather than a name it
 #   would have to know per board.
+def _array(board_path):
+    """`(name, rows)` of the one array of tables the board holds."""
+    return next(((k, v) for k, v in load(board_path).items()
+                 if isinstance(v, list) and v and isinstance(v[0], dict)), ("", []))
+
+
 def rows(board_path) -> list[dict]:
     """Every row, in file order. Missing file -> []."""
-    return next((v for v in load(board_path).values()
-                 if isinstance(v, list) and v and isinstance(v[0], dict)), [])
+    return _array(board_path)[1]
+
+
+# [label-is-the-array-name]
+# Rationale: #47, #86 -- a row's label was the first string after its id and
+#   status, so any column typed or seeded above the real one (a flat
+#   `recommend`, a `verdict` a plan dict happened to list first) became the
+#   label in every render, and file order was the only thing holding it.
+#   Every board names its array after its label column -- `[[question]]`
+#   holds `question`, `[[idea]]` holds `idea`, `[[obligation]]` holds
+#   `obligation` -- so the label is read by that name and order means
+#   nothing.
+def column(board_path) -> str:
+    """The column that labels this board's rows: its array's own name."""
+    return _array(board_path)[0]
 
 
 def prose(board_path) -> dict:
@@ -65,15 +84,10 @@ def prose(board_path) -> dict:
             if isinstance(v, str) and v.strip()}
 
 
-def label(row) -> str:
-    """A row's text: the first string after its id and status in file order
-    -- `question` on one board, `idea` on the other -- so no render names a
-    column. Offered material (a recommendation, its options) lives nested in
-    its own subtable rather than as a top-level string, so no file order an
-    agent types the row in can ever surface it here in place of the real
-    label."""
-    return next((v for k, v in row.items()
-                 if k not in ("id", "status") and isinstance(v, str) and v.strip()), "")
+def label(row, column) -> str:
+    """A row's text: its `column` -- the board's own `column(...)`."""
+    value = row.get(column, "")
+    return value if isinstance(value, str) else ""
 
 
 def tree(rows) -> list[tuple[int, dict]]:
