@@ -1108,14 +1108,27 @@ def _dispatch_records(wid):
 #   every function that reads it, exactly as `_dispatch_records` already
 #   is, so a caller that needs both facts scans the journal for each of
 #   them once, not once per downstream function.
+# [starts-count-since-the-last-answer]
+# Rationale: #180 -- the cap stops a child that keeps dying with nothing new
+#   to go on, and it counted every start the child ever had. issue156.g1
+#   spent two starts on an engine defect and one on a session limit, and
+#   once its ask was answered with the fix no verb could start it again: the
+#   cap read three deaths that had already been explained as three reasons
+#   not to try. An answered ask that resumes a child is the new input the
+#   cap is waiting for, so a child's count starts over at that submit.
 def _dispatch_start_counts(wid):
     """`{child_id: count}` -- how many `dispatch-started` records `wid`'s
-    own journal carries for each child that has ever been started at all;
-    `_startable`'s own cap reads this, not `_dispatch_records`."""
-    counts = {}
+    own journal carries for each child since the last answer that resumed
+    it; `_startable`'s own cap reads this, not `_dispatch_records`."""
+    counts, resumes = {}, {}
     for e in journal.read(wid):
-        if e.get("kind") == "dispatch-started":
+        kind = e.get("kind")
+        if kind == "dispatch-started":
             counts[e.get("child")] = counts.get(e.get("child"), 0) + 1
+        elif kind == "step" and e.get("resumes"):
+            resumes[e["id"]] = e["resumes"]
+        elif kind == "submit" and e.get("step") in resumes:
+            counts.pop(resumes[e["step"]], None)
     return counts
 
 
@@ -4158,8 +4171,16 @@ def cmd_up(argv):
             cur["id"], f"nothing at or before {cur['segment']!r} declares a step-form "
             "-- there is no round for an answer to resume",
             escape=f"drop it instead: spine {wid} amend close {cur['id']} --reason ..."))
-    journal.append(wid, "amend", action="close", segment=cur["segment"], step=cur["id"],
-                   reason=reason, anchor=cur.get("anchor", False))
+    # [an-ask-outlives-its-up]
+    # Rationale: #180 -- a conductor standing on an ask that resumes a paused
+    #   child, and ruling it up, closed that ask here; the ask was the only
+    #   thing carrying the child's resume, so the answer from above reached
+    #   this run and never the child. An ask a conductor cannot answer yet is
+    #   still owed: it stays, the new ask stands in front of it, and once
+    #   that answer comes back the ask is where the conductor lands next.
+    if not cur.get("resumes"):
+        journal.append(wid, "amend", action="close", segment=cur["segment"], step=cur["id"],
+                       reason=reason, anchor=cur.get("anchor", False))
     # A panelist ruling `up` mid-verdict resumes into its own panel-entry
     # form/worker, not give-a-verdict's bare default -- read straight off
     # `cur`, which `_open_child`'s panel branch already overrode at open.
