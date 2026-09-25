@@ -4,9 +4,8 @@
 # blocks already written, for it to accept or contest. The engine appends
 # the mechanical record itself: how many steps landed, the implement/review
 # cycle count, the final verdict, the change and deviations from the last
-# implement step, the check outputs, the model tier dispatched under, this
-# run's amend summary (segment, reason, anchor touched or not), and every
-# triage note raised here.
+# implement step, the check outputs, the model tier dispatched under, and
+# this run's amend summary (segment, reason, anchor touched or not).
 
 imperative = """
 Close the gate. Claim the obligations this gate was cut against, each on
@@ -22,8 +21,8 @@ note = """
 What the parent should know that no recorded field carries. Answer this
 gate's own `direction` first where its orders carry one -- that field is a
 question the plan asked this gate on the next plan round's behalf, and this
-is the only place it is ever answered. Then anything else: observations
-noted for triage, a surprise in the terrain, a check that passes but smells.
+is the only place it is ever answered. Then anything else: an observation
+worth recording, a surprise in the terrain, a check that passes but smells.
 Or waived: none."""
 
 [[field]]

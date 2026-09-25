@@ -239,13 +239,15 @@ is joint. Coining a synonym for a term below is a defect.
   Runs as run-an-epic under the epic-conductor, dispatching issue runs. Never a list of issues.
 - **wave** — a segment of an epic whose interior dispatches whole issue runs. The epic-conductor cuts
   a wave from the epic's findings and adjudicates at its transition.
-- **finding** — something real that was observed and recorded, and is not yet work. A reviewer's
-  finding classed `beyond`, and an epic's unfiled finding, are the same thing at two scopes.
+- **finding** — something real that was observed and recorded, and is not yet work. Two
+  destinations, never a third (docs/PURPOSE.md): done now, or dropped with its reason recorded
+  where a later run can find it. A reviewer's finding a route form calls `rejected: <reason>`,
+  and an epic's unfiled finding, are the same shape at two scopes.
 - **call** — one route-step ruling on a single finding raised against the artifact it names —
   a panel's finding at either tier, or (a gate's own) a declared deviation too. The words are
-  the route form's own: `blocking | accepted | beyond | rejected` at a gate's review, and
-  `writer | severe | beyond` at run-an-issue's spec and plan seams, where the call says where
-  the finding goes — to the writer's one pass, to a **rewrite**, or to triage. Every
+  the route form's own: `blocking | accepted | rejected: <reason>` at a gate's review, and
+  `writer | severe | rejected: <reason>` at run-an-issue's spec and plan seams, where the call
+  says where the finding goes — to the writer's one pass, to a **rewrite**, or dropped. Every
   panel-bearing transition's own route form carries the field. Distinct from the issue tier's **disposition**
   (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges one finding or deviation once;
   a disposition judges one obligation across the run's whole life.

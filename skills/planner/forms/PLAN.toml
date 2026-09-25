@@ -81,9 +81,10 @@ note = """
 A question this gate is expected to answer for the next plan round, when you
 have one. The gate's own close form is asked to answer it in `residue`, so
 write something answerable or leave it out -- `waived: none` is the ordinary
-case for a run's last gate. Not a place for anything else you noticed: a
-candidate for later is the conductor's `beyond` at the review that follows,
-and the shape of the gates after this one is `horizon`."""
+case for a run's last gate. Not a place for anything else you noticed:
+something outside this gate's own scope is the conductor's to call
+`rejected: <reason>` at the review that follows, and the shape of the gates
+after this one is `horizon`."""
 
 [[field]]
 id = "horizon"

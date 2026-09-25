@@ -36,8 +36,10 @@ which decides what happens to it.
   gap      the artifact would send the run wrong at its own grain: the
            wrong problem, no boundary, no way to tell done, the wrong
            next chunk, or a proof that cannot tell it landed.
-  beyond   real, and outside what this artifact set out to do. A triage
-           candidate, never work here.
+
+A finding that is real but outside what this artifact set out to do is not
+a gap -- ground it anyway and let the seam that rules on findings call it
+`rejected: <reason>`; it is never work here.
 
 Prefer the finding that deletes something to the finding that adds
 something: on this project machinery is a cost, so "this can go" is worth

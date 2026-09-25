@@ -93,9 +93,9 @@ the gate gets built is the implementer's, below either of you.
 `severe` -- the finding changes which problem the run is solving, or the
 fundamental thing this gate would code. A round with one is a `rewrite`,
 and your `orders` say what the fresh cut must do instead.
-`beyond` -- real, and outside what this plan set out to do. It is
-journaled as a triage note when you submit and reaches the close form
-from there, and never becomes work here.
+`rejected: <reason>` -- real, but not this plan's to answer, or outside
+what this plan set out to do. Fold the reason in after the colon; it never
+becomes work here, and the record is that you called it.
 
 An `up` carries the whole table, every call beside its finding, to the
 tier the ask stands at. Quote each finding as it was written rather than
@@ -110,4 +110,4 @@ returned findings -- every cut after a release has none."""
   [[field.item]]
   id = "call"
   kind = "decision"
-  note = "writer | severe | beyond"
+  note = "writer | severe | rejected: <reason>"

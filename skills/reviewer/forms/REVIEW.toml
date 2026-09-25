@@ -26,10 +26,11 @@ One per finding: what is wrong, why it matters, grounded in the diff — and
 classed, which decides what happens to it.
 
   gap      the spec is not filled. Only a gap gates; any gap means revise.
-  beyond   real, and outside this spec. It is a triage candidate, never
-           rework here. Work nobody scoped is how a bounded change stops
-           being bounded, so this class is the normal home for "you should
-           also add" — say it, class it, and let the plan decide.
+
+Work nobody scoped is how a bounded change stops being bounded, so a
+finding that is real but outside this spec is not a gap: say it, ground it,
+and let the gate's conductor call it `rejected: <reason>` at the route form
+-- the normal home for "you should also add."
 
 You do not decide what gets built; you decide whether the spec was filled.
 A finding you cannot ground is not a finding. On a revise verdict the gaps
