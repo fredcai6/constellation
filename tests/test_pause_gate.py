@@ -700,3 +700,49 @@ def test_pause_prefill_names_what_actually_paused_at_a_root_self_mint(workdir, c
         "root self-mint still keys the paused id under the literal word 'gate' -- %r" % (prefill,))
     assert prefill.get("paused") == "ppf2"
     assert prefill.get("attempted"), "attempted must not render blank at a root self-mint"
+
+
+def test_ruling_up_from_an_ask_that_resumes_a_gate_keeps_the_ask_owed(workdir, capsys):
+    """#180 (issue156): the conductor, standing on g1's ask, could not answer
+    it and escalated. The ask was the only thing that could resume g1, and
+    `up` closed it -- the principal's answer reached the run and never the
+    gate. The ask stays owed, with the escalation stood in front of it."""
+    _seed_two_gates("issue1")
+    child = _drive_to_up("issue1", "g1")
+    ask = runmod.state("issue1")["current"]
+    assert ask["resumes"] == child
+
+    cli.main(["issue1", "up", "the gate's answer is the principal's to give"])
+    capsys.readouterr()
+
+    pst = runmod.state("issue1")
+    held = next(s for s in pst["steps"] if s["id"] == ask["id"])
+    assert held["resumes"] == child and ask["id"] not in pst["done"]
+    assert pst["current"]["resumes"] == "issue1"   # the escalation, in front
+    assert runmod.paused(runmod.state(child)["current"])
+
+    _fill(_response("issue1"), 'answer = "the defect is fixed; resume the gate"\n')
+    cli.main(["issue1", "submit"])
+    capsys.readouterr()
+
+    pst = runmod.state("issue1")
+    assert any(s["id"] == ask["id"] for s in pst["steps"])
+    assert ask["id"] not in pst["done"]
+
+
+def test_an_answer_that_resumes_a_child_starts_its_start_count_over(workdir):
+    """#180: three starts spent before an ask was answered are not three
+    reasons to refuse the start the answer asks for."""
+    journal.append("d1", "run", title="t", assembly="run-an-issue")
+    for _ in range(3):
+        journal.append("d1", "dispatch-started", child="d1.g1", pid=1, log="x")
+    assert cli._dispatch_start_counts("d1")["d1.g1"] == 3
+
+    journal.append("d1", "step", id="execute-a1", segment="execute", resumes="d1.g1",
+                   form="skills/gate-conductor/forms/ASK.toml", source="mint")
+    assert cli._dispatch_start_counts("d1")["d1.g1"] == 3   # asked, not answered
+    journal.append("d1", "submit", step="execute-a1", fields={"answer": "go"})
+    assert "d1.g1" not in cli._dispatch_start_counts("d1")
+
+    journal.append("d1", "dispatch-started", child="d1.g1", pid=2, log="x")
+    assert cli._dispatch_start_counts("d1")["d1.g1"] == 1
