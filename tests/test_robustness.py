@@ -569,46 +569,48 @@ def test_a_read_that_discards_an_entry_says_so(bare_workdir, capsys):
 # closed, or even looked at, and was unwedged only by `amend close`.
 
 
-def _rename_current_form(wid="issue17"):
-    """Move the form the run's current step names, the way a gate renaming a
-    form does. Returns the path that is now missing."""
+def _lose_current_form(monkeypatch, tmp_path, wid="issue17"):
+    """The form the run's current step names, resolved to where it no longer
+    is -- the way a gate renaming a form leaves it. Resolution is redirected
+    rather than the file moved: the checkout is shared with every other
+    process reading it, a concurrent suite included (#171). Returns the
+    path that is now missing."""
     st = runmod.state(wid)
-    asm = runmod.load_assembly(st["assembly"])
-    path = runmod.resolve_form(asm, st["current"]["form"])
-    path.rename(path.with_name("RENAMED.toml"))
-    return path
+    ref = st["current"]["form"]
+    real = runmod.resolve_form
+    missing = tmp_path / "renamed-away" / pathlib.Path(ref).name
+
+    def resolve(asm, r):
+        return missing if r == ref else real(asm, r)
+    monkeypatch.setattr(runmod, "resolve_form", resolve)
+    return missing
 
 
-def test_a_missing_form_refuses_and_names_it(bare_workdir, capsys):
+def test_a_missing_form_refuses_and_names_it(bare_workdir, capsys, monkeypatch, tmp_path):
     """The engine is a secretary and never crashes. A form it cannot resolve
     is a refusal that names the form -- a traceback is neither a refusal nor
     a hand-in."""
     _open()
     capsys.readouterr()
-    missing = _rename_current_form()
-    try:
-        with pytest.raises(SystemExit) as e:
-            cli.main(["issue17"])
-    finally:
-        missing.with_name("RENAMED.toml").rename(missing)  # the tree is shared
+    missing = _lose_current_form(monkeypatch, tmp_path)
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17"])
     assert missing.name in str(e.value), "the refusal does not name the form"
 
 
-def test_a_run_standing_on_a_missing_form_can_still_be_unwedged(bare_workdir, capsys):
+def test_a_run_standing_on_a_missing_form_can_still_be_unwedged(
+        bare_workdir, capsys, monkeypatch, tmp_path):
     """The escape the refusal offers has to work -- that is what
     `test_promises` asks of every refusal, and it is the whole difference
     between a wedged run and a recoverable one."""
     _open()
     capsys.readouterr()
-    missing = _rename_current_form()
+    _lose_current_form(monkeypatch, tmp_path)
     step = runmod.state("issue17")["current"]["id"]
-    try:
-        with pytest.raises(SystemExit) as e:
-            cli.main(["issue17"])
-        assert f"amend close {step}" in str(e.value)
-        cli.main(["issue17", "amend", "close", step, "--reason", "form renamed"])
-    finally:
-        missing.with_name("RENAMED.toml").rename(missing)
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17"])
+    assert f"amend close {step}" in str(e.value)
+    cli.main(["issue17", "amend", "close", step, "--reason", "form renamed"])
     assert runmod.state("issue17")["current"]["id"] != step
 
 
