@@ -4710,20 +4710,51 @@ def _last_decision(st, asm):
 #   would then leave `st["closed"]` true, and this function's own guard two
 #   lines up would refuse the retry with "already closed" -- an escape that
 #   does not work, which the corollary rules out.
-def _push_and_open_pr(wid, top, branch, title):
+#
+# [close-publishes-what-the-branch-holds]
+# Rationale: #176 -- close assumed it was the only thing that ever opened a
+#   PR and that a run always had a diff. A conductor who had already opened
+#   the PR met `gh pr create` refusing a second one, and a run ruled "not
+#   needed" met it refusing a branch with no commits; either way the refusal
+#   named a retry that could never succeed. So close reads the branch rather
+#   than assuming it: no commits past the cut is a run with nothing to
+#   publish, and an open PR on the branch is the run's PR. A PR close does
+#   open is a draft carrying the run's own disposition -- merging is the
+#   owner's act, and the body is what the run concluded, not a bare id.
+def _publish(wid, top, st, body):
+    """The run's PR URL once the branch is pushed and a PR exists for it, or
+    "" when the branch holds no commits past the run's cut point."""
+    branch = st["branch"]
+    if _commits_past_cut(top, st) == 0:
+        return ""
     pushed = _git(top, "push", "origin", branch)
     if pushed.returncode != 0:
         raise SystemExit(render.refusal(
             "push", f"push failed -- {(pushed.stderr or pushed.stdout).strip()}",
             escape=f"the run is untouched -- retry: spine {wid} close"))
-    pr = _gh(top, "pr", "create", "--head", branch,
-             "--title", title or wid, "--body", f"Work-Id: {wid}")
+    found = _gh(top, "pr", "list", "--head", branch, "--state", "open",
+                "--json", "url", "--jq", ".[0].url // empty")
+    if found.returncode == 0 and found.stdout.strip():
+        return found.stdout.strip()
+    pr = _gh(top, "pr", "create", "--draft", "--head", branch,
+             "--title", st.get("title") or wid,
+             "--body", f"{body}\n\nWork-Id: {wid}".lstrip())
     if pr.returncode != 0:
         raise SystemExit(render.refusal(
             "pr", f"gh pr create failed -- {(pr.stderr or pr.stdout).strip()}",
             escape=f"the branch is pushed and the run is otherwise untouched -- "
                    f"retry: spine {wid} close"))
     return pr.stdout.strip()
+
+
+def _commits_past_cut(top, st):
+    """How many commits the run's branch holds past its cut point, or None
+    where the run records no cut point or git cannot say."""
+    sha = (st.get("from") or "").rpartition("@")[2]
+    if not sha:
+        return None
+    counted = _git(top, "rev-list", "--count", f"{sha}..{st['branch']}")
+    return int(counted.stdout.strip()) if counted.returncode == 0 else None
 
 
 # [archive-then-sweep]
@@ -4864,9 +4895,10 @@ def cmd_close(argv):
             raise SystemExit(render.refusal(
                 "archive", f"{dest} already exists -- {wid} reused",
                 escape=f"move it aside, then retry: spine {wid} close"))
-        pr_url = _push_and_open_pr(wid, top, st["branch"], st.get("title", ""))
     terminal = next((s for s in st["steps"] if s.get("terminal")), None)
     fields = st["done"][terminal["id"]].get("fields", {}) if terminal else {}
+    if archiving:
+        pr_url = _publish(wid, top, st, str(fields.get("disposition") or ""))
     summary = _summary(st)
     decision = _last_decision(st, asm)
     journal.append(wid, "closed", fields=fields, summary=summary, decision=decision)
@@ -4912,7 +4944,13 @@ def cmd_close(argv):
         # now stranded in a directory that no longer exists -- `os.chdir`
         # above only moves this process, the same asymmetry `cmd_open`'s own
         # "if this shell has not followed" already names for the open side.
-        print(f"{pr_url}\narchived to {dest}\n  worktree removed: {worktree}\n"
+        if not pr_url:
+            # Nothing past the cut: the branch is the base under another
+            # name, so it goes, here and on the remote open pushed it to.
+            _git(top, "branch", "-D", st["branch"])
+            _git(top, "push", "origin", "--delete", st["branch"])
+        published = pr_url or f"no commits past the cut -- no PR; branch {st['branch']} deleted"
+        print(f"{published}\narchived to {dest}\n  worktree removed: {worktree}\n"
               f"  if this shell was standing inside it:\n  cd {top}\n")
     return result
 

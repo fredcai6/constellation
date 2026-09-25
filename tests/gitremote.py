@@ -61,20 +61,25 @@ def init_checkout(tmp_path):
 #   anywhere binds the one module in `sys.modules` -- so patching the
 #   module directly reaches every caller, `_git` included, with one seam.
 def stub_gh(monkeypatch, ok=True, pr_url="https://example.invalid/pr/1", stderr="",
-           calls=None):
+           calls=None, open_pr=""):
     """Every `gh ...` call returns as if it had succeeded (or failed, with
     `ok=False`); every other subprocess call goes through untouched.
 
     `calls`, given a list, gets the argv of every intercepted `gh` call
     appended to it -- how a test asserts the command actually ran, without
     asserting on a stub it wrote itself for anything but "ran" and "with
-    what argv"."""
+    what argv".
+
+    `open_pr` is what `gh pr list` finds open on the branch: nothing by
+    default, a URL to stand for a PR someone already opened."""
     real = subprocess.run
 
     def run(cmd, **kw):
         if isinstance(cmd, (list, tuple)) and cmd and cmd[0] == "gh":
             if calls is not None:
                 calls.append(list(cmd))
+            if ok and list(cmd[1:3]) == ["pr", "list"]:
+                return subprocess.CompletedProcess(cmd, 0, f"{open_pr}\n" if open_pr else "", "")
             if ok:
                 return subprocess.CompletedProcess(cmd, 0, f"{pr_url}\n", "")
             return subprocess.CompletedProcess(cmd, 1, "", stderr or "gh: failed")

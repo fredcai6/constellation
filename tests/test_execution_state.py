@@ -275,7 +275,7 @@ def test_a_worklist_emptied_outside_every_outcome_verb_still_settles_at_close(
     there too, refilling plan instead of finalizing (and archiving) a run
     that reports itself done over an open obligation. `gh` is stubbed
     (`gitremote.stub_gh`) so a run that this check fails to catch would
-    actually reach `_push_and_open_pr` and archive clean -- the real shape
+    actually reach `_publish` and archive clean -- the real shape
     of the bug, not a run saved by a `gh` call failing for an unrelated
     reason."""
     stub_gh(monkeypatch)
