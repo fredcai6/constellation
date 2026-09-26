@@ -213,7 +213,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "next step: is this gate the right next chunk toward the spec's done, and is it the smallest one that moves the run"
+  criteria = "next step: is this gate the right next chunk toward the spec's done, and is it a small next chunk that moves the run"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"
@@ -225,7 +225,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "simplicity: argue for the smaller version and name what to delete -- anything added beside an existing thing rather than through it is the first suspect"
+  criteria = "simplicity: does this chunk solve the problem at its root, or add a guard, special case or second path beside what already exists? A root fix that costs more lines beats a guard that costs fewer -- simple means simple to understand, not the smaller diff. Name what should go through an existing thing instead of beside it"
 
 # The plan-to-execute transition's `projects` mints this interior: one
 # dispatch step and one GATE_TRANSITION step, projected from the plan round

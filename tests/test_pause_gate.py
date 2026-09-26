@@ -19,8 +19,8 @@ import pytest
 
 from engine import cli, journal, run as runmod
 
-from test_nesting import _fill_open, _response
-from test_verdict_panels import _fill_implement, _fill_review, _fill_route, _open_panelist, _select
+from test_nesting import _dispatch_review, _fill_open, _response
+from test_verdict_panels import _fill_implement, _fill_review, _open_panelist
 from test_verdict_route import _route_with_calls
 
 
@@ -50,13 +50,7 @@ def _drive_to_up(pwid, gid):
     cli.main(["open", "run-a-gate", "--parent", pwid, "--step", gid])
     _fill_implement(child)
     cli.main([child, "submit"])
-    review = _select(child)
-    panelist = _open_panelist(child, review)
-    _fill_review(panelist, "pass")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
-    _fill_route(child, "up")
-    cli.main([child, "submit"])
+    _dispatch_review(child, verdict="pass", resolution="up")
     return child
 
 
@@ -65,13 +59,7 @@ def _drive_to_close(child):
     implement/select/review/route/close shape any ordinary gate takes."""
     _fill_implement(child)
     cli.main([child, "submit"])
-    review = _select(child)
-    panelist = _open_panelist(child, review)
-    _fill_review(panelist, "pass")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
-    _fill_route(child, "close")
-    cli.main([child, "submit"])
+    _dispatch_review(child, verdict="pass", resolution="close")
     _fill(_response(child), 'residue = "waived: none"\n')
     cli.main([child, "submit"])
     cli.main([child, "close"])
@@ -182,13 +170,8 @@ def _drive_to_impasse(pwid, gid, rounds=3):
             cli.main([child, "submit"])
         _fill_implement(child)
         cli.main([child, "submit"])
-        review = _select(child)
-        panelist = _open_panelist(child, review)
-        _fill_review(panelist, "revise", findings=f"gap: untestable ({n})")
-        cli.main([panelist, "submit"])
-        cli.main([panelist, "close"])
-        _fill_route(child, "rework")
-        cli.main([child, "submit"])
+        _dispatch_review(child, verdict="revise", findings=f"gap: untestable ({n})",
+                         resolution="rework")
     return child
 
 
@@ -232,11 +215,13 @@ def test_up_with_calls_carries_findings_into_the_ask(workdir, capsys):
     cli.main(["open", "run-a-gate", "--parent", "issue2", "--step", "g1"])
     _fill_implement(child)
     cli.main([child, "submit"])
-    review = _select(child)
-    panelist = _open_panelist(child, review)
-    _fill_review(panelist, "pass")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    review = runmod.state(child)["current"]["id"]
+    panel = next(s for s in runmod.state(child)["steps"] if s["id"] == review)["panel"]
+    for n in range(1, len(panel) + 1):
+        panelist = _open_panelist(child, review, n)
+        _fill_review(panelist, "pass")
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     _route_with_calls(child, "up", ("gap: the parser drops the trailing token", "blocking"))
     cli.main([child, "submit"])
     capsys.readouterr()
@@ -287,29 +272,30 @@ def test_resuming_a_child_whose_journal_is_gone_notes_rather_than_fabricates_one
 
 def test_bare_up_at_the_route_position_resolves_to_work_and_pauses_in_one_call(
         workdir, capsys):
-    """Standing on ROUTE.toml -- the two-voices step in `review`, panel
-    already passed, conductor's own form not yet submitted -- `up` the bare
-    command pauses without that form ever being filled: no ROUTE.toml
-    submit happens on this path at all. `review` itself declares no
-    step-form (anchor-only, `route-form` only), so the backward scan steps
-    past it to `work`, the segment `run-a-gate` declares immediately
-    before it."""
+    """Standing on ROUTE.toml -- the two-voices step that is `work`'s own
+    transition, `review`, panel already passed, conductor's own form not yet
+    submitted -- `up` the bare command pauses without that form ever being
+    filled: no ROUTE.toml submit happens on this path at all. The bare
+    `up` at this step therefore resolves to `work`, the segment the
+    transition belongs to."""
     _seed_two_gates("issue10")
     child = "issue10.g1"
     cli.main(["open", "run-a-gate", "--parent", "issue10", "--step", "g1"])
     _fill_implement(child)
     cli.main([child, "submit"])
-    review = _select(child)
-    panelist = _open_panelist(child, review)
-    _fill_review(panelist, "pass")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    review = runmod.state(child)["current"]["id"]
+    panel = next(s for s in runmod.state(child)["steps"] if s["id"] == review)["panel"]
+    for n in range(1, len(panel) + 1):
+        panelist = _open_panelist(child, review, n)
+        _fill_review(panelist, "pass")
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     capsys.readouterr()
 
     # standing on ROUTE.toml, not yet submitted -- the route step is what
     # `_current_form` resolves to but this call never touches its form
     pre = runmod.state(child)["current"]
-    assert pre["form"] == "forms/ROUTE.toml" and pre["segment"] == "review"
+    assert pre["form"] == "forms/ROUTE.toml" and pre["segment"] == "work"
     route_path = _response(child)
     assert not route_path.exists() or "resolution" not in route_path.read_text()
 
@@ -424,20 +410,20 @@ def test_bare_up_with_no_parent_at_all_mints_a_readable_ask_not_a_silent_note(
     the run at all, so the ask self-mints into this run's own journal
     instead of only a `note` nobody but a trace command would read.
 
-    Ruled from `select` rather than straight off `open`: `work`'s own
-    transition (`select`) mints alongside `work-1` at open (`skeleton()`),
+    Ruled from `review` rather than straight off `open`: `work`'s own
+    transition (`review`) mints alongside `work-1` at open (`skeleton()`),
     so pausing before `work-1` is even submitted would leave that live
     sibling sitting ahead of the newly-minted ask in journal-append order
     within the same segment -- an ordering artifact this test does not
     exist to exercise. Submitting the implement round first retires
-    `work-1` the ordinary way, leaving `select` as the segment's one live
+    `work-1` the ordinary way, leaving `review` as the segment's one live
     step for `up` to retire in turn."""
     cli.main(["open", "run-a-gate", "--id", "g20"])
     _fill_implement("g20")
     cli.main(["g20", "submit"])
     capsys.readouterr()
     pre = runmod.state("g20")["current"]
-    assert pre["id"] == "select" and pre["segment"] == "work"  # a root run, no parent
+    assert pre["id"] == "review" and pre["segment"] == "work"  # a root run, no parent
 
     cli.main(["g20", "up", "the purpose itself is unclear from here"])
     capsys.readouterr()
@@ -553,20 +539,20 @@ def test_bare_up_refuses_when_no_segment_at_or_before_current_has_a_step_form(
 def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdir, capsys):
     """Drives the sibling-ordering fix end to end, through a real resume --
     not only the pause moment. A first draft of this fix (issue84.g2's own
-    review found) reordered the ask and its marker ahead of `select`, but
+    review found) reordered the ask and its marker ahead of `review`, but
     `_resume_paused_child`'s own `_mint_segment_round` call plain-appends
     the fresh round behind whatever already stands in the segment, so once
-    the marker closes the untouched `select` -- only ever leapfrogged, never
+    the marker closes the untouched `review` -- only ever leapfrogged, never
     itself reordered -- resurfaced ahead of the fresh round the same way.
     This test fails against that first draft and passes against the fix
-    that also carries `select`'s id forward on the marker (`sibling`) so
+    that also carries `review`'s id forward on the marker (`sibling`) so
     the fresh round gets reordered ahead of it too."""
     child_open = ["open", "run-a-gate", "--id", "gzp"]
     cli.main(child_open)
     capsys.readouterr()
     pre = runmod.state("gzp")
     assert pre["current"]["id"] == "work-1"
-    assert any(s["id"] == "select" for s in pre["steps"]), "select never minted at open"
+    assert any(s["id"] == "review" for s in pre["steps"]), "review never minted at open"
 
     cli.main(["gzp", "up", "the purpose itself is unclear before any round lands"])
     capsys.readouterr()
@@ -575,11 +561,11 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdi
     cur = st["current"]
     assert cur["form"] == "skills/gate-conductor/forms/ASK.toml", (
         "self-mint landed behind its own untouched sibling -- current is %r" % (cur,))
-    # `select` is still there, not-done, waiting for the resumed round -- the
+    # `review` is still there, not-done, waiting for the resumed round -- the
     # fix reorders past it, and never closes or drops it
-    select = next(s for s in st["steps"] if s["id"] == "select")
-    assert "select" not in st["done"]
-    assert select["segment"] == "work"
+    review = next(s for s in st["steps"] if s["id"] == "review")
+    assert "review" not in st["done"]
+    assert review["segment"] == "work"
 
     # -- the actual resume: answer the ask, and the fresh round must be
     # what `current` resolves to next, not the untouched `select` it was
@@ -597,10 +583,10 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdi
 
 
 def test_a_resumed_round_is_the_only_round_that_reaches_review(workdir, capsys):
-    """#123: the untouched `select` the pause leapfrogged stayed open beside
-    the fresh round's own. Once the fresh select landed, `current` fell
-    through to the stale one, and submitting it minted a second review round
-    on the same diff. The fresh round supersedes it."""
+    """#123: the untouched `review` the pause leapfrogged stayed open beside
+    the fresh round's own. Once the fresh round's own review landed,
+    `current` fell through to the stale one, and submitting it minted a
+    second review round on the same diff. The fresh round supersedes it."""
     cli.main(["open", "run-a-gate", "--id", "gzp"])
     cli.main(["gzp", "up", "the purpose itself is unclear before any round lands"])
     _fill(_response("gzp"), 'answer = "narrow the purpose"\n')
@@ -608,16 +594,13 @@ def test_a_resumed_round_is_the_only_round_that_reaches_review(workdir, capsys):
     capsys.readouterr()
 
     st = runmod.state("gzp")
-    assert not any(s["id"] == "select" for s in st["steps"])
+    assert not any(s["id"] == "review" for s in st["steps"])
 
     _fill_implement("gzp")
-    cli.main(["gzp", "submit"])
-    _select("gzp")
+    cli.main(["gzp", "submit"])   # the fresh round's own review, minted with it
     st = runmod.state("gzp")
     reviews = [s for s in st["steps"] if s.get("panel")]
     assert len(reviews) == 1, [s["id"] for s in reviews]
-    assert not any(s.get("form") == "forms/SELECT.toml" and s["id"] not in st["done"]
-                   for s in st["steps"])
 
 def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_an_issue(workdir, capsys):
     """Same shape as the `run-a-gate` test above, for `understand`'s own

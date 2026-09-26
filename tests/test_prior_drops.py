@@ -13,13 +13,13 @@ conductor's own call to make, this only puts the prior ones in front of it.
 
 import pathlib
 
-from engine import cli, drops as dropsmod, journal
+from engine import cli, drops as dropsmod, journal, run as runmod
 
 from test_nesting import (
     _dispatch_and_close_plan, _dispatch_plan_critic, _fill_consolidate,
     _fill_open, _fill_plan_to_execute, _work_the_board,
 )
-from test_verdict_panels import _fill_implement, _fill_review, _open_panelist, _select
+from test_verdict_panels import _fill_implement, _fill_review, _open_panelist
 
 
 def _archive_a_drop(top, wid, finding, reason):
@@ -76,12 +76,14 @@ def _to_the_gates_route_room(wid="issue9"):
     gate = f"{wid}.g1"
     cli.main(["open", "run-a-gate", "--parent", wid, "--step", "g1"])
     _fill_implement(gate)
-    cli.main([gate, "submit"])
-    review = _select(gate)
-    panelist = _open_panelist(gate, review)
-    _fill_review(panelist, "pass")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    cli.main([gate, "submit"])   # review is minted with its declared panel
+    review = runmod.state(gate)["current"]["id"]
+    panel = next(s for s in runmod.state(gate)["steps"] if s["id"] == review)["panel"]
+    for n in range(1, len(panel) + 1):
+        panelist = _open_panelist(gate, review, n)
+        _fill_review(panelist, "pass")
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     return gate
 
 

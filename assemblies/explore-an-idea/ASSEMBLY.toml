@@ -94,7 +94,7 @@ decides = "verdict"     # the panel's own merged verdict; no conductor form subm
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "simplicity: argue for the smaller version and name what to delete -- anything added beside an existing thing rather than through it is the first suspect"
+  criteria = "simplicity: does this shape solve the problem at its root, or add a guard, special case or second path beside what already exists? A root fix that costs more lines beats a guard that costs fewer -- simple means simple to understand, not the smaller version. Name what should go through an existing thing instead of beside it"
 
 [[segment]]
 id = "close"

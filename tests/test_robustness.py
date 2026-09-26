@@ -11,7 +11,7 @@ import tomllib
 import pytest
 
 from engine import checks, cli, forms, journal, render, run as runmod, tomlw
-from test_nesting import _response
+from test_nesting import _dispatch_review, _response
 
 
 def _open(wid="issue17"):
@@ -268,23 +268,9 @@ def test_closing_to_a_missing_parent_does_not_fabricate_one(bare_workdir, capsys
     child = "issue17.g1"
     _response(child).write_text(
         'change = "c"\ndeviations = "waived: none"\n')
-    cli.main([child, "submit"])
-    # select the panel, then drive it for real: one panelist, a pass verdict
-    from test_nesting import _select_panel
-    _select_panel(child)
-    review = runmod.state(child)["current"]["id"]
-    cli.main(["open", "give-a-verdict", "--parent", child, "--step", f"{review}.p1"])
-    panelist = f"{child}.{review}.p1"
-    _response(panelist).write_text(
-        'verify = "read it"\nfindings = "none: waived: clean"\n'
-        'verdict = "pass"\n')
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
-    # a pass releases nothing on its own now: the round is disposed of on the
-    # review step's own conductor form, which is what walks the gate to close
-    _response(child).write_text(
-        'resolution = "close"\n')
-    cli.main([child, "submit"])
+    cli.main([child, "submit"])   # review is minted with its panel
+    # drive every panelist for real, then dispose of the round with `close`
+    _dispatch_review(child)
     _response(child).write_text(
         'commit = "refuse-or-name-the-escape @ 0000000"\nresidue = "waived: none"\n')
     cli.main([child, "submit"])

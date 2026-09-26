@@ -428,46 +428,18 @@ def test_cmd_status_renders_working_for_a_live_filler_pid(bare_workdir, capsys):
     proc.wait()
 
 
-# -- a re-minted transition round's filler spawns the same as round one's ---
-
-
-def test_a_reworked_selects_filler_still_spawns_with_its_carried_role(
-        bare_workdir, capsys, monkeypatch):
-    """`_mint_segment_round`'s own fix (setting a re-minted transition's
-    `filler` unconditionally, mirroring `skeleton()`) changes what a second
-    round's `select` step carries, never how a childless form step's filler
-    is spawned or rendered -- every reader of `step['filler']` already
-    worked once the key was there. Proven directly: a real second round,
-    minted the same way a revise mints one (`cli._mint_segment_round`),
-    still gets a real filler spawn under the role it carries, and the room
-    still prints its posture line."""
-    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
-    marker = bare_workdir / "spawned"
-    _throwaway_filler_dispatch(bare_workdir, marker)
-    journal.append("g1", "run", title="t", assembly="run-a-gate")
-    asm = runmod.load_assembly("run-a-gate")
-    cli._mint_segment_round(wid="g1", asm=asm, seg_id="work",
-                            prefill={"findings": "gap: untestable"})
-    interior_id = runmod.state("g1")["current"]["id"]
-    journal.append("g1", "submit", step=interior_id,
-                   fields={"change": "x", "deviations": "none"})
-    select_id = next(s["id"] for s in runmod.state("g1")["steps"]
-                     if s.get("source") == "panel" and s["segment"] == "work")
-    assert runmod.state("g1")["current"]["id"] == select_id
-    assert runmod.state("g1")["current"]["filler"] == "conductor"  # the fix itself
-
-    code = cli.main(["g1", "drive", "--for", "1"])
-    capsys.readouterr()
-
-    assert code == 0
-    assert _await(marker, 1)
-    started = _form_filler_entries("g1")
-    assert any(e["step"] == select_id for e in started)
-
-    out_code = cli.main(["g1"])
-    out = capsys.readouterr().out
-    assert out_code == 0
-    assert "your posture:" in out
+# -- a re-minted transition round's filler carries its role -----------------
+#
+# `test_a_gates_reworked_review_carries_the_conductor_default` (test_rework.py)
+# is what is left of this: `work`'s own transition (`review`) now always
+# mints with a panel of its own (the opening three, or the single `rework:`
+# reader after), never the bare childless conductor form `select` used to be
+# -- so a re-minted round of it is a panel-outstanding step from the moment
+# it exists, and `drive` never reaches its own form-filler branch for it at
+# all (`panel_outstanding` is checked first, `cmd_drive`, engine/cli.py).
+# What this test proved -- a re-mint carries `filler` the same as round one
+# -- is proved there directly, against the step itself, with no drive spawn
+# needed to see it.
 
 
 # -- a terminal form step: rendered and left alone, never filled ------------

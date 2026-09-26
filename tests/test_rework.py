@@ -675,11 +675,11 @@ def test_a_revised_understands_re_minted_transition_carries_its_declared_guards(
     assert fresh["carries"] == t["carries"]
 
 
-def test_a_gates_reworked_select_carries_the_conductor_default(workdir, capsys):
-    """`work`'s own transition (`select`) declares no `filler` at all -- its
+def test_a_gates_reworked_review_carries_the_conductor_default(workdir, capsys):
+    """`work`'s own transition (`review`) declares no `filler` at all -- its
     re-minted round used to carry none either, leaving `role_of`/`hat` to
     guess. Confirmed the re-mint carries the same bare `"conductor"` default
-    `skeleton()` already gives round one's own `select`, minted at `open`."""
+    `skeleton()` already gives round one's own `review`, minted at `open`."""
     _mint_n_gates(1)
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
     child = "issue17.g1"
@@ -689,7 +689,7 @@ def test_a_gates_reworked_select_carries_the_conductor_default(workdir, capsys):
     capsys.readouterr()
 
     st = runmod.state(child)
-    round_one_select = next(s for s in st["steps"] if s["id"] == "select")
-    fresh_select = next(s for s in st["steps"]
+    round_one_review = next(s for s in st["steps"] if s["id"] == "review")
+    fresh_review = next(s for s in st["steps"]
                         if s.get("source") == "panel" and s["segment"] == "work")
-    assert fresh_select["filler"] == round_one_select["filler"] == "conductor"
+    assert fresh_review["filler"] == round_one_review["filler"] == "conductor"

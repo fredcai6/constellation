@@ -45,48 +45,49 @@ def _fill_route(wid, resolution):
     _fill(_response(wid), 'resolution = "%s"\n' % resolution)
 
 
-DEFAULT_LENS = "spec-fit: does the work fill the specification, whole and only"
+# The `tests:` lens: the first of the three the assembly declares
+# (assemblies/run-a-gate/ASSEMBLY.toml), what a fresh round's panelist p1
+# reads for.
+DEFAULT_LENS = ("tests: are these the right tests, or could the work be "
+                "substantially wrong while they pass -- and does anything "
+                "watch the important thing pass through the whole project "
+                "rather than only its pieces")
 
 
-def _select(wid, *criteria):
-    """`work`'s own transition: name the lenses, submit, and the review step
-    is minted -- panel and route form together. Every drive through this gate
-    passes here, including the fresh round after a rework, which is the point
-    of the beat: the readers are chosen again rather than inherited."""
-    blocks = "".join('\n[[panelists]]\nworker = "reviewer"\nmodel = "standard"\n'
-                     'criteria = "%s"\n' % c for c in (criteria or (DEFAULT_LENS,)))
-    _fill(_response(wid), 'omitted = "waived: none"\n' + blocks)
-    cli.main([wid, "submit"])
-    return runmod.state(wid)["current"]["id"]
-
-
-def _open_gate(gid="g1", *criteria):
+def _open_gate(gid="g1"):
     """A standalone run-a-gate, opened top-level the way test_robustness.py's
     hanging-check test does -- no run-an-issue plumbing needed to exercise
-    the review beat -- and driven through implement and select, so the review
-    step the rest of these tests stand on actually exists."""
+    the review beat -- and driven through implement, so the review step the
+    rest of these tests stand on -- minted with its declared panel -- already
+    exists."""
     cli.main(["open", "run-a-gate", "--id", gid])
     _fill_implement(gid)
     cli.main([gid, "submit"])
-    _select(gid, *criteria)
     return gid
 
 
 def _review_step(gwid):
-    """The id of the review step `select` minted -- generated per round now,
-    not the fixed `review` a static declaration used to give it."""
-    return next(s["id"] for s in runmod.state(gwid)["steps"]
-                if s.get("form") == "forms/ROUTE.toml" and s.get("panel"))
+    """The id of the current, not-yet-done review step -- generated per
+    round now, minted with the assembly's declared panel rather than by a
+    conductor choosing one."""
+    st = runmod.state(gwid)
+    return next(s["id"] for s in st["steps"]
+                if s.get("form") == "forms/ROUTE.toml" and s.get("panel")
+                and s["id"] not in st["done"])
 
 
 def _pass_the_panel(gwid, step_id=None):
-    """Drive the panel to a pass and dispose of the round on the review
-    step's own conductor form, so the gate's next pending step is its
-    ordinary close form."""
-    wid = _open_panelist(gwid, step_id or _review_step(gwid))
-    _fill_review(wid, "pass")
-    cli.main([wid, "submit"])
-    cli.main([wid, "close"])
+    """Drive every panelist on the step to a pass and dispose of the round
+    on the review step's own conductor form, so the gate's next pending
+    step is its ordinary close form."""
+    step_id = step_id or _review_step(gwid)
+    panel = next(s for s in runmod.state(gwid)["steps"]
+                if s["id"] == step_id).get("panel") or []
+    for n in range(1, len(panel) + 1):
+        wid = _open_panelist(gwid, step_id, n)
+        _fill_review(wid, "pass")
+        cli.main([wid, "submit"])
+        cli.main([wid, "close"])
     _fill_route(gwid, "close")
     cli.main([gwid, "submit"])
 
@@ -117,7 +118,7 @@ def test_status_renders_one_dispatch_command_per_panelist_with_progress(workdir,
 
     cli.main(["g1"])
     out = capsys.readouterr().out
-    assert DEFAULT_LENS in out                     # the lens select just named
+    assert DEFAULT_LENS in out                     # the lens the assembly declares
     assert "not dispatched" in out
     assert "open it:" not in out
 
@@ -202,7 +203,7 @@ def test_opening_an_untagged_or_out_of_range_panel_step_refuses(workdir, capsys)
     with pytest.raises(SystemExit):
         cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", review])
     with pytest.raises(SystemExit):
-        cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", f"{review}.p2"])
+        cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", f"{review}.p4"])
 
 
 # -- the transition acts: pass releases, revise refills ---------------------
@@ -216,6 +217,7 @@ def test_pass_holds_for_the_conductors_form_and_close_proceeds_to_close(workdir,
     either way: neither voice mints anything on a clean round."""
     _open_gate()
     review = _review_step("g1")
+    panel = next(s for s in runmod.state("g1")["steps"] if s["id"] == review)["panel"]
     panelist = _open_panelist("g1", review)
     _fill_review(panelist, "pass")
     cli.main([panelist, "submit"])
@@ -228,14 +230,21 @@ def test_pass_holds_for_the_conductors_form_and_close_proceeds_to_close(workdir,
     assert st["current"]["id"] == review              # held, not released
     assert st["current"]["form"] == "forms/ROUTE.toml"
 
+    # the rest of the panel: the round is not disposed of until all return
+    for n in range(2, len(panel) + 1):
+        other = _open_panelist("g1", review, n)
+        _fill_review(other, "pass")
+        cli.main([other, "submit"])
+        cli.main([other, "close"])
+
     _fill_route("g1", "close")
     cli.main(["g1", "submit"])
     capsys.readouterr()
 
     st = runmod.state("g1")
     assert st["current"]["id"] == "close"
-    # select minted the review step and nothing else did: one round, one panel
-    assert [s["id"] for s in st["steps"]] == ["work-1", "select", review, "close"]
+    # the mint carried the review step's own panel: one round, one step
+    assert [s["id"] for s in st["steps"]] == ["work-1", review, "close"]
 
 
 def test_rework_refills_with_every_panelists_findings_concatenated_and_attributed(workdir, capsys):
@@ -247,10 +256,11 @@ def test_rework_refills_with_every_panelists_findings_concatenated_and_attribute
     journal.append("g4", "step", id="work-1", segment="work", form="skills/implementer/forms/IMPLEMENT.toml",
                    filler="implementer", anchor=False, terminal=False, validates="", source="open")
     # the route form rides on the step beside the panel -- the real
-    # two-voices shape `select`'s own mint writes; only the panel is
+    # two-voices shape `work`'s own transition declares; only the panel is
     # overridden here, to exercise attribution across more panelists than
-    # run-a-gate's own SELECT.toml documents as defaults
-    journal.append("g4", "step", id="review", segment="review",
+    # the assembly's own three defaults. `segment="work"`: `review` is
+    # `work`'s own transition now, not a segment of its own.
+    journal.append("g4", "step", id="review", segment="work",
                    form="forms/ROUTE.toml", source="mint",
                    panel=[{"worker": "reviewer", "criteria": "c1"},
                           {"worker": "reviewer", "criteria": "c2"}])
@@ -277,21 +287,22 @@ def test_rework_refills_with_every_panelists_findings_concatenated_and_attribute
     capsys.readouterr()
 
     st = runmod.state("g4")
-    fresh = next(s for s in st["steps"] if s["segment"] == "work" and s.get("source") == "mint")
+    fresh = next(s for s in st["steps"] if s["segment"] == "work" and s.get("source") == "mint"
+                and s.get("form") == "skills/implementer/forms/IMPLEMENT.toml")
     assert fresh["form"] == "skills/implementer/forms/IMPLEMENT.toml"
     findings = fresh["prefill"]["findings"]
     assert "off by one" in findings and "sibling parser" in findings  # both, verbatim
     assert findings.index("off by one") != findings.index("sibling parser")  # not merged into one line
     assert "[p1]" in findings and "[p2]" in findings                 # attributed
 
-    # a fresh `select` exists too -- work's transition re-fires for the new
-    # round, and it carries no panel: the next round's readers are chosen on
-    # that form rather than copied off the round just judged. Nothing else in
-    # the run carries a panel until select is submitted again.
-    fresh_select = next(s for s in st["steps"]
-                        if s["segment"] == "work" and s.get("form") == "forms/SELECT.toml")
-    assert not fresh_select.get("panel")
-    assert [s["id"] for s in st["steps"] if s.get("panel")] == ["review"]
+    # a fresh review transition exists too -- work's own transition re-fires
+    # for the new round, and it carries the `rework:` reader alone (one
+    # reviewer, not the opening round's three), holding the same findings as
+    # its own prefill.
+    fresh_review = next(s for s in st["steps"] if s["id"] != "review" and s.get("panel"))
+    assert len(fresh_review["panel"]) == 1
+    assert fresh_review["prefill"]["findings"] == findings
+    assert {s["id"] for s in st["steps"] if s.get("panel")} == {"review", fresh_review["id"]}
     assert st["current"]["id"] == fresh["id"]                # work resumes, not close
 
 
@@ -316,11 +327,16 @@ def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
     for n in range(3):
         _fill_implement(child)
         cli.main([child, "submit"])
-        panel_id = _select(child)          # a fresh panel every round, chosen here
-        panelist = _open_panelist(child, panel_id)
-        _fill_review(panelist, "revise", f"gap: still off by one ({n})")
-        cli.main([panelist, "submit"])
-        cli.main([panelist, "close"])
+        # a fresh panel every round -- three on the opening round, the
+        # single `rework:` reader on every round after
+        panel_id = runmod.state(child)["current"]["id"]
+        panel = next(s for s in runmod.state(child)["steps"]
+                    if s["id"] == panel_id).get("panel") or []
+        for i in range(1, len(panel) + 1):
+            panelist = _open_panelist(child, panel_id, i)
+            _fill_review(panelist, "revise", f"gap: still off by one ({n})")
+            cli.main([panelist, "submit"])
+            cli.main([panelist, "close"])
         _fill_route(child, "rework")
         cli.main([child, "submit"])
     capsys.readouterr()
@@ -481,8 +497,8 @@ def test_a_dispatched_reviewer_asks_mid_verdict_resumes_once_and_the_verdict_sur
         workdir, capsys):
     cli.main(["open", "run-a-gate", "--id", "gpx"])
     _fill_implement("gpx")
-    cli.main(["gpx", "submit"])
-    review = _select("gpx")
+    cli.main(["gpx", "submit"])   # review is minted with its declared panel
+    review = runmod.state("gpx")["current"]["id"]
     panelist = _open_panelist("gpx", review)
     capsys.readouterr()
 

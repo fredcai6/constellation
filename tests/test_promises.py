@@ -192,7 +192,7 @@ def test_every_form_a_run_can_reach_loads():
         spec = tomllib.load(open(a, "rb"))
         spec["dir"] = a.parent
         for seg in spec["segment"]:
-            refs = [seg.get("step-form"), seg.get("board"), seg.get("route-form"),
+            refs = [seg.get("step-form"), seg.get("board"),
                     seg.get("transition", {}).get("form")]
             refs += [p["form"] for p in seg.get("transition", {}).get("panel", [])]
             for ref in filter(None, refs):
@@ -456,19 +456,14 @@ def _direct_taught(asm, seg, spec, fid):
     """The vocabulary a real, submittable form of this assembly's own teaches
     for `fid` -- `None` where none of `spec`'s (or its segment's, as a
     fallback) `form`/`step-form`/`rework-form`/`impasse-form`/
-    `adjudication-form`/`route-form` keys reach a field of that name. A
-    panel-only transition's own keys are all empty, so it always resolves to
-    `None` here -- its decided field is never a form any submit in this
-    assembly carries; `_panel_taught` below is its own, separate teacher.
-
-    `route-form` is the minted case: run-a-gate's `review` names the form its
-    conductor half stands on there rather than on its transition, because
-    `select` is what mints the step and a static `form` key would have `open`
-    mint it instead. The form is as real and as submittable as any other."""
+    `adjudication-form` keys reach a field of that name. A panel-only
+    transition's own keys are all empty, so it always resolves to `None`
+    here -- its decided field is never a form any submit in this assembly
+    carries; `_panel_taught` below is its own, separate teacher."""
     return next(
         (forms.vocabulary(fl["note"])
          for key in ("form", "step-form", "rework-form", "impasse-form",
-                    "adjudication-form", "route-form")
+                    "adjudication-form")
          for src in (spec.get(key), seg.get(key)) if src
          for fl in forms.load(runmod.resolve_form(asm, src))["fields"]
          if fl["id"] == fid), None)
@@ -609,8 +604,8 @@ def _panel_verdict_taught(asm, panel):
     entry resolves its own form the way the runtime does
     (`runmod._panelist_form_ref`): the entry's own `form` where it names
     one, and otherwise `give-a-verdict`'s terminal form -- the shape a
-    `[[panelists]]` block from `SELECT.toml` has, which is what an entry
-    naming no form of its own (`{}`) mimics.
+    `[[segment.transition.panel]]` block with no `form` key has, which is
+    what an entry naming no form of its own (`{}`) mimics.
 
     `None` where no voice's form declares a `verdict` field at all --
     design-it-twice's rival-planner panel (shelved, #96) was this case, and
@@ -648,12 +643,10 @@ def test_the_panels_own_vocabulary_never_drifts_from_the_table_it_answers():
     since the panel's two words (`pass | revise`) never spans a table that
     also carries `rework`, `up`, and (at review) `close`.
 
-    Review carries no static `[[[segment.]transition.]panel]` anywhere in
-    ASSEMBLY.toml on purpose -- its panel is minted at `select` from
-    `SELECT.toml`'s own `panelists` field, whose blocks carry no form of
-    their own. It is the one seam in the tree shaped that way, so it is
-    named directly rather than discovered structurally, the same way
-    `VOCABULARIES` above names its own hardcoded seams."""
+    Review is a `[segment.transition]` table now (ruling, 2026-09-25),
+    declaring both its own `panel` and `decides` the same way
+    plan-to-execute and consolidate do -- so it is found structurally, with
+    no named special case."""
     checked = 0
     for name in runmod.assemblies():
         asm = runmod.load_assembly(name)
@@ -662,8 +655,7 @@ def test_the_panels_own_vocabulary_never_drifts_from_the_table_it_answers():
                 fid = spec.get("decides")
                 if not fid or _direct_taught(asm, seg, spec, fid) is None:
                     continue
-                is_review = name == "run-a-gate" and seg["id"] == "review" and spec is seg
-                panel = spec.get("panel") or ([{}] if is_review else None)
+                panel = spec.get("panel")
                 if panel is None:
                     continue
                 taught = _panel_verdict_taught(asm, panel)

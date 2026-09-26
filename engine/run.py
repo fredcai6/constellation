@@ -358,13 +358,10 @@ def _panelist_form_ref(assembly, entry):
     dispatched under: the entry's own `form` where it names one, and
     otherwise the panelist assembly's own terminal form.
 
-    The fallback is not defensive -- it is the tree's most-exercised panel.
-    `select` mints run-a-gate's review panel from the `[[panelists]]` blocks
-    a conductor submits, and those carry a worker, a tier and a criterion
-    and no form at all, so the voice really is dispatched under
-    give-a-verdict's own REVIEW.toml. Reading `entry["form"]` alone would
-    resolve every one of those voices to no form, which is the one input
-    `panel_forms` below turns into a refusal.
+    The fallback is not defensive: a panel entry that names no form really
+    is dispatched under give-a-verdict's own REVIEW.toml. Reading
+    `entry["form"]` alone would resolve every one of those voices to no
+    form, which is the one input `panel_forms` below turns into a refusal.
     """
     ref = (entry or {}).get("form", "")
     if ref:

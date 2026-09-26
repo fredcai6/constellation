@@ -35,7 +35,7 @@ from test_nesting import _fill_close, _fill_gate_close, _response
 from test_two_voices import _dispatch_critic, _fill_consolidate, _fill_open, _fill_spec
 from test_verdict_panels import (
     _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
-    _review_step, _select,
+    _review_step,
 )
 
 CRITIC = "skills/critic/forms/CRITIC.toml"
@@ -243,16 +243,18 @@ def test_a_refused_round_reaches_the_close_summary_and_the_review_yield(workdir,
     for it would be reporting a ruling the gate never got."""
     _open_gate()
     first = _review_step("g1")
-    panelist = _open_panelist("g1", first)
-    _fill_review(panelist, "pass")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    panel = next(s for s in runmod.state("g1")["steps"] if s["id"] == first)["panel"]
+    for n in range(1, len(panel) + 1):
+        panelist = _open_panelist("g1", first, n)
+        _fill_review(panelist, "pass")
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     _fill_route("g1", "rework")
     cli.main(["g1", "submit"])
 
     _fill_implement("g1")
-    cli.main(["g1", "submit"])
-    second = _select("g1")
+    cli.main(["g1", "submit"])   # the fresh round's own review, minted with it
+    second = runmod.state("g1")["current"]["id"]
     journal.append("g1", "return", step=second, child=f"g1.{second}.p1",
                    fields={"verify": "read the diff", "findings": "waived: clean",
                            "verdict": "sound"})

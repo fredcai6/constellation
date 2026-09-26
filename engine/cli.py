@@ -747,17 +747,17 @@ def _commit_open(wid, worktree):
 #   remembered to add its name here.
 # See: ruling 8, docs/V2_DESIGN.md -- "git is the issue tier's, and the
 #   engine's"; an idea or an excursion produces a spec, not a diff.
-# `_DISPOSE_MINT` joined `_BOARD_MINT` as a second engine-named mint (#56),
-# and `_PANEL_MINT` a third (#57): all three sit in every assembly's
-# `_mintable(asm)` whether or not that assembly's own forms use them, so all
-# three are subtracted here -- an assembly is issue tier on a real
+# `_DISPOSE_MINT` joined `_BOARD_MINT` as a second engine-named mint (#56):
+# both sit in every assembly's `_mintable(asm)` whether or not that
+# assembly's own forms use them, so both are subtracted here -- an
+# assembly is issue tier on a real
 # `dispatches` name, never on an engine literal alone. Adding a mint to
 # `_mintable` without adding it here reads every assembly, run-a-gate
 # included, as issue tier, which is git and a worktree where commitment 7
 # says none belong; `tests/test_archive_close.py::
 # test_a_non_issue_tier_close_never_reaches_git_or_gh` is what says so loudly.
 def _issue_tier(asm):
-    return bool(_mintable(asm) - {_BOARD_MINT, _DISPOSE_MINT, _PANEL_MINT})
+    return bool(_mintable(asm) - {_BOARD_MINT, _DISPOSE_MINT})
 
 
 def cmd_open(argv):
@@ -951,13 +951,13 @@ def _mint_child(assembly, parent, pstep_id):
         seg = next((s for s in pasm["segment"] if s["id"] == pstep["segment"]), {})
         tier = panelist.get("model") or seg.get("model", "")
         # A panelist gets the artifact and its criteria. The artifact is the
-        # panel step's own prefill where the mint that made the step carried
-        # one across (run-a-gate's `review`, minted a segment away from the
-        # work it reads), and otherwise the segment's own most recent other
-        # round -- the latest implement, cycles included.
+        # segment's own most recent other round -- the latest implement,
+        # cycles included -- and the panel step's own prefill rides on top
+        # where its mint carried one (a `rework-panel` round's blocking
+        # findings: the orders its reader checks the artifact against).
         prefill = {**(pst.get("prefill") or {}),
-                   **(pstep.get("prefill")
-                      or _round_artifact(pasm, pst, pstep["segment"], step_id)),
+                   **_round_artifact(pasm, pst, pstep["segment"], step_id),
+                   **(pstep.get("prefill") or {}),
                    "criteria": panelist.get("criteria", "")}
         title = f"verdict: {step_id}"
     else:
@@ -1156,6 +1156,20 @@ def _form_filler_records(wid):
     `wid`'s own journal, mapped to that record -- the same "latest record"
     shape `_dispatch_records` gives per child, keyed by step instead."""
     return {e.get("step"): e for e in journal.read(wid) if e.get("kind") == "form-filler-started"}
+
+
+# [gate-route]
+# Rationale: the one room that disposes of a review over a diff -- where
+#   rejected calls from earlier runs touching the same files are worth
+#   showing (`[prior-drops]`). It is run-a-gate's `work` transition: a
+#   two-voices step with a form and a panel, in an assembly below the issue
+#   tier, whose consolidate and plan-to-execute rooms read a spec or a cut,
+#   never a diff. An impasse's `advance` stands the same form with no panel
+#   on the step, so the transition's declaration is what is read.
+def _gate_route(asm, seg, step):
+    t = seg.get("transition", {})
+    return (bool(step.get("form")) and step.get("form") == t.get("form")
+            and bool(t.get("panel")) and not _issue_tier(asm))
 
 
 def _filled_step(wid):
@@ -1907,7 +1921,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     #   for the two to drift, and this reads straight off the first.
     seg = next((s for s in asm["segment"] if s["id"] == step["segment"]), {})
     drops = []
-    if step.get("form") and step.get("form") == seg.get("route-form"):
+    if _gate_route(asm, seg, step):
         cut_root = root if root is not None else journal.root_for(wid)
         top = _toplevel_checkout(cut_root) or cut_root
         touched = _changed_paths_since_cut(wid, cut_root)
@@ -2725,19 +2739,16 @@ def _check_vocabulary(asm, step, form, fields):
 def _mint_transition(wid, seg, prefill=None):
     """One fresh transition step for a segment: a board segment's refill,
     and the impasse's advance. A transition with a form is a step someone
-    fills, so this mints it; one with neither a form nor a `route-form` on
-    its segment has nothing to mint, and the run walks on.
+    fills, so this mints it; one with no form has nothing to mint, and the
+    run walks on.
 
-    `route-form` is read here for the same reason it exists at all: a
-    segment whose transition is minted (run-a-gate's `review`) declares no
-    static `form`, so a caller that read `form` alone would mint nothing for
-    it -- and an impasse ruling `advance` would then walk the gate past the
-    round it is ruling on with nothing to dispose of it. What it mints is
-    the form alone, never a panel: the ruling's own note says a fourth
+    What it mints is the form alone, never a panel: an impasse ruling
+    `advance` at run-a-gate's `work` stands the conductor on the route form
+    to dispose of the live revise, and the ruling's own note says a fourth
     fresh-context reader is the loop, not the way out of it.
     """
     t = seg.get("transition", {})
-    form = t.get("form") or seg.get("route-form", "")
+    form = t.get("form", "")
     if form:
         journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
                        segment=seg["id"], form=form, filler=t.get("filler", "conductor"),
@@ -3059,9 +3070,8 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     The guard is two reads of the step itself. `panel` is written onto the
     step's own journal entry identically however the step came to exist --
     by `skeleton()` from a statically declared `[segment.transition]`
-    (consolidate, plan-to-execute, explore-an-idea's spec) or by `_mint`'s
-    panelists branch at run-a-gate's `select` -- so that half survives a
-    transition moving from a declaration to a mint. The other half is the
+    (consolidate, plan-to-execute, run-a-gate's review, explore-an-idea's
+    spec) or by `_mint_segment_round` on a later round. The other half is the
     step standing on the segment's own transition form (`deciding_spec`'s
     own test), which is what a panel-less route round is. The one step
     neither matches is the impasse ruling: a single-conductor decision
@@ -3098,7 +3108,9 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 #   severe deficiency -- one that changes which problem is being solved, or
 #   the fundamental thing the next step codes -- sends the artifact back,
 #   and then it is rewritten from scratch, holding forward-looking orders
-#   and no record of what the last one got wrong. Measured before the
+#   and the severe finding itself -- a clean sheet with the finding in mind
+#   (ruling, 2026-09-25) -- and never the last draft or its other findings.
+#   Measured before the
 #   ruling: `rework` carried each round's blocking findings into the next
 #   draft and a cold panel read every draft, so the spec grew every round
 #   (issue120: 13KB to 32KB over ten rounds on a 5KB issue) and each
@@ -3107,8 +3119,8 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 #   `incorporate` is the default word after a review: one pass by the
 #   writer, carrying the findings, and no panel on the round it mints, so
 #   the conductor releases what comes back. `rewrite` is a fresh artifact:
-#   `restarts`, a panel of its own, and the conductor's `orders` as its
-#   whole prefill.
+#   `restarts`, a panel of its own, and the conductor's `orders` beside the
+#   findings called `severe` as its whole prefill.
 # Rejected: keeping `rework` and tuning `impasse-after`. The word means
 #   "another pass with the findings", which is incorporate's half and not
 #   rewrite's, and a count cannot tell a writer's pass from a fresh start.
@@ -3135,8 +3147,8 @@ def _check_one_look(asm, st, outcome, fields):
         orders = str((fields or {}).get("orders", "") or "").strip()
         if not orders or forms.leading_word(orders) in ("waived", "unknown", "working"):
             raise SystemExit(render.refusal(
-                "orders", "a rewrite starts from these alone -- say what must be "
-                "done, forward, without the findings that caused it",
+                "orders", "a rewrite starts from these and the finding called "
+                "severe -- say what must be done, forward",
                 escape="write the orders, or incorporate instead"))
 
 
@@ -3270,6 +3282,9 @@ def _perform(wid, asm, seg, does, fields, step):
             if _round_capped(wid, asm, seg, tseg) or _rewrite_capped(wid, asm, seg, tseg):
                 continue
             rewrite = {"orders": str(fields.get("orders", "")).strip()}
+            severe = _blocking_calls(fields, "severe")
+            if severe:
+                rewrite["severe"] = severe
             _mint_segment_round(wid, asm, tseg["id"], prefill=rewrite,
                                 restarts=True, panel=True, rewrite=True)
         elif word == "rework":
@@ -3360,7 +3375,7 @@ def _perform(wid, asm, seg, does, fields, step):
 # renders something a principal can read rather than an empty string.
 #
 # Second, a sibling-ordering defect that turns out not to be self-mint-only
-# at all: a step-form segment's own transition (`select`, `understand`'s
+# at all: a step-form segment's own transition (`review`, `understand`'s
 # own consolidate) mints untouched, at `open`, alongside that segment's
 # round-one interior step (`skeleton()`), and ruling `up` before that round
 # ever submits leaves the transition sitting there not-done -- in `wid`'s
@@ -3372,7 +3387,7 @@ def _perform(wid, asm, seg, does, fields, step):
 # `state()["current"]` would resolve to the stale sibling -- driven live
 # against a *reachable-parent* gate ruled `up` from its own first round:
 # the parent correctly stood on the ask, but the child's own `cmd_status`
-# showed `select`, not `paused`. Reordering the marker (and, self-minted,
+# showed `review`, not `paused`. Reordering the marker (and, self-minted,
 # the ask) ahead of the sibling is the one fix both shapes need.
 #
 # Third, that reorder held only through the pause moment: `_resume_paused_
@@ -3385,8 +3400,8 @@ def _perform(wid, asm, seg, does, fields, step):
 # too, once it knows one exists.
 # Rejected: closing the untouched sibling outright, the way `cmd_up`
 #   already closes whatever `current` stood on. It is not what was ruled
-#   on -- ruling `up` from `work-1` says nothing about `select` -- and
-#   closing it would strand the ordinary round `select` exists to receive
+#   on -- ruling `up` from `work-1` says nothing about `review` -- and
+#   closing it would strand the ordinary round `review` exists to receive
 #   once the paused segment resumes and completes.
 def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     """`up`'s own verb: an ask minted where whoever answers it can see it --
@@ -3446,7 +3461,7 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
         journal.append(pwid, "amend", action="reorder", segment=pstep["segment"],
                        step=ask_id, before=pstep_id, reason=reason, anchor=False)
     # The untouched open-minted sibling `tseg`'s own segment may already
-    # hold (`select`, `understand`'s own consolidate) -- present whether or
+    # hold (`review`, `understand`'s own consolidate) -- present whether or
     # not the ask above landed in this same journal, since the marker below
     # always does. Left alone it would precede the marker (and, on the
     # self-mint path, the ask too) in `_ordered`'s own within-segment order.
@@ -3806,32 +3821,13 @@ _BOARD_MINT = "board rows"
 _DISPOSE_MINT = "dispositions"
 
 
-# [panel-mint]
-# Rationale: a panel is written once, at the mint that makes the step, and
-#   every consumer sizes off it (`state`'s two-voices fold, `_panel_status`,
-#   `panel_outstanding`) -- so a `select` beat that genuinely chooses who
-#   reads a diff cannot be a field that grows a panel already standing. It
-#   has to be an earlier transition whose submit mints the later one, panel
-#   and conductor form together. That is this third mint kind: engine
-#   vocabulary, like the two above it, because no assembly declares a
-#   segment named `panelists`.
-# Rejected: a `panel = "<segment>"` field beside it, the way `_BOARD_MINT`
-#   takes `board`. `_board_segment`'s own history is the order to follow,
-#   not the endpoint: sole-match resolution shipped first with no target
-#   parameter at all, and the name branch was grafted on non-disruptively
-#   only once run-an-issue actually grew a second board. run-a-gate has
-#   exactly one segment this mint could mean, so a target field here would
-#   be a parameter with one legal value and no reader to disagree with it.
-# See: assemblies/run-a-gate/ASSEMBLY.toml -- the `review` segment's
-#   `route-form`, which is what this mint matches on.
-_PANEL_MINT = "panelists"
 
 
 def _mintable(asm):
     """The `mints` values legal in this assembly: `_BOARD_MINT`,
-    `_DISPOSE_MINT`, `_PANEL_MINT`, plus every name a segment here declares
-    as `dispatches`."""
-    return ({_BOARD_MINT, _DISPOSE_MINT, _PANEL_MINT}
+    `_DISPOSE_MINT`, plus every name a segment here declares as
+    `dispatches`."""
+    return ({_BOARD_MINT, _DISPOSE_MINT}
             | {s["dispatches"] for s in asm["segment"] if s.get("dispatches")})
 
 
@@ -3892,27 +3888,6 @@ def _mint(wid, asm, step, form, fields):
                               for row in boards.rows(path)]
                     _seed_board(runmod.resolve_form(asm, seg["board"]), path, merged)
                     journal.append(wid, "board", segment=seg["id"], path=str(path), rows=merged)
-        elif mints == _PANEL_MINT:
-            # The sole segment declaring a `route-form` is the one this can
-            # mean, so nothing names it. What lands is the two-voices shape a
-            # static transition would have declared: the submitted blocks as
-            # the panel, the segment's own route-form as the conductor's half,
-            # and the round this submit closes carried across as prefill --
-            # the panel sits a segment away from the work it reads, so the
-            # artifact cannot be found from its own segment at dispatch time.
-            # `source = "panel"`, the same word `_mint_segment_round` stamps
-            # on a re-fired panel, so `_summary`'s cycle count keeps meaning
-            # "rounds beyond the first".
-            seg = next((s for s in asm["segment"] if s.get("route-form")), None)
-            if seg:
-                t = seg.get("transition", {})
-                st = runmod.state(wid)
-                journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
-                               segment=seg["id"], form=seg["route-form"], panel=rows,
-                               filler=t.get("filler", "conductor"),
-                               prefill=_round_artifact(asm, st, step["segment"], step["id"]),
-                               anchor=t.get("anchor", False), terminal=False,
-                               validates="", source="panel")
         elif mints:
             seg = next((s for s in asm["segment"] if s.get("dispatches") == mints), None)
             if seg:
@@ -4112,14 +4087,14 @@ def _mint_projected_gate(wid, asm, step, st, fields):
 # the untouched sibling `_pause_gate` only ever leapfrogged -- never itself
 # reordered -- resurfaces ahead of the fresh round in `_ordered`'s own
 # within-segment order. Driven live: a conductor answering the ask was
-# handed `select`'s or `understand`'s own stale prompt instead of the fresh
+# handed `review`'s or `understand`'s own stale prompt instead of the fresh
 # round's. Fixed by carrying the sibling forward on the marker itself
 # (`_pause_gate`'s own `sibling` key, `""` when none was found) and
 # reordering every step this mint just appended to the segment ahead of it,
 # in mint order, mirroring the same move against the newly-live pair
 # instead of the ask.
 # Rejected: reordering only the fresh interior step. `_mint_segment_round`
-#   also mints a fresh transition (`select`, or the two-voices panel step a
+#   also mints a fresh transition (`review`, or the two-voices panel step a
 #   board segment's understand re-mints) whenever the segment declares one,
 #   and leaving that one behind the sibling reproduces the exact defect one
 #   step later -- `current` would resolve correctly to the interior step
@@ -4165,7 +4140,7 @@ def _resume_paused_child(pwid, step, fields):
         # [resume-supersedes-the-sibling]
         # Rationale: #123 -- the fresh round carries its own transition, so a
         # sibling of the same kind left open was a second copy of it: once the
-        # fresh round's select landed, `current` fell through to the stale one
+        # fresh round's review landed, `current` fell through to the stale one
         # and a second review round was minted on the same diff. The sibling
         # was untouched when the pause captured it, and its replacement now
         # stands, so it is closed. A sibling the fresh round did not replace
@@ -4312,13 +4287,14 @@ def cmd_up(argv):
     # A panelist ruling `up` mid-verdict resumes into its own panel-entry
     # form/worker, not give-a-verdict's bare default -- read straight off
     # `cur`, which `_open_child`'s panel branch already overrode at open.
-    # Only when the target IS the current step's own segment: every
-    # cross-segment case (`review` bubbling up to `work`) resumes at a
-    # segment `cur` never stood on, so its form/filler say nothing true
-    # about what should resume there -- neither is supplied, reproducing
-    # today's behaviour exactly.
+    # Only when the target IS the current step's own segment and that
+    # segment has no real interior, so the round that resumes is `cur`'s own
+    # kind of step (`[fresh-round-is-the-only-round]`). A segment with an
+    # interior resumes into its step-form: a conductor ruling `up` from
+    # run-a-gate's route form, `work`'s own transition, resumes an implement
+    # round, never another route form.
     resume_form, resume_filler = "", ""
-    if tseg["id"] == cur["segment"]:
+    if tseg["id"] == cur["segment"] and tseg.get("interior") not in ("steps", "board"):
         resume_form, resume_filler = cur.get("form", ""), cur.get("filler", "")
     _pause_gate(wid, tseg, reason, {}, resume_form=resume_form, resume_filler=resume_filler)
     print(f"paused {wid}\n")
@@ -4397,16 +4373,8 @@ def _amend_add(wid, st, argv, reason):
                 "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
                 "validates": t.get("validates", ""),
                 "carries": t.get("carries", False), "source": "amend"}
-        # The segment's `route-form` is the same fallback `_mint_transition`
-        # reads, for the same reason and from the same place: a segment whose
-        # transition step is minted rather than declared carries no `form` on
-        # the transition at all -- `run-a-gate`'s `review` declares no
-        # `[segment.transition]` table whatsoever. Reading only `t` here minted
-        # a step with no form, which no agent can fill and `cmd_submit` cannot
-        # load, wedging the run the way a renamed form does.
-        form = t.get("form") or segment.get("route-form", "")
-        if form:
-            step["form"] = form
+        if t.get("form"):
+            step["form"] = t["form"]
         if t.get("panel"):
             step["panel"] = t["panel"]
         journal.append(wid, "step", **step)
@@ -4592,9 +4560,8 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
         journal.append(wid, "step", **step)
     # The segment's transition, re-minted for the fresh round: its panel where
     # it declares one, its form where it declares one, both where it is a
-    # two-voices step. run-a-gate's `work` transition is the first to declare
-    # a form and no panel -- `select` chooses the next round's readers rather
-    # than carrying the last round's forward -- so neither key is assumed.
+    # two-voices step. Neither key is assumed: a board segment's refill
+    # declares a form and no panel, explore-an-idea's spec a panel and no form.
     # `anchor`/`terminal` are read off the transition itself rather than
     # hardcoded False: no existing step-form segment's transition declares
     # `terminal = true`, so this is a pure extension for every one of them,
@@ -4626,6 +4593,22 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     #   seam, and an engine rule would have to name the seam to make it.
     if t.get("panel") and (panel or t.get("panel-rounds", "every") != "opening"):
         fresh["panel"] = t["panel"]
+    # [rework-panel]
+    # Rationale: a transition may declare the readers every round after its
+    #   opening one gets instead of its full panel. run-a-gate's does: a
+    #   rework round is read by one reviewer for the blocking findings and
+    #   for anything the rework made false, the two things a later round
+    #   ever found. That reader is handed the findings on this round's own
+    #   prefill -- the same blocks the rework was -- since a panelist reads
+    #   its orders there. A `rewrite` is a fresh artifact and keeps the full
+    #   panel.
+    # Rejected: an agent choosing each round's readers on a form (run-a-gate's
+    #   old `select`). Its fills copied the same blocks nearly every time, on
+    #   a heavy runner; what is fixed belongs to the assembly.
+    if fresh.get("panel") and t.get("rework-panel") and not panel:
+        fresh["panel"] = t["rework-panel"]
+        if prefill:
+            fresh["prefill"] = prefill
     if t.get("form"):
         fresh["form"] = t["form"]  # the two-voices shape survives a fresh round
     if resumed:
@@ -4719,17 +4702,11 @@ def _act_on_verdicts(pwid, step_id):
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     t = seg.get("transition", {})
     # [panel-owner]
-    # Rationale: a panel is not only a transition's own step -- run-a-gate's
-    #   review panel is named at `select` (`_PANEL_MINT`, cli.py:2682) as a
-    #   step in its own right, `form` set to the segment's `route-form`,
-    #   while `review`'s own `[segment.transition]` declares no form at all;
-    #   `step.get("form") == t.get("form")` is false there, so this leaves
-    #   `field` empty and does nothing -- the minted `ROUTE.toml` step is
-    #   what routes the round, a conductor's own submit, not a synthesised
-    #   panel verdict. `_decided_here`'s segment fallback exists for that
-    #   direct submit, not for a panel step minted apart from its
-    #   transition, so this reads `decides` only when `step` really is the
-    #   transition (plan-to-execute, consolidate), never falling back.
+    # Rationale: this reads `decides` only when `step` really is the
+    #   transition (plan-to-execute, consolidate, run-a-gate's review), never
+    #   falling back to `_decided_here`'s segment table: that fallback exists
+    #   for a conductor's direct submit on a segment-grain form (an impasse
+    #   ruling), not for a panel's synthesised verdict.
     # Rejected: calling `_decided_here` here as before. Its fallback made a
     #   panel step minted apart from its transition have its merged verdict
     #   checked against the segment's own outcome table -- a value that

@@ -24,7 +24,7 @@ import pytest
 from engine import cli, journal, rail, render, run as runmod
 from test_brief import _mint_dispatch_step, _wait_brief
 from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_plan, \
-    _dispatch_and_close_plan, _dispatch_plan_critic, _select_panel, \
+    _dispatch_and_close_plan, _dispatch_plan_critic, \
     _work_the_board, _fill_plan_to_execute
 
 
@@ -291,8 +291,7 @@ def test_review_panel_brief_on_a_nested_gate_names_the_parents_worktree_and_bran
     cli.main(["open", "run-a-gate", "--parent", wid, "--step", step_id])
     child_wid = f"{wid}.{step_id}"
     _fill_implement(child_wid, step_id)
-    cli.main([child_wid, "submit"])
-    _select_panel(child_wid)               # mints the review step and its panel
+    cli.main([child_wid, "submit"])        # mints the review step and its panel
     capsys.readouterr()
 
     text = _wait_brief(child_wid, workdir)
@@ -441,8 +440,7 @@ def test_review_panel_brief_from_inside_a_bound_child_still_names_its_own_branch
     cli.main(["open", "run-a-gate", "--parent", wid, "--step", step_id])
     child_wid = f"{wid}.{step_id}"
     _fill_implement(child_wid, step_id)
-    cli.main([child_wid, "submit"])
-    _select_panel(child_wid)               # mints the review step and its panel
+    cli.main([child_wid, "submit"])        # mints the review step and its panel
     capsys.readouterr()
 
     monkeypatch.setenv("CONSTELLATION_BOUND", child_wid)  # standing inside the bound child
