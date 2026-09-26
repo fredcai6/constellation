@@ -76,9 +76,9 @@ carries = ["spec", "key-terms", "settle", "obligations", "rungs"]
 # both inert (`release`, below), so the step stays open on either verdict --
 # the conductor reads every finding and says where the round goes, the same
 # as the other two route forms do.
-# One look (`[one-look]`, engine/cli.py): the panel reads the opening spec
-# and a rewrite's fresh one, never an incorporation's pass.
-panel-rounds = "opening"
+# One look (`[one-look]`, engine/cli.py): the panel reads each fresh spec --
+# the opening one and a rewrite's -- never an incorporation's pass.
+panel-rounds = "fresh"
 decides = "resolution"
 
   [[segment.transition.outcome]]
@@ -166,19 +166,18 @@ filler = "conductor"
 # `plan`, since this form's own `incorporate`, `rewrite` and `up` also
 # reach this step and none of them has passed critique intact.
 projects = "run-a-gate"
-# The panel below reads the run's opening cut, and a `rewrite`'s fresh one
-# (`[one-look]`), and no other: a re-cut after a gate lands (`settle`,
-# `replan`), an incorporation and a resumed round each stand this form
-# alone, the conductor reading the planner's cut and the engine's one run
-# of its `proof` (`_trial_proofs`, engine/cli.py) in the room. Read by
+# The panel below reads every fresh cut: the run's opening one, the re-cut
+# after each gate lands (`settle`), a replan's, and a `rewrite`'s. An
+# incorporation and a resumed round stand this form alone (`[one-look]`),
+# the conductor reading the planner's pass and the engine's run of its
+# proofs (`_trial_proofs`, engine/cli.py) in the room. Read by
 # `_mint_segment_round`; `skeleton()` mints the opening round's panel
 # regardless. `every` is the other value and the default.
-# Ruling, 2026-09-11: on the first outside run the first cut's panel found
-# real defects (an import-boundary scan that would have failed on day one)
-# and the re-cut panels after each gate found almost nothing a reading
-# could find; a reviewer with a diff to run found what nine critic reports
-# on one gate's three cuts missed.
-panel-rounds = "opening"
+# Ruling, 2026-09-26: each gate is cut against the code and the spec as they
+# stand, so each cut gets its own cold read. It supersedes the 2026-09-11
+# ruling that panelled the opening cut alone: later cuts went unread, and
+# planners wrote them as amendments to the first plan.
+panel-rounds = "fresh"
 # PLAN_TO_EXECUTE.toml's `resolution`, answered by both voices -- the
 # panel's merged verdict first (always `release`, so it mints nothing), then
 # the conductor's own typed word.
@@ -207,7 +206,7 @@ decides = "resolution"
   # One criterion per panelist. Three fresh-context readers disagreeing is a
   # panel; one reader holding three criteria is a reviewer with a checklist,
   # and it reads the plan once with divided attention instead of three times
-  # with whole. Minted on the opening cut only -- `panel-rounds` above.
+  # with whole. Minted on each fresh cut -- `panel-rounds` above.
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"

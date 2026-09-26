@@ -1,12 +1,12 @@
 # Transition: plan → execute. Owned by run-an-issue; filled by whoever
 # conducts the issue. Ruling 3 (2026-09-02): mirrors run-a-gate's own
-# review/ROUTE.toml shape. Two voices on the run's opening cut, and on a
-# rewrite's fresh one (one look, 2026-09-25): the critic panel reads the
-# plan and rules first -- both of its words release, so nothing mints on the
-# panel's say alone -- and this form is where its round is disposed of.
-# Every other cut (an incorporation, a re-cut after a gate lands, a resumed
-# round) stands this form alone: the conductor reads the planner's cut, and
-# the engine's one run of its `proof`, in the room above.
+# review/ROUTE.toml shape. Two voices on every fresh cut -- the run's
+# opening one, the re-cut after each gate lands, a replan's, a rewrite's
+# (2026-09-26): the critic panel reads the plan and rules first -- both of
+# its words release, so nothing mints on the panel's say alone -- and this
+# form is where its round is disposed of. An incorporation and a resumed
+# round stand this form alone (one look, 2026-09-25): the conductor reads
+# the planner's pass, and the engine's run of its proofs, in the room above.
 
 imperative = """
 The cut is in the room above, with what its `proof` did when the engine ran

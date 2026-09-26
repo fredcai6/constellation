@@ -80,7 +80,7 @@ def test_load_consolidate():
 
 def test_load_implement():
     form = forms.load(IMPLEMENT)
-    assert _ids(form) == ["change", "deviations", "proof"]
+    assert _ids(form) == ["change", "deviations", "proof", "gate-proof"]
     assert _kinds(form)["proof"] == "check"
     assert _kinds(form)["change"] == "evidence"
 
@@ -109,7 +109,7 @@ def test_load_gate_transition():
     assert [it["id"] for it in dispositions["item"]] == ["obligation", "disposition", "root"]
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True
-    assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof",
+    assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof", "gate-proof",
                                                  "budget", "model"]
 
 

@@ -5,9 +5,9 @@ from open to close.
 
 The run's shape stays fixed. An issue opens onto an understand board, which
 consolidates into a spec; the plan cuts one small gate at a time toward the
-spec's done; a critic panel reads the opening spec and the run's first cut,
-and every cut after it is yours to read, with the engine's one run of its
-`proof` beside it in the room; each gate runs as its own child, returns to
+spec's done; a critic panel reads the opening spec and every fresh cut,
+and an incorporated pass over their findings is yours to read, with the
+engine's run of its proofs beside it in the room; each gate runs as its own child, returns to
 its own adjudication step, and the run closes once every gate has landed.
 Each step's own form carries that step's fields, checks, and notes — read
 only the one `status` hands you.

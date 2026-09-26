@@ -319,9 +319,10 @@ def test_a_worklist_emptied_outside_every_outcome_verb_still_settles_at_close(
 # -- #74: a satisfied row is rechecked at close ------------------------------
 
 
-def _to_close_with_g1_satisfied(proof):
-    """One obligation, one gate whose proof is `proof`, the row disposed
-    `satisfied` by that gate, and the run standing on its close form."""
+def _to_close_with_g1_satisfied(proof, gate_proof=""):
+    """One obligation, one gate whose proof is `proof` (and `gate-proof`,
+    where given), the row disposed `satisfied` by that gate, and the run
+    standing on its close form."""
     from functools import partial
     from test_nesting import _fill_plan
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
@@ -330,7 +331,8 @@ def _to_close_with_g1_satisfied(proof):
     _work_the_board("issue17")
     _fill_consolidate_with_obligation("issue17")
     cli.main(["issue17", "submit"])
-    _dispatch_and_close_plan("issue17", fill_fn=partial(_fill_plan, proof=proof))
+    _dispatch_and_close_plan("issue17", fill_fn=partial(_fill_plan, proof=proof,
+                                                         gate_proof=gate_proof))
     _dispatch_plan_critic("issue17")
     _fill_plan_to_execute("issue17")
     cli.main(["issue17", "submit"])

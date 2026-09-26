@@ -9,7 +9,7 @@ panel (run-an-issue's consolidate and plan-to-execute, run-a-gate's review,
 explore-an-idea's spec). A round
 is one disposal of one artifact at the seam -- a panel dispatch where the
 round carries a panel, the conductor's route form alone where it does not
-(run-an-issue's plan seam after the opening cut) -- the count
+(an incorporated round at run-an-issue's seams) -- the count
 `run.rework_rounds` uses, plus the first. A finding is one block a panelist returned in its own
 `findings` field, empty or `waived:`/`none:` counting as zero. A call is the
 conductor's `blocking | accepted | rejected` on one finding, read
@@ -123,7 +123,7 @@ def _round(returns, done_entry, panel_forms, table, waived=None):
     or in full: the count and reason ride the record. A round waived whole
     has no voice to fold, so its verdict record is the quiet panel's own
     `""` -- the count and reason are what the line then says. A round that
-    carried no panel at all (run-an-issue's plan seam after the opening cut;
+    carried no panel at all (an incorporated round at run-an-issue's seams;
     `panel_forms` is empty) has no verdict to record either, so the
     conductor's own disposing word -- the `decides` field the seam's table
     names, read off the round's done entry -- stands in its place: the
@@ -157,8 +157,8 @@ def _landed_round(st, seg, step):
     """Whether `step` is a landed round at this seam: in the seam's own
     segment, on its disposing form, carrying a panel that has returned --
     or was waived, which lands the round by the conductor's ruling -- or,
-    where the round carries no panel (run-an-issue's plan seam after the
-    opening cut, `panel-rounds = "opening"`), disposed of by its conductor."""
+    where the round carries no panel (an incorporated round,
+    `panel-rounds = "fresh"`), disposed of by its conductor."""
     if not _on_seam(step, seg):
         return False
     if step.get("panel"):

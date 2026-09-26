@@ -371,7 +371,7 @@ def test_a_revise_holds_the_form_and_the_conductors_incorporate_sends_findings_b
 
     fresh_route = next(s for s in st["steps"]
                        if s.get("source") == "panel" and s["segment"] == "plan")
-    assert "panel" not in fresh_route                    # the panel read the opening cut only
+    assert "panel" not in fresh_route                    # an incorporation gets no panel
     assert fresh_route["form"] == "forms/PLAN_TO_EXECUTE.toml"  # the conductor's form alone
     assert st["current"]["id"] == fresh_plan["id"]              # plan resumes, not the mint form
 

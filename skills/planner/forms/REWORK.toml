@@ -43,10 +43,17 @@ kind = "proof"
 note = """
 Same as PLAN.toml's `proof`: the exact command to run, never a description,
 referencing the command palette (constellation.toml) -- one that proves
-nothing on an empty diff or a diff short of `scope`. Run at submit, at
-adjudication, and again when the run closes, as there: it states what must
-still be true when the run ends, and what the gate must leave alone goes in
-`scope`."""
+nothing on an empty diff or a diff short of `scope`. What must be true when
+the issue ends: run at submit, when the gate lands, and again at close."""
+
+[[field]]
+id = "gate-proof"
+kind = "proof"
+optional = true
+note = """
+Same as PLAN.toml's `gate-proof`: what must be true when this gate lands
+alone, run at submit and when the gate lands, never at close. Or waived:
+none."""
 
 [[field]]
 id = "budget"
