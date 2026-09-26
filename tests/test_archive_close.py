@@ -129,6 +129,35 @@ def test_close_adopts_a_pr_already_open_on_the_branch(workdir, capsys, monkeypat
     assert not (workdir / ".worktrees" / "issue17").exists()
 
 
+def test_close_adopts_a_pr_the_principal_already_merged(workdir, capsys, monkeypatch):
+    """tennis_elo issue163: the PR was merged before close ran. It is the
+    run's PR, and close finishes rather than asking for a second one."""
+    _drive_issue_to_awaiting_close()
+    capsys.readouterr()
+    calls = []
+    stub_gh(monkeypatch, calls=calls,
+            prs=[{"url": "https://example.invalid/pr/167", "state": "MERGED"}])
+
+    cli.main(["issue17", "close"])
+    out = capsys.readouterr().out
+
+    assert not any(c[:3] == ["gh", "pr", "create"] for c in calls), calls
+    assert "https://example.invalid/pr/167" in out
+    assert not (workdir / ".worktrees" / "issue17").exists()
+
+
+def test_a_pr_closed_unmerged_is_set_aside_and_close_opens_one(workdir, capsys, monkeypatch):
+    _drive_issue_to_awaiting_close()
+    capsys.readouterr()
+    calls = []
+    stub_gh(monkeypatch, calls=calls,
+            prs=[{"url": "https://example.invalid/pr/5", "state": "CLOSED"}])
+
+    cli.main(["issue17", "close"])
+
+    assert any(c[:3] == ["gh", "pr", "create"] for c in calls), calls
+
+
 def test_a_run_with_no_commits_past_its_cut_closes_with_no_pr_and_no_branch(
         workdir, capsys, monkeypatch):
     """#176: a run that ends with no change -- ruled not needed -- has nothing
