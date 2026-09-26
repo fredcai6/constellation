@@ -1158,6 +1158,24 @@ def _form_filler_records(wid):
     return {e.get("step"): e for e in journal.read(wid) if e.get("kind") == "form-filler-started"}
 
 
+def _filled_step(wid):
+    """The step of `wid` this process was spawned to fill, or `None` when it
+    is not a form filler on this run."""
+    run, _, step_id = os.environ.get(checkrun.FILLS_ENV, "").rpartition(":")
+    return step_id if run == wid and step_id else None
+
+
+def _filling(wid, step_id):
+    """Is this process the form filler spawned for `step_id` itself?"""
+    return _filled_step(wid) == step_id
+
+
+def _filler_alive(wid, step_id):
+    """Is `step_id`'s own latest form filler a live process right now?"""
+    record = _form_filler_records(wid).get(step_id)
+    return record is not None and checkrun.alive(record.get("pid"))
+
+
 def _form_filler_start_counts(wid):
     """`{step_id: count}` -- how many `form-filler-started` records `wid`'s
     own journal carries for each step that has ever had a filler started at
@@ -1785,6 +1803,8 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     filler_count = _form_filler_start_counts(wid).get(step["id"], 0)
     if runmod.principal_fills(step):
         filler_status = "principal"
+    elif _filling(wid, step["id"]):
+        filler_status = ""  # the filler reading its own room: the form is its to fill
     elif filler_record is not None and checkrun.alive(filler_record.get("pid")):
         filler_status = "working"
     elif filler_record is not None and filler_count >= checkrun.FORM_FILLER_MAX_STARTS:
@@ -1927,6 +1947,19 @@ def cmd_status(argv):
     st = runmod.state(wid)
     if st is None:
         _no_run(wid)
+    # [filler-ends-at-its-submit]
+    # Rationale: a spawned form filler is started for one step, and its
+    #   headless brief says its turn ends when the room says its step is
+    #   done. Handed the next step's room instead -- by its own `submit`, or
+    #   by the `wait` it held on its detached proof -- it read that room as
+    #   its own and carried the run on: issue71's select filler, on a heavy
+    #   runner, went on to hold the whole gate's review. Once the step it
+    #   was started for is no longer current, every room it asks for says
+    #   so, and nothing else.
+    filled = _filled_step(wid)
+    if filled and not (st["open"] and st.get("current") and st["current"]["id"] == filled):
+        print(render.filler_done(filled))
+        return 0
     if not st["open"] or st["awaiting_close"]:
         print(render.status(st, {}, "", position=runmod.position(st, None),
                             onward_to=_onward(st)))
@@ -2135,6 +2168,29 @@ def cmd_wait(argv):
                 break
             time.sleep(checkrun.WAIT_POLL)
         return cmd_status([wid])  # renders no view of its own (commitment 2)
+    elif _filler_alive(wid, step["id"]) and not _filling(wid, step["id"]):
+        # [wait-holds-for-filler]
+        # Rationale: a childless form step whose own filler is a live
+        #   process is outstanding work, exactly as a child or a proof is,
+        #   and the room already names `wait` as the move beside it. Left
+        #   rendering at once, `wait` spun: issue71's select filler called it
+        #   197 times in 30 minutes, every call a full turn on a heavy runner.
+        #   Held on the same terms `drive` already holds a live filler --
+        #   sleep, re-derive, never spawn a second filler on top of it. The
+        #   hold ends when the step is no longer current, its filler is gone,
+        #   or the bound runs out.
+        # Rejected: spawning a filler here for a step that never had one.
+        #   That is `drive`'s walk; `wait` holds for what is already started.
+        deadline = time.monotonic() + bound
+        while True:
+            fresh = runmod.state(wid)  # re-folded every cycle, never cached
+            now = fresh.get("current") if fresh and fresh["open"] else None
+            if not now or now["id"] != step["id"] or not _filler_alive(wid, step["id"]):
+                break
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(checkrun.WAIT_POLL)
+        return cmd_status([wid])
     else:
         # a childless form step has no child and no proof either, and an
         # orphaned proof (started, but its process is gone with no result

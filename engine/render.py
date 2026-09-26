@@ -753,6 +753,13 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     return "\n".join(out)
 
 
+def filler_done(step_id):
+    """What a spawned form filler reads once its own step has submitted."""
+    return _para(f"Your step is done: {step_id} is submitted, and it was the "
+                 "one step you were started to fill. End your turn now. What "
+                 "comes next belongs to whoever conducts this run.")
+
+
 NULLS = "waived: <reason>  /  unknown: <reason>"
 
 
