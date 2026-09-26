@@ -367,6 +367,29 @@ def test_a_satisfied_obligation_a_later_change_broke_is_owed_again_at_close(
     assert not runmod.state("issue17")["closed"]
 
 
+def test_a_reopened_obligation_names_the_moves_and_they_work(workdir, capsys, monkeypatch):
+    """issue87: close reopened a row whose substance still held, and the
+    conductor's way past it was a hand edit to the board. Close names the
+    moves -- a note and `up` -- and both are open from where it leaves the
+    run."""
+    stub_gh(monkeypatch)
+    _to_close_with_g1_satisfied("test -f landed.txt")
+    (journal.root_for("issue17") / "landed.txt").unlink()
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        cli.main(["issue17", "close"])
+    out = capsys.readouterr().out
+    assert "reopened at close" in out
+    assert "spine issue17 note observation" in out
+    assert 'spine issue17 up "<reason>"' in out
+
+    cli.main(["issue17", "note", "observation", "re-ran the substance; it holds"])
+    capsys.readouterr()
+    cli.main(["issue17", "up", "g1's proof failed only on what it left alone"])
+    cli.main(["issue17"])
+    assert "ASK." in capsys.readouterr().out     # the question is standing
+
+
 def test_a_satisfied_obligation_whose_proof_still_passes_closes(workdir, capsys, monkeypatch):
     stub_gh(monkeypatch)
     _to_close_with_g1_satisfied("test -f landed.txt")

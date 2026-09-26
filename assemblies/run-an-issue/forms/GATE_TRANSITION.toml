@@ -124,7 +124,9 @@ covers less than `scope` promised -- one check per obligation. It exercises
 purpose's claim too: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string you ran, never a description of it:
 this field is shell-executed in the dispatched child, so prose becomes a
-command and fails there, after the work is done. Reference the command
+command and fails there, after the work is done. It runs again when the run
+closes, against the finished tree, so it states what must still be true
+then; what the gate must leave alone goes in `scope`. Reference the command
 palette (constellation.toml) rather than hardcoding where it applies."""
 
   [[field.item]]

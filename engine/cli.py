@@ -3778,6 +3778,23 @@ def _recheck_satisfied(wid, asm):
     if broke:
         _seed_board(runmod.resolve_form(asm, seg["board"]), path, rows)
         journal.append(wid, "board", segment=seg["id"], path=str(path), rows=rows)
+        print(_REOPENED.format(wid=wid))
+
+
+# [reopened-says-the-move]
+# Rationale: issue87's close reopened a row whose gate proof carried a
+#   clause about what that gate left alone (`git diff --exit-code <cut> --
+#   <paths>`), which a later gate's planned work made false. The conductor
+#   re-ran the substance, found it held, and marked the row satisfied by
+#   hand in EXECUTION_STATE.toml -- the one write that skips this recheck.
+#   Close is where the conductor learns a row reopened, so close names the
+#   move for each reading of it.
+_REOPENED = (
+    "a satisfied obligation reopened at close -- its gate's proof no longer passes.\n"
+    "  if the obligation broke: work the plan round it has minted.\n"
+    "  if only a clause about what the gate left alone failed and the substance\n"
+    "  still holds: record what you re-ran -- spine {wid} note observation '...'\n"
+    "  -- and take it up: spine {wid} up \"<reason>\"")
 
 
 def _settle_execution(wid, asm):
