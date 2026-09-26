@@ -37,20 +37,19 @@ def test_open_mints_the_skeleton(bare_workdir, capsys):
     assert plan["panel"][0]["worker"] == "critic"
 
 
-def test_run_a_gate_skeleton_mints_select_and_no_review_step(bare_workdir, capsys):
-    # run-a-gate's review transition used to declare a panel, and a static
-    # panel is a panel nobody chose: `select` exists so the readers of a diff
-    # are named after the diff is in. So `work`'s own transition is `select`
-    # -- a form and no panel -- and the `review` segment declares neither a
-    # form nor a panel, which is exactly what stops `skeleton` minting a step
-    # for it here. That step is `select`'s submit to mint.
+def test_run_a_gate_skeleton_mints_review_with_its_declared_panel(bare_workdir, capsys):
+    # `work`'s own transition is `review` (ruling, 2026-09-25): a two-voices
+    # step the same shape as run-an-issue's plan seam, declared with its own
+    # three reviewers rather than chosen by a conductor at a separate
+    # `select` beat.
     steps = runmod.skeleton(runmod.load_assembly("run-a-gate"))
-    assert [s["id"] for s in steps] == ["work-1", "select", "close"]
+    assert [s["id"] for s in steps] == ["work-1", "review", "close"]
 
-    select = steps[1]
-    assert select["form"] == "forms/SELECT.toml"
-    assert select["filler"] == "conductor"  # the bare indirection, not a named role
-    assert "panel" not in select            # nothing to argue with here; nobody is dispatched
+    review = steps[1]
+    assert review["form"] == "forms/ROUTE.toml"
+    assert review["filler"] == "conductor"  # the bare indirection, not a named role
+    assert [p["criteria"].split(":")[0] for p in review["panel"]] == [
+        "tests", "simplicity", "claims"]
 
     # close's transition still declares only a form -- unaffected
     close = steps[2]

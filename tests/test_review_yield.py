@@ -19,7 +19,7 @@ from test_nesting import (
 )
 from test_verdict_panels import (
     _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
-    _review_step, _select,
+    _review_step,
 )
 from test_verdict_route import _route_with_calls
 
@@ -129,9 +129,8 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
 
 
 def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
-    """`run-a-gate`'s review, minted at `select` rather than declared, is
-    found and named the same way -- `review`, the segment's own id, since
-    its transition declares neither form nor panel.
+    """`run-a-gate`'s review is `work`'s own declared transition now (ruling,
+    2026-09-25), found and named the same way -- `review`, its own id.
 
     `revising` reads `0` on the revise round for the same reason it does at
     plan-to-execute above: review's own two words both declare `release`
@@ -139,16 +138,18 @@ def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
     the head line carries the verdict alone."""
     _open_gate()
     review = _review_step("g1")
-    panelist = _open_panelist("g1", review)
-    _fill_review(panelist, "revise", findings="gap: the bound is off by one")
-    cli.main([panelist, "submit"])
-    cli.main([panelist, "close"])
+    panel = next(s for s in runmod.state("g1")["steps"] if s["id"] == review)["panel"]
+    for n in range(1, len(panel) + 1):
+        panelist = _open_panelist("g1", review, n)
+        _fill_review(panelist, "revise", findings="gap: the bound is off by one")
+        cli.main([panelist, "submit"])
+        cli.main([panelist, "close"])
     _route_with_calls("g1", "rework", ("gap: the bound is off by one", "blocking"))
     cli.main(["g1", "submit"])
 
     _fill_implement("g1")
-    cli.main(["g1", "submit"])
-    second_review = _select("g1")
+    cli.main(["g1", "submit"])   # the fresh round's own review, minted with it
+    second_review = runmod.state("g1")["current"]["id"]
     panelist = _open_panelist("g1", second_review)
     _fill_review(panelist, "pass")
     cli.main([panelist, "submit"])

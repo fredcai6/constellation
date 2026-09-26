@@ -32,7 +32,7 @@ from test_nesting import (
 )
 from test_verdict_panels import (
     _fill, _fill_implement, _fill_review, _fill_route, _open_gate, _open_panelist,
-    _review_step, _select,
+    _review_step,
 )
 
 
@@ -49,7 +49,7 @@ def test_run_a_gates_review_declares_resolution_disjoint_from_ruling():
     actually declares: the panel's two are both inert, and the conductor's
     `rework` is the one that mints."""
     asm = runmod.load_assembly("run-a-gate")
-    step = {"segment": "review", "form": "forms/ROUTE.toml",
+    step = {"segment": "work", "form": "forms/ROUTE.toml",
             "panel": [{"form": "skills/reviewer/forms/REVIEW.toml"}]}
 
     field = cli._decided_here(asm, step)
@@ -60,22 +60,21 @@ def test_run_a_gates_review_declares_resolution_disjoint_from_ruling():
     # form and the conductor is the one who says where the round goes
     for verdict in ("pass", "revise"):
         seg, does = cli._outcome(asm, step, {"resolution": verdict}, {"steps": []})
-        assert seg["id"] == "review" and does == "release"
+        assert seg["id"] == "work" and does == "release"
 
-    # the conductor's two. `rework` names its target now: review is not the
-    # segment the fresh round lands in, so a bare verb would refill review.
+    # the conductor's two. `review` is `work`'s own transition now, so a bare
+    # verb refills the segment it already stands in -- no target to name.
     seg, does = cli._outcome(asm, step, {"resolution": "rework"}, {"steps": []})
-    assert seg["id"] == "review" and does == "rework work"
+    assert seg["id"] == "work" and does == "rework"
 
     seg, does = cli._outcome(asm, step, {"resolution": "close"}, {"steps": []})
-    assert seg["id"] == "review" and does == "release"
+    assert seg["id"] == "work" and does == "release"
 
     # `up` is a real declared value here now, not only on `work`'s own impasse
     # table -- an undeclared one refuses, so this is what makes the word
-    # legal at route at all. It targets `work` explicitly, the same as
-    # `rework` above: review is not the segment the resumed round lands in.
+    # legal at route at all.
     seg, does = cli._outcome(asm, step, {"resolution": "up"}, {"steps": []})
-    assert seg["id"] == "review" and does == "pause work"
+    assert seg["id"] == "work" and does == "pause"
 
 
 def _route_with_calls(wid, resolution, *calls):
@@ -100,12 +99,14 @@ def test_a_pass_resolves_through_the_outcome_table_and_holds_for_the_form(workdi
     submit makes."""
     _open_gate()
     review = _review_step("g1")
-    panelist = _open_panelist("g1", review)
-    _fill_review(panelist, "pass")
-    cli.main([panelist, "submit"])
-    capsys.readouterr()
-    cli.main([panelist, "close"])
-    capsys.readouterr()
+    panel = next(s for s in runmod.state("g1")["steps"] if s["id"] == review)["panel"]
+    for n in range(1, len(panel) + 1):
+        panelist = _open_panelist("g1", review, n)
+        _fill_review(panelist, "pass")
+        cli.main([panelist, "submit"])
+        capsys.readouterr()
+        cli.main([panelist, "close"])
+        capsys.readouterr()
 
     st = runmod.state("g1")
     assert st["current"]["id"] == review          # held for the second voice
@@ -117,7 +118,7 @@ def test_a_pass_resolves_through_the_outcome_table_and_holds_for_the_form(workdi
 
     st = runmod.state("g1")
     assert st["current"]["id"] == "close"
-    assert [s["id"] for s in st["steps"]] == ["work-1", "select", review, "close"]
+    assert [s["id"] for s in st["steps"]] == ["work-1", review, "close"]
 
 
 def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdir, capsys):
@@ -129,17 +130,19 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
     prefill, the shape the mechanical refill produced."""
     _open_gate()
     review = _review_step("g1")
-    panelist = _open_panelist("g1", review)
-    _fill_review(panelist, "revise", findings="gap: the bound is still off")
-    cli.main([panelist, "submit"])
-    capsys.readouterr()
-    cli.main([panelist, "close"])
-    capsys.readouterr()
+    panel = next(s for s in runmod.state("g1")["steps"] if s["id"] == review)["panel"]
+    for n in range(1, len(panel) + 1):
+        panelist = _open_panelist("g1", review, n)
+        _fill_review(panelist, "revise", findings="gap: the bound is still off")
+        cli.main([panelist, "submit"])
+        capsys.readouterr()
+        cli.main([panelist, "close"])
+        capsys.readouterr()
 
     st = runmod.state("g1")
     assert st["current"]["id"] == review          # nothing minted off the word
-    # the review step itself is a mint (select's); no *round* was minted off
-    # the word, which is what this pins
+    # the review step itself is a mint (`open`'s own); no *round* was minted
+    # off the word, which is what this pins
     assert not any(s["segment"] == "work" and s.get("source") == "mint"
                    for s in st["steps"])
 
@@ -164,8 +167,9 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
     # outside this gate, and the implementer's own declared deviation -- and
     # exactly one is called blocking.
     _fill_implement("g1")
-    cli.main(["g1", "submit"])
-    second_review = _select("g1")
+    cli.main(["g1", "submit"])   # the fresh round's review, minted with the
+                                 # `rework:` reader alone
+    second_review = runmod.state("g1")["current"]["id"]
     panelist = _open_panelist("g1", second_review)
     _fill_review(panelist, "revise",
                  findings=(r"gap: the bound is off by one still\n\n"
@@ -201,32 +205,23 @@ def test_a_revise_holds_for_the_form_and_the_forms_rework_mints_the_round(workdi
 # assembly gained a two-voices step and someone has to say what its fold
 # does; a changed row means an existing consumer's behavior moved.
 TWO_VOICES = {
-    ("run-a-gate", "review"): ["pass", "revise"],    # minted by select, not declared
+    ("run-a-gate", "work"): ["pass", "revise"],      # review -- work's own transition
     ("run-an-issue", "understand"): ["pass", "revise"],  # consolidate -- ruling 3 follow-up
     ("run-an-issue", "plan"): ["pass", "revise"],    # plan-to-execute -- ruling 3
 }
 
 
 def _two_voices_steps():
-    """Every step shape in the tree that carries a panel and a form at once.
-
-    Two ways to be one now. A transition declaring both statically is the
-    original; run-a-gate's review is the second -- `select` writes the panel
-    at its own submit and `route-form` names the form, so no static table
-    holds the pair and a sweep that reads only `[segment.transition]` sees
-    nothing where the tree's most-exercised two-voices step actually is.
-    """
+    """Every step shape in the tree that carries a panel and a form at once:
+    a transition declaring both statically -- run-a-gate's review among
+    them now (ruling, 2026-09-25), the same shape as the other two."""
     for name in runmod.assemblies():
         asm = runmod.load_assembly(name)
         for seg in asm["segment"]:
             t = seg.get("transition", {})
-            if t.get("panel") and t.get("form"):
-                panel, form = t["panel"], t["form"]
-            elif seg.get("route-form"):
-                panel, form = [{"worker": "reviewer", "criteria": "c"}], seg["route-form"]
-            else:
+            if not (t.get("panel") and t.get("form")):
                 continue
-            yield name, seg["id"], {"segment": seg["id"], "form": form, "panel": panel}
+            yield name, seg["id"], {"segment": seg["id"], "form": t["form"], "panel": t["panel"]}
 
 
 def test_run_a_gates_review_plan_to_executes_and_consolidates_own_folds_all_moved():

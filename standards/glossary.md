@@ -52,8 +52,8 @@ is joint. Coining a synonym for a term below is a defect.
   open for a conductor's own route form there), or (a panel-only transition with none,
   explore-an-idea's spec) by refilling directly, `impasse-after` rounds of it reaching the
   segment's own impasse form where one is declared. A panel is written once, at the mint that
-  makes its step: declared on a transition, or named at an earlier one (run-a-gate's `select`), never
-  grown after. A transition also declares which of its rounds the panel reads —
+  makes its step: declared on a transition, never grown after — with, optionally, a
+  `rework-panel` the transition's later rounds get instead (run-a-gate's one rework reader). A transition also declares which of its rounds the panel reads —
   `panel-rounds = "every"` (the default) or `"opening"`, the run's opening round alone, which is
   run-an-issue's plan seam: a later cut stands the conductor's route form with no panel beside
   it. Review never lives in an interior.
@@ -233,8 +233,8 @@ is joint. Coining a synonym for a term below is a defect.
   alone, detached past the handback rather than killed at it, and reports a proof that
   outran the budget itself rather than one merely still running.
 - **gate** — a unit of execution minted by the plan; runs as a child run (run-a-gate) with the
-  implementer working its interior and the gate-conductor naming, at `select`, the panel that
-  reviews it.
+  implementer working its interior and the gate-conductor ruling, at the route form, on the
+  panel that reviews it.
 - **epic** — one claim too large for a single run, plus the evidence that the claim is true.
   Runs as run-an-epic under the epic-conductor, dispatching issue runs. Never a list of issues.
 - **wave** — a segment of an epic whose interior dispatches whole issue runs. The epic-conductor cuts
@@ -256,15 +256,15 @@ is joint. Coining a synonym for a term below is a defect.
   call where a route form ruled on one. Written beside `CLOSE.toml` as `YIELD.md`, and reachable
   on a live run through `spine <work-id> trace --yield`. Nothing a conductor tabulates by hand.
 - **seam** — a panel-bearing transition (`engine/review_yield.py`'s `_seam_segments`): a segment
-  whose transition declares a panel outright (`run-an-issue`'s consolidate, plan-to-execute) or
-  whose round is minted at `select` through a `route-form` (`run-a-gate`'s review). Named for a
-  human by `seam_label` — the disposing form's own name where the transition declares one, or
-  (review, whose transition declares neither) the segment's own id.
+  whose transition declares a panel (`run-an-issue`'s consolidate and plan-to-execute,
+  `run-a-gate`'s review, explore-an-idea's spec). Named for a human by `seam_label` — the
+  transition's own id where it declares one (review), else the disposing form's own name, else
+  the segment's own id.
 - **round** — one disposal of one artifact at a seam: a panel dispatch where the round carries a
   panel, the conductor's route form alone where it does not (run-an-issue's plan seam after the
   opening cut) — the count `run.rework_rounds` uses plus the first — `engine/review_yield.py`'s
   `seam_round_steps`, blind to which mint produced the step (`skeleton()`'s own, a later
-  `rework`, `select`'s own panel mint), so it counts a seam's rounds since the run opened rather
+  `rework`), so it counts a seam's rounds since the run opened rather
   than per artifact; the **round-cap** reads the same list cut at the seam's last release.
 - **re-measure** — run an observation's own command against HEAD before planning against it.
   An issue is a claim about a rev; re-measuring is what makes it a claim about now.

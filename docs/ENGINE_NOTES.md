@@ -40,9 +40,7 @@ unfalsifiable by construction and the checks re-run.
 not minted — a worklist fills as work is discovered, a board is seeded as its
 own entry. That is what "the skeleton is fixed, the interior is worked" means
 in code: the fixed part is the only part that exists at open. A transition
-declaring neither a form nor a panel mints no step at all -- run-a-gate's
-`review`, whose step is minted later instead, by the `select` that names the
-panel it carries.
+declaring neither a form nor a panel mints no step at all.
 
 ## The board keeps its own instructions
 

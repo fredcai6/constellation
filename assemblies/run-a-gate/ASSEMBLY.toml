@@ -2,16 +2,12 @@
 # spec (purpose, scope, proof, optional model, optional direction) is the
 # opening prefill — there is nothing to fill at open, so it has no form.
 #
-# Six beats: open → implement → select → review → route → close. `select` and
-# `review` are two segments, not one two-voices step, because the panel that
-# reads the diff is chosen at `select` and a panel is written once, at the
-# mint that makes the step. So `work`'s own transition is `select` (a form,
-# no panel), and submitting it mints `review`'s transition — the panelists it
-# names, and the route form their round is disposed of on — into the segment
-# below. That is why `review`'s transition declares no `form` and no `panel`:
-# `skeleton()` mints a transition step only for a transition that declares
-# one or the other, so the absence is what leaves the step for `select` to
-# mint rather than for `open` to guess at.
+# Four beats: open → implement → review → close. `review` is `work`'s own
+# transition, a two-voices step the same shape as run-an-issue's plan seam:
+# a panel the assembly declares reads the diff, and the conductor disposes of
+# the round on ROUTE.toml. Nobody chooses the readers -- they are written
+# here, so the engine mints them with the round (ruling, 2026-09-25: an
+# agent copying three fixed blocks into a form is work the engine owns).
 
 assembly = "run-a-gate"
 conductor = "gate-conductor"
@@ -30,15 +26,19 @@ impasse-form = "forms/IMPASSE.toml"
 worker = "implementer"
 model = "standard"
 decides = "ruling"     # IMPASSE.toml's; IMPLEMENT.toml has no such field
+# A ceiling on the rounds this seam sends back in a row within this gate's
+# own run (issue113): counted as the rounds landed since the review last
+# released one -- a `pass` or `close` -- so the count is the loop itself,
+# never the gate's whole history. Outranks `impasse-after` where both
+# would fire on the same send-back.
+round-cap = 5
 
   [[segment.outcome]]
   value = "advance"
-  # Names `review`, not this segment: `transition` here would mint `select`
-  # and send the ruling back through a fourth panel, which is the loop the
-  # impasse exists to leave. `review`'s transition mints its route form
-  # alone -- one disposal of the live revise, no panel to argue with, and
-  # `close` there walks the gate to GATE_CLOSE.
-  does = "transition review"
+  # `transition` mints this segment's route form alone -- one disposal of the
+  # live revise, no panel to argue with (`_mint_transition` never mints one),
+  # and `close` there walks the gate to GATE_CLOSE.
+  does = "transition"
 
   [[segment.outcome]]
   value = "rework"
@@ -49,92 +49,73 @@ decides = "ruling"     # IMPASSE.toml's; IMPLEMENT.toml has no such field
   does = "pause"     # mints an ask into the parent and a marker here; see [pause-gate]
 
 [segment.transition]
-id = "select"
-form = "forms/SELECT.toml"
-# No panel and no `decides`: nothing is judged here. SELECT.toml's `panelists`
-# field is a `plan` field, and a plan field mints on submit unconditionally --
-# the same way explore-an-idea's OPEN.toml seeds its board with no outcome
-# table anywhere near it -- so there is no outcome for this transition to
-# declare and no second word for the round to resolve against.
-# No `filler`: every mint site defaults an absent one to the bare
-# `conductor` indirection, which resolves to this assembly's own conductor,
-# so this transition follows a rename of that field with no edit here.
-
-[[segment]]
 id = "review"
-# Anchor-only, like `close` below: no interior, and a transition whose step
-# is minted rather than declared. `route-form` is the form that step stands
-# its conductor on once minted, and it is also what `_mint` matches this
-# segment on -- the sole segment in this assembly carrying the field is the
-# one a `mints = "panelists"` field can mean, so no form names a target.
-route-form = "forms/ROUTE.toml"
-# `decides` and the outcome rows sit at segment grain, not under
-# `[segment.transition]`, and the placement is load-bearing:
-# `runmod.deciding_spec` reads the transition's table only for a step whose
-# own `form` equals the transition's declared `form`, and this transition
-# declares none at all (see below). A minted review step therefore resolves
-# against the segment -- exactly the way `work`'s impasse ruling above
-# already does.
-# A ceiling on the rounds this seam sends back in a row within this gate's
-# own run (issue113): counted as the rounds landed since `review` last
-# released one -- a `pass` or `close` here -- so the count is the loop
-# itself, never the gate's whole history. Distinct from `work`'s own
-# `impasse-after`, which this is beside in kind, not in file position:
-# `review` declares no `step-form`/`rework-form` of its own, so
-# `impasse-after` could never sit here. Outranks that per-artifact outlet
-# where both would fire on the same send-back.
-round-cap = 5
-decides = "resolution"     # both voices answer it: the panel's merged verdict, then the form's own
+form = "forms/ROUTE.toml"
+# Anchored because a gate reaching close without review has graded its own
+# work: amending this away stays one journaled step, but it is loud in the
+# ledger and in the parent's adjudication view.
+anchor = true
+# Two voices: the panel reads the diff and returns, and neither of its two
+# words acts on its own -- both resolve to `release`, which mints nothing and
+# leaves the step open, so every round is disposed of on ROUTE.toml. There
+# is no third verdict word -- a root objection is a revise finding -- and
+# `rework` is what carries one back into another implement round.
+decides = "resolution"
 
-  [[segment.outcome]]
+  [[segment.transition.outcome]]
   value = "pass"
-  does = "release"     # mints nothing; the form is what releases the round
+  does = "release"     # the panel's own word; the form is what releases the round
 
-  [[segment.outcome]]
+  [[segment.transition.outcome]]
   value = "revise"
   does = "release"     # likewise -- the findings are the record, the form is the ruling on them
 
-  [[segment.outcome]]
+  [[segment.transition.outcome]]
   value = "rework"
-  does = "rework work"     # another implement round, findings as prefill -- and the target
-                           # is named now, because review is no longer the segment work is in
+  does = "rework"     # another implement round, the blocking findings as its prefill
 
-  [[segment.outcome]]
+  [[segment.transition.outcome]]
   value = "close"
-  does = "release"     # mints nothing; the run walks past review to GATE_CLOSE
+  does = "release"     # mints nothing; the run walks on to GATE_CLOSE
 
-  [[segment.outcome]]
+  [[segment.transition.outcome]]
   value = "up"
-  does = "pause work"     # the same pause `work`'s own `up` spells, targeted
-                          # explicitly since review is no longer the segment
-                          # work is in: an ask into the parent, and a marker
-                          # back in `work`, the segment the parent's answer
-                          # resumes. Declared so the word is legal at route at
-                          # all -- an undeclared value refuses, so without
-                          # this row a gate could only send its ask up by
-                          # closing and calling it something else.
+  does = "pause"     # an ask into the parent, and a marker here; see [pause-gate]
 
-[segment.transition]
-id = "review"
-anchor = true
-# Anchored because a gate reaching close without review has graded its own
-# work: amending this away stays one journaled step, but it is loud in the
-# ledger and in the parent's adjudication view. The mint copies this flag
-# onto the step it writes.
-# No `form` and no `panel` here on purpose: both are `select`'s to supply,
-# and declaring either would have `skeleton()` mint a review step at `open`
-# carrying a panel nobody chose. Two voices still, once minted: the panel
-# reads the diff and returns, and neither of its two words acts on its own
-# -- both resolve to `release` above, which mints nothing and leaves the step
-# open, so every round is disposed of on ROUTE.toml. That is the point of the
-# shape: a revise is exactly the round with findings to rule on, and a
-# mechanical refill never stood anyone on a form to rule on them. There is
-# still no third verdict word -- a root objection is a revise finding -- and
-# `rework` is what carries one back into `work`, only three of those in a row
-# reaching that segment's own impasse-form. `up` is on this table too now, so
-# the way out no longer runs through that form alone -- it pauses the same
-# way the impasse form's own `up` does, an ask standing at the parent until
-# it answers.
+  # One criterion per panelist, the same rule as run-an-issue's panels: three
+  # fresh-context readers disagreeing is a panel; one reader holding three
+  # criteria is a reviewer with a checklist. Spec-fit is not a lens here: the
+  # gate's own proof is that check, run at submit and again at close, and on
+  # tennis_elo's first fourteen runs a spec-fit reader sent a round back 2
+  # times in 29. `claims` is the lens every hand-picked fourth reader kept
+  # re-inventing there, and 8 blocking findings no other reader raised.
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/REVIEW.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "tests: are these the right tests, or could the work be substantially wrong while they pass -- and does anything watch the important thing pass through the whole project rather than only its pieces"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/REVIEW.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "simplicity: is the result simple to understand -- does it solve the problem at its root, or add a guard, special case or second path beside what already exists? A root fix that costs more lines beats a guard that costs fewer. Name what should go through an existing thing instead of beside it, and anything the change leaves that nothing needs"
+
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/REVIEW.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "claims: is every statement the diff writes -- in docs, reports, comments, printed conclusions, its own change note -- backed by something it ran? Name each claim that says more than the numbers establish, a number carried from somewhere and not reproduced, or a cause stated as fact that nothing tested"
+
+  # Every round after the first: one reader, reading for the two things a
+  # later round has ever found -- the blocking findings answered, and nothing
+  # the rework wrote now false. Those findings ride in on this round's own
+  # prefill, the same blocks the rework itself was handed.
+  [[segment.transition.rework-panel]]
+  form = "skills/reviewer/forms/REVIEW.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "rework: is each blocking finding in your orders answered by this round's diff, and does anything the rework wrote -- a comment, a rationale, a test predicate -- say something the diff itself made false? Read for those two things only"
 
 [[segment]]
 id = "close"
@@ -143,6 +124,6 @@ id = "close"
 anchor = true
 terminal = true
 form = "forms/GATE_CLOSE.toml"
-# No `filler`, for the same reason the transitions above carry none:
-# an absent one defaults to the bare `conductor` indirection, so close is
-# filled by whoever conducts this assembly rather than by a role named twice.
+# No `filler`: an absent one defaults to the bare `conductor` indirection,
+# so close is filled by whoever conducts this assembly rather than by a role
+# named twice.

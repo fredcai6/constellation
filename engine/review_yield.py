@@ -5,8 +5,8 @@ hand. `docs/DERIVED_IS_CODE.md` is the rule; issue #16's first cut is this
 module -- the same table kept by hand is the defect it replaces.
 
 A seam is a panel-bearing transition: a segment whose transition declares a
-panel outright (run-an-issue's consolidate, plan-to-execute) or whose round
-is minted at `select` through a `route-form` (run-a-gate's review). A round
+panel (run-an-issue's consolidate and plan-to-execute, run-a-gate's review,
+explore-an-idea's spec). A round
 is one disposal of one artifact at the seam -- a panel dispatch where the
 round carries a panel, the conductor's route form alone where it does not
 (run-an-issue's plan seam after the opening cut) -- the count
@@ -37,18 +37,15 @@ def _seam_segments(assembly):
     out = []
     for seg in assembly["segment"]:
         t = seg.get("transition", {})
-        if t.get("panel") or seg.get("route-form"):
+        if t.get("panel"):
             out.append(seg)
     return out
 
 
 def _seam_form(seg):
-    """The form a round of this seam stands its conductor on -- the
-    transition's own, or (run-a-gate's review, minted at `select`) the
-    segment's `route-form`. The same fallback `_mint_transition` (cli.py)
-    reads, so a seam is found here by the identical rule that mints it."""
-    t = seg.get("transition", {})
-    return t.get("form") or seg.get("route-form", "")
+    """The form a round of this seam stands its conductor on: the
+    transition's own, the same one `_mint_transition` (cli.py) mints."""
+    return seg.get("transition", {}).get("form", "")
 
 
 # [on-seam]
@@ -65,14 +62,15 @@ def _on_seam(step, seg):
 
 
 def seam_label(seg):
-    """What a human calls this seam: the disposing form's own name where the
-    transition declares one (`consolidate`, `plan-to-execute`) -- the form is
-    the thing a reader already knows by that name throughout the tree --
-    or, where the transition declares neither form nor panel (run-a-gate's
-    review, minted at `select`), the segment's own id, which is already the
-    seam's whole identity there. Public: issue113's run-level round-cap
-    names the seam in its own ask by this same lookup, never a second one."""
+    """What a human calls this seam: the transition's own id where it
+    declares one (run-a-gate's `review`), else the disposing form's own name
+    (`consolidate`, `plan-to-execute`) -- the form is the thing a reader
+    already knows by that name throughout the tree -- else the segment's own
+    id. Public: issue113's run-level round-cap names the seam in its own ask
+    by this same lookup, never a second one."""
     t = seg.get("transition", {})
+    if t.get("id"):
+        return t["id"]
     if t.get("form"):
         return pathlib.Path(t["form"]).stem.lower().replace("_", "-")
     return seg["id"]
@@ -170,8 +168,8 @@ def _landed_round(st, seg, step):
 
 def seam_round_steps(st, seg):
     """The steps behind a landed round at this seam, in journal order: round
-    one from `skeleton()`'s own mint or `select`'s first panel mint, every
-    later round `_mint_segment_round`/`_mint` (cli.py) minted fresh under its
+    one from `skeleton()`'s own mint, every later round
+    `_mint_segment_round`/`_mint_transition` (cli.py) minted fresh under its
     own random tag -- found by segment and the seam's own disposing form,
     never by a hardcoded id. A round has landed once its panel has returned
     or, where the round carries no panel, once its conductor has disposed of
@@ -243,9 +241,9 @@ def seam_rounds(st, seg, assembly):
     for step in seam_round_steps(st, seg):
         # Each round resolves its own table and its own panel forms from the
         # step it was dispatched on, never the seam's static declaration: a
-        # round minted at `select` (run-a-gate's review) writes its panel at
-        # runtime, and a round's own step is what says which of the segment's
-        # two tables governs it.
+        # later round may carry a different panel (a `rework-panel`), and a
+        # round's own step is what says which of the segment's two tables
+        # governs it.
         _, table = runmod.deciding_spec(assembly, step)
         rounds.append(_round(st["returns"].get(step["id"]) or [],
                              st["done"].get(step["id"]),

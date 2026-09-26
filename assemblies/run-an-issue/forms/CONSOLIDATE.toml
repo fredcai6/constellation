@@ -20,8 +20,8 @@ is released here, not read by another panel. Where you are standing on that
 returned spec, release it. A finding is severe when it changes which
 problem this run is solving, or the fundamental thing its next step would
 code; for that, `rewrite`, and write in `orders` what the spec must say,
-forward, with nothing about what the last one got wrong -- the rewrite
-starts from your orders alone, and gets its own look. Call every finding
+forward -- the rewrite starts from your orders and the finding you called
+`severe`, never the last draft, and gets its own look. Call every finding
 the panel returned. On a release (a `pass`, or a `revise` you are not
 sending back) this step will not complete while a row is open on the board
 above, or while a decision is recorded with no words from the principal --
@@ -42,7 +42,7 @@ called `writer`, taken or rejected on its own judgement; the spec it
 returns stands here with no panel, and your next word on it is a release,
 or a `rewrite` if the pass itself went severely wrong -- a second
 incorporate refuses. `rewrite` is a fresh spec, written from your `orders`
-alone, with its own panel: the call for a finding you called `severe`. A
+and the finding you called `severe`, with its own panel: the call for a finding you called `severe`. A
 spec gets one rewrite; a second, before this seam releases, becomes an ask
 at the run's principal instead.
 `up` is the round you cannot rule on from here, the issue itself being
@@ -55,10 +55,10 @@ id = "orders"
 kind = "evidence"
 optional = true
 note = """
-Your own words for the next round. On a `rewrite` they are the whole of
-what the fresh spec-writer holds: the problem, the boundary, and what done
-looks like, stated forward -- never the findings or the draft they were
-about. On an `incorporate` they ride ahead of the findings, as yours.
+Your own words for the next round. On a `rewrite` they are what the fresh
+spec-writer holds beside the finding you called `severe`: the problem, the
+boundary, and what done looks like, stated forward -- never the other
+findings or the draft they were about. On an `incorporate` they ride ahead of the findings, as yours.
 `waived: none` where the findings say it all. Never write an order into
 `calls` as if the panel had returned it."""
 

@@ -67,8 +67,8 @@ def _mint_returned_child_step(wid="r1", child=None):
     journal.append(wid, "return", step="g1", child=child,
                    fields={"result": "ok"},
                    summary={"checks": [{"exit": 0, "command": "true"}]})
-    journal.append(wid, "step", id="select", segment="work",
-                   form="forms/SELECT.toml", filler="conductor", child=child,
+    journal.append(wid, "step", id="route", segment="work",
+                   form="forms/ROUTE.toml", filler="conductor", child=child,
                    prefill={}, anchor=False, terminal=False, validates="", source="mint")
 
 
@@ -317,7 +317,7 @@ def test_form_filler_brief_on_a_conductor_step_resolves_heavy_tier_and_matching_
 
 def test_form_filler_brief_on_a_gate_conductor_step_resolves_heavy_tier_and_matching_posture(
         workdir, capsys):
-    _mint_conductor_step("g1", assembly="run-a-gate", segment="select", form="forms/SELECT.toml")
+    _mint_conductor_step("g1", assembly="run-a-gate", segment="close", form="forms/GATE_CLOSE.toml")
     st, asm, step, form = _current("g1")
 
     filler_out = cli._form_filler_brief("g1", st, asm, step, form)
