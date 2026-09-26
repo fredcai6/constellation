@@ -57,11 +57,16 @@ A command that passes on an empty diff proves nothing, and so does one that
 covers less than `scope` promised. It exercises purpose's claim: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string to run, never a description of it:
 this field rides into the dispatched child as its own `proof`, shell-executed
-there. The engine runs it once when you submit, against the run's tree as it
-stands, and the conductor reads the result beside your cut: a real check
-fails there, before the work; one that passes proves nothing; prose does not
-resolve. Reference the command palette (constellation.toml) rather than
-hardcoding where it applies."""
+there. It runs three times. At your submit, against the run's tree as it
+stands, the conductor reads the result beside your cut: a real check fails
+there, before the work; one that passes proves nothing; prose does not
+resolve. At adjudication it runs against the gate's landed work. And when
+the run closes it runs once more, against the finished tree, after every
+later gate has landed. So state what must still be true when the run ends.
+What the gate must leave alone -- nothing else changed, a file identical to the
+cut -- goes in `scope`, which adjudication reads when the gate lands.
+Reference the command palette (constellation.toml) rather than hardcoding
+where it applies."""
 
 [[field]]
 id = "budget"

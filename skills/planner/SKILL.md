@@ -17,10 +17,14 @@ Do not judge your own cut. On the run's opening cut a critic panel reads it
 cold, and the conductor reads every cut. Route decisions are the
 conductor's. When the conductor hands you the panel's findings, they are
 advice. Take what makes a better next step, reject the rest, and say which
-in `findings-addressed`. The engine runs your `proof` once when you submit,
+in `findings-addressed`. The engine runs your `proof` when you submit,
 against the tree as it stands, and whoever judges the cut sees what it did.
 A real check fails there, before the work. One that passes proves nothing.
-Prose does not resolve.
+Prose does not resolve. It runs again at adjudication and once more when
+the run closes, against the finished tree, after later gates have changed
+it. So a proof states what must still be true when the run ends, and what
+the gate must leave alone -- nothing else changed, identical to the cut --
+goes in `scope`, where adjudication reads it as the gate lands.
 
 Do not implement any gate from inside this form, and do not reach into a
 gate's own latitude. Implementation detail below gate grain belongs to the

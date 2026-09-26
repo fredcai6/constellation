@@ -43,8 +43,10 @@ kind = "proof"
 note = """
 Same as PLAN.toml's `proof`: the exact command to run, never a description,
 referencing the command palette (constellation.toml) -- one that proves
-nothing on an empty diff or a diff short of `scope`. Run once at submit, as
-there, and read by the conductor beside this round."""
+nothing on an empty diff or a diff short of `scope`. Run at submit, at
+adjudication, and again when the run closes, as there: it states what must
+still be true when the run ends, and what the gate must leave alone goes in
+`scope`."""
 
 [[field]]
 id = "budget"
