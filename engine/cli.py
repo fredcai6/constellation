@@ -4859,6 +4859,14 @@ def _last_decision(st, asm):
 #   publish, and an open PR on the branch is the run's PR. A PR close does
 #   open is a draft carrying the run's own disposition -- merging is the
 #   owner's act, and the body is what the run concluded, not a bare id.
+#
+# [a-merged-pr-is-the-runs-pr]
+# Rationale: tennis_elo issue163 -- the principal merged the run's PR before
+#   close ran. Only an open PR was looked for, so close asked `gh pr create`
+#   for a branch main already held, and the refusal's retry could never
+#   succeed. A PR merged from the branch is the run's PR as much as an open
+#   one is. A PR closed unmerged is not: it was set aside, and the run's
+#   work still needs one.
 def _publish(wid, top, st, body):
     """The run's PR URL once the branch is pushed and a PR exists for it, or
     "" when the branch holds no commits past the run's cut point."""
@@ -4870,10 +4878,13 @@ def _publish(wid, top, st, body):
         raise SystemExit(render.refusal(
             "push", f"push failed -- {(pushed.stderr or pushed.stdout).strip()}",
             escape=f"the run is untouched -- retry: spine {wid} close"))
-    found = _gh(top, "pr", "list", "--head", branch, "--state", "open",
-                "--json", "url", "--jq", ".[0].url // empty")
-    if found.returncode == 0 and found.stdout.strip():
-        return found.stdout.strip()
+    found = _gh(top, "pr", "list", "--head", branch, "--state", "all",
+                "--json", "url,state")
+    if found.returncode == 0:
+        prs = json.loads(found.stdout or "[]")
+        live = [p["url"] for p in prs if p.get("state") in ("OPEN", "MERGED")]
+        if live:
+            return live[0]
     pr = _gh(top, "pr", "create", "--draft", "--head", branch,
              "--title", st.get("title") or wid,
              "--body", f"{body}\n\nWork-Id: {wid}".lstrip())

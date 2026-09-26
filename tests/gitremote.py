@@ -11,6 +11,7 @@ root is refused by name, and an autouse fixture would turn that refusal
 green for the wrong reason rather than a real one.
 """
 
+import json
 import pathlib
 import subprocess
 import tomllib
@@ -61,7 +62,7 @@ def init_checkout(tmp_path):
 #   anywhere binds the one module in `sys.modules` -- so patching the
 #   module directly reaches every caller, `_git` included, with one seam.
 def stub_gh(monkeypatch, ok=True, pr_url="https://example.invalid/pr/1", stderr="",
-           calls=None, open_pr=""):
+           calls=None, open_pr="", prs=None):
     """Every `gh ...` call returns as if it had succeeded (or failed, with
     `ok=False`); every other subprocess call goes through untouched.
 
@@ -70,8 +71,10 @@ def stub_gh(monkeypatch, ok=True, pr_url="https://example.invalid/pr/1", stderr=
     asserting on a stub it wrote itself for anything but "ran" and "with
     what argv".
 
-    `open_pr` is what `gh pr list` finds open on the branch: nothing by
-    default, a URL to stand for a PR someone already opened."""
+    `prs` is what `gh pr list` finds on the branch, as `{"url", "state"}`
+    dicts: nothing by default. `open_pr` is shorthand for one open PR."""
+    if prs is None:
+        prs = [{"url": open_pr, "state": "OPEN"}] if open_pr else []
     real = subprocess.run
 
     def run(cmd, **kw):
@@ -79,13 +82,24 @@ def stub_gh(monkeypatch, ok=True, pr_url="https://example.invalid/pr/1", stderr=
             if calls is not None:
                 calls.append(list(cmd))
             if ok and list(cmd[1:3]) == ["pr", "list"]:
-                return subprocess.CompletedProcess(cmd, 0, f"{open_pr}\n" if open_pr else "", "")
+                return subprocess.CompletedProcess(cmd, 0, _pr_list(list(cmd), prs), "")
             if ok:
                 return subprocess.CompletedProcess(cmd, 0, f"{pr_url}\n", "")
             return subprocess.CompletedProcess(cmd, 1, "", stderr or "gh: failed")
         return real(cmd, **kw)
 
     monkeypatch.setattr(subprocess, "run", run)
+
+
+def _pr_list(argv, prs):
+    """What `gh pr list` prints for `prs`: filtered by `--state` as gh does
+    (it defaults to open), and, under a `--jq`, the first URL -- the one
+    filter the engine has ever asked for."""
+    state = argv[argv.index("--state") + 1] if "--state" in argv else "open"
+    found = [p for p in prs if state == "all" or p["state"] == state.upper()]
+    if "--jq" in argv:
+        return f"{found[0]['url']}\n" if found else ""
+    return json.dumps(found)
 
 
 def read_archived(top, wid, kind=None):
