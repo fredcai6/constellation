@@ -876,6 +876,38 @@ def _open_obligations(pst, proot):
                                      for r in rows)}
 
 
+# [landed-since-cut]
+# Rationale: 2026-09-26 -- a re-cut after a gate lands was promised "what
+#   has landed" as prefill and received none, so each planner went looking:
+#   issue191's fifth planner read the third gate's PLAN.md, the route forms
+#   and the fourth adjudication, and wrote its cut as an amendment to them
+#   ("earlier plans' facts still hold and are not repeated"). What has
+#   landed is a fact the tree and the board already hold -- the commits
+#   past the run's cut point, each gate's own subject, and the rows its
+#   adjudications settled -- so the engine hands it over the way
+#   `_open_obligations` hands over what is still open, and each cut is
+#   written from the spec and the state as they stand.
+# Rejected: carrying the previous cut's plan or horizon forward. That is
+#   the amendment chain itself; the gate ahead answers to the code and
+#   spec now, not to what an earlier cut expected them to be.
+def _landed(pst, proot):
+    """`{"landed": ...}`: the commits the run's tree holds past its cut
+    point, oldest first, then the execution-state rows already settled with
+    their word; `{}` where nothing has landed yet or git cannot say."""
+    sha = (pst.get("from") or "").rpartition("@")[2]
+    lines = []
+    if sha:
+        log = _git(proot, "log", "--reverse", "--format=%h %s", f"{sha}..HEAD")
+        if log.returncode == 0:
+            lines = [ln for ln in log.stdout.splitlines() if ln.strip()]
+    stored = pst["boards"].get("execution-state", "")
+    path = journal.location(pst["id"], proot) / pathlib.Path(stored).name if stored else None
+    if path and path.exists():
+        lines += [f"{r.get('id', '')} -- {r.get('status', '')}"
+                  for r in boards.rows(path) if not boards.unsettled(r)]
+    return {"landed": "\n".join(lines)} if lines else {}
+
+
 def _open_child(assembly, parent, pstep_id, row_id=""):
     """A child is dispatched, never composed: its id, its orders, and the
     tier it runs under all come from the parent's step. A panelist is the
@@ -955,7 +987,11 @@ def _mint_child(assembly, parent, pstep_id):
         # cycles included -- and the panel step's own prefill rides on top
         # where its mint carried one (a `rework-panel` round's blocking
         # findings: the orders its reader checks the artifact against).
+        # It reads the same state the planner cut from -- what is still
+        # open and what has landed -- since "the right next chunk" is a
+        # question about both.
         prefill = {**(pst.get("prefill") or {}),
+                   **_open_obligations(pst, proot), **_landed(pst, proot),
                    **_round_artifact(pasm, pst, pstep["segment"], step_id),
                    **(pstep.get("prefill") or {}),
                    "criteria": panelist.get("criteria", "")}
@@ -971,7 +1007,7 @@ def _mint_child(assembly, parent, pstep_id):
         # on collision, so a gate child's spec -- which duplicates nothing
         # the run-level prefill holds -- is unaffected.
         prefill = {**(pst.get("prefill") or {}), **(pstep.get("prefill") or {}),
-                   **_open_obligations(pst, proot)}
+                   **_open_obligations(pst, proot), **_landed(pst, proot)}
         title = prefill.get("purpose", pstep_id)
     asm = runmod.load_assembly(assembly)
     journal.append(wid, "run", title=title, assembly=assembly,
@@ -1829,8 +1865,8 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     # Rationale: a route step has no child of its own, so its room used to
     #   show the panel's verdict and nothing of the round it was ruling on;
     #   the critics saw the cut (`_round_artifact` fills their prefill) and
-    #   the conductor did not. Now that the plan seam's panel reads the
-    #   opening cut only (`[panel-rounds]`), every later route round is the
+    #   the conductor did not. Now that the plan seam's panel reads fresh
+    #   cuts only (`[panel-rounds]`), an incorporated round is routed by the
     #   conductor alone, and the cut has to be in the room it is routed
     #   from. So a step with no child reads the segment's most recent round
     #   that was dispatched and has returned -- the same walk
@@ -2547,10 +2583,12 @@ def cmd_submit(argv):
     # A check's command comes from the orders: the step's own prefill when it
     # has one, else the run's -- a dispatched child carries its spec at the
     # run level, and its first step is minted before that spec exists. The
-    # budget rides in beside it, from the same orders.
+    # budget rides in beside it, from the same orders. A `waived:` one is an
+    # order with nothing to run -- a gate cut with no `gate-proof`.
     orders = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
     commands = [(f["id"], _resolve_command(orders.get(f["id"], ""), check_root))
-                for f in form["fields"] if f.get("kind") == "check"]
+                for f in form["fields"] if f.get("kind") == "check"
+                and forms.leading_word(str(orders.get(f["id"], ""))) not in forms.NULL_WORDS]
     commands = [(fid, cmd) for fid, cmd in commands if cmd]
     if not commands:
         complete_submit(wid, step["id"], fields, [])
@@ -3036,8 +3074,8 @@ def _impasse_ruled_rework(step, fields):
 #   stop firing.
 # Rationale: the guard reads the step, not only its panel. A route step with
 #   no panel is real now -- run-an-issue's plan seam mints its critic panel
-#   on the run's opening cut only (`panel-rounds`, ASSEMBLY.toml), so every
-#   later PLAN_TO_EXECUTE round is the conductor's form alone -- and a
+#   on fresh cuts only (`panel-rounds`, ASSEMBLY.toml), so an incorporated
+#   PLAN_TO_EXECUTE round is the conductor's form alone -- and a
 #   conductor sending such a round back owes the next round its `orders`
 #   and spends the count exactly as a panel-judged one does. Keying on
 #   `panel` alone read that step as the impasse ruling and carried nothing.
@@ -3286,7 +3324,7 @@ def _perform(wid, asm, seg, does, fields, step):
             if severe:
                 rewrite["severe"] = severe
             _mint_segment_round(wid, asm, tseg["id"], prefill=rewrite,
-                                restarts=True, panel=True, rewrite=True)
+                                restarts=True, rewrite=True)
         elif word == "rework":
             if _round_capped(wid, asm, seg, tseg):
                 continue
@@ -3787,12 +3825,12 @@ def _recheck_satisfied(wid, asm):
 #   <paths>`), which a later gate's planned work made false. The conductor
 #   re-ran the substance, found it held, and marked the row satisfied by
 #   hand in EXECUTION_STATE.toml -- the one write that skips this recheck.
-#   Close is where the conductor learns a row reopened, so close names the
-#   move for each reading of it.
+#   Such a clause is a `gate-proof` now, which close never replays; close
+#   still names the move for a `proof` that holds a clause of that kind.
 _REOPENED = (
     "a satisfied obligation reopened at close -- its gate's proof no longer passes.\n"
     "  if the obligation broke: work the plan round it has minted.\n"
-    "  if only a clause about what the gate left alone failed and the substance\n"
+    "  if only a clause that held when the gate landed failed and the substance\n"
     "  still holds: record what you re-ran -- spine {wid} note observation '...'\n"
     "  -- and take it up: spine {wid} up \"<reason>\"")
 
@@ -3984,7 +4022,7 @@ def _mint_gates(wid, seg, gates, start=1):
 #   `revise` the conductor chose not to send back) looks like next to a
 #   `rework`/`up`, generic off the outcome rather than off any one form's
 #   own artifact field name.
-_GATE_FIELDS = ("purpose", "scope", "proof", "budget", "model", "direction")
+_GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "direction")
 
 
 # [projected-source]
@@ -4511,11 +4549,11 @@ def _amend_waive(wid, st, step_id, reason):
 #   second shape to reach the same form would be a second thing to keep in
 #   sync with the planner's skill for no behaviour gained.
 def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
-                        restarts=False, panel=False, resumed=False, rewrite=False):
+                        restarts=False, resumed=False, rewrite=False):
     """Mint one fresh round of a segment: its step-form (or the form the
     caller names -- a revise passes the segment's rework form) as a fresh
-    interior step, plus its transition -- with its panel where the
-    transition declares one for every round (`[panel-rounds]` below) --
+    interior step, plus its transition -- with its panel on the rounds the
+    transition declares it for (`[panel-rounds]` below) --
     both read from the assembly, never copied from whatever minted last.
     The shared move a revise and a replan both need: the segment reopened
     for another pass.
@@ -4527,13 +4565,10 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     `rewrite` stamps the fresh transition as a rewrite's round, which is
     what `[rewrite-cap]` counts.
 
-    `panel` mints the transition's panel on this round whatever its
-    `panel-rounds` says: a `rewrite` is a fresh artifact, and a fresh
-    artifact gets its one look (`[one-look]`).
-
     `restarts` says which kind of round this is, and only the caller knows:
     a `rework` is another pass at the artifact standing (the default), a
-    `refill` is a fresh one. It is journaled as `sent_back` so
+    `refill` is a fresh one, and a fresh one is what a `fresh` panel reads
+    (`[panel-rounds]`). It is journaled as `sent_back` so
     `run.rework_rounds` reads the fact rather than inferring it from which
     form was minted -- see `[rework-rounds]` (engine/run.py) for the case
     that inference got wrong.
@@ -4598,17 +4633,21 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
              "source": "panel"}
     # [panel-rounds]
     # Rationale: a transition says which rounds its panel is minted for.
-    #   `every` (the default, and what every transition read as before the
-    #   key existed) re-fires the panel on each fresh round; `opening` mints
-    #   it on the run's opening round alone -- `skeleton()`'s, which reads
-    #   the panel unconditionally -- so a rework, a refill after a gate and a
-    #   resumed round all stand the conductor's form there with no panel
-    #   beside it. run-an-issue's plan seam declares `opening` (ruling,
-    #   2026-09-11: one look over a cut, then the proof is in execution).
+    #   `every` (the default) re-fires the panel on each fresh round;
+    #   `fresh` mints it on each fresh artifact -- the opening round
+    #   (`skeleton()`'s, which reads the panel unconditionally) and every
+    #   round the caller says `restarts`: a rewrite, a replan's refill, the
+    #   re-cut after a gate lands -- and never on a pass over findings (an
+    #   incorporate) or a resumed round, which stand the conductor's form
+    #   alone (`[one-look]`). run-an-issue's two seams declare `fresh`
+    #   (ruling, 2026-09-26: each gate's cut answers to the code and spec
+    #   as they stand, so each gets its own cold read). It replaces
+    #   `opening`, which panelled the run's first cut alone: later gates'
+    #   cuts went unread and were written as amendments to the first.
     # Rejected: a mint-time rule keyed on the segment or its `dispatches`.
     #   Which rounds a panel reads is the assembly's call about its own
     #   seam, and an engine rule would have to name the seam to make it.
-    if t.get("panel") and (panel or t.get("panel-rounds", "every") != "opening"):
+    if t.get("panel") and (restarts or t.get("panel-rounds", "every") != "fresh"):
         fresh["panel"] = t["panel"]
     # [rework-panel]
     # Rationale: a transition may declare the readers every round after its
@@ -4617,12 +4656,12 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     #   for anything the rework made false, the two things a later round
     #   ever found. That reader is handed the findings on this round's own
     #   prefill -- the same blocks the rework was -- since a panelist reads
-    #   its orders there. A `rewrite` is a fresh artifact and keeps the full
+    #   its orders there. A fresh artifact (`restarts`) keeps the full
     #   panel.
     # Rejected: an agent choosing each round's readers on a form (run-a-gate's
     #   old `select`). Its fills copied the same blocks nearly every time, on
     #   a heavy runner; what is fixed belongs to the assembly.
-    if fresh.get("panel") and t.get("rework-panel") and not panel:
+    if fresh.get("panel") and t.get("rework-panel") and not restarts:
         fresh["panel"] = t["rework-panel"]
         if prefill:
             fresh["prefill"] = prefill

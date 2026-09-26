@@ -14,7 +14,8 @@ gate: purpose, scope, proof, and, when you know them, a model override and
 a direction for what it should teach. Prefer a small next chunk -- one that
 moves the run, and one diff a reviewer can run and read -- since the
 engine reopens this segment after every gate while an obligation stays
-open, and each cut is chosen knowing what the last one landed. Start at the
+open, and each cut is chosen from the spec and the tree as they stand --
+what has landed since the run began arrives as `landed`. Start at the
 code map (`map/INDEX.md`; `palette:map` builds it where the tree has none)
 and read the code it points you to. Purpose says what the run takes as true
 once this gate lands, proof says what verifies it, scope says where, at
@@ -24,11 +25,12 @@ engine root the brief named, is what this project builds by; name in
 `purpose` which of its five this gate serves, and cut the gate that serves
 it and nothing beside it. Sketch the horizon behind it -- coarsely, and only
 as far as you can actually commit to before the ground shifts. The plan
-document itself carries the approach and the risks that would change it;
-this gate's purpose, scope and proof are the fields below, not restated
-there. Where your prefill holds `orders` and `severe`, the last cut was
-severely wrong and is gone: cut fresh from the orders, with the severe
-finding in mind."""
+document itself carries the approach and the risks that would change it,
+and stands on its own: the panel reads it cold, with the spec and the run's
+state beside it and no earlier plan. This gate's purpose, scope and proofs
+are the fields below, not restated there. Where your prefill holds `orders`
+and `severe`, the last cut was severely wrong and is gone: cut fresh from
+the orders, with the severe finding in mind."""
 
 [[field]]
 id = "plan"
@@ -57,16 +59,23 @@ A command that passes on an empty diff proves nothing, and so does one that
 covers less than `scope` promised. It exercises purpose's claim: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string to run, never a description of it:
 this field rides into the dispatched child as its own `proof`, shell-executed
-there. It runs three times. At your submit, against the run's tree as it
-stands, the conductor reads the result beside your cut: a real check fails
-there, before the work; one that passes proves nothing; prose does not
-resolve. At adjudication it runs against the gate's landed work. And when
-the run closes it runs once more, against the finished tree, after every
-later gate has landed. So state what must still be true when the run ends.
-What the gate must leave alone -- nothing else changed, a file identical to the
-cut -- goes in `scope`, which adjudication reads when the gate lands.
-Reference the command palette (constellation.toml) rather than hardcoding
-where it applies."""
+there. This is what must be true when the issue ends. It runs at your
+submit, against the run's tree as it stands, where whoever judges the cut
+reads the result beside it: a real check fails there, before the work; one
+that passes proves nothing; prose does not resolve. It runs again when the
+gate lands, and once more when the run closes, against the finished tree
+after every later gate has landed. Reference the command palette
+(constellation.toml) rather than hardcoding where it applies."""
+
+[[field]]
+id = "gate-proof"
+kind = "proof"
+optional = true
+note = """
+What must be true when this gate lands, and need not hold after later gates
+have: what the gate left alone -- nothing else changed, a file identical to
+the cut. The exact command, like `proof`; it runs at your submit and when
+the gate lands, never at close. Or waived: none."""
 
 [[field]]
 id = "budget"

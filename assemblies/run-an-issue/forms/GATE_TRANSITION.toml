@@ -124,10 +124,16 @@ covers less than `scope` promised -- one check per obligation. It exercises
 purpose's claim too: a proof that passes while purpose is false has proved
 the wrong thing. Write the exact string you ran, never a description of it:
 this field is shell-executed in the dispatched child, so prose becomes a
-command and fails there, after the work is done. It runs again when the run
-closes, against the finished tree, so it states what must still be true
-then; what the gate must leave alone goes in `scope`. Reference the command
-palette (constellation.toml) rather than hardcoding where it applies."""
+command and fails there, after the work is done. It is what must be true
+when the issue ends, so it runs again at close against the finished tree.
+Reference the command palette (constellation.toml) rather than hardcoding
+where it applies."""
+
+  [[field.item]]
+  id = "gate-proof"
+  kind = "check"
+  optional = true
+  note = "Same as PLAN.toml's `gate-proof`: what must be true when this gate lands, never re-run at close. Or waived: none."
 
   [[field.item]]
   id = "budget"

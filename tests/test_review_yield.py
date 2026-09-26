@@ -83,7 +83,7 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
                 if s["segment"] == "plan" and s.get("source") == "mint" and s.get("dispatches"))
     _dispatch_and_close_plan(wid, fresh["id"], _fill_plan_rework)
 
-    # round two: no panel after the opening cut (`panel-rounds = "opening"`),
+    # round two: no panel on an incorporated round (`panel-rounds = "fresh"`),
     # so the conductor's own word is the round's record -- a pass, with
     # nothing to call
     assert not runmod.state(wid)["current"].get("panel")

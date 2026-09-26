@@ -174,7 +174,7 @@ def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdi
     """The guard reads the producing step's form: `_round_artifact` is what
     a panelist's prefill is built from (`_open_child`), and a rework round's
     ledger is stripped there. No panel reads a plan-seam rework round any
-    more (`panel-rounds = "opening"`), so the read is made directly against
+    more (`panel-rounds = "fresh"`), so the read is made directly against
     the real round's journal rather than through a panelist that the seam no
     longer dispatches; the conductor's own route room, by the form's own
     words, is meant to see the ledger."""
@@ -203,7 +203,7 @@ key-terms = "waived: none"
     st = runmod.state(wid)
     route_id = st["current"]["id"]
     assert route_id != "plan"  # the fresh route round, not the first round's
-    assert not st["current"].get("panel")  # no panel after the opening cut
+    assert not st["current"].get("panel")  # no panel on an incorporated round
     asm = runmod.load_assembly("run-an-issue")
     prefill = cli._round_artifact(asm, st, "plan", route_id)
     assert "findings-addressed" not in prefill  # the producer's ledger stays behind
@@ -630,7 +630,7 @@ def test_understands_revise_mints_the_step_form_with_findings_as_prefill(workdir
     assert fresh["form"] == "skills/spec-writer/forms/SPEC.toml"
     assert "assumes a trailing newline exists" in fresh["prefill"]["findings"]
     assert st["current"]["id"] == fresh["id"]
-    assert not st["current"].get("panel"), "no panel after the opening cut"
+    assert not st["current"].get("panel"), "no panel on an incorporated round"
 
 
 # -- 8. `_mint_segment_round`'s fresh transition round carries `filler` too --

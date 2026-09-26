@@ -54,9 +54,10 @@ is joint. Coining a synonym for a term below is a defect.
   segment's own impasse form where one is declared. A panel is written once, at the mint that
   makes its step: declared on a transition, never grown after — with, optionally, a
   `rework-panel` the transition's later rounds get instead (run-a-gate's one rework reader). A transition also declares which of its rounds the panel reads —
-  `panel-rounds = "every"` (the default) or `"opening"`, the run's opening round alone, which is
-  run-an-issue's plan seam: a later cut stands the conductor's route form with no panel beside
-  it. Review never lives in an interior.
+  `panel-rounds = "every"` (the default) or `"fresh"`, each fresh artifact alone — the opening
+  round, a rewrite, a replan, the re-cut after a gate lands — which is run-an-issue's spec and
+  plan seams: an incorporated round stands the conductor's route form with no panel beside it.
+  Review never lives in an interior.
 - **clean** — one of `verdict_fold`'s three per-voice/panel outcomes (`engine/run.py`): a
   voice's return whose leading word is inside that voice's own form's declared vocabulary, or
   (panel-wide) the panel's own clean word once a refusal and total quiet are both ruled out.
@@ -159,8 +160,8 @@ is joint. Coining a synonym for a term below is a defect.
   (`engine/review_yield.py`'s `seam_round_steps_since_release`) — a release starts the count
   over, and so does a round a pause's answer opened (#177); a fresh artifact or an impasse
   ruling does not — where `impasse-after` counts one
-  artifact's own rework rounds and resets on a new one. A round with no panel (run-an-issue's
-  plan seam after the opening cut) counts once its conductor disposes of it. Declared on
+  artifact's own rework rounds and resets on a new one. A round with no panel (an incorporated
+  round at run-an-issue's seams) counts once its conductor disposes of it. Declared on
   `run-a-gate`'s `review`; run-an-issue's spec and plan seams use **rewrite-cap** instead. Where a send-back
   would land the count at the cap, it mints an ask to the run's principal instead — naming the
   seam, the count, and the findings of every round counted — and `impasse-after`'s own outlet,
@@ -261,8 +262,8 @@ is joint. Coining a synonym for a term below is a defect.
   transition's own id where it declares one (review), else the disposing form's own name, else
   the segment's own id.
 - **round** — one disposal of one artifact at a seam: a panel dispatch where the round carries a
-  panel, the conductor's route form alone where it does not (run-an-issue's plan seam after the
-  opening cut) — the count `run.rework_rounds` uses plus the first — `engine/review_yield.py`'s
+  panel, the conductor's route form alone where it does not (an incorporated round at
+  run-an-issue's seams) — the count `run.rework_rounds` uses plus the first — `engine/review_yield.py`'s
   `seam_round_steps`, blind to which mint produced the step (`skeleton()`'s own, a later
   `rework`), so it counts a seam's rounds since the run opened rather
   than per artifact; the **round-cap** reads the same list cut at the seam's last release.

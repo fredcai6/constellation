@@ -113,7 +113,8 @@ def _fill_consolidate_route_with_calls(wid, resolution, *calls):
 
 
 def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing newline",
-               scope="src/parser.c only", proof="true", model="", direction=""):
+               scope="src/parser.c only", proof="true", model="", direction="",
+               gate_proof=""):
     """Fill PLAN.toml at `wid`'s own current step -- `journal.location`,
     not string interpolation, so a dotted child id (`issue17.plan-1`, the
     first round's own dispatch) nests instead of colliding with a literal
@@ -127,6 +128,8 @@ def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing new
         extra += 'model = "%s"\n' % model
     if direction:
         extra += 'direction = "%s"\n' % direction
+    if gate_proof:
+        extra += "gate-proof = '%s'\n" % gate_proof
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(wid), '''
 plan = "%s/plan.md"
@@ -402,9 +405,8 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
     A `verdict="revise"` also disposes of the round on that form, defaulting
     to `resolution` (`"incorporate"` unless the caller names another).
 
-    A round with no panel -- every plan-seam round after the run's opening
-    cut, save a `rewrite`'s own fresh one (`panel-rounds = "opening"`,
-    `[one-look]`) -- dispatches nothing; a `revise` there is the
+    A round with no panel -- an incorporated plan-seam round
+    (`panel-rounds = "fresh"`, `[one-look]`) -- dispatches nothing; a `revise` there is the
     conductor's own send-back, `findings` riding as its `orders`. One look
     (2026-09-25): a spec or a cut gets no impasse outlet any more -- the
     first revise is `incorporate` by default here, and a caller wanting a
@@ -1259,8 +1261,8 @@ def test_replan_with_nothing_pending_closes_nothing_and_still_reenters_plan(work
 def test_replan_reenters_plan_with_a_fresh_step_and_the_conductors_route_form_genuinely_reachable(
         workdir, capsys):
     """A replan's fresh round is a dispatch plus the conductor's own route
-    form -- and no critic panel: the panel reads the run's opening cut only
-    (`panel-rounds = "opening"`), so a re-cut stands PLAN_TO_EXECUTE alone."""
+    form -- with the critic panel beside it: a re-cut is a fresh artifact
+    (`panel-rounds = "fresh"`), so it gets its own cold read."""
     _mint_n_gates(2)
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
@@ -1280,7 +1282,7 @@ def test_replan_reenters_plan_with_a_fresh_step_and_the_conductors_route_form_ge
     fresh_route = next(s for s in st["steps"] if s.get("source") == "panel")
     assert fresh_route["segment"] == "plan"
     assert fresh_route["form"] == "forms/PLAN_TO_EXECUTE.toml"   # the conductor's form
-    assert "panel" not in fresh_route                            # and no critic beside it
+    assert len(fresh_route["panel"]) == 3                        # and the panel beside it
     assert next(s for s in st["steps"] if s["id"] == "plan")["panel"]  # the opening cut's stays
 
     # genuinely reachable, not a step that merely looks minted
@@ -1290,7 +1292,12 @@ def test_replan_reenters_plan_with_a_fresh_step_and_the_conductors_route_form_ge
         w, purpose="redo the cut correctly", scope="src/ only", proof="true"))
     capsys.readouterr()
     st = runmod.state("issue17")
-    assert st["current"]["id"] == fresh_route["id"]  # straight to the form, nothing to wait on
+    assert st["current"]["id"] == fresh_route["id"]
+    assert runmod.panel_outstanding(st, st["current"])   # the re-cut's own cold read
+    _dispatch_plan_critic("issue17")
+    capsys.readouterr()
+    st = runmod.state("issue17")
+    assert st["current"]["id"] == fresh_route["id"]
     assert not runmod.panel_outstanding(st, st["current"])
 
     _fill_plan_to_execute("issue17")
@@ -1309,8 +1316,8 @@ def test_incorporate_still_goes_through_the_shared_primitive_unchanged(workdir, 
     """An `incorporate` mints through `_mint_segment_round`, the same
     primitive replan uses -- this pins its round's shape: the rework form as
     the fresh interior, findings attributed, and the route form re-minted
-    with no panel of its own (the panel reads the opening cut, and a
-    rewrite's fresh one, only -- `[one-look]`)."""
+    with no panel of its own (the panel reads fresh cuts only --
+    `[one-look]`)."""
     wid = "issue18"
     cli.main(["open", "run-an-issue", "--issue", "18", "--title", "t"])
     _fill_open(wid)

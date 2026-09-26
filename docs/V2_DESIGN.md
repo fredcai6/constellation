@@ -57,7 +57,7 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | understand · route | issue-conductor | `CONSOLIDATE`; `IMPASSE` on a send-back | forward when the spec is sufficient; back to do 2 only by ruling — `impasse-after = 0`, one look over a spec and the rest is found by the gates that build from it; up when the issue itself is wrong | the gate cycle |
 | **gate cycle** · route | engine | — | every obligation in the spec has a disposition → close; otherwise → plan | plan, or close |
 | **plan** · do | subagent, the planner | `PLAN` (first cut), `REWORK` (a revise) | the **next gate** from the spec and what has landed, plus a coarse horizon | review |
-| plan · review | critic subagents, cold — on the run's opening cut only (`panel-rounds = "opening"`); every cut after is the conductor's to read, with the engine's one run of its `proof` beside it | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap; `pass | revise` | route |
+| plan · review | critic subagents, cold — on every fresh cut (`panel-rounds = "fresh"`); an incorporated pass is the conductor's to read, with the engine's run of its proofs beside it | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap; `pass | revise` | route |
 | plan · route | issue-conductor | `PLAN_TO_EXECUTE`; `IMPASSE` on a send-back | pass → the **gate spec** (purpose, scope, proof, model, direction) minted as a dispatch and its review step; a send-back → a ruling (`impasse-after = 0`: another cut only where the conductor names what it changes); up → an ask for help | execute |
 | **execute** · do | subagent, the gate-conductor, as a `run-a-gate` child | the spec as prefill | the **gate report** — the diff on the worktree, residue, and the engine's record of cycles, verdict, checks, amends | review |
 | execute · review | issue-conductor | `GATE_TRANSITION` | root-verify the returns; did the spec achieve the goal; what this gate taught | route |
@@ -117,7 +117,7 @@ child runs.
 - **Transitions dispatch verdict panels; review never lives in an interior.** A transition may
   dispatch 0..n reviewers — each a child prefilled with focused criteria, cold by
   construction — whose verdicts land as returns to the transition, and it declares which of
-  its rounds the panel reads (`panel-rounds`: every round, or the run's opening one alone).
+  its rounds the panel reads (`panel-rounds`: every round, or each fresh artifact alone).
   The conductor's `rework` refills, with the findings it called blocking and its own orders;
   panel composition is the conductor's call at fire time, defaulting to one and scaling with
   criticality. Interiors contain only production. A generator transition has two voices: the
@@ -447,8 +447,8 @@ all four of its gates passed first time; `#50` shipped two gate specs short of i
 transcription losses between `plan.md` and the spec; and the critic panel has never seen a gate
 spec, because it reads `PLAN.toml` and the specs are authored at the transition after it
 releases (`#27`). One change answers all three: when the plan step's artifact *is* the next
-gate spec, whoever judges the cut — the critic panel on the run's opening cut, the conductor
-on every cut after — reads what gets dispatched, there is nothing to transcribe, and a plan
+gate spec, whoever judges the cut — the critic panel on every fresh cut, the conductor on an
+incorporated pass — reads what gets dispatched, there is nothing to transcribe, and a plan
 cannot outgrow the work it plans because it is one gate long. The horizon stays because pure
 one-step planning misses seams, ordering and the chance to isolate an uncertain component —
 but it is provisional by construction and no critic attacks it at gate grain.
