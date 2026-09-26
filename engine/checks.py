@@ -83,6 +83,7 @@ MAX_STARTS = 3   # total dispatch-started records a child may ever accumulate
 #   same "two restarts, three starts total" reading -- there is no second
 #   recommendation for this shape, and no reason yet to diverge from the
 #   first.
+FILLS_ENV = "CONSTELLATION_FILLS"  # `<work-id>:<step-id>` a spawned form filler was started for
 FORM_FILLER_MAX_STARTS = 3   # total form-filler-started records a step may ever accumulate
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -233,7 +234,7 @@ def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
     return "done"
 
 
-def _spawn(argv, log, cwd=None, *, bind=None):
+def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
     """The detached runner, generalized to any argv: `Popen` it with output
     captured to `log` and nothing read from the caller's own stdin.
     `start_new_session` puts it in a session of its own, so a harness that
@@ -258,7 +259,13 @@ def _spawn(argv, log, cwd=None, *, bind=None):
     whatever it dispatches beneath itself. Omitted (`None`), the spawned
     process inherits whatever `CONSTELLATION_BOUND` this caller already
     carries, unchanged -- a form filler and a proof runner are not a
-    distinct child with a subtree of its own, so neither passes `bind`."""
+    distinct child with a subtree of its own, so neither passes `bind`.
+
+    `fills`, when given, is `<work-id>:<step-id>` for the one form step a
+    form filler was spawned to fill -- stamped into `FILLS_ENV` so that
+    process's own `submit` of that step can say its work is done (see
+    `[filler-ends-at-its-submit]`, engine/cli.py). Never inherited: a
+    process this one spawns is not filling that step."""
     env = {**os.environ,
            "PYTHONPATH": os.pathsep.join(
                p for p in (str(_ROOT), os.environ.get("PYTHONPATH", "")) if p),
@@ -266,6 +273,9 @@ def _spawn(argv, log, cwd=None, *, bind=None):
                "CONSTELLATION_SESSION", str(os.getpid()))}
     if bind is not None:
         env["CONSTELLATION_BOUND"] = bind
+    env.pop(FILLS_ENV, None)
+    if fills is not None:
+        env[FILLS_ENV] = fills
     with open(log, "a", encoding="utf-8") as out:
         return subprocess.Popen(
             argv, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
@@ -393,7 +403,7 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
 # Rejected: rewriting `spawn_dispatch` to call this helper too. The gate
 #   spec that asked for this function is explicit that `spawn_dispatch`
 #   itself, and every one of its existing callers, is untouched this round.
-def _dispatch_launch(commands, brief, runner, tree, log):
+def _dispatch_launch(commands, brief, runner, tree, log, fills=None):
     """Substitute `{brief}`/`{runner}`/`{tree}` into the configured
     `dispatch` entry and launch it, returning the live `Popen`. Raises
     `DispatchFailure` for every way this can fail: no `dispatch` key
@@ -422,7 +432,7 @@ def _dispatch_launch(commands, brief, runner, tree, log):
                 DISPATCH_UNFILLED, f"{word} has no value supplied for this child")
         argv.append(str(value))
     try:
-        return _spawn(argv, log, cwd=tree)
+        return _spawn(argv, log, cwd=tree, fills=fills)
     except OSError as e:
         raise DispatchFailure(DISPATCH_SPAWN_FAILED, str(e)) from e
 
@@ -448,7 +458,8 @@ def spawn_form_filler(commands, brief, runner, tree, wid, step_id, log):
     `DispatchFailure` for every way the attempt can fail, identical to
     `spawn_dispatch`'s own four failure modes -- no journal entry is
     written on that path either."""
-    proc = _dispatch_launch(commands, brief, runner, tree, log)
+    proc = _dispatch_launch(commands, brief, runner, tree, log,
+                            fills=f"{wid}:{step_id}")
     return journal.append(wid, "form-filler-started", step=step_id, pid=proc.pid,
                            log=str(pathlib.Path(log).resolve()))
 
