@@ -300,8 +300,9 @@ def skeleton(assembly):
 def _apply_amend(raw_steps, e):
     """`close` drops a pending step; `reorder` moves one before another;
     `waive` stamps the step with the panelists it no longer waits for and
-    the reason -- all three mutate the worklist in place, at the point
-    they occur in the journal. `add` needs no mutation here: its own `step`
+    the reason; `proof` writes a gate's replacement proof into its spec --
+    all four mutate the worklist in place, at the point they occur in the
+    journal. `add` needs no mutation here: its own `step`
     entry (appended right alongside the amend entry) already carries the
     new step through the ordinary branch below.
     """
@@ -320,6 +321,10 @@ def _apply_amend(raw_steps, e):
         if step:
             step["waived"] = list(step.get("waived") or []) + list(e.get("waived") or [])
             step["waived_reason"] = e.get("reason", "")
+    elif action == "proof":
+        step = next((s for s in raw_steps if s["id"] == e.get("step")), None)
+        if step:
+            step["prefill"] = {**(step.get("prefill") or {}), "proof": e.get("proof", "")}
 
 
 def _ordered(raw_steps, seg_order):

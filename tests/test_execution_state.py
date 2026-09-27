@@ -401,3 +401,49 @@ def test_a_satisfied_obligation_whose_proof_still_passes_closes(workdir, capsys,
 
     assert "re-running g1's proof" in capsys.readouterr().out
     assert runmod.state("issue17") is None or runmod.state("issue17")["closed"]
+
+
+def test_an_amended_proof_is_the_one_close_re_runs(workdir, capsys, monkeypatch):
+    """issue165: a ruling corrected a released gate's proof bar. The amend
+    carries the ruling, and close re-runs the corrected text rather than
+    reopening the obligation on the stale one."""
+    stub_gh(monkeypatch)
+    _to_close_with_g1_satisfied("test -f landed.txt")
+    root = journal.root_for("issue17")
+    (root / "landed.txt").unlink()                  # the stored bar no longer holds
+    (root / "ruled.txt").write_text("the bar the ruling set\n")
+    capsys.readouterr()
+
+    cli.main(["issue17", "amend", "proof", "g1", "--proof", "test -f ruled.txt",
+              "--reason", "n5065: the bar counts win/loss rows only"])
+    [amend] = [e for e in journal.read("issue17")
+               if e.get("kind") == "amend" and e.get("action") == "proof"]
+    assert (amend["proof"], amend["was"]) == ("test -f ruled.txt", "test -f landed.txt")
+    assert amend["reason"].startswith("n5065")
+
+    cli.main(["issue17", "close"])
+
+    out = capsys.readouterr().out
+    assert "re-running g1's proof: test -f ruled.txt" in out
+    assert runmod.state("issue17") is None or runmod.state("issue17")["closed"]
+
+
+def test_a_gate_amended_before_dispatch_carries_the_new_proof_into_its_child(
+        workdir, capsys):
+    _mint_first_gate_with_obligation()
+    (journal.root_for("issue17") / "ruled.txt").write_text("x\n")
+    cli.main(["issue17", "amend", "proof", "g1", "--proof", "test -f ruled.txt",
+              "--reason", "n1: the cut named the wrong file"])
+
+    _dispatch_and_close_child("issue17", "g1")
+
+    [prefill] = [e for e in journal.read("issue17.g1") if e.get("kind") == "prefill"][:1]
+    assert prefill["fields"]["proof"] == "test -f ruled.txt"
+
+
+def test_amend_proof_on_a_step_that_is_not_a_gate_names_the_gates(workdir, capsys):
+    _mint_first_gate_with_obligation()
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "amend", "proof", "nope", "--proof", "true",
+                  "--reason", "n1: x"])
+    assert "gates: g1" in str(e.value)
