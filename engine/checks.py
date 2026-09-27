@@ -89,9 +89,21 @@ FORM_FILLER_MAX_STARTS = 3   # total form-filler-started records a step may ever
 _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
+# [budget-only-widens]
+# Rationale: #205 -- the planner's `budget` was read as a speed estimate.
+#   Across three repositories' runs most declarations sat under the default
+#   (120, 180, 300 against 600), and the engine enforced each as a kill: a
+#   right proof that took 150s on a loaded host was refused at 120, and no
+#   verb inside the gate can reach the spec to widen it. What the budget
+#   answers is "broken or slow", and a number under the default can only
+#   call a slow proof broken sooner, so a declaration widens the bound and
+#   never narrows it.
+# Rejected: a verb that amends the budget mid-gate. It repairs a guess after
+#   it has already blocked a gate; with the default as the floor, the guess
+#   no longer blocks.
 def budget_for(orders):
     """Seconds this step's proof may run: the gate spec's own `budget` where
-    it declares one, else the default.
+    it declares a longer one, else the default (`[budget-only-widens]`).
 
     A value that is not whole seconds refuses rather than falling back. A
     spec that meant fifteen minutes and typed `15m` has declared something,
@@ -108,7 +120,7 @@ def budget_for(orders):
         raise SystemExit(render.refusal(
             "budget", f"{str(raw).strip()!r} is not a number of seconds",
             escape=f'declare whole seconds on the gate spec -- budget = "{BUDGET}"'))
-    return seconds
+    return max(seconds, BUDGET)
 
 
 def _paths(wid, step_id):
@@ -621,7 +633,8 @@ def _overran(wid, step_id, fid, cmd, budget):
     return render.refusal(
         fid, f"`{cmd}` did not finish in {budget}s, its whole budget -- so "
              "either the command is wrong, or it is right and needs longer",
-        escape=(f'needs longer: declare it on the gate spec -- budget = "{budget * 2}"\n'
+        escape=(f"needs longer: the cut declares that -- a re-cut from the gate "
+                f'transition with budget = "{budget * 2}" on the gate spec\n'
                 f"  wrong: fix the command, or drop this step: "
                 f"spine {wid} amend close {step_id} --reason ..."))
 

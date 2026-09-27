@@ -81,9 +81,10 @@ the gate lands, never at close. Or waived: none."""
 id = "budget"
 optional = true
 note = """
-Declare one when the proof is long because it is right -- a full suite, a
-real build -- so a check that outruns it is news rather than the normal
-case. Whole seconds, a bare integer -- not a paragraph of rationale."""
+Seconds past which the proof counts as hung rather than slow. The engine
+allows 600 already, so declare one only for a proof that is right and may
+take longer than that -- a full suite on a busy host, a real build. Whole
+seconds, a bare integer -- not a paragraph of rationale."""
 
 [[field]]
 id = "model"

@@ -221,8 +221,9 @@ def test_a_proof_past_its_budget_is_reported_not_awaited(workdir, capsys, monkey
     proof never strands the planner's turn (#72); what is journaled is the
     same shape the gate's own runner writes for an overrun."""
     monkeypatch.setattr(checks, "HANDBACK", 30)
+    monkeypatch.setattr(checks, "BUDGET", 1)
     child = _to_the_first_cut()
-    _cut(child, "sleep 20", budget="1")
+    _cut(child, "sleep 20")
     capsys.readouterr()
 
     began = time.time()
