@@ -138,7 +138,7 @@ where it applies."""
   [[field.item]]
   id = "budget"
   optional = true
-  note = "Same as PLAN.toml's `budget`: declare one only when the proof is long because it is right. Whole seconds, a bare integer -- not a paragraph of rationale."
+  note = "Same as PLAN.toml's `budget`: declare one only for a proof that is right and may run past the engine's 600 seconds. Whole seconds, a bare integer."
 
   [[field.item]]
   id = "model"

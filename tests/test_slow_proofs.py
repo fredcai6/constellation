@@ -217,20 +217,28 @@ def test_a_proof_that_outruns_its_budget_refuses_and_names_the_budget(
     assert [x for x in journal.read("g1") if x.get("kind") == "check"][-1]["exit"] == -1
 
 
-def test_a_gate_spec_declaring_its_own_budget_is_run_under_it(bare_workdir, monkeypatch):
-    """The budget is the gate spec's to declare, so a spec that says its proof
-    is long must not be held to the engine's default -- and one that says it is
-    short must be stopped there."""
-    monkeypatch.setattr(checks, "BUDGET", 600)
-    _gate("sleep 30", budget="1")
+def test_a_gate_spec_declaring_a_longer_budget_is_run_under_it(bare_workdir, monkeypatch):
+    """The budget is the gate spec's to widen, so a spec that says its proof
+    is long must not be held to the engine's default."""
+    monkeypatch.setattr(checks, "BUDGET", 1)
+    _gate("sleep 30", budget="2")
 
     with pytest.raises(SystemExit) as e:
         cli.main(["g1", "submit"])
 
-    assert "did not finish in 1s" in str(e.value)     # 1, not the default 600
+    assert "did not finish in 2s" in str(e.value)     # 2, not the default 1
     payload = json.loads(pathlib.Path(
         ".agent-work/g1/check.work-1.json").read_text())
-    assert payload["budget"] == 1
+    assert payload["budget"] == 2
+
+
+def test_a_budget_under_the_default_never_narrows_it(bare_workdir, monkeypatch):
+    """#205: planners declared 120 on a proof that takes 150 and the gate was
+    refused with no verb to widen it. A number under the default only calls
+    a slow proof broken sooner, so the default stands."""
+    monkeypatch.setattr(checks, "BUDGET", 600)
+    assert checks.budget_for({"budget": "120"}) == 600
+    assert checks.budget_for({"budget": "900"}) == 900
 
 
 def test_a_budget_that_is_not_seconds_refuses_before_anything_runs(bare_workdir):

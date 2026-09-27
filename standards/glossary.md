@@ -227,8 +227,8 @@ is joint. Coining a synonym for a term below is a defect.
   still records none. A planner's own trial of a `proof` field past the handback keeps
   running the same way, but the step it belongs to already submitted and is not held open
   for it — its reading is collected later, at the route form (#163).
-- **proof budget** — how long a proof may run before it is broken rather than slow. Declared
-  per gate spec as `budget`, whole seconds, 600 where the spec declares none; a proof that
+- **proof budget** — how long a proof may run before it is broken rather than slow. 600 seconds,
+  widened (never narrowed) by a gate spec's `budget` in whole seconds; a proof that
   outruns it is refused. Distinct from the handback, which bounds the caller's wait rather
   than the proof — the planner's own trial of the proof at the cut is bounded by the budget
   alone, detached past the handback rather than killed at it, and reports a proof that
