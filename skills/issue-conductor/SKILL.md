@@ -34,7 +34,10 @@ finding's call is your ruling, made at a gate's adjudication step and at the
 plan and consolidate seams alike. A principal's ruling that a round goes
 unreviewed is one command, `spine <work-id> amend waive <step-id> --reason
 "..."`: the panelists still out are journaled as waived with the reason and
-the route form stays yours to fill.
+the route form stays yours to fill. A ruling that corrects a gate's `proof`
+is one command too, `spine <work-id> amend proof <gate-id> --proof
+"<command>" --reason "<ruling id>: ..."`: close re-runs the new text, and
+the reason cites the ruling so the journal says why it changed.
 
 **A spec and a plan each get one look** (ruling, 2026-09-25). The spec
 states the problem; the plan chooses the next small chunk toward its done;

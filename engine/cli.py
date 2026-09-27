@@ -43,6 +43,8 @@ spine <work-id> note <kind> <text>  record an observation, block, or decision
 spine <work-id> amend add --segment S --form F --reason "..."
 spine <work-id> amend close <step-id> --reason "..."
 spine <work-id> amend reorder <step-id> --before <step-id> --reason "..."
+spine <work-id> amend proof <gate-id> --proof "<command>" --reason "<ruling>: ..."
+    replace a gate's `proof`, the one close re-runs; cite the ruling
 spine <work-id> amend waive <step-id> --reason "..."   waive the panelists
     still outstanding on a step; the step stands, its own form still yours
 spine <work-id> close               terminal: legal once every step is done
@@ -4384,7 +4386,7 @@ def cmd_note(argv):
 
 def cmd_amend(argv):
     if len(argv) < 2:
-        raise SystemExit("spine <work-id> amend add|close|reorder|waive ... --reason \"...\"")
+        raise SystemExit("spine <work-id> amend add|close|reorder|waive|proof ... --reason \"...\"")
     wid, action = argv[0], argv[1]
     reason = _opt(argv, "--reason")
     if not reason:
@@ -4400,7 +4402,9 @@ def cmd_amend(argv):
         return _amend_reorder(wid, st, argv[2], reason, _opt(argv, "--before"))
     if action == "waive":
         return _amend_waive(wid, st, argv[2], reason)
-    raise SystemExit(f"unknown amend action {action!r} -- add | close | reorder | waive")
+    if action == "proof":
+        return _amend_proof(wid, st, argv[2], reason, _opt(argv, "--proof"))
+    raise SystemExit(f"unknown amend action {action!r} -- add | close | reorder | waive | proof")
 
 
 def _amend_add(wid, st, argv, reason):
@@ -4486,6 +4490,41 @@ def _amend_reorder(wid, st, step_id, reason, before):
     journal.append(wid, "amend", action="reorder", segment=step["segment"], step=step_id,
                    before=before, reason=reason, anchor=step.get("anchor", False))
     print(f"amended: reordered {step_id} before {before}\n")
+    return cmd_status([wid])
+
+
+# [amend-proof]
+# Rationale: a minted gate's `proof` had no way to change. issue126's was
+#   written for bash and ran in dash (#191); issue164's named a test a
+#   principal's ruling deleted; issue165's asserted `>= 6` where the ruling
+#   said `>= 5`. Each time close re-ran the stored text and reopened the
+#   obligation, and the only way on was note, up, a fresh plan round and a
+#   gate that restated the work. `amend close` on the child's check step
+#   did not help: close reads the gate's spec, not that step. So the ruling
+#   becomes one journaled amend that the fold writes into the gate's spec,
+#   and every re-read the engine makes of it -- close's recheck, and the
+#   dispatch of a gate not yet started -- reads the new text. Done gates
+#   are allowed: the proof is read again after its gate has run, so that is
+#   where an erratum is found. `proof` only: `gate-proof` is never read
+#   once its gate has landed.
+# Rejected: delivering the text into a gate child already running. Neither
+#   issue164 nor issue165 needed it; it waits for a run that does.
+def _amend_proof(wid, st, step_id, reason, proof):
+    gates = [s for s in st["steps"]
+             if s.get("dispatches") and "proof" in (s.get("prefill") or {})]
+    step = next((s for s in gates if s["id"] == step_id), None)
+    if step is None:
+        raise SystemExit(render.refusal(
+            step_id, "no gate by that id",
+            escape=f"gates: {', '.join(s['id'] for s in gates) or 'none'}"))
+    if not (proof or "").strip():
+        raise SystemExit(render.refusal(
+            "proof", "amend proof needs the replacement",
+            escape=f'spine {wid} amend proof {step_id} --proof "<command>" --reason "<ruling>: ..."'))
+    journal.append(wid, "amend", action="proof", segment=step["segment"], step=step_id,
+                   proof=proof, was=str((step.get("prefill") or {}).get("proof", "")),
+                   reason=reason, anchor=step.get("anchor", False))
+    print(f"amended: {step_id}'s proof is now `{proof}`\n")
     return cmd_status([wid])
 
 
