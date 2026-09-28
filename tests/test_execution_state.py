@@ -14,7 +14,7 @@ is the same mechanism pointed at a second file, seeded through the existing
 `_BOARD_MINT` path (`_mint`, `engine/cli.py`). What's new here is the lookup
 that finds the right file now that two boards exist, and the one verb,
 `_settle_execution`, that reads dispositions and refuses nothing: any
-disposing status -- `satisfied`, `deferred`, `invalidated`, `handed-off`,
+disposing status -- `satisfied`, `deferred`, `invalidated`,
 `rejected` -- counts as settled. (A later gate gave this board a sixth,
 non-disposing word, `owed: <reason>`, that counts as open instead --
 `boards.unsettled` is the shared read; see `tests/test_disposition.py`.)

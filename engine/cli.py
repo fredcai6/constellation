@@ -3754,8 +3754,8 @@ def _commit_gate(wid, asm, step):
 #   passes through, and either refill the plan segment for another round
 #   (`_mint_segment_round`, unchanged) or mint nothing, letting the run walk
 #   on to its own terminal step. The engine reads dispositions and refuses
-#   nothing here: `satisfied`, `deferred`, `invalidated`, `handed-off` and
-#   `rejected` all count as settled, whatever reason they carry, and a run
+#   nothing here: `satisfied`, `deferred`, `invalidated` and `rejected`
+#   all count as settled, whatever reason they carry, and a run
 #   that never seeded the board at all -- consolidate's `obligations` field
 #   is optional -- settles trivially, the exact behaviour every run had
 #   before this gate. `owed: <reason>` is the one word that is a claim

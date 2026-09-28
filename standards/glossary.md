@@ -397,9 +397,10 @@ is joint. Coining a synonym for a term below is a defect.
   nothing and the run walks on. At close, each `satisfied` row's gate proof runs again against
   the finished tree, and a row it no longer holds up is written back `owed:`.
 - **obligation** — one row on the execution-state board: something the spec requires, keyed,
-  and the disposition it settles to — `satisfied | deferred | invalidated | handed-off |
-  rejected`, each with a reason folded into the status the way `deferred: <reason>` already
-  reads elsewhere. `owed: <reason>` is the one word that is a claim without a disposition: a
+  and the disposition it settles to — `satisfied | deferred | invalidated | rejected`, each
+  with a reason folded into the status the way `deferred: <reason>` already reads elsewhere.
+  `deferred` means this run is not doing it; when someone else is, the reason names them.
+  `owed: <reason>` is the one word that is a claim without a disposition: a
   gate says the obligation was not its own to satisfy, the reason says why, and it never names
   who takes it next — the gate closing it out rarely knows, and the plan round after it may not
   decide either. An `owed` row counts exactly as `open` does: the run cannot reach its terminal

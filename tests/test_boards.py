@@ -384,7 +384,7 @@ def test_unsettled_true_for_owed_row_whatever_the_reason():
 
 @pytest.mark.parametrize("status", [
     "satisfied", "deferred: out of scope", "invalidated: superseded",
-    "handed-off: to a follow-up issue", "rejected: not true of this spec",
+    "deferred: issue 212 has it", "rejected: not true of this spec",
 ])
 def test_unsettled_false_for_every_settling_word(status):
     assert boards.unsettled({"status": status}) is False
