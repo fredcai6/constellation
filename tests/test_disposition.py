@@ -345,7 +345,7 @@ def test_an_owed_obligation_still_rides_the_next_dispatch_orders(workdir, capsys
 
 @pytest.mark.parametrize("disposition", [
     "satisfied", "deferred: out of scope for this issue",
-    "invalidated: superseded upstream", "handed-off: to a follow-up issue",
+    "deferred: issue 212 has it", "invalidated: superseded upstream",
     "rejected: not true of this spec",
 ])
 def test_every_settling_word_still_walks_the_run_to_close(workdir, capsys, disposition):

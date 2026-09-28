@@ -77,11 +77,12 @@ the row is still nobody's done work, not disposing of it."""
   [[field.item]]
   id = "disposition"
   note = """
-satisfied | deferred: <reason> | invalidated: <reason> | handed-off:
-<reason> | rejected: <reason> | owed: <reason>
+satisfied | deferred: <reason> | invalidated: <reason> | rejected: <reason>
+| owed: <reason>
 
-`deferred` says nobody is doing this, and why. `owed` says the opposite: it
-still must be done, and the gate that claimed it was not the place -- the
+`deferred` says this run is not doing it, and why; if someone else is
+(another issue, a PR), the reason names them. `owed` says the opposite: this
+run still must do it, and the gate that claimed it was not the place -- the
 reason is why it was not that gate's, never who takes it next. Accepting an
 `owed` claim does not settle the row: it counts exactly as `open` does, so
 the plan recuts and the run cannot reach its terminal step while one

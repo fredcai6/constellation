@@ -10,7 +10,7 @@
 # at close, whichever of those a run's own route to its terminal step
 # actually takes: a row still `open`, or claimed `owed:`, refills the plan
 # segment for another round; every other word mints nothing, and the run
-# walks on. Deferred, invalidated, handed-off and rejected all count as
+# walks on. Deferred, invalidated and rejected all count as
 # settled, exactly like satisfied. `owed` is the one exception: it is a
 # claim, not a disposition, and it holds the run open on purpose -- see the
 # status line below. At close, each `satisfied` row's gate proof runs again
@@ -21,12 +21,13 @@
 id = "o1"
 obligation = ""  # the spec's own obligation, verbatim, cited by key.
 status = "open"  # open | satisfied | deferred: <reason> | invalidated: <reason>
-                 # | handed-off: <reason> | rejected: <reason> | owed: <reason>
+                 # | rejected: <reason> | owed: <reason>
                  #
                  # owed differs from every other word here: it does not
-                 # settle the row. `deferred: <reason>` says nobody is doing
-                 # this and why; `owed: <reason>` says it still must be
-                 # done and this gate was not the place -- the reason is why
+                 # settle the row. `deferred: <reason>` says this run is not
+                 # doing it and why, naming whoever else is, if anyone;
+                 # `owed: <reason>` says this run still must do it and this
+                 # gate was not the place -- the reason is why
                  # it was not this gate's, never who takes it next, since
                  # the gate closing it out rarely knows and the planner that
                  # cuts the next one may not send it there either. A row
