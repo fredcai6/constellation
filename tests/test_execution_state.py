@@ -14,10 +14,9 @@ is the same mechanism pointed at a second file, seeded through the existing
 `_BOARD_MINT` path (`_mint`, `engine/cli.py`). What's new here is the lookup
 that finds the right file now that two boards exist, and the one verb,
 `_settle_execution`, that reads dispositions and refuses nothing: any
-disposing status -- `satisfied`, `deferred`, `invalidated`,
-`rejected` -- counts as settled. (A later gate gave this board a sixth,
-non-disposing word, `owed: <reason>`, that counts as open instead --
-`boards.unsettled` is the shared read; see `tests/test_disposition.py`.)
+settling status -- `satisfied` or `deferred` -- counts as settled, and any
+other holds the run open (`boards.unsettled` is the shared read; see
+`tests/test_disposition.py`).
 
 Every test here drives the real `run-an-issue` assembly end to end, reusing
 `test_nesting`'s fixtures rather than a shortcut -- the behaviour under test
@@ -347,11 +346,11 @@ def _to_close_with_g1_satisfied(proof, gate_proof=""):
     cli.main(["issue17", "submit"])
 
 
-def test_a_satisfied_obligation_a_later_change_broke_is_owed_again_at_close(
+def test_a_satisfied_obligation_a_later_change_broke_is_open_again_at_close(
         workdir, capsys, monkeypatch):
     """#74: the gate proved its obligation, and something after it undid the
     proof. Close runs that proof again, and the row it no longer holds up is
-    owed -- the run recuts its plan rather than closing on a false word."""
+    open -- the run recuts its plan rather than closing on a false word."""
     stub_gh(monkeypatch)
     _to_close_with_g1_satisfied("test -f landed.txt")
     assert runmod.state("issue17")["awaiting_close"]
@@ -363,7 +362,7 @@ def test_a_satisfied_obligation_a_later_change_broke_is_owed_again_at_close(
     assert "not complete" in str(e.value)
 
     [row] = boards.rows(_execution_state_path("issue17"))
-    assert row["status"].startswith("owed: g1's proof no longer passes at close")
+    assert row["status"].startswith("open: g1's proof no longer passes at close")
     assert "test -f landed.txt" in row["status"]
     assert runmod.state("issue17")["current"]["segment"] == "plan"
     assert not runmod.state("issue17")["closed"]

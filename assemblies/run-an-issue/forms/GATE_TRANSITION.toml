@@ -66,9 +66,9 @@ gate's work done twice, and it is what crowded out the question
 matching row of the execution-state board, this gate's own id stamped
 alongside it. Delete a block and its obligation stays open, and the run
 plans another gate for it; a gate that claimed nothing leaves this
-blank. `owed:` left standing does the same as a deleted block -- the run
-plans another gate for it -- since accepting an `owed` claim is agreeing
-the row is still nobody's done work, not disposing of it."""
+blank. `open:` left standing does the same as a deleted block. A gate
+claims only `satisfied` or `open`; any other word it wrote opens here as
+`open`, since where unfinished work goes is yours to say."""
 
   [[field.item]]
   id = "obligation"
@@ -77,17 +77,13 @@ the row is still nobody's done work, not disposing of it."""
   [[field.item]]
   id = "disposition"
   note = """
-satisfied | deferred: <reason> | invalidated: <reason> | rejected: <reason>
-| owed: <reason>
+satisfied | open: <reason> | deferred: <reason>
 
-`deferred` says this run is not doing it, and why; if someone else is
-(another issue, a PR), the reason names them. `owed` says the opposite: this
-run still must do it, and the gate that claimed it was not the place -- the
-reason is why it was not that gate's, never who takes it next. Accepting an
-`owed` claim does not settle the row: it counts exactly as `open` does, so
-the plan recuts and the run cannot reach its terminal step while one
-stands. Contest it the same way you contest any other word -- change it to
-what you have found true instead."""
+`open` keeps the obligation in this run: the plan recuts and the run cannot
+reach its terminal step while one stands. `deferred` says this run is not
+doing it -- another issue has it, it stopped being true, or it never was --
+and the reason says which, naming whoever has it if anyone does. Contest a
+claim by changing its word to what you have found true."""
 
   [[field.item]]
   id = "root"

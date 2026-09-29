@@ -8,33 +8,20 @@
 #
 # The engine's own read is at every gate's advance or drop, and once more
 # at close, whichever of those a run's own route to its terminal step
-# actually takes: a row still `open`, or claimed `owed:`, refills the plan
-# segment for another round; every other word mints nothing, and the run
-# walks on. Deferred, invalidated and rejected all count as
-# settled, exactly like satisfied. `owed` is the one exception: it is a
-# claim, not a disposition, and it holds the run open on purpose -- see the
-# status line below. At close, each `satisfied` row's gate proof runs again
+# actually takes: a row that is neither `satisfied` nor `deferred` refills
+# the plan segment for another round; once every row is one of those two,
+# the run walks on. At close, each `satisfied` row's gate proof runs again
 # against the finished tree, and a row whose proof no longer passes is
-# written back `owed:` with the command that failed.
+# written back `open:` with the command that failed.
 
 [[obligation]]
 id = "o1"
 obligation = ""  # the spec's own obligation, verbatim, cited by key.
-status = "open"  # open | satisfied | deferred: <reason> | invalidated: <reason>
-                 # | rejected: <reason> | owed: <reason>
+status = "open"  # open | open: <reason> | satisfied | deferred: <reason>
                  #
-                 # owed differs from every other word here: it does not
-                 # settle the row. `deferred: <reason>` says this run is not
-                 # doing it and why, naming whoever else is, if anyone;
-                 # `owed: <reason>` says this run still must do it and this
-                 # gate was not the place -- the reason is why
-                 # it was not this gate's, never who takes it next, since
-                 # the gate closing it out rarely knows and the planner that
-                 # cuts the next one may not send it there either. A row
-                 # left `owed` counts exactly as `open` does: the plan
-                 # segment recuts and the run cannot reach its terminal step
-                 # while one stands, so follow-up does not depend on anyone
-                 # remembering it.
-gate = ""        # the gate that claimed this row's status -- filled beside
-                 # it, including on `owed:` (that gate said it was not its
-                 # own), blank only while open.
+                 # Done in this run, still to do in this run, or not this
+                 # run's: `deferred: <reason>` says which way it left --
+                 # another issue has it, it stopped being true, or it never
+                 # was -- naming whoever has it, if anyone.
+gate = ""        # the gate that last claimed this row -- filled beside its
+                 # status, including on `open:`, blank until a gate claims it.

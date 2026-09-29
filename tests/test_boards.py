@@ -371,20 +371,20 @@ def test_summary_missing_file_is_empty():
     assert result == {"total": 0, "by_status": {}, "by_type": {}}
 
 
-# -- unsettled(): open and owed hold a row open, everything else settles ----
-
-
-def test_unsettled_true_for_open_row():
-    assert boards.unsettled({"status": "open"}) is True
-
-
-def test_unsettled_true_for_owed_row_whatever_the_reason():
-    assert boards.unsettled({"status": "owed: not this gate's scope"}) is True
+# -- unsettled(): satisfied and deferred settle, everything else holds ----
 
 
 @pytest.mark.parametrize("status", [
-    "satisfied", "deferred: out of scope", "invalidated: superseded",
-    "deferred: issue 212 has it", "rejected: not true of this spec",
+    "open", "open: not this gate's scope",
+    # words a board wrote before the vocabulary was three, or never defined
+    "owed: not this gate's scope", "handed-off: gate 4's", "invalidated: superseded",
+])
+def test_unsettled_true_for_every_other_word(status):
+    assert boards.unsettled({"status": status}) is True
+
+
+@pytest.mark.parametrize("status", [
+    "satisfied", "deferred: out of scope", "deferred: issue 212 has it",
 ])
 def test_unsettled_false_for_every_settling_word(status):
     assert boards.unsettled({"status": status}) is False
