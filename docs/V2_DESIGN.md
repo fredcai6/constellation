@@ -436,7 +436,7 @@ from what was just learned; `remint`, `drop` and `replan` keep their meanings. T
 the execution diary: what a gate satisfied is recorded in the run's **execution state** — a
 mechanical file in the work location the engine folds, never a hand edit to the spec. The
 cycle's own first move is the engine's: every obligation in the spec carries a disposition
-there — satisfied, deferred, invalidated or rejected with a reason — and the run
+there — satisfied, or deferred with a reason — and the run
 closes; otherwise it plans. The run never closes because the gate list ran out. Ambiguity a
 gate exposes rises as a question and is answered inside the replan; a flaw large enough to
 send the run back to understanding means restarting the issue run, decided one level up.

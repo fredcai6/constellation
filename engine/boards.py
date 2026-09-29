@@ -15,26 +15,25 @@ an auditor.
 import tomllib
 
 _DEFERRED = "deferred:"
-_OWED = "owed"
+_SETTLED = ("satisfied", "deferred")
 
 
 # [unsettled]
-# Rationale: the execution-state board's `owed: <reason>` is a claim a gate
-#   makes without ending the obligation -- "not mine, still owed" -- so it
-#   must hold a run open the same way a plain `open` row does. Two readers
-#   need that fact (`_settle_execution`'s own read, and `_open_obligations`'s
-#   -- both `engine/cli.py`); one shared notion here keeps them from each
-#   growing their own `or status.startswith("owed")`. No board other than
-#   execution-state ever writes `owed`, so this changes nothing for the
-#   understand board's `open | answered | moot | up | deferred`.
+# Rationale: an execution-state row is done in this run (`satisfied`), not
+#   this run's (`deferred: <reason>`), or still this run's to do -- `open`,
+#   with or without a reason. Only the two settling words let a run close;
+#   any other status holds it open, so a word nobody defined (issue165's
+#   gate wrote `handed-off`) or one a board wrote before the vocabulary
+#   collapsed to three (`owed:`) keeps the work in view instead of dropping
+#   it. Three readers share this (`_settle_execution`, `_open_obligations`,
+#   `_landed` -- `engine/cli.py`), all on the execution-state board.
+# Rejected: listing the words that hold a run open. Every settling word
+#   the board ever had beside `satisfied` came from a gate reaching for
+#   everyday English, and each new one settled its row silently.
 def unsettled(row) -> bool:
-    """True while `row` still needs work from someone: its status is `open`,
-    or it carries `owed: <reason>` -- a claim that says the obligation is
-    not this row's claimant's, never who takes it next. Every other status
-    these boards use is settled, or moot enough to let the run move past
-    it."""
+    """True unless `row`'s status is `satisfied` or `deferred: <reason>`."""
     status = str(row.get("status", "open"))
-    return status == "open" or status.split(":", 1)[0].strip() == _OWED
+    return status.split(":", 1)[0].strip() not in _SETTLED
 
 
 def load(board_path) -> dict:

@@ -35,9 +35,8 @@ your orders' `obligations` carries (o1, o2 ...). Each claim is yours to
 make: the word, and the root that shows it -- the test, the artifact, the
 command and its output, not the reviewers' verdict. The issue-conductor
 accepts or contests each claim and re-derives none, so a root it cannot
-open is a claim it cannot accept. Claim `owed:` for one you did not
-satisfy and are not the one to defer -- see the word's own note below.
-Leave blank where this gate was cut against none."""
+open is a claim it cannot accept. Leave blank where this gate was cut
+against none."""
 
   [[field.item]]
   id = "obligation"
@@ -46,22 +45,17 @@ Leave blank where this gate was cut against none."""
   [[field.item]]
   id = "disposition"
   note = """
-satisfied | deferred: <reason> | invalidated: <reason> | rejected: <reason>
-| owed: <reason>
+satisfied | open: <reason>
 
-`deferred` says this run is not doing it, and why; if someone else is
-(another issue, a PR), the reason names them. `owed` says the opposite: this
-run still must do it, and this gate was not the place -- the reason is why it
-was not yours, never who takes it next. You do not know that; the plan
-does not yet either, and may not decide at the next cut. `owed` does not
-settle the row -- the issue-conductor's adjudication and every later gate
-still see it in their orders, exactly as an `open` row would, until someone
-actually satisfies, defers, or otherwise disposes of it."""
+You did it, or you did not. `open` says why not: out of this gate's scope,
+blocked, or found wrong -- whatever you learned. Where the work goes next,
+a later gate, another run, or nowhere, is the issue-conductor's call at
+adjudication, not yours."""
 
   [[field.item]]
   id = "root"
   note = """
 What shows the word: a test, an artifact path, a command and its output.
-For `owed`, the root that shows the obligation was out of this gate's own
-scope -- your orders' `scope` text, or the spec passage that puts it
-elsewhere -- not a reason repeated a second time."""
+For `open`, the root that shows why -- your orders' `scope` text, the spec
+passage that puts it elsewhere, the command that failed -- not the reason
+repeated a second time."""

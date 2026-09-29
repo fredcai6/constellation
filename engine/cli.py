@@ -850,10 +850,9 @@ def _round_artifact(asm, st, seg_id, step_id):
 #   them into `purpose` ("Obligations 18 and 19"), a courtesy rather than a
 #   mechanism. So every child a board-holding run dispatches opens with the
 #   rows still unsettled in its orders, id beside text, under `obligations`.
-#   `boards.unsettled` decides which those are: a disposed row is nobody's to
-#   claim again, but a row claimed `owed:` is exactly as unclaimed as one
-#   still `open` -- a gate that did not satisfy it must still see it in its
-#   own orders, or the run structurally cannot end but nothing dispatched
+#   `boards.unsettled` decides which those are: a settled row is nobody's to
+#   claim again, but a row a gate claimed `open:` must still be in the next
+#   gate's orders, or the run structurally cannot end but nothing dispatched
 #   ever knows to close it. The path is re-resolved against the parent's
 #   root the way `_board_path` does, since the stored string is whatever cwd
 #   minted it.
@@ -862,9 +861,8 @@ def _round_artifact(asm, st, seg_id, step_id):
 #   board already holds it, and the secretary carries what is already written.
 def _open_obligations(pst, proot):
     """`{"obligations": "o1 -- <text>; o2 -- <text>"}` for the rows still
-    unsettled on the parent's execution-state board (`open`, or claimed
-    `owed:`); `{}` where the run holds no such board or every row is
-    settled."""
+    unsettled on the parent's execution-state board; `{}` where the run
+    holds no such board or every row is settled."""
     stored = pst["boards"].get("execution-state", "")
     if not stored:
         return {}
@@ -1820,8 +1818,30 @@ def _drafts(st, step, form):
             continue
         rows = returned.get(f["drafted-by"])
         if isinstance(rows, list) and rows and all(isinstance(r, dict) for r in rows):
+            if f.get("board") == "execution-state":
+                rows = [_gate_claim(r) for r in rows]
             out[f["id"]] = rows
     return out
+
+
+# [a-gate-claims-done-or-not]
+# Rationale: a gate knows whether it did the work, not where unfinished
+#   work goes. issue165's g3 claimed `handed-off: ... is gate 4's` and
+#   sports-market-manager #219's g3 claimed `deferred: ... their own gate
+#   (G4)`, with no such gate planned; each conductor accepted the drafted
+#   claim, and each run reached close with a deliverable unbuilt. So the
+#   draft opens any gate word but `satisfied` or `open` as `open`, the
+#   gate's own text kept after the colon: accepting it keeps the work in
+#   this run, and settling it elsewhere is the conductor typing `deferred`.
+#   The gate's return in the journal keeps what it wrote.
+# Rejected: refusing a gate's close that claims another word, or a
+#   `deferred` that cites no ruling. A refusal stops a finished gate over
+#   a word the parent can simply read as not done.
+def _gate_claim(row):
+    said = str(row.get("disposition", "")).strip()
+    if not said or said.partition(":")[0].strip() in ("satisfied", "open"):
+        return row
+    return {**row, "disposition": f"open: {said}"}
 
 
 # [room-kwargs]
@@ -3754,17 +3774,14 @@ def _commit_gate(wid, asm, step):
 #   passes through, and either refill the plan segment for another round
 #   (`_mint_segment_round`, unchanged) or mint nothing, letting the run walk
 #   on to its own terminal step. The engine reads dispositions and refuses
-#   nothing here: `satisfied`, `deferred`, `invalidated` and `rejected`
-#   all count as settled, whatever reason they carry, and a run
-#   that never seeded the board at all -- consolidate's `obligations` field
-#   is optional -- settles trivially, the exact behaviour every run had
-#   before this gate. `owed: <reason>` is the one word that is a claim
-#   without a disposition -- a gate saying an obligation was not its own to
-#   satisfy, never who takes it next -- so `boards.unsettled` counts it
-#   exactly as `open`: the plan recuts and the run cannot reach its
-#   terminal step while one stands, on purpose (#112 measured what silence
-#   used to cost -- a run that drained to CLOSE.toml with two of its three
-#   obligations unbuilt because every claimable word settled the row).
+#   nothing here: `satisfied` and `deferred` count as settled, whatever
+#   reason they carry, and a run that never seeded the board at all --
+#   consolidate's `obligations` field is optional -- settles trivially, the
+#   exact behaviour every run had before this gate. Any other row holds the
+#   run open: the plan recuts and the run cannot reach its terminal step
+#   while one stands, on purpose (#112 measured what silence used to cost
+#   -- a run that drained to CLOSE.toml with two of its three obligations
+#   unbuilt because every claimable word settled the row).
 # Rejected: validating dispositions the way `validates = "board"` does for
 #   the understand board. The principal's own ruling: execution state is
 #   mechanical-lane fields, not a second gate the engine adjudicates.
@@ -3776,8 +3793,8 @@ def _commit_gate(wid, asm, step):
 #   nothing in the engine. So `satisfied` is not a word that stays true on
 #   its own. At close each satisfied row's gate proof runs again against the
 #   finished tree -- each distinct command once -- and a row whose proof no
-#   longer passes becomes `owed:` with the command and its exit, the word
-#   that already holds a run open and recuts its plan.
+#   longer passes becomes `open:` with the command and its exit, which
+#   holds the run open and recuts its plan.
 # Rejected: a close report listing dispositions whose code later gates
 #   touched, for a human to judge. It would say "maybe" about every row a
 #   later gate came near; the proof says which ones broke.
@@ -3812,7 +3829,7 @@ def _recheck_satisfied(wid, asm):
         cmd, code, _ = ran[proof]
         if code != 0:
             said = "did not finish" if code is None else f"exited {code}"
-            row["status"] = (f"owed: {row['gate']}'s proof no longer passes at close "
+            row["status"] = (f"open: {row['gate']}'s proof no longer passes at close "
                              f"-- `{cmd}` {said}")
             broke = True
     if broke:
@@ -3844,7 +3861,7 @@ def _settle_execution(wid, asm):
         return
     plan = next((s for s in asm["segment"] if s["id"] == "plan"), None)
     if plan:
-        # The board still has unsettled rows (open, or claimed owed), so the
+        # The board still has rows neither satisfied nor deferred, so the
         # plan is recut rather than reworked: a fresh artifact, and a fresh
         # count.
         _mint_segment_round(wid, asm, plan["id"], restarts=True)
