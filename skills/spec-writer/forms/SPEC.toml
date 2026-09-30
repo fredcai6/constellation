@@ -4,8 +4,8 @@
 # ASSEMBLY.toml says why the hand is distinct. The understand board is the
 # source; it is not attached. The conductor's `incorporate` at
 # CONSOLIDATE.toml mints this same form again holding the panel's
-# `findings`; its `rewrite` mints it holding `orders` and the finding
-# called `severe`, a fresh first cut (`[one-look]`, engine/cli.py).
+# `findings`; its `rewrite` mints it holding `orders` alone, a fresh first
+# cut (`[one-look]`, engine/cli.py).
 
 imperative = """
 State the problem, and stop there. Read the understand board whole -- every
@@ -20,8 +20,7 @@ able to say from this alone what is being solved and when it is finished.
 Where your prefill holds `findings`, this is your one pass over a panel's
 review: take what serves the spec, reject what does not, and write the spec
 that results -- the finding is advice, the spec is yours. Where it holds
-`orders` and `severe`, write a fresh spec from them, as a first cut, with
-the severe finding in mind.
+`orders` alone, write a fresh spec from them, as a first cut.
 Open with the chain of purpose, and make it resolve rather than read: one
 rung a line, each an anchor id beside the so-that it carries, from the root
 purpose it terminates at -- an anchor living in one of the documents

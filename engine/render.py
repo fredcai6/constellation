@@ -928,7 +928,8 @@ def _yield_round(rnd):
     blocking findings. A round with waived voices says how many and why,
     the reason inline the way `_event` prints an amend's; one waived whole
     has the quiet panel's empty verdict record, so that count and reason
-    are its whole line."""
+    are its whole line. A round the conductor sent on says where, after an
+    arrow: `-> rewrite` is the one place a rewrite shows."""
     head = f"{rnd['revising']} {rnd['verdict']}" if rnd["revising"] else rnd["verdict"]
     n = rnd["findings"]
     if n:
@@ -936,6 +937,8 @@ def _yield_round(rnd):
         calls = (" ".join(f"{c} {w}" for w, c in rnd["calls"].items())
                 if rnd["called"] else "uncalled")
         head = f"{head}   {tail}   {calls}"
+    if rnd.get("sent"):
+        head = f"{head}   -> {rnd['sent']}"
     if rnd.get("waived"):
         note = f"{rnd['waived']} waived -- {rnd['reason']}"
         head = f"{head}   {note}" if head else note

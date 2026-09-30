@@ -1,10 +1,14 @@
 """Every call in the route forms' vocabulary says where the finding goes.
 
 Run-an-issue's two one-look seams (`understand`, `plan`) share one
-vocabulary now (ruling, 2026-09-25): `writer` rides into the incorporate
-round the writer takes or rejects on its own judgement, `severe` is the call
-that forces a `rewrite`, and `rejected: <reason>` is the record that it was
-called and never becomes work here. Run-a-gate's own ROUTE.toml keeps its
+vocabulary now (ruling, 2026-09-25): `writer` is a finding that holds at the
+artifact's grain -- it rides into the incorporate round the writer takes or
+rejects on its own judgement -- and `rejected: <reason>` is the record that
+it was called and never becomes work here. `severe` is gone (Tommy,
+2026-09-30): whether a round is rewritten is the conductor's reading of the
+round as a whole, several findings read together as often as one, so it
+lives in the resolution and the rewrite's `orders`, never in one finding's
+call. Run-a-gate's own ROUTE.toml keeps its
 older vocabulary unchanged -- its review seam still gets more than one look
 -- but a finding has two destinations now, never a third (ruling,
 2026-09-25, docs/PURPOSE.md): `beyond` is gone from every route form's
@@ -40,6 +44,8 @@ ROOT = pathlib.Path(runmod.__file__).resolve().parent.parent
 CALL_BLOCK = '[[calls]]\nfinding = "f"\ncall = "writre"\n'
 
 BEYOND_BLOCK = '[[calls]]\nfinding = "f"\ncall = "beyond"\n'
+
+SEVERE_BLOCK = '[[calls]]\nfinding = "f"\ncall = "severe"\n'
 
 
 ONE_LOOK_FORMS = ("assemblies/run-an-issue/forms/PLAN_TO_EXECUTE.toml",
@@ -81,7 +87,7 @@ def test_the_two_one_look_forms_declare_the_same_call_vocabulary(workdir):
         seen[ref] = tuple(formsmod.enforced_vocabulary(item))
     assert len(set(seen.values())) == 1, f"the seams disagree on the vocabulary: {seen}"
     assert set(w.split(":")[0].strip() for w in next(iter(seen.values()))) == {
-        "writer", "severe", "rejected"}
+        "writer", "rejected"}
 
 
 def test_run_a_gates_route_form_keeps_its_own_older_call_vocabulary(workdir):
@@ -163,3 +169,21 @@ def test_a_rejected_call_carries_nothing_into_the_incorporate_round(workdir, cap
     calls = runmod.state(wid)["done"][route_step]["fields"]["calls"]
     rejected = next(c for c in calls if "sharper" in c["finding"])
     assert rejected["call"] == "rejected: not this plan's to answer"
+
+
+def test_a_severe_call_is_refused_at_submit(workdir, capsys):
+    """Severity left the per-finding call the way `beyond` did: no route
+    form declares it, so `_check_calls` refuses it like any undeclared word.
+    A conductor who reads the round as a rewrite says so in `resolution`
+    and states the synthesis in `orders`."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open("issue17")
+    cli.main(["issue17", "submit"])
+    _work_the_board("issue17")
+    _fill_consolidate("issue17", "incorporate", calls=SEVERE_BLOCK)
+    capsys.readouterr()
+
+    with pytest.raises(SystemExit) as e:
+        cli.main(["issue17", "submit"])
+    said = str(e.value)
+    assert "severe" in said and "not a call this step can act on" in said, said

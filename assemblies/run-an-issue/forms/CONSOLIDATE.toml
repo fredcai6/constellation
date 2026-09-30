@@ -13,16 +13,20 @@
 # not reach that check, since the board is not done until the spec passes.
 
 imperative = """
-Read the round above and say where it goes. A spec gets one look: where the
-panel found nothing severe, the spec-writer's own judgement finishes it --
-`incorporate` hands it every finding to take or reject, and what comes back
-is released here, not read by another panel. Where you are standing on that
-returned spec, release it. A finding is severe when it changes which
-problem this run is solving, or the fundamental thing its next step would
-code; for that, `rewrite`, and write in `orders` what the spec must say,
-forward -- the rewrite starts from your orders and the finding you called
-`severe`, never the last draft, and gets its own look. Call every finding
-the panel returned. On a release (a `pass`, or a `revise` you are not
+Read the round above and say where it goes. A spec gets one look, and you
+stand between the panel and the spec-writer: the panel finds, you judge
+what it found against the spec as a whole. Call every finding -- `writer`
+where it holds at the spec's grain, `rejected` where it does not hold, is
+not this spec's, or reaches below the grain into how the work gets built.
+A panel's `revise` is its word on its own findings, not a ruling on the
+spec. Then rule the round. Where the findings you kept leave the problem
+standing, `incorporate`: the spec-writer takes or rejects them, and what
+comes back is released here, not read by another panel. Where they change
+which problem this run is solving, or the fundamental thing its next step
+would code -- one finding, or several read together -- `rewrite`, and
+write in `orders` what the spec must say, forward: the fresh spec starts
+from your orders alone, never the last draft or its findings, and gets its
+own look. Where you are standing on a returned spec, release it. On a release (a `pass`, or a `revise` you are not
 sending back) this step will not complete while a row is open on the board
 above, or while a decision is recorded with no words from the principal --
 close what is left there, every row answered, mooted, or deferred with a
@@ -40,10 +44,11 @@ release the round exactly as leaving the fields below filled and submitting
 does. `incorporate` is the spec-writer's one pass over the findings you
 called `writer`, taken or rejected on its own judgement; the spec it
 returns stands here with no panel, and your next word on it is a release,
-or a `rewrite` if the pass itself went severely wrong -- a second
+or a `rewrite` if the pass itself broke the problem statement -- a second
 incorporate refuses. `rewrite` is a fresh spec, written from your `orders`
-and the finding you called `severe`, with its own panel: the call for a finding you called `severe`. A
-spec gets one rewrite; a second, before this seam releases, becomes an ask
+alone, with its own panel: the call for a round whose findings, one or
+several read together, change which problem is solved or what its next
+step codes. A spec gets one rewrite; a second, before this seam releases, becomes an ask
 at the run's principal instead.
 `up` is the round you cannot rule on from here, the issue itself being
 wrong the usual reason: it pauses this segment rather than releasing it,
@@ -55,10 +60,10 @@ id = "orders"
 kind = "evidence"
 optional = true
 note = """
-Your own words for the next round. On a `rewrite` they are what the fresh
-spec-writer holds beside the finding you called `severe`: the problem, the
-boundary, and what done looks like, stated forward -- never the other
-findings or the draft they were about. On an `incorporate` they ride ahead of the findings, as yours.
+Your own words for the next round. On a `rewrite` they are all the fresh
+spec-writer holds: the problem, the boundary, and what done looks like,
+stated forward -- what the findings established, as ground the spec stands
+on, never as faults in the draft they were about. On an `incorporate` they ride ahead of the findings, as yours.
 `waived: none` where the findings say it all. Never write an order into
 `calls` as if the panel had returned it."""
 
@@ -164,13 +169,15 @@ note = """
 One block per finding the panel returned -- every one of them gets a
 call, and the call is where the finding goes.
 
-`writer` -- the spec-writer's to take or reject on an `incorporate`. The
-call most findings take, true or not: the writer judges its own spec.
-`severe` -- the finding changes which problem this run is solving, or the
-fundamental thing its next step would code. A round with one is a
-`rewrite`, and your `orders` say what the fresh spec must hold instead.
-`rejected: <reason>` -- real, but not this spec's to answer, or outside
-what this spec set out to do. Fold the reason in after the colon; it never
+`writer` -- it holds, at the spec's grain: the problem, its boundary, or
+how anyone would tell it is done. On an `incorporate` it is the
+spec-writer's to take or reject; on a `rewrite` it is ground your `orders`
+state. A finding that the spec itself carries detail below its grain is a
+`writer` finding that deletes.
+`rejected: <reason>` -- it does not hold against the spec as a whole; or
+it is real but not this spec's to answer; or it is detail below the
+spec's grain -- a function, a test, a schema or a formula, which the plan
+and the implementer choose. Fold the reason in after the colon; it never
 becomes work here, and the record is that you called it.
 
 An `up` carries the whole table, every call beside its finding, to the
@@ -186,4 +193,4 @@ returned findings -- an incorporation's round has none."""
   [[field.item]]
   id = "call"
   kind = "decision"
-  note = "writer | severe | rejected: <reason>"
+  note = "writer | rejected: <reason>"

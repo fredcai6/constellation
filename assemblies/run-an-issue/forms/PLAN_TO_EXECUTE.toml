@@ -13,15 +13,20 @@ The cut is in the room above, with what its `proof` did when the engine ran
 it once against the tree as it stands: a real check fails there, before the
 work; one that passes on an empty diff proves nothing; a string the shell
 could not run will fail the gate after the work is done. A plan gets one
-look: where the panel found nothing severe, the planner's own judgement
-finishes it -- `incorporate` hands it every finding to take or reject, and
-what comes back is released here, not read by another panel. Where you are
-standing on that returned cut, or on a re-cut after a gate landed, release
-it. A finding is severe when it changes which problem the run is solving,
-or the fundamental thing this gate would code; for that, `rewrite`, and
-write in `orders` what the next gate must do, forward -- the rewrite starts
-from your orders and the finding you called `severe`, never the last cut,
-and gets its own look. Call every finding the panel returned. The round
+look, and you stand between the panel and the planner: the panel finds,
+you judge what it found against the plan as a whole. Call every finding --
+`writer` where it holds at the plan's grain, `rejected` where it does not
+hold, is not this plan's, or reaches below the grain into how the gate
+gets built, which is the implementer's. A panel's `revise` is its word on
+its own findings, not a ruling on the cut. Then rule the round. Where the
+findings you kept leave the chunk standing, `incorporate`: the planner
+takes or rejects them, and what comes back is released here, not read by
+another panel. Where they change which problem the run is solving, or the
+thing this gate would code -- one finding, or several read together --
+`rewrite`, and write in `orders` the chunk the next cut must be, forward:
+the fresh cut starts from your orders alone, never the last cut or its
+findings, and gets its own look. Where you are standing on a returned cut,
+or on a re-cut after a gate landed, release it. The round
 that just landed already cut the gate whole -- purpose, scope, proof, and
 any model or direction override -- so a release needs nothing retyped,
 only the plan artifact pointed at."""
@@ -36,9 +41,10 @@ release the round exactly as leaving the plan field filled and submitting
 does. `incorporate` is the planner's one pass over the findings you called
 `writer`, taken or rejected on its own judgement; the cut it returns stands
 here with no panel, and your next word on it is a release, or a `rewrite`
-if the pass itself went severely wrong -- a second incorporate refuses.
-`rewrite` is a fresh cut, written from your `orders` and the finding you
-called `severe`, with its own panel: the call for a finding you called `severe`. A cut gets one rewrite;
+if the pass itself broke the chunk -- a second incorporate refuses.
+`rewrite` is a fresh cut, written from your `orders` alone, with its own
+panel: the call for a round whose findings, one or several read together,
+change which problem is solved or what this gate codes. A cut gets one rewrite;
 a second, before this seam releases, becomes an ask at the run's principal
 instead. `up` is the round you
 cannot rule on from here, the spec being wrong the usual reason: it pauses
@@ -51,10 +57,10 @@ id = "orders"
 kind = "evidence"
 optional = true
 note = """
-Your own words for the next round. On a `rewrite` they are what the
-fresh planner holds beside the finding you called `severe`: the next chunk
-the run needs and why, stated forward -- never the other findings or the
-cut they were about. On an
+Your own words for the next round. On a `rewrite` they are all the fresh
+planner holds: the next chunk the run needs and why, stated forward --
+what the findings established, as ground the cut stands on, never as
+faults in the cut they were about. On an
 `incorporate` they ride ahead of the findings, as yours. `waived: none`
 where the findings say it all. Never write an order into `calls` as if the
 panel had returned it."""
@@ -88,14 +94,15 @@ note = """
 One block per finding the panel returned -- every one of them gets a
 call, and the call is where the finding goes.
 
-`writer` -- the planner's to take or reject on an `incorporate`. The call
-most findings take, true or not: the planner judges its own cut, and how
-the gate gets built is the implementer's, below either of you.
-`severe` -- the finding changes which problem the run is solving, or the
-fundamental thing this gate would code. A round with one is a `rewrite`,
-and your `orders` say what the fresh cut must do instead.
-`rejected: <reason>` -- real, but not this plan's to answer, or outside
-what this plan set out to do. Fold the reason in after the colon; it never
+`writer` -- it holds, at the plan's grain: the next chunk, its purpose,
+its scope, or whether its proof could tell it landed. On an `incorporate`
+it is the planner's to take or reject; on a `rewrite` it is ground your
+`orders` state. A finding that the cut itself carries detail below its
+grain is a `writer` finding that deletes.
+`rejected: <reason>` -- it does not hold against the plan as a whole; or
+it is real but not this plan's to answer; or it is detail below the
+plan's grain -- how the gate gets built, which the implementer chooses
+reading the same code. Fold the reason in after the colon; it never
 becomes work here, and the record is that you called it.
 
 An `up` carries the whole table, every call beside its finding, to the
@@ -111,4 +118,4 @@ returned findings -- every cut after a release has none."""
   [[field.item]]
   id = "call"
   kind = "decision"
-  note = "writer | severe | rejected: <reason>"
+  note = "writer | rejected: <reason>"

@@ -2999,8 +2999,8 @@ def _blocking_calls(fields, word="blocking"):
 #   than a second copy of its own narrowing rule.
 # The calls an ask still owes its reader: every word that sends a finding
 # on to work -- a gate review's `blocking`, a spec or plan seam's `writer`
-# and `severe` -- and none that disposes of it (`accepted`, `rejected`).
-_OPEN_CALLS = ("blocking", "writer", "severe")
+# -- and none that disposes of it (`accepted`, `rejected`).
+_OPEN_CALLS = ("blocking", "writer")
 
 
 def _seam_findings_history(st, round_steps):
@@ -3168,8 +3168,16 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 #   severe deficiency -- one that changes which problem is being solved, or
 #   the fundamental thing the next step codes -- sends the artifact back,
 #   and then it is rewritten from scratch, holding forward-looking orders
-#   and the severe finding itself -- a clean sheet with the finding in mind
-#   (ruling, 2026-09-25) -- and never the last draft or its other findings.
+#   and never the last draft or its findings.
+#   Severity is the conductor's reading of the round, not a finding's label
+#   (Tommy, 2026-09-30): the panel finds, the conductor judges each finding
+#   against the whole artifact, and a rewrite can be several kept findings
+#   read together. So the calls say only whether a finding holds (`writer`
+#   or `rejected`), and a rewrite carries the conductor's `orders` alone --
+#   the synthesis is theirs to state. Measured before: issue219 (sonnet
+#   conductor) called 36 plan findings `severe` one by one, 9 of them ones
+#   the critic had itself marked "not a gap", and all 5 rewrites opened
+#   "Same next chunk".
 #   Measured before the
 #   ruling: `rework` carried each round's blocking findings into the next
 #   draft and a cold panel read every draft, so the spec grew every round
@@ -3179,15 +3187,14 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 #   `incorporate` is the default word after a review: one pass by the
 #   writer, carrying the findings, and no panel on the round it mints, so
 #   the conductor releases what comes back. `rewrite` is a fresh artifact:
-#   `restarts`, a panel of its own, and the conductor's `orders` beside the
-#   findings called `severe` as its whole prefill.
+#   `restarts`, a panel of its own, and the conductor's `orders` as its
+#   whole prefill.
 # Rejected: keeping `rework` and tuning `impasse-after`. The word means
 #   "another pass with the findings", which is incorporate's half and not
 #   rewrite's, and a count cannot tell a writer's pass from a fresh start.
 def _check_one_look(asm, st, outcome, fields):
-    """Refuse, before the submit lands, the two send-backs the ruling above
-    does not allow: a second incorporation of the same artifact, and an
-    incorporation of a round the conductor called `severe`. A `rewrite`
+    """Refuse, before the submit lands, the send-back the ruling above does
+    not allow: a second incorporation of the same artifact. A `rewrite`
     needs orders to be written from."""
     if not outcome:
         return
@@ -3199,16 +3206,12 @@ def _check_one_look(asm, st, outcome, fields):
                 "resolution", "this artifact has already incorporated its review "
                 "-- the next word is a release",
                 escape="pass, or rewrite if what came back is severely wrong"))
-        if _blocking_calls(fields, "severe"):
-            raise SystemExit(render.refusal(
-                "resolution", "a finding called `severe` is a rewrite, not an "
-                "incorporation", escape="rewrite, with orders"))
     if "rewrite" in verbs:
         orders = str((fields or {}).get("orders", "") or "").strip()
         if not orders or forms.leading_word(orders) in ("waived", "unknown", "working"):
             raise SystemExit(render.refusal(
-                "orders", "a rewrite starts from these and the finding called "
-                "severe -- say what must be done, forward",
+                "orders", "a rewrite starts from these alone -- say what must "
+                "be done, forward",
                 escape="write the orders, or incorporate instead"))
 
 
@@ -3342,9 +3345,6 @@ def _perform(wid, asm, seg, does, fields, step):
             if _round_capped(wid, asm, seg, tseg) or _rewrite_capped(wid, asm, seg, tseg):
                 continue
             rewrite = {"orders": str(fields.get("orders", "")).strip()}
-            severe = _blocking_calls(fields, "severe")
-            if severe:
-                rewrite["severe"] = severe
             _mint_segment_round(wid, asm, tseg["id"], prefill=rewrite,
                                 restarts=True, rewrite=True)
         elif word == "rework":

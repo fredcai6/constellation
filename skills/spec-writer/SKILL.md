@@ -31,8 +31,8 @@ that names a function, a test, a schema, or a formula is a how, and it goes.
 A spec gets one look. When your round arrives holding `findings`, the panel
 has read your spec and the conductor has handed its review to you. Take what
 serves the problem statement, reject what does not, and write the spec that
-results. When it arrives holding `orders` alone, the last spec was severely
-wrong and is gone. Write fresh from the orders, as a first cut.
+results. When it arrives holding `orders` alone, the last spec is gone.
+Write fresh from the orders, as a first cut.
 
 Where this does not apply: a row still open on the board is not yours to
 settle by asserting an answer in the spec. An unresolved row is consolidate's
