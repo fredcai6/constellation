@@ -95,13 +95,14 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"writer": 1, "rejected": 1}, "waived": 0, "reason": ""}
+                  "calls": {"writer": 1, "rejected": 1}, "waived": 0, "reason": "",
+                  "sent": "incorporate"}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "plan-to-execute" in table
-    assert "r1  revise   2 findings   1 writer 1 rejected" in table
+    assert "r1  revise   2 findings   1 writer 1 rejected   -> incorporate" in table
     assert "r2  pass" in table
 
     # skip the projected gate -- this test's subject is the plan seam's own
@@ -162,13 +163,14 @@ def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
     assert len(review_entry["rounds"]) == 2
     r1, r2 = review_entry["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 1, "called": True,
-                  "calls": {"blocking": 1}, "waived": 0, "reason": ""}
+                  "calls": {"blocking": 1}, "waived": 0, "reason": "",
+                  "sent": "rework"}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 0, "reason": ""}
 
     table = render.review_yield(entries)
     assert "review" in table
-    assert "r1  revise   1 finding   1 blocking" in table
+    assert "r1  revise   1 finding   1 blocking   -> rework" in table
     assert "r2  pass" in table
 
 
@@ -225,7 +227,8 @@ def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
     assert len(consolidate["rounds"]) == 2
     r1, r2 = consolidate["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 2, "called": True,
-                  "calls": {"writer": 1, "rejected": 1}, "waived": 0, "reason": ""}
+                  "calls": {"writer": 1, "rejected": 1}, "waived": 0, "reason": "",
+                  "sent": "incorporate"}
     assert r2 == {"verdict": "pass", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 0, "reason": ""}
 
@@ -264,7 +267,7 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
     ])
     _fill_consolidate(wid, "rewrite", calls=(
         'orders = "state the problem as EOF handling alone"\n\n'
-        '[[calls]]\nfinding = "gap: the loop bound is untested"\ncall = "severe"\n'))
+        '[[calls]]\nfinding = "gap: the loop bound is untested"\ncall = "writer"\n'))
     cli.main([wid, "submit"])
 
     _fill_spec(wid)
@@ -283,12 +286,12 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
     assert len(plan["rounds"]) == 2
     r1, r2 = plan["rounds"]
     assert r1 == {"verdict": "revise", "revising": 0, "findings": 1, "called": True,
-                  "calls": {"severe": 1}, "waived": 0, "reason": ""}
+                  "calls": {"writer": 1}, "waived": 0, "reason": "", "sent": "rewrite"}
     assert r2 == {"verdict": "", "revising": 0, "findings": 0, "called": False, "calls": {},
                   "waived": 3, "reason": reason}
 
     table = render.review_yield(entries)
-    assert "r1  revise   1 finding   1 severe" in table
+    assert "r1  revise   1 finding   1 writer   -> rewrite" in table
     assert f"r2  3 waived -- {reason}" in table
 
 

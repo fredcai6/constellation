@@ -52,9 +52,9 @@ def _dispatch_plan_critic_with_calls(wid, finding):
     (`_blocking_calls`, engine/cli.py) actually runs: without a `calls`
     table on some round's own done-entry, that branch never executes and a
     defect in it would pass every other test in this file. This round's own
-    panel returns a `severe` finding and one real but not this plan's to
+    panel returns a finding that holds and one real but not this plan's to
     answer, and the conductor's `[[calls]]` table calls each in kind,
-    folding the severe one into `orders` -- a `rewrite`'s prefill is
+    stating the kept one forward in `orders` -- a `rewrite`'s prefill is
     `orders` alone."""
     st = runmod.state(wid)
     step_id = st["current"]["id"]
@@ -66,7 +66,7 @@ def _dispatch_plan_critic_with_calls(wid, finding):
         cli.main([panelist, "submit"])
         cli.main([panelist, "close"])
     body = ('orders = "%s -- replace it in kind"\n\n'
-            '[[calls]]\nfinding = "%s"\ncall = "severe"\n\n'
+            '[[calls]]\nfinding = "%s"\ncall = "writer"\n\n'
             '[[calls]]\nfinding = "%s"\ncall = "rejected: a separate piece of work"\n\n'
             ) % (finding, finding, REJECTED_FINDING)
     _fill_plan_to_execute(wid, "rewrite", calls=body)
@@ -113,7 +113,7 @@ def _drive_plan_seam_to_its_cap(wid="issue113c1"):
     cut `incorporate`d, the pass that comes back rewritten -- the seam's one
     rewrite -- and that fresh cut's own panel finding the scope still wrong,
     so the conductor's second `rewrite` goes up instead. The cap round's own
-    deciding form carries a `[[calls]]` table ruling one finding `severe` and
+    deciding form carries a `[[calls]]` table ruling one finding `writer` and
     one `rejected` (`_dispatch_plan_critic_with_calls`), so the ask below
     also proves `_seam_findings_history`'s calls-narrowed branch."""
     _open_to_plan(wid)
@@ -150,7 +150,7 @@ def test_a_second_rewrite_pauses_the_plan_seam_to_an_ask(workdir, capsys):
     assert "rewrite-cap of 1" in reason
 
     # every counted round's own findings, oldest first: round one's panel,
-    # round two's rewrite orders, round three's severe call
+    # round two's rewrite orders, round three's kept call
     findings = ask["prefill"].get("findings", "")
     marks = ["r1 needs another look", "r2 needs another look", "r3 the scope creeps again"]
     assert all(m in findings for m in marks), findings

@@ -41,14 +41,18 @@ the reason cites the ruling so the journal says why it changed.
 
 **A spec and a plan each get one look** (ruling, 2026-09-25). The spec
 states the problem; the plan chooses the next small chunk toward its done;
-the how is the implementer's. After the panel, your default is
-`incorporate`: the writer takes or rejects every finding on its own
-judgement, and what comes back you release. A finding is severe only when it
-changes which problem the run is solving, or the fundamental thing the next
-step would code. For that, `rewrite`, with orders that say what must be done,
-forward, and nothing about what the last draft got wrong. The fresh artifact
-gets its own look. Anything else wrong with a spec or a cut is the writer's
-to weigh, or the gate's reviewers' to find with a diff to run. At the plan
+the how is the implementer's. You stand between the panel and the writer:
+the panel finds, and you judge each finding against the artifact as a
+whole, keeping what holds at its grain and rejecting what does not hold,
+is not its to answer, or is the implementer's detail. Then rule the round.
+Your default is `incorporate`: the writer takes or rejects what you kept,
+and what comes back you release. Where the findings you kept -- one, or
+several read together -- change which problem the run is solving, or the
+fundamental thing the next step would code, `rewrite`, with orders that
+say what must be done, forward, and nothing about what the last draft got
+wrong. The fresh artifact gets its own look. Anything else wrong with a
+spec or a cut is the writer's to weigh, or the gate's reviewers' to find
+with a diff to run. At the plan
 seam a `proof` that passes on an empty diff, or that did not resolve when the
 engine ran it at the cut, is a finding for the planner's pass; a real check
 that fails before the work is the healthy reading. `up` pauses the run as an

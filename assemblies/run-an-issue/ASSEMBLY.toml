@@ -95,7 +95,7 @@ decides = "resolution"
 
   [[segment.transition.outcome]]
   value = "rewrite"
-  does = "rewrite"     # severe only: a fresh spec from the conductor's orders, and its own panel
+  does = "rewrite"     # the problem changed: a fresh spec from the conductor's orders alone, and its own panel
 
   [[segment.transition.outcome]]
   value = "up"
@@ -197,7 +197,7 @@ decides = "resolution"
 
   [[segment.transition.outcome]]
   value = "rewrite"
-  does = "rewrite"     # severe only: a fresh cut from the conductor's orders, and its own panel
+  does = "rewrite"     # the chunk changed: a fresh cut from the conductor's orders alone, and its own panel
 
   [[segment.transition.outcome]]
   value = "up"

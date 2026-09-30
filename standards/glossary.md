@@ -115,9 +115,9 @@ is joint. Coining a synonym for a term below is a defect.
   the conductor's `orders` ahead of them, taken or rejected on the writer's own judgement. The
   round it mints carries no panel, and a second incorporate on the same artifact refuses: what
   comes back is released (the one-look ruling, 2026-09-25).
-- **rewrite** — an outcome verb at the same two seams, for a `severe` finding — one that
-  changes which problem the run is solving, or the fundamental thing its next step codes. A
-  fresh artifact written from the conductor's `orders` alone, forward-looking, with no findings
+- **rewrite** — an outcome verb at the same two seams, for a round whose findings — one, or
+  several read together, as the conductor judges them against the whole artifact — change which
+  problem the run is solving, or the fundamental thing its next step codes. A fresh artifact written from the conductor's `orders` alone, forward-looking, with no findings
   and no draft carried; its round restarts the send-back count and carries its own panel.
 - **skip** — an outcome verb: amend-closes every not-done, non-terminal step of the named
   segment. Its own terminal step is excluded, so sweeping a segment's gates never closes the
@@ -247,8 +247,10 @@ is joint. Coining a synonym for a term below is a defect.
 - **call** — one route-step ruling on a single finding raised against the artifact it names —
   a panel's finding at either tier, or (a gate's own) a declared deviation too. The words are
   the route form's own: `blocking | accepted | rejected: <reason>` at a gate's review, and
-  `writer | severe | rejected: <reason>` at run-an-issue's spec and plan seams, where the call
-  says where the finding goes — to the writer's one pass, to a **rewrite**, or dropped. Every
+  `writer | rejected: <reason>` at run-an-issue's spec and plan seams, where the call says
+  whether the finding holds at the artifact's grain — kept for the writer's pass or the
+  conductor's **rewrite** orders, or dropped. Whether a round is rewritten is the round's
+  resolution, never one finding's call. Every
   panel-bearing transition's own route form carries the field. Distinct from the issue tier's **disposition**
   (`GATE_TRANSITION.toml`'s `dispositions` field): a call judges one finding or deviation once;
   a disposition judges one obligation across the run's whole life.

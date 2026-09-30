@@ -392,7 +392,7 @@ def test_up_pauses_the_plan_seam_rather_than_releasing(workdir, capsys):
     _panel_says_revise(wid, "gate 1 is untestable")
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
-    _fill_plan_route_with_calls(wid, "up", ("gate 1 is untestable", "severe"))
+    _fill_plan_route_with_calls(wid, "up", ("gate 1 is untestable", "writer"))
     cli.main([wid, "submit"])
     capsys.readouterr()
 
@@ -424,7 +424,7 @@ def test_up_pauses_the_understand_seam_rather_than_releasing(workdir, capsys):
     before = len(runmod.state(wid)["steps"])
     capsys.readouterr()
     _fill_consolidate_route_with_calls(
-        wid, "up", ("gap: assumes a trailing newline exists", "severe"))
+        wid, "up", ("gap: assumes a trailing newline exists", "writer"))
     cli.main([wid, "submit"])
     capsys.readouterr()
 

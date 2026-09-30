@@ -127,7 +127,10 @@ def _round(returns, done_entry, panel_forms, table, waived=None):
     `panel_forms` is empty) has no verdict to record either, so the
     conductor's own disposing word -- the `decides` field the seam's table
     names, read off the round's done entry -- stands in its place: the
-    record of the round is what the conductor said of it."""
+    record of the round is what the conductor said of it. A panel round the
+    conductor sent on rather than released carries that word as `sent`
+    (`incorporate`, `rewrite`, `up`): the calls say which findings held, and
+    only the resolution says what the round became."""
     n_waived, reason = (waived[0], waived[2]) if waived else (0, "")
     verdict = runmod.verdict_record(runmod.verdict_fold(returns, panel_forms, table))
     if not returns and not panel_forms and done_entry:
@@ -141,9 +144,15 @@ def _round(returns, done_entry, panel_forms, table, waived=None):
     tally = {}
     for word in calls or []:
         tally[word] = tally.get(word, 0) + 1
-    return {"verdict": verdict, "revising": revising, "findings": findings,
-            "called": calls is not None, "calls": tally,
-            "waived": n_waived, "reason": reason}
+    rec = {"verdict": verdict, "revising": revising, "findings": findings,
+           "called": calls is not None, "calls": tally,
+           "waived": n_waived, "reason": reason}
+    if panel_forms and done_entry:
+        word = forms.leading_word(
+            (done_entry.get("fields") or {}).get(table.get("decides", ""), ""))
+        if word and runmod.declared_does(table, word) not in (None, "release"):
+            rec["sent"] = word
+    return rec
 
 
 # [seam-round-steps]

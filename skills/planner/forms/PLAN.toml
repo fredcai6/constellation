@@ -5,8 +5,7 @@
 # chunk is cut here; a `replan` outcome closes the pending gates and recuts
 # the plan here, and what the gate that forced it learned arrives as
 # `findings` -- the ground the new cut answers to, not an objection to rebut;
-# and a `rewrite` recuts it from the conductor's `orders` and the finding
-# called `severe`.
+# and a `rewrite` recuts it from the conductor's `orders` alone.
 
 imperative = """
 Choose the next chunk of work toward the spec's done, and cut it as one
@@ -29,8 +28,7 @@ document itself carries the approach and the risks that would change it,
 and stands on its own: the panel reads it cold, with the spec and the run's
 state beside it and no earlier plan. This gate's purpose, scope and proofs
 are the fields below, not restated there. Where your prefill holds `orders`
-and `severe`, the last cut was severely wrong and is gone: cut fresh from
-the orders, with the severe finding in mind."""
+alone, the last cut is gone: cut fresh from the orders, as a first cut."""
 
 [[field]]
 id = "plan"

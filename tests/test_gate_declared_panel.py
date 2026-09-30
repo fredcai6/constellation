@@ -108,10 +108,10 @@ def test_the_gate_seams_yield_label_is_review():
     assert review_yield.seam_label(seg) == "review"
 
 
-# -- (e) a rewrite carries `orders` and the `severe` finding, nothing else --
+# -- (e) a rewrite carries the conductor's `orders`, nothing else -----------
 
 
-def test_a_plan_to_execute_rewrite_carries_orders_and_only_the_severe_finding(
+def test_a_plan_to_execute_rewrite_carries_the_orders_alone(
         workdir, capsys):
     cli.main(["open", "run-an-issue", "--issue", "1", "--title", "t"])
     wid = "issue1"
@@ -133,7 +133,7 @@ def test_a_plan_to_execute_rewrite_carries_orders_and_only_the_severe_finding(
     _fill_plan_to_execute(
         wid, "rewrite",
         calls=('orders = "cut the gate narrower, around the parser only"\n\n'
-               '[[calls]]\nfinding = "gap: the proof is untestable"\ncall = "severe"\n\n'
+               '[[calls]]\nfinding = "gap: the proof is untestable"\ncall = "writer"\n\n'
                '[[calls]]\nfinding = "the whole cut wants rewriting"\ncall = "writer"\n'))
     cli.main([wid, "submit"])
     capsys.readouterr()
@@ -143,6 +143,4 @@ def test_a_plan_to_execute_rewrite_carries_orders_and_only_the_severe_finding(
                 if s["segment"] == "plan" and s.get("source") == "mint"
                 and s.get("dispatches") == "cut-a-gate")
     assert fresh["prefill"]["orders"] == "cut the gate narrower, around the parser only"
-    assert fresh["prefill"]["severe"] == "gap: the proof is untestable"
-    assert "wants rewriting" not in fresh["prefill"].get("severe", "")
-    assert set(fresh["prefill"]) == {"orders", "severe"}
+    assert set(fresh["prefill"]) == {"orders"}

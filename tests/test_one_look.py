@@ -2,8 +2,9 @@
 single round of critic review, never a loop. `incorporate` is the writer's
 own pass over what the panel found -- taken or rejected on its own
 judgement, no second panel reading what comes back; `rewrite` is the escape
-hatch for a `severe` finding, a fresh artifact from the conductor's own
-`orders` alone, judged by a panel of its own. `round-cap` is what still
+hatch for a round the conductor reads as changing the problem or the chunk,
+a fresh artifact from the conductor's own `orders` alone, judged by a panel
+of its own. `round-cap` is what still
 stops a seam that keeps sending the round back, now built from rewrites
 rather than an impasse loop -- and a round a paused seam's own resume opens
 starts that count over (#177).
@@ -18,7 +19,7 @@ never updated when the ASSEMBLY.toml outcome tables were renamed to
 `incorporate`/`rewrite`. It reads an `incorporate`/`rewrite` outcome as a
 release, so `_check_release_artifacts` wrongly demands the round's blank
 `spec`/`plan` field the moment ANY incorporate or rewrite submits -- before
-`_check_one_look`'s own orders/severe/second-incorporate checks are ever
+`_check_one_look`'s own orders/second-incorporate checks are ever
 reached. Every test in this file drives at least one incorporate or
 rewrite, so every one of them currently fails on that single defect
 (`SystemExit: spec: a release needs it ...` / `plan: a release needs it
@@ -227,27 +228,6 @@ def test_a_second_incorporate_on_the_same_artifact_is_refused_and_journals_nothi
         cli.main([wid, "submit"])
     assert "already incorporated" in str(e.value), str(e.value)
     assert len(journal.read(wid)) == before, "the refused submit journaled something anyway"
-
-
-# -- 4. incorporate with a severe call refuses ------------------------------
-
-
-def test_an_incorporate_with_a_severe_call_is_refused(workdir, capsys):
-    wid = "issue4"
-    findings = ("gap: the wording could be tighter",
-                "gap: this run is solving the wrong problem entirely",
-                "gap: a minor typo in the boundary sentence")
-    _open_to_spec_reviewed(wid, "4", findings)
-    capsys.readouterr()
-
-    _fill_consolidate_route_with_calls(
-        wid, "incorporate",
-        (findings[0], "writer"),
-        (findings[1], "severe"),
-        (findings[2], "writer"))
-    with pytest.raises(SystemExit) as e:
-        cli.main([wid, "submit"])
-    assert "severe" in str(e.value) and "rewrite" in str(e.value), str(e.value)
 
 
 # -- 5. rewrite with blank or waived orders refuses -------------------------
