@@ -255,6 +255,20 @@ def test_a_budget_that_is_not_seconds_refuses_before_anything_runs(bare_workdir)
     assert "check" not in _kinds("g1")
 
 
+def test_a_budget_that_leads_with_seconds_reads_them_and_keeps_its_reason(bare_workdir, monkeypatch):
+    """The planner's form asks for a reason beside the budget, so real gate
+    specs read `2400 -- the cold frame fit` (f1brainz-physics issue2.g4,
+    refused at submit with its work done). The leading whole seconds are the
+    declaration; a unit glued to the number is still not seconds."""
+    monkeypatch.setattr(checks, "BUDGET", 600)
+    assert checks.budget_for({"budget": "2400 -- unchanged from the plan's estimate"}) == 2400
+    assert checks.budget_for({"budget": "\n900 -- reuses the warm cache\n"}) == 900
+    assert checks.budget_for({"budget": "120 -- a quick check"}) == 600
+    for bad in ("15m", "1.5", "about 2400", "-- 2400"):
+        with pytest.raises(SystemExit):
+            checks.budget_for({"budget": bad})
+
+
 def _log(wid="g1", step="work-1"):
     return pathlib.Path(checks.in_flight_log(wid, step)).read_text(encoding="utf-8")
 

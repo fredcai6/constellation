@@ -30,6 +30,7 @@ proof in flight.
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -108,14 +109,14 @@ def budget_for(orders):
     A value that is not whole seconds refuses rather than falling back. A
     spec that meant fifteen minutes and typed `15m` has declared something,
     and silently running it under the default is how a declaration becomes
-    decoration."""
+    decoration. The planner's form asks for a reason beside the number, so
+    a value that LEADS with whole seconds -- `2400 -- the cold frame fit` --
+    is read as those seconds; the reason is for the reader, not the clock."""
     raw = orders.get("budget", "")
     if raw in ("", None):
         return BUDGET
-    try:
-        seconds = int(str(raw).strip())
-    except ValueError:
-        seconds = 0
+    lead = re.match(r"\s*(\d+)(?![\w.])", str(raw))
+    seconds = int(lead.group(1)) if lead else 0
     if seconds <= 0:
         raise SystemExit(render.refusal(
             "budget", f"{str(raw).strip()!r} is not a number of seconds",
