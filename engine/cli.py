@@ -887,9 +887,10 @@ def _open_obligations(pst, proot):
 #   adjudications settled -- so the engine hands it over the way
 #   `_open_obligations` hands over what is still open, and each cut is
 #   written from the spec and the state as they stand.
-# Rejected: carrying the previous cut's plan or horizon forward. That is
-#   the amendment chain itself; the gate ahead answers to the code and
-#   spec now, not to what an earlier cut expected them to be.
+# Rejected: carrying the previous cut's plan forward. That is the
+#   amendment chain itself; the gate ahead answers to the code and spec now,
+#   not to what an earlier cut expected them to be. Its `horizon` is a
+#   different thing and does carry -- see `[horizon-carries]`.
 def _landed(pst, proot):
     """`{"landed": ...}`: the commits the run's tree holds past its cut
     point, oldest first, then the execution-state rows already settled with
@@ -3854,6 +3855,31 @@ _REOPENED = (
     "  -- and take it up: spine {wid} up \"<reason>\"")
 
 
+# [horizon-carries]
+# Rationale: Tommy, 2026-10-21 -- with nothing carried, each re-cut planned
+#   from a cold start, saw only "small next chunk", and cut the smallest
+#   thing that moved the run. issue274's first cut wrote that its third
+#   chunk "may fold into (2) if the composition is clean", the merge its
+#   conductor wished for afterwards, and no later cut ever saw it; across
+#   243 gates a gate cost ~23 min before its size counted at all. So the
+#   re-cut after a gate lands receives the horizon the released cut wrote:
+#   what the run was thinking about the road ahead, to sharpen into the
+#   next gate, update, or abandon. It is the future alone -- the field holds
+#   the gates after its own cut, so the gate just landed is never in it --
+#   and the plan document, which narrates that gate, stays behind.
+# Rejected: carrying it into a rewrite. A rewrite starts from the
+#   conductor's orders alone (the `rewrite` verb); the draft it replaces
+#   wrote the horizon it is replacing.
+def _horizon_ahead(st, seg_id):
+    """`{"horizon": ...}` from the plan segment's most recent completed round
+    that wrote one; `{}` where none did."""
+    for step in reversed([s for s in st["steps"] if s["segment"] == seg_id]):
+        horizon = str(st["done"].get(step["id"], {}).get("fields", {}).get("horizon", "") or "")
+        if horizon.strip() and not horizon.strip().startswith("waived:"):
+            return {"horizon": horizon}
+    return {}
+
+
 def _settle_execution(wid, asm):
     st = runmod.state(wid)
     path = st["boards"].get("execution-state", "")
@@ -3863,8 +3889,9 @@ def _settle_execution(wid, asm):
     if plan:
         # The board still has rows neither satisfied nor deferred, so the
         # plan is recut rather than reworked: a fresh artifact, and a fresh
-        # count.
-        _mint_segment_round(wid, asm, plan["id"], restarts=True)
+        # count -- holding the road the last cut saw ahead of it.
+        _mint_segment_round(wid, asm, plan["id"], prefill=_horizon_ahead(st, plan["id"]) or None,
+                            restarts=True)
 
 
 # [mints]

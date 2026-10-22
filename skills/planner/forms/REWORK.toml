@@ -8,8 +8,8 @@ The panel has read your cut, and its findings are in your prefill, with any
 orders the conductor wrote ahead of them. They are advice: take each one
 that makes this a better next step, reject each one that does not, and
 record which in `findings-addressed`. Then cut the gate that results -- the
-same bar as the first cut: the next chunk toward the spec's done, small,
-with purpose saying what the run takes as true, proof what verifies it,
+same bar as the first cut: the next chunk toward the spec's done, a
+complete proof of one thing, with purpose saying what the run takes as true, proof what verifies it,
 scope where. The how is the implementer's, so a finding about how is one
 you can reject on that bar alone. Delete the restated. No panel reads this
 cut again: the conductor releases it, and the gate's own reviewers read the
@@ -83,8 +83,11 @@ after this one is `horizon`."""
 id = "horizon"
 kind = "evidence"
 note = """
-The gates likely to follow this one, coarsely, and the conditions that would
-change them. Provisional by construction: read beside the gate above by
+The road after this gate: the order the spec's remaining requirements will
+be met in, and which belong in one chunk. Coarse by design -- a detail you
+can already give belongs in this gate, or is not known yet. The next cut's
+planner receives it as what this cut was thinking, and the plan document's
+own account of earlier gates stays behind. Read beside the gate above by
 whoever judges this round, but never attacked at gate grain, and never
 carried into the implementer's own prefill -- the gate ahead is this one
 alone."""
