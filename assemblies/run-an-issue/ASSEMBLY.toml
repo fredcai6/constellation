@@ -212,7 +212,7 @@ decides = "resolution"
   form = "skills/critic/forms/CRITIC.toml"
   worker = "critic"
   model = "standard"
-  criteria = "next step: is this gate the right next chunk toward the spec's done, and is it a small next chunk that moves the run"
+  criteria = "next step: is this gate the right next chunk toward the spec's done -- a complete proof of one thing, ending where its proof can stand on its own? Name a split the proof needs, or a join with the horizon's next chunk that one proof would cover"
 
   [[segment.transition.panel]]
   form = "skills/critic/forms/CRITIC.toml"

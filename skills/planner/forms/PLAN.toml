@@ -10,20 +10,28 @@
 imperative = """
 Choose the next chunk of work toward the spec's done, and cut it as one
 gate: purpose, scope, proof, and, when you know them, a model override and
-a direction for what it should teach. Prefer a small next chunk -- one that
-moves the run, and one diff a reviewer can run and read -- since the
-engine reopens this segment after every gate while an obligation stays
-open, and each cut is chosen from the spec and the tree as they stand --
-what has landed since the run began arrives as `landed`. Start at the
+a direction for what it should teach. A chunk is a vertical, complete
+proof of one thing: what the run can take as true once it lands, built end
+to end and verified on its own. Work that can only be verified together
+belongs in one chunk, and every gate pays a full plan, panel and review
+round before its first line of code, so cut the chunk as whole as one diff
+a reviewer can run and read allows. The engine reopens this segment after
+every gate while an obligation stays open, and each cut is chosen from the
+spec and the tree as they stand -- what has landed since the run began
+arrives as `landed`. Where your prefill holds a `horizon`, it is what the
+last cut was thinking about the road ahead: check it against the code as
+it stands, make its next chunk specific enough to be this gate, and update
+what follows with what the run has learned -- or pivot, where what landed
+says the road has changed. Start at the
 code map (`map/INDEX.md`; `palette:map` builds it where the tree has none)
 and read the code it points you to. Purpose says what the run takes as true
 once this gate lands, proof says what verifies it, scope says where, at
 the grain of modules and seams -- the how is the implementer's, who reads
 the same code and chooses it there. `standards/approach.md`, under the
 engine root the brief named, is what this project builds by; name in
-`purpose` which of its five this gate serves, and cut the gate that serves
-it and nothing beside it. Sketch the horizon behind it -- coarsely, and only
-as far as you can actually commit to before the ground shifts. The plan
+`purpose` which of its five this gate serves. Then lay out the horizon
+behind it, coarsely: the order the spec's remaining requirements will be
+met in, and which belong together. The plan
 document itself carries the approach and the risks that would change it,
 and stands on its own: the panel reads it cold, with the spec and the run's
 state beside it and no earlier plan. This gate's purpose, scope and proofs
@@ -105,8 +113,11 @@ after this one is `horizon`."""
 id = "horizon"
 kind = "evidence"
 note = """
-The gates likely to follow this one, coarsely, and the conditions that would
-change them. Provisional by construction: read beside the gate above by
+The road after this gate: the order the spec's remaining requirements will
+be met in, and which belong in one chunk. Coarse by design -- a detail you
+can already give belongs in this gate, or is not known yet. The next cut's
+planner receives it as what this cut was thinking, and the plan document's
+own account of earlier gates stays behind. Read beside the gate above by
 whoever judges this round, but never attacked at gate grain, and never
 carried into the implementer's own prefill -- the gate ahead is this one
 alone."""
