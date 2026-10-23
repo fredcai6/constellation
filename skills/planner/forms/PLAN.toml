@@ -18,20 +18,19 @@ round before its first line of code, so cut the chunk as whole as one diff
 a reviewer can run and read allows. The engine reopens this segment after
 every gate while an obligation stays open, and each cut is chosen from the
 spec and the tree as they stand -- what has landed since the run began
-arrives as `landed`. Where your prefill holds a `horizon`, it is what the
-last cut was thinking about the road ahead: check it against the code as
-it stands, make its next chunk specific enough to be this gate, and update
-what follows with what the run has learned -- or pivot, where what landed
-says the road has changed. Start at the
+arrives as `landed`. Where your prefill holds a `call-tree`, it is what the
+last cut was thinking: check its nodes against the code as it stands, mark
+this gate's nodes THIS GATE, and update the rest with what the run has
+learned -- or pivot, where what landed says the structure has changed. Start at the
 code map (`map/INDEX.md`; `palette:map` builds it where the tree has none)
 and read the code it points you to. Purpose says what the run takes as true
 once this gate lands, proof says what verifies it, scope says where, at
 the grain of modules and seams -- the how is the implementer's, who reads
 the same code and chooses it there. `standards/approach.md`, under the
 engine root the brief named, is what this project builds by; name in
-`purpose` which of its five this gate serves. Then lay out the horizon
-behind it, coarsely: the order the spec's remaining requirements will be
-met in, and which belong together. The plan
+`purpose` which of its five this gate serves. Then lay out the call-tree
+the whole run needs, with this gate's nodes marked: the architecture the
+implementer builds inside, and the order the remaining nodes will be met in. The plan
 document itself carries the approach and the risks that would change it,
 and stands on its own: the panel reads it cold, with the spec and the run's
 state beside it and no earlier plan. This gate's purpose, scope and proofs
@@ -107,20 +106,27 @@ write something answerable or leave it out -- `waived: none` is the ordinary
 case for a run's last gate. Not a place for anything else you noticed:
 something outside this gate's own scope is the conductor's to call
 `rejected: <reason>` at the review that follows, and the shape of the gates
-after this one is `horizon`."""
+after this one is `call-tree`."""
 
 [[field]]
-id = "horizon"
+id = "call-tree"
 kind = "evidence"
 note = """
-The road after this gate: the order the spec's remaining requirements will
-be met in, and which belong in one chunk. Coarse by design -- a detail you
-can already give belongs in this gate, or is not known yet. The next cut's
-planner receives it as what this cut was thinking, and the plan document's
-own account of earlier gates stays behind. Read beside the gate above by
-whoever judges this round, but never attacked at gate grain, and never
-carried into the implementer's own prefill -- the gate ahead is this one
-alone."""
+The call tree of what the spec's done needs, as an outline with one node
+per function or module: what it owns (the state or decision hidden inside
+it), what it receives, what it returns, and who calls it. Mark each node
+`landed` (its name alone), `THIS GATE`, or `ahead`. Take the tree down far
+enough that an implementer could build any node against a testable
+contract, and stop there: the math at the leaves is the implementer's.
+THIS GATE's nodes carry full signatures and the results the proof checks;
+`ahead` nodes stay coarse and may merge or move as work lands. The slice is
+the THIS GATE nodes, one vertical path or subtree whose proof stands on its
+own. The implementer receives the whole tree, owns its THIS GATE nodes,
+reshapes their interiors as it sees fit, and raises a change to an edge
+another node relies on as a blocked note. The next cut's planner receives
+this as what the run was thinking and rebuilds the landed part from the
+code. Whoever judges the round reads the slice's nodes closely and the
+`ahead` nodes loosely. `waived: none` for a gate that is one function."""
 
 [[field]]
 id = "key-terms"

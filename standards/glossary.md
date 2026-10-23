@@ -333,15 +333,17 @@ is joint. Coining a synonym for a term below is a defect.
   Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only
   prefill. The orders a gate is run from, and the only place a runner is named.
 - **projection** — a transition whose own segment declares `projects` carrying a just-released
-  round's gate fields (`purpose`, `scope`, `proof`, `budget`, `model`, `direction`) forward into
+  round's gate fields (`purpose`, `scope`, `proof`, `budget`, `model`, `direction`, `call-tree`) forward into
   a fresh gate at submit, rather than asking a conductor to retype what the panel already judged.
   Walks the segment backward for the most recent round that ever carried a gate field, so an
   impasse `advance` — whose own ruling form carries none — still finds the round it actually
   approved.
-- **horizon** — the gates likely to follow the one a plan round just cut, coarsely, and the
-  conditions that would change them. Sits beside the gate spec on the same round; whoever
-  judges the cut reads it, provisional by construction and never attacked at gate grain, and it
-  never crosses into the implementer's own prefill — the gate ahead is this one alone.
+- **call-tree** — the call tree of what remains to build: one node per function or module the spec's
+  done needs, each with what it owns, what it receives, what it returns and who calls it, and a
+  status of `landed`, `THIS GATE` or `ahead`. Sits beside the gate spec on the same round.
+  A **slice** is the nodes marked `THIS GATE`. The call-tree rides into the implementer's prefill and
+  carries to the next re-cut, which rebuilds the landed part from the code; the critic attacks
+  the slice's contracts, and the `ahead` nodes stay provisional.
 - **map** — the derived page tree under `map/`: one page per entity, a module index per module,
   one top index. Built by `tools/code_map` — the generator, and that is its only name — through
   `palette:map`; gitignored, regenerated at closeout, never committed. The artifact, not the act

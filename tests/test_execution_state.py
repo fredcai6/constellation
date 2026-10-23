@@ -451,20 +451,20 @@ def test_amend_proof_on_a_step_that_is_not_a_gate_names_the_gates(workdir, capsy
 # -- the re-cut holds the road the last cut saw ahead ------------------------
 
 
-def test_a_re_cut_receives_the_horizon_the_landed_cut_wrote(workdir, capsys):
-    """`[horizon-carries]`: the plan round minted after a gate lands with an
-    obligation still open is handed the `horizon` its released cut wrote --
+def test_a_re_cut_receives_the_tree_the_landed_cut_wrote(workdir, capsys):
+    """`[call-tree-carries]`: the plan round minted after a gate lands with an
+    obligation still open is handed the `call-tree` its released cut wrote --
     what the run was thinking about the road ahead -- and its dispatched
     planner reads it as prefill. The landed gate's own spec is not carried."""
     from test_nesting import _fill_plan
 
-    horizon = "(2) wire the reader into the report; (3) may fold into (2)"
+    tree = "(2) wire the reader into the report; (3) may fold into (2)"
 
-    def plan_with_horizon(wid):
+    def plan_with_call_tree(wid):
         _fill_plan(wid)
         path = _response(wid)
         path.write_text(path.read_text().replace(
-            'horizon = "waived: none yet"', f'horizon = "{horizon}"'))
+            'tree = "waived: none yet"', f'tree = "{tree}"'))
 
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     _fill_open("issue17")
@@ -472,7 +472,7 @@ def test_a_re_cut_receives_the_horizon_the_landed_cut_wrote(workdir, capsys):
     _work_the_board("issue17")
     _fill_consolidate_with_obligation("issue17")
     cli.main(["issue17", "submit"])
-    _dispatch_and_close_plan("issue17", fill_fn=plan_with_horizon)
+    _dispatch_and_close_plan("issue17", fill_fn=plan_with_call_tree)
     _dispatch_plan_critic("issue17")
     _fill_plan_to_execute("issue17")
     cli.main(["issue17", "submit"])
@@ -484,15 +484,15 @@ def test_a_re_cut_receives_the_horizon_the_landed_cut_wrote(workdir, capsys):
     st = runmod.state("issue17")
     fresh = [s for s in st["steps"] if s["segment"] == "plan" and s.get("source") == "mint"
              and s.get("dispatches")][-1]
-    assert fresh["prefill"] == {"horizon": horizon}
+    assert fresh["prefill"] == {"call-tree": tree}
 
     cli.main(["open", "cut-a-gate", "--parent", "issue17", "--step", fresh["id"]])
     child = runmod.state(f"issue17.{fresh['id']}")
-    assert child["prefill"]["horizon"] == horizon
+    assert child["prefill"]["call-tree"] == tree
     assert "purpose" not in child["prefill"]
 
 
-def test_a_re_cut_after_a_waived_horizon_carries_nothing(workdir, capsys):
+def test_a_re_cut_after_a_waived_tree_carries_nothing(workdir, capsys):
     """A last cut that saw nothing ahead (`waived: ...`) hands nothing on."""
     _mint_first_gate_with_obligation()
     _dispatch_and_close_child("issue17", "g1")
@@ -503,4 +503,4 @@ def test_a_re_cut_after_a_waived_horizon_carries_nothing(workdir, capsys):
     st = runmod.state("issue17")
     fresh = [s for s in st["steps"] if s["segment"] == "plan" and s.get("source") == "mint"
              and s.get("dispatches")][-1]
-    assert "horizon" not in fresh["prefill"]
+    assert "call-tree" not in fresh["prefill"]
