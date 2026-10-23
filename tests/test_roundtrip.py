@@ -49,7 +49,7 @@ def test_run_a_gate_skeleton_mints_review_with_its_declared_panel(bare_workdir, 
     assert review["form"] == "forms/ROUTE.toml"
     assert review["filler"] == "conductor"  # the bare indirection, not a named role
     assert [p["criteria"].split(":")[0] for p in review["panel"]] == [
-        "tests", "simplicity", "claims"]
+        "tests", "shape", "claims"]
 
     # close's transition still declares only a form -- unaffected
     close = steps[2]

@@ -79,7 +79,7 @@ optional = true
 note = """
 What must be true when this gate lands, and need not hold after later gates
 have: what the gate left alone -- nothing else changed, a file identical to
-the cut. The exact command, like `proof`; it runs at your submit and when
+the cut, and the files of the call-tree's nodes outside this slice. The exact command, like `proof`; it runs at your submit and when
 the gate lands, never at close. Or waived: none."""
 
 [[field]]
