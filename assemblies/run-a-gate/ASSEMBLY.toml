@@ -95,11 +95,16 @@ decides = "resolution"
   model = "standard"
   criteria = "tests: are these the right tests, or could the work be substantially wrong while they pass -- and does anything watch the important thing pass through the whole project rather than only its pieces"
 
+  # `shape` is one question at two scales: placement against the existing
+  # code (the old `simplicity`) and against the plan's call-tree, which the
+  # gate's prefill carries. A separate reader for the call-tree was tried and
+  # folded back -- it was the same judgment (Tommy, 2026-10-23). That other
+  # nodes' files stay untouched is the planner's `gate-proof`, not a reader's.
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "simplicity: is the result simple to understand -- does it solve the problem at its root, or add a guard, special case or second path beside what already exists? A root fix that costs more lines beats a guard that costs fewer. Name what should go through an existing thing instead of beside it, and anything the change leaves that nothing needs"
+  criteria = "shape: does the change go where the system's shape says it goes -- through an existing thing and not beside it, a root fix and not a guard, special case or second path, and, where your orders hold a call-tree, into the THIS GATE nodes built to the contracts at their edges? A root fix that costs more lines beats a guard that costs fewer; simple means simple to understand. Name what should go through an existing thing instead of beside it, anything the change leaves that nothing needs, each edge it changed that another node relies on, and any work that belongs to an ahead node"
 
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"

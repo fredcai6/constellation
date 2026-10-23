@@ -76,9 +76,9 @@ The plan artifact that passed critique, in this run's work location
 none has anything intact to project. Filling it projects the one
 gate the round ahead cut into its own dispatch -- a projection of the
 planner's own form, never a copy typed here: purpose, scope, proof and any
-model or direction override cross into the child's prefill; the horizon
-behind them does not. The critics who just judged the round could see the
-whole future plan; the gate that executes it sees only its own piece."""
+model or direction override cross into the child's prefill, and so does
+the tree, which shows the gate what calls its nodes and what they call.
+The gate owns only the nodes the tree marks THIS GATE."""
 
 # `calls` is written last, after the scalar `resolution` and `plan`, because
 # a plan field renders as a bare `[[calls]]` header and every scalar declared

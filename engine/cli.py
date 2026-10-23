@@ -889,8 +889,8 @@ def _open_obligations(pst, proot):
 #   written from the spec and the state as they stand.
 # Rejected: carrying the previous cut's plan forward. That is the
 #   amendment chain itself; the gate ahead answers to the code and spec now,
-#   not to what an earlier cut expected them to be. Its `horizon` is a
-#   different thing and does carry -- see `[horizon-carries]`.
+#   not to what an earlier cut expected them to be. Its `call-tree` is a
+#   different thing and does carry -- see `[call-tree-carries]`.
 def _landed(pst, proot):
     """`{"landed": ...}`: the commits the run's tree holds past its cut
     point, oldest first, then the execution-state rows already settled with
@@ -1893,7 +1893,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     #   conductor alone, and the cut has to be in the room it is routed
     #   from. So a step with no child reads the segment's most recent round
     #   that was dispatched and has returned -- the same walk
-    #   `_panel_judged_rework` makes for `horizon` -- and renders its return
+    #   `_panel_judged_rework` makes for `call-tree` -- and renders its return
     #   as the round's own; the trial its `proof` got at the cut
     #   (`[trial-proofs]`) rides in that return's `checks` and renders as
     #   readings rather than exit codes. A step whose segment holds no such
@@ -3113,7 +3113,7 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     panelist that raised them -- or, where the deciding submit carried a
     per-finding `calls` table, the blocking-called blocks of that table
     alone (`_blocking_calls`) -- with the conductor's own `orders` ahead of
-    them, plus any `horizon` the round just judged wrote, which
+    them, plus any `call-tree` the round just judged wrote, which
     `skills/planner/SKILL.md` promises the next round arrives holding. A
     route step with no panel carries the orders alone. `outlet` is the
     segment's impasse form once `impasse-after` rounds have already landed
@@ -3152,7 +3152,7 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     # does not hold this call to it the way it holds `findings`.
     prior = [s for s in st["steps"] if s["segment"] == seg["id"] and s["id"] != step["id"]]
     produced = st["done"].get(prior[-1]["id"], {}).get("fields", {}) if prior else {}
-    carried = {"horizon": produced["horizon"]} if produced.get("horizon") else {}
+    carried = {"call-tree": produced["call-tree"]} if produced.get("call-tree") else {}
     # `impasse-after = 0` is a declaration, not an absence: the opening round
     # was never sent back (`rework_rounds` reads 0 there), so 0 >= 0 makes
     # the first send-back the ruling. A segment declaring no `impasse-after`
@@ -3263,13 +3263,13 @@ def _incorporated(wid, seg, step, fields):
     """The prefill an `incorporate` mints its writer's round with: every
     finding the panel returned, attributed -- or, where the conductor's
     `calls` table is present, the ones it called `writer` -- the conductor's
-    own `orders` ahead of them, and any `horizon` the judged round wrote."""
+    own `orders` ahead of them, and any `call-tree` the judged round wrote."""
     st = runmod.state(wid)
     prior = [s for s in st["steps"] if s["segment"] == seg["id"] and s["id"] != step["id"]]
     produced = st["done"].get(prior[-1]["id"], {}).get("fields", {}) if prior else {}
     prefill = {"findings": _round_findings(st, step, fields, carry="writer")}
-    if produced.get("horizon"):
-        prefill["horizon"] = produced["horizon"]
+    if produced.get("call-tree"):
+        prefill["call-tree"] = produced["call-tree"]
     return prefill
 
 
@@ -3855,28 +3855,28 @@ _REOPENED = (
     "  -- and take it up: spine {wid} up \"<reason>\"")
 
 
-# [horizon-carries]
+# [call-tree-carries]
 # Rationale: Tommy, 2026-10-21 -- with nothing carried, each re-cut planned
 #   from a cold start, saw only "small next chunk", and cut the smallest
 #   thing that moved the run. issue274's first cut wrote that its third
 #   chunk "may fold into (2) if the composition is clean", the merge its
 #   conductor wished for afterwards, and no later cut ever saw it; across
 #   243 gates a gate cost ~23 min before its size counted at all. So the
-#   re-cut after a gate lands receives the horizon the released cut wrote:
+#   re-cut after a gate lands receives the call-tree the released cut wrote:
 #   what the run was thinking about the road ahead, to sharpen into the
 #   next gate, update, or abandon. It is the future alone -- the field holds
 #   the gates after its own cut, so the gate just landed is never in it --
 #   and the plan document, which narrates that gate, stays behind.
 # Rejected: carrying it into a rewrite. A rewrite starts from the
 #   conductor's orders alone (the `rewrite` verb); the draft it replaces
-#   wrote the horizon it is replacing.
-def _horizon_ahead(st, seg_id):
-    """`{"horizon": ...}` from the plan segment's most recent completed round
+#   wrote the call-tree it is replacing.
+def _call_tree_ahead(st, seg_id):
+    """`{"call-tree": ...}` from the plan segment's most recent completed round
     that wrote one; `{}` where none did."""
     for step in reversed([s for s in st["steps"] if s["segment"] == seg_id]):
-        horizon = str(st["done"].get(step["id"], {}).get("fields", {}).get("horizon", "") or "")
-        if horizon.strip() and not horizon.strip().startswith("waived:"):
-            return {"horizon": horizon}
+        tree = str(st["done"].get(step["id"], {}).get("fields", {}).get("call-tree", "") or "")
+        if tree.strip() and not tree.strip().startswith("waived:"):
+            return {"call-tree": tree}
     return {}
 
 
@@ -3890,7 +3890,7 @@ def _settle_execution(wid, asm):
         # The board still has rows neither satisfied nor deferred, so the
         # plan is recut rather than reworked: a fresh artifact, and a fresh
         # count -- holding the road the last cut saw ahead of it.
-        _mint_segment_round(wid, asm, plan["id"], prefill=_horizon_ahead(st, plan["id"]) or None,
+        _mint_segment_round(wid, asm, plan["id"], prefill=_call_tree_ahead(st, plan["id"]) or None,
                             restarts=True)
 
 
@@ -4050,10 +4050,11 @@ def _mint_gates(wid, seg, gates, start=1):
 #   spec it judged; #7's four unrunnable specs are what that produced. The
 #   plan round the panel just passed already carries the gate whole --
 #   `_GATE_FIELDS` below -- so the transition projects it forward rather
-#   than asking the conductor to retype what the panel already read. `plan`,
-#   `horizon` and `key-terms` stay behind: the child executing one gate has
-#   no use for the round's own account of itself or the shape of what comes
-#   after it.
+#   than asking the conductor to retype what the panel already read. `plan`
+#   and `key-terms` stay behind: the child executing one gate has no use
+#   for the round's own account of itself. The `call-tree` crosses: the child
+#   builds its own nodes knowing what calls them and what they call, which
+#   the gate's scope alone cannot say (Tommy, 2026-10-23).
 # Rejected: a `kind = "plan"` field on the transition's own form, the
 #   conductor filling it by hand the way `gates` used to. That reproduces
 #   the transcription bug one step later -- a second typing is a second
@@ -4068,7 +4069,7 @@ def _mint_gates(wid, seg, gates, start=1):
 #   `revise` the conductor chose not to send back) looks like next to a
 #   `rework`/`up`, generic off the outcome rather than off any one form's
 #   own artifact field name.
-_GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "direction")
+_GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "direction", "call-tree")
 
 
 # [projected-source]
@@ -4115,7 +4116,8 @@ def _projected_source(step, st, asm, fields):
     gate = {}
     for s in reversed(prior):
         source = st["done"].get(s["id"], {}).get("fields", {})
-        candidate = {k: source[k] for k in _GATE_FIELDS if k in source}
+        candidate = {k: source[k] for k in _GATE_FIELDS if k in source
+                     and not (k == "call-tree" and str(source[k]).strip().startswith("waived:"))}
         if candidate:
             gate = candidate
             break

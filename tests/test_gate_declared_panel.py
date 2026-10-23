@@ -33,7 +33,7 @@ from test_verdict_panels import _fill_review, _open_gate, _open_panelist, _revie
 from test_verdict_route import _route_with_calls
 
 
-LENSES = ["tests", "simplicity", "claims"]
+LENSES = ["tests", "shape", "claims"]
 
 
 # -- (a) the opening round carries exactly the three declared lenses -------

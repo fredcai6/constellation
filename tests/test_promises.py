@@ -268,7 +268,7 @@ MINT_TARGETS = {
     # (forwarded, not a literal this sweep can see) or `_panel_judged_rework`'s
     # findings, built there rather than as a literal dict at the mint.
     # One look (2026-09-25): `incorporate`'s own writer round, minted by
-    # `_incorporated`'s literal `{"findings": ...}` -- `horizon` rides in
+    # `_incorporated`'s literal `{"findings": ...}` -- `call-tree` rides in
     # too, but only through a subscript assignment this sweep does not read
     # as a dict-literal key, so it stays off the swept set here. Narrowed to
     # run-an-issue's own two seams, the only ones with an `incorporate`
@@ -787,7 +787,7 @@ def test_gitignore_actually_covers_the_paths_the_docs_call_gitignored():
 
 def test_agent_guide_worktrees_row_is_accurate_if_present():
     """`.worktrees/` only belongs in the layout table if an agent actually
-    meets that path -- `render.brief`'s `tree` line and `cmd_open`/`cmd_close`
+    meets that path -- `render.brief`'s `call-tree` line and `cmd_open`/`cmd_close`
     both print it literally, so it qualifies. If the row exists, it must say
     the path is gitignored, since that is the claim it would otherwise get
     wrong silently."""

@@ -108,11 +108,11 @@ def _open_to_plan_reviewed(wid, issue, findings, fill_fn=None):
     return wid
 
 
-def _fill_plan_with_horizon(wid, horizon, purpose="fix the parser to handle EOF without a "
+def _fill_plan_with_call_tree(wid, tree, purpose="fix the parser to handle EOF without a "
                             "trailing newline", scope="src/parser.c only", proof="true"):
-    """`_fill_plan` (test_nesting.py) always writes `horizon = "waived: none
-    yet"` -- this variant lets a caller give the opening cut a real horizon,
-    so a test can tell an incorporate's carried `horizon` apart from an
+    """`_fill_plan` (test_nesting.py) always writes `tree = "waived: none
+    yet"` -- this variant lets a caller give the opening cut a real tree,
+    so a test can tell an incorporate's carried `call-tree` apart from an
     empty placeholder."""
     loc = journal.location(wid)
     _write_plan_artifact(loc / "plan.md")
@@ -121,9 +121,9 @@ plan = "%s/plan.md"
 purpose = "%s"
 scope = "%s"
 proof = "%s"
-horizon = "%s"
+call-tree = "%s"
 key-terms = "waived: none"
-''' % (loc, purpose, scope, proof, horizon))
+''' % (loc, purpose, scope, proof, tree))
 
 
 # -- 1. incorporate on understand: every panelist's findings, orders ahead --
@@ -163,17 +163,17 @@ def test_incorporate_on_understand_mints_a_spec_round_holding_every_panelists_fi
     assert st["current"]["id"] == fresh_writer["id"], "the writer resumes, not the route form"
 
 
-# -- 2. incorporate on plan: a REWORK.toml dispatch, carrying the horizon ---
+# -- 2. incorporate on plan: a REWORK.toml dispatch, carrying the tree ---
 
 
-def test_incorporate_on_plan_mints_a_rework_dispatch_carrying_the_prior_horizon(workdir, capsys):
+def test_incorporate_on_plan_mints_a_rework_dispatch_carrying_the_prior_call_tree(workdir, capsys):
     wid = "issue2"
-    horizon = "gate 2: harden the writer path once this lands"
+    tree = "gate 2: harden the writer path once this lands"
     findings = ("gap: the split argues for two gates where one would do",
                "gap: the proof passes on an empty diff",
                "gap: the scope reaches past the parser")
     _open_to_plan_reviewed(wid, "2", findings,
-                           fill_fn=lambda w: _fill_plan_with_horizon(w, horizon))
+                           fill_fn=lambda w: _fill_plan_with_call_tree(w, tree))
     capsys.readouterr()
 
     _fill_plan_to_execute(wid, "incorporate")
@@ -187,7 +187,7 @@ def test_incorporate_on_plan_mints_a_rework_dispatch_carrying_the_prior_horizon(
     assert fresh_writer["form"] == "skills/planner/forms/REWORK.toml", (
         "incorporate did not mint the plan seam's own rework-form")
     prefill = fresh_writer["prefill"]
-    assert prefill["horizon"] == horizon, "the prior round's own horizon did not carry forward"
+    assert prefill["call-tree"] == tree, "the prior round's own tree did not carry forward"
     for n, finding in enumerate(findings, start=1):
         assert f"[p{n}] {finding}" in prefill["findings"]
 

@@ -13,9 +13,9 @@ only be verified together goes together, since every gate pays a full plan,
 panel and review round before its first line of code. The engine reopens
 planning after every gate while an obligation stays open, so each cut is
 chosen from the spec and the tree as they stand, and it receives the last
-cut's `horizon` -- the coarse road beyond that gate -- as what the run was
-thinking: sharpen its next chunk into this gate, update the rest with what
-landing taught, or pivot. Start
+cut's `call-tree` -- the call tree of what remains -- as what the run was
+thinking: check its nodes against the code as it stands, mark the next
+slice THIS GATE, update the rest with what landing taught, or pivot. Start
 at the code map (`map/INDEX.md`, built by `palette:map` where the tree has
 none), then read the code it points you to. Your cut stands on its own: a
 cold panel reads it with the spec, the open obligations and what has

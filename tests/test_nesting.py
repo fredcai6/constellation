@@ -136,7 +136,7 @@ plan = "%s/plan.md"
 purpose = "%s"
 scope = "%s"
 proof = "%s"
-%shorizon = "waived: none yet"
+%scall-tree = "waived: none yet"
 key-terms = "waived: none"
 ''' % (loc, purpose, scope, proof, extra))
 
@@ -348,7 +348,7 @@ plan = "%s/plan.md"
 purpose = "%s"
 scope = "%s"
 proof = "%s"
-horizon = "waived: none yet"
+call-tree = "waived: none yet"
 findings-addressed = "%s"
 deleted = "%s"
 key-terms = "waived: none"
@@ -532,7 +532,7 @@ def test_gate_projection_mints_one_dispatch_and_adjudicate_pair_in_order(workdir
     assert g1["source"] == "mint" and g1["child"] == "issue17.g1"
     assert g1["prefill"]["purpose"].startswith("fix the parser")
     assert "id" not in g1["prefill"]
-    assert "horizon" not in g1["prefill"]  # the horizon stays with the plan round
+    assert "call-tree" not in g1["prefill"]  # a waived tree crosses as nothing
 
     g1adj = next(s for s in st["steps"] if s["id"] == "g1-adjudicate")
     assert g1adj["form"] == "forms/GATE_TRANSITION.toml"

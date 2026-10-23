@@ -4,12 +4,12 @@ Before this, gate specs were authored at PLAN_TO_EXECUTE.toml, after the
 critic panel had already released -- so no critic had ever read one, and
 `#7` shipped four unrunnable specs as a result. Now the plan round itself
 cuts the gate (`purpose`, `scope`, `proof`, optional `model`/`direction`)
-plus a `horizon` sketch of what plausibly follows; the critics read the
-whole round, and plan-to-execute only projects the gate half forward --
+plus a `call-tree` of the call structure around it; the critics read the
+whole round, and plan-to-execute projects the gate and its tree forward --
 never a second authoring pass. This drives the real `run-an-issue` assembly
 end to end, the way test_nesting.py does, and pins the three properties the
-gate spec's own scope named: one gate per pass, not k; the horizon stays
-behind; and a real artifact path is actually measured.
+gate spec's own scope named: one gate per pass, not k; the tree rides
+forward; and a real artifact path is actually measured.
 """
 
 import pytest
@@ -58,7 +58,7 @@ def test_one_gate_minted_per_pass_not_k(workdir, capsys):
     block a conductor could pad with several blocks in one pass. Submitting
     it, once the round the panel judged has a gate spec on it, mints exactly
     one dispatch/adjudicate pair -- never more, however many the plan's own
-    horizon sketches."""
+    tree sketches."""
     wid = _drive_to_plan_to_execute()
     capsys.readouterr()
 
@@ -74,19 +74,30 @@ def test_one_gate_minted_per_pass_not_k(workdir, capsys):
     assert [a["id"] for a in adjudications] == ["g1-adjudicate"]
 
 
-# -- 2. the child's prefill carries the gate fields, and not the horizon -----
+# -- 2. the child's prefill carries the gate fields, and the tree ------------
 
 
-def test_childs_prefill_carries_gate_fields_and_not_horizon(workdir, capsys):
-    """Ruling 3's contract, verbatim: purpose, scope, proof and the two
-    optional overrides ride into the dispatched gate; `plan`, `horizon` and
-    `key-terms` -- the plan round's own record, and the sketch of what comes
-    after -- stay behind. 'The critics can see what the whole future plan
-    is, but the actual gate focuses on its piece alone.'"""
-    wid = _drive_to_plan_to_execute(fill_fn=lambda w: _fill_plan(
-        w, purpose="fix the parser to handle EOF without a trailing newline",
-        scope="src/parser.c only", proof="true", model="light",
-        direction="whether the fix generalizes to CRLF too"))
+def test_childs_prefill_carries_gate_fields_and_the_call_tree(workdir, capsys):
+    """Purpose, scope, proof, the two optional overrides and the `call-tree` ride
+    into the dispatched gate, so the implementer sees what calls its nodes
+    and what they call; `plan` and `key-terms` -- the plan round's own
+    record -- stay behind. A tree the planner waived crosses as nothing."""
+    tree = "reader (THIS GATE) -> parser (ahead) -> report (landed)"
+
+    def fill(w):
+        (journal.location(w) / "plan.md").write_text("the plan document.\n")
+        _fill(_response(w), '''
+plan = "%s/plan.md"
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
+model = "light"
+direction = "whether the fix generalizes to CRLF too"
+call-tree = "%s"
+key-terms = "waived: none"
+''' % (journal.location(w), tree))
+
+    wid = _drive_to_plan_to_execute(fill_fn=fill)
     capsys.readouterr()
 
     _fill_plan_to_execute(wid)
@@ -100,24 +111,31 @@ def test_childs_prefill_carries_gate_fields_and_not_horizon(workdir, capsys):
     assert prefill["proof"] == "true"
     assert prefill["model"] == "light"
     assert prefill["direction"] == "whether the fix generalizes to CRLF too"
-    assert "horizon" not in prefill
+    assert prefill["call-tree"] == tree
     assert "plan" not in prefill
     assert "key-terms" not in prefill
 
-    # the dispatched child's own opening orders carry the same restriction --
-    # a projection, not a copy of the whole round
+    # the dispatched child's own opening orders carry the same projection
     cli.main(["open", "run-a-gate", "--parent", wid, "--step", "g1"])
     child_prefill = runmod.state(f"{wid}.g1")["prefill"]
     assert child_prefill["purpose"] == prefill["purpose"]
-    assert "horizon" not in child_prefill
+    assert child_prefill["call-tree"] == tree
 
 
-def test_the_critics_read_the_horizon_the_implementer_never_sees(workdir, capsys):
-    """The other half of the asymmetry: a panelist judging the round the
-    plan just cut reads the horizon alongside the gate, since the critic
-    panel is built from this segment's own prior return -- the same
-    mechanism that keeps it out of the implementer's prefill just proves it
-    the opposite way for the reader meant to see it."""
+def test_a_waived_tree_crosses_as_nothing(workdir, capsys):
+    wid = _drive_to_plan_to_execute(fill_fn=lambda w: _fill_plan(w))
+    capsys.readouterr()
+    _fill_plan_to_execute(wid)
+    cli.main([wid, "submit"])
+    capsys.readouterr()
+    g1 = next(s for s in runmod.state(wid)["steps"] if s["id"] == "g1")
+    assert "call-tree" not in g1["prefill"]
+
+
+def test_the_critics_read_the_tree_beside_the_gate(workdir, capsys):
+    """A panelist judging the round the plan just cut reads the tree
+    alongside the gate: the critic panel is built from this segment's own
+    prior return."""
     wid = "issue21"
     cli.main(["open", "run-an-issue", "--issue", "21", "--title", "t"])
     _fill_open(wid)
@@ -125,22 +143,22 @@ def test_the_critics_read_the_horizon_the_implementer_never_sees(workdir, capsys
     _work_the_board(wid)
     _fill_consolidate(wid)
     cli.main([wid, "submit"])
-    def _fill_with_horizon(w):
+    def _fill_with_call_tree(w):
         (journal.location(w) / "plan.md").write_text("the plan document.\n")
         _fill(_response(w), '''
 plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-horizon = "next: a regression test gate, once this one lands"
+call-tree = "next: a regression test gate, once this one lands"
 key-terms = "waived: none"
 ''' % journal.location(w))
-    _dispatch_and_close_plan(wid, fill_fn=_fill_with_horizon)  # round one's single planner
+    _dispatch_and_close_plan(wid, fill_fn=_fill_with_call_tree)  # round one's single planner
     capsys.readouterr()
 
     cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])
     prefill = runmod.state(f"{wid}.plan.p1")["prefill"]
-    assert prefill["horizon"] == "next: a regression test gate, once this one lands"
+    assert prefill["call-tree"] == "next: a regression test gate, once this one lands"
     assert prefill["purpose"].startswith("fix the parser")
 
 
@@ -203,7 +221,7 @@ plan = "the approach is to adjust the loop bound and add a regression test"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-horizon = "waived: none yet"
+call-tree = "waived: none yet"
 key-terms = "waived: none"
 ''')
     with pytest.raises(SystemExit) as e:
@@ -239,7 +257,7 @@ plan = "waived: no plan document for this trivial gate"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-horizon = "waived: none yet"
+call-tree = "waived: none yet"
 key-terms = "waived: none"
 ''')
     cli.main([child, "submit"])  # must not raise

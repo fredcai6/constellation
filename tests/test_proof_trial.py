@@ -60,7 +60,7 @@ plan = "%s/plan.md"
 purpose = "fix the parser"
 scope = "src/parser.c only"
 proof = """%s"""
-%shorizon = "waived: none yet"
+%scall-tree = "waived: none yet"
 key-terms = "waived: none"
 ''' % (loc, proof, f'budget = "{budget}"\n' if budget else ""))
 

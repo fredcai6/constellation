@@ -7,15 +7,15 @@ journal -- the dispatched child's, gone the moment it closes -- so the
 parent's own journal, which `render.drift` reads to compare a round against
 the ones before it, never gained an entry; the room printed no movement
 across rounds. Second, `skills/planner/SKILL.md` promises a round's own
-`horizon` arrives as prefill for the next round's dispatched planner, but
+`call-tree` arrives as prefill for the next round's dispatched planner, but
 the rework round's prefill (`_act_on_verdicts`) carried only the panel's
-`findings` -- the horizon never crossed.
+`findings` -- the tree never crossed.
 
 Both are closed here: `_fold_measures` (engine/cli.py) re-homes a closing
 child's own `measure` entries onto the parent step that dispatched it, at
 the return -- under that step's own segment, so `render.drift` (which
 filters by the current step's segment) finds them again. `_act_on_verdicts`
-threads the judged round's own `horizon` field into the next round's
+threads the judged round's own `call-tree` field into the next round's
 prefill beside `findings`.
 
 Drives the real assemblies end to end, like test_nesting.py -- no
@@ -107,7 +107,7 @@ plan = "%s"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-horizon = "waived: none yet"
+call-tree = "waived: none yet"
 findings-addressed = "accepted: thickened gate 1"
 deleted = "nothing; the growth is all prose"
 key-terms = "waived: none"
@@ -132,12 +132,12 @@ key-terms = "waived: none"
     assert "on the first round" in out
 
 
-# -- 3. a rework round's dispatched planner receives the prior horizon ------
+# -- 3. a rework round's dispatched planner receives the prior tree ------
 
 
-def test_a_rework_rounds_dispatched_planner_receives_the_prior_horizon(workdir, capsys):
+def test_a_rework_rounds_dispatched_planner_receives_the_prior_call_tree(workdir, capsys):
     wid = _drive_to_first_round()
-    horizon = ("gate 2 likely covers the CLI flag; gate 3 the config loader, "
+    tree = ("gate 2 likely covers the CLI flag; gate 3 the config loader, "
                "if gate 2 does not absorb it")
 
     # round one: the single planner _mint_segment_round already mints for
@@ -153,9 +153,9 @@ plan = "%s/plan.md"
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-horizon = "%s"
+call-tree = "%s"
 key-terms = "waived: none"
-''' % (loc, horizon))
+''' % (loc, tree))
     cli.main([child, "submit"])
     cli.main([child, "close"])
     capsys.readouterr()
@@ -167,13 +167,13 @@ key-terms = "waived: none"
     capsys.readouterr()
 
     # the crossing, at the parent: the freshly minted round already carries
-    # the prior round's horizon in its own prefill, beside the findings
+    # the prior round's tree in its own prefill, beside the findings
     fresh = _fresh_mint(runmod.state(wid), "plan")
-    assert horizon in fresh["prefill"].get("horizon", "")
+    assert tree in fresh["prefill"].get("call-tree", "")
     assert "gap: thin" in fresh["prefill"]["findings"]
 
     # the crossing, at the child: skills/planner/SKILL.md promises the
     # dispatched planner sees it too, as prefill in its own room
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", fresh["id"]])
     rework_child = f"{wid}.{fresh['id']}"
-    assert horizon in runmod.state(rework_child)["prefill"].get("horizon", "")
+    assert tree in runmod.state(rework_child)["prefill"].get("call-tree", "")
