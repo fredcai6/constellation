@@ -188,13 +188,15 @@ def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdi
     _write_plan_artifact(child_loc / "plan.md")
     _fill(_response(child), '''
 plan = "%s/plan.md"
-purpose = "fix the parser to handle EOF without a trailing newline"
-scope = "src/parser.c only"
-proof = "true"
 call-tree = "waived: none yet"
 findings-addressed = "accepted: rewrote gate 1's done as a runnable command"
 deleted = "the restated approach section; the gates already carry it"
 key-terms = "waived: none"
+
+[[gates]]
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
 ''' % child_loc)
     cli.main([child, "submit"])
     cli.main([child, "close"])
@@ -273,13 +275,15 @@ def test_the_plan_segments_measures_fold_into_the_parent_each_round(workdir, cap
     rework_art.write_text("one two three four five six seven eight nine ten eleven twelve\n")
     _fill(_response(rework_child), '''
 plan = "%s"
-purpose = "fix the parser to handle EOF without a trailing newline"
-scope = "src/parser.c only"
-proof = "true"
 call-tree = "waived: none yet"
 findings-addressed = "accepted: thickened gate 1"
 deleted = "nothing; the growth is all prose"
 key-terms = "waived: none"
+
+[[gates]]
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
 ''' % rework_art)
     cli.main([rework_child, "submit"])
     assert _plan_measures(rework_child) == [12]
@@ -302,13 +306,15 @@ def _fill_rework(wid):
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(wid), '''
 plan = "%s/plan.md"
-purpose = "fix the parser to handle EOF without a trailing newline"
-scope = "src/parser.c only"
-proof = "true"
 call-tree = "waived: none yet"
 findings-addressed = "waived: first pass"
 deleted = "waived: nothing"
 key-terms = "none"
+
+[[gates]]
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
 ''' % loc)
 
 

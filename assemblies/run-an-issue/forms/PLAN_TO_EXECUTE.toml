@@ -27,9 +27,9 @@ thing this gate would code -- one finding, or several read together --
 the fresh cut starts from your orders alone, never the last cut or its
 findings, and gets its own look. Where you are standing on a returned cut,
 or on a re-cut after a gate landed, release it. The round
-that just landed already cut the gate whole -- purpose, scope, proof, and
-any model or direction override -- so a release needs nothing retyped,
-only the plan artifact pointed at."""
+that just landed already cut every gate whole -- purpose, scope, proof, and
+any model or direction override, one block per gate -- so a release needs
+nothing retyped, only the plan artifact pointed at."""
 
 [[field]]
 id = "resolution"
@@ -85,12 +85,12 @@ note = """
 The plan artifact that passed critique, in this run's work location
 (.agent-work/<work-id>/) -- filled when this round releases (a `pass`, or a
 `revise` you are not sending back) and left blank on any other word, since
-none has anything intact to project. Filling it projects the one
-gate the round ahead cut into its own dispatch -- a projection of the
-planner's own form, never a copy typed here: purpose, scope, proof and any
-model or direction override cross into the child's prefill, and so does
-the tree, which shows the gate what calls its nodes and what they call.
-The gate owns only the nodes the tree marks THIS GATE."""
+none has anything intact to project. Filling it projects every gate the round ahead cut, in its own order, into
+its own dispatch -- a projection of the planner's own form, never a copy
+typed here: each gate's purpose, scope, proof and any model or direction
+override cross into its own child's prefill, and so does the tree, which
+shows every gate what calls its nodes and what they call. Each gate owns
+only the nodes the tree marks THIS GATE for it."""
 
 # `calls` is written last, after the scalar `resolution` and `plan`, because
 # a plan field renders as a bare `[[calls]]` header and every scalar declared

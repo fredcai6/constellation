@@ -31,6 +31,14 @@ def _fields(path):
     return {f["id"]: f for f in forms.load(ROOT / path)["fields"]}
 
 
+def _gate_item_fields(path):
+    """The item fields nested inside PLAN.toml/REWORK.toml's own `gates`
+    field -- the one block every gate's `purpose`/`scope`/`proof`/
+    `gate-proof`/... now live in, in place of top-level fields."""
+    gates = _fields(path)["gates"]
+    return {f["id"]: f for f in gates["item"]}
+
+
 def _gate_checks(wid):
     """Every command the gate's own implement submits ran."""
     return [c["command"] for e in journal.read(wid)
@@ -44,7 +52,7 @@ def test_every_form_that_carries_a_gate_spec_carries_both_proofs():
     """The planner writes both, the projection carries both, and the gate's
     implement step runs both."""
     for path in ("skills/planner/forms/PLAN.toml", "skills/planner/forms/REWORK.toml"):
-        fields = _fields(path)
+        fields = _gate_item_fields(path)
         assert fields["proof"]["kind"] == "proof"
         assert fields["gate-proof"]["kind"] == "proof"
         assert fields["gate-proof"].get("optional")

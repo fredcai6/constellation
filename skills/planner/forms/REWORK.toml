@@ -7,16 +7,16 @@ imperative = """
 The panel has read your cut, and its findings are in your prefill, with any
 orders the conductor wrote ahead of them. They are advice: take each one
 that makes this a better next step, reject each one that does not, and
-record which in `findings-addressed`. Then cut the gate that results -- the
-same bar as the first cut: the next chunk toward the spec's done, a
-complete proof of one thing, with purpose saying what the run takes as true, proof what verifies it,
+record which in `findings-addressed`. Then cut the gates that result -- the
+same bar as the first cut: at least one, and every chunk whose path is
+clear, each a complete proof of one thing, with purpose saying what the run takes as true, proof what verifies it,
 scope where. The how is the implementer's, so a finding about how is one
 you can reject on that bar alone. Delete the restated. No panel reads this
-cut again: the conductor releases it, and the gate's own reviewers read the
+cut again: the conductor releases it, and each gate's own reviewers read its
 diff.
 The plan document itself carries the approach and the risks that would
-change it; this gate's purpose, scope and proof are the fields below, not
-restated there."""
+change it; each gate's purpose, scope and proof are its own block in
+`gates` below, not restated there."""
 
 [[field]]
 id = "plan"
@@ -28,56 +28,6 @@ segment left behind describing a different gate. Point at it, never retype
 it -- the imperative above says what belongs in it. A round that changed only
 the fields below and wrote no document of its own says `waived: fields only`
 rather than naming the last true path another round wrote."""
-
-[[field]]
-id = "purpose"
-note = "What this gate accomplishes, and why the plan needs it."
-
-[[field]]
-id = "scope"
-note = "Where the change lives, and what is out of bounds."
-
-[[field]]
-id = "proof"
-kind = "proof"
-note = """
-Same as PLAN.toml's `proof`: the exact command to run, never a description,
-referencing the command palette (constellation.toml) -- one that proves
-nothing on an empty diff or a diff short of `scope`. What must be true when
-the issue ends: run at submit, when the gate lands, and again at close."""
-
-[[field]]
-id = "gate-proof"
-kind = "proof"
-optional = true
-note = """
-Same as PLAN.toml's `gate-proof`: what must be true when this gate lands
-alone, run at submit and when the gate lands, never at close. Measure what
-the gate touched from `$CONSTELLATION_GATE_BASE`. Or waived: none."""
-
-[[field]]
-id = "budget"
-optional = true
-note = """
-Same as PLAN.toml's `budget`: declare one only for a proof that is right and
-may run past the engine's 600 seconds. Whole seconds, a bare integer."""
-
-[[field]]
-id = "model"
-optional = true
-note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
-
-[[field]]
-id = "direction"
-optional = true
-note = """
-A question this gate is expected to answer for the next plan round, when you
-have one. The gate's own close form is asked to answer it in `residue`, so
-write something answerable or leave it out -- `waived: none` is the ordinary
-case for a run's last gate. Not a place for anything else you noticed:
-something outside this gate's own scope is the conductor's to call
-`rejected: <reason>` at the review that follows, and the shape of the gates
-after this one is `call-tree`."""
 
 [[field]]
 id = "call-tree"
@@ -126,3 +76,67 @@ panelist's prefill."""
 id = "key-terms"
 kind = "evidence"
 note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+
+# Written last: `materialize` (engine/forms.py) writes a `kind = "plan"`
+# field as a bare `[[gates]]` array-of-tables header, and TOML nests every
+# scalar line after it into that array's last block rather than reading it
+# as a sibling field -- `test_reachable_briefs.py`'s own general guard
+# holds every form in the repo to this.
+[[field]]
+id = "gates"
+kind = "plan"
+note = """
+One block per gate this round queues, in the order they run: at least one,
+and every chunk whose path is clear. Same shape as PLAN.toml's `gates` --
+purpose, scope, proof, and, when you know them, gate-proof, a model
+override and a direction."""
+
+  [[field.item]]
+  id = "purpose"
+  note = "What this gate accomplishes, and why the plan needs it."
+
+  [[field.item]]
+  id = "scope"
+  note = "Where the change lives, and what is out of bounds."
+
+  [[field.item]]
+  id = "proof"
+  kind = "proof"
+  note = """
+Same as PLAN.toml's `proof`: the exact command to run, never a description,
+referencing the command palette (constellation.toml) -- one that proves
+nothing on an empty diff or a diff short of `scope`. What must be true when
+the issue ends: run at submit, when the gate lands, and again at close."""
+
+  [[field.item]]
+  id = "gate-proof"
+  kind = "proof"
+  optional = true
+  note = """
+Same as PLAN.toml's `gate-proof`: what must be true when this gate lands
+alone, run at submit and when the gate lands, never at close. Measure what
+the gate touched from `$CONSTELLATION_GATE_BASE`. Or waived: none."""
+
+  [[field.item]]
+  id = "budget"
+  optional = true
+  note = """
+Same as PLAN.toml's `budget`: declare one only for a proof that is right and
+may run past the engine's 600 seconds. Whole seconds, a bare integer."""
+
+  [[field.item]]
+  id = "model"
+  optional = true
+  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+
+  [[field.item]]
+  id = "direction"
+  optional = true
+  note = """
+A question this gate is expected to answer for the next plan round, when you
+have one. The gate's own close form is asked to answer it in `residue`, so
+write something answerable or leave it out -- `waived: none` is the ordinary
+case for a run's last gate. Not a place for anything else you noticed:
+something outside this gate's own scope is the conductor's to call
+`rejected: <reason>` at the review that follows, and the shape of the gates
+after this one is `call-tree`."""

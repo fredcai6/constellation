@@ -8,33 +8,40 @@
 # and a `rewrite` recuts it from the conductor's `orders` alone.
 
 imperative = """
-Choose the next chunk of work toward the spec's done, and cut it as one
-gate: purpose, scope, proof, and, when you know them, a model override and
-a direction for what it should teach. A chunk is a vertical, complete
-proof of one thing: what the run can take as true once it lands, built end
-to end and verified on its own. Work that can only be verified together
-belongs in one chunk, and every gate pays a full plan, panel and review
-round before its first line of code, so cut the chunk as whole as one diff
-a reviewer can run and read allows. The engine reopens this segment after
-every gate while an obligation stays open, and each cut is chosen from the
-spec and the tree as they stand -- what has landed since the run began
-arrives as `landed`. Where your prefill holds a `call-tree`, it is what the
-last cut was thinking: check its nodes against the code as it stands, mark
-this gate's nodes THIS GATE, and update the rest with what the run has
-learned -- or pivot, where what landed says the structure has changed. Start at the
+Cut every chunk of work toward the spec's done whose path you can see
+clearly, in the order they run: at least one, and as many as the tree and
+the spec let you see -- the whole run, where the whole run is clear. Each
+is a vertical, complete proof of one thing: what the run can take as true
+once it lands, built end to end and verified on its own. Work that can
+only be verified together belongs in one chunk, and every gate pays a full
+plan, panel and review round before its first line of code, so cut each
+chunk as whole as one diff a reviewer can run and read allows. Where the
+path stops being clear, stop the queue there and name why in `direction`:
+what you cannot yet say, and which of the gates you did cut will answer
+it. The engine reopens this segment after every gate while an obligation
+stays open and no gate is still queued, and a queued gate goes back to you
+for review, with no panel, the moment its own proof reads stale against
+the tree -- so a cut that ends early is not a failure, it is the honest
+edge of what you can see. Each cut is chosen from the spec and the tree as
+they stand -- what has landed since the run began arrives as `landed`.
+Where your prefill holds a `call-tree`, it is what the last cut was
+thinking: check its nodes against the code as it stands, mark this cut's
+own nodes THIS GATE, and update the rest with what the run has learned --
+or pivot, where what landed says the structure has changed. Start at the
 code map (`map/INDEX.md`; `palette:map` builds it where the tree has none)
-and read the code it points you to. Purpose says what the run takes as true
-once this gate lands, proof says what verifies it, scope says where, at
+and read the code it points you to. Purpose says what the run takes as
+true once a gate lands, proof says what verifies it, scope says where, at
 the grain of modules and seams -- the how is the implementer's, who reads
 the same code and chooses it there. `standards/approach.md`, under the
-engine root the brief named, is what this project builds by; name in
-`purpose` which of its five this gate serves. Then lay out the call-tree
-the whole run needs, with this gate's nodes marked: the architecture the
-implementer builds inside, and the order the remaining nodes will be met in. The plan
-document itself carries the approach and the risks that would change it,
-and stands on its own: the panel reads it cold, with the spec and the run's
-state beside it and no earlier plan. This gate's purpose, scope and proofs
-are the fields below, not restated there. Where your prefill holds `orders`
+engine root the brief named, is what this project builds by; name in each
+gate's own `purpose` which of its five it serves. Then lay out the
+call-tree the whole run needs, with every gate you cut marked THIS GATE:
+the architecture the implementers build inside, and the order the
+remaining nodes will be met in. The plan document itself carries the
+approach and the risks that would change it, and stands on its own: the
+panel reads it cold, with the spec and the run's state beside it and no
+earlier plan. Each gate's purpose, scope and proofs are its own block in
+`gates` below, not restated there. Where your prefill holds `orders`
 alone, the last cut is gone: cut fresh from the orders, as a first cut."""
 
 [[field]]
@@ -44,74 +51,6 @@ note = """
 The plan document, in this run's work location (.agent-work/<work-id>/).
 Point at it — never retype it: the imperative above says what belongs in
 it and what stays here instead."""
-
-[[field]]
-id = "purpose"
-note = """
-What later gates and the run's conclusion will take as true once this gate
-lands -- a claim someone could test, not a summary of what changed. Second,
-which of the five in `standards/approach.md` it serves."""
-
-[[field]]
-id = "scope"
-note = "Where the change lives, and what is out of bounds."
-
-[[field]]
-id = "proof"
-kind = "proof"
-note = """
-A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised. It exercises purpose's claim: a proof that passes while purpose is false has proved
-the wrong thing. Write the exact string to run, never a description of it:
-this field rides into the dispatched child as its own `proof`, shell-executed
-there. This is what must be true when the issue ends. It runs at your
-submit, against the run's tree as it stands, where whoever judges the cut
-reads the result beside it: a real check fails there, before the work; one
-that passes proves nothing; prose does not resolve. It runs again when the
-gate lands, and once more when the run closes, against the finished tree
-after every later gate has landed. Reference the command palette
-(constellation.toml) rather than hardcoding where it applies."""
-
-[[field]]
-id = "gate-proof"
-kind = "proof"
-optional = true
-note = """
-What must be true when this gate lands, and need not hold after later gates
-have: what the gate left alone -- nothing else changed, a file identical to
-the cut, and the files of the call-tree's nodes outside this slice. The exact command, like `proof`; it runs at your submit and when
-the gate lands, never at close. Measure what the gate touched from
-`$CONSTELLATION_GATE_BASE` (the engine sets it to the last landed gate's
-commit, the branch point for the first gate): `git diff --name-only
-"${CONSTELLATION_GATE_BASE:?}"`, plus `git ls-files --others
---exclude-standard` for new files. Earlier gates' files are already behind
-that base. Or waived: none."""
-
-[[field]]
-id = "budget"
-optional = true
-note = """
-Seconds past which the proof counts as hung rather than slow. The engine
-allows 600 already, so declare one only for a proof that is right and may
-take longer than that -- a full suite on a busy host, a real build. Whole
-seconds, a bare integer -- not a paragraph of rationale."""
-
-[[field]]
-id = "model"
-optional = true
-note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
-
-[[field]]
-id = "direction"
-optional = true
-note = """
-A question this gate is expected to answer for the next plan round, when you
-have one. The gate's own close form is asked to answer it in `residue`, so
-write something answerable or leave it out -- `waived: none` is the ordinary
-case for a run's last gate. Not a place for anything else you noticed:
-something outside this gate's own scope is the conductor's to call
-`rejected: <reason>` at the review that follows, and the shape of the gates
-after this one is `call-tree`."""
 
 [[field]]
 id = "call-tree"
@@ -137,3 +76,93 @@ code. Whoever judges the round reads the slice's nodes closely and the
 id = "key-terms"
 kind = "evidence"
 note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+
+# Written last: `materialize` (engine/forms.py) writes a `kind = "plan"`
+# field as a bare `[[gates]]` array-of-tables header, and TOML nests every
+# scalar line after it into that array's last block rather than reading it
+# as a sibling field -- `test_reachable_briefs.py`'s own general guard
+# holds every form in the repo to this, the same reason PLAN_TO_EXECUTE.toml's
+# `calls` field is written last on its own form.
+[[field]]
+id = "gates"
+kind = "plan"
+note = """
+One block per gate this cut queues, in the order they run: at least one,
+and every chunk whose path is clear -- the planner's own call, up to the
+whole run. Releasing the cut queues every block here, in order; once the
+first is accepted the next dispatches on its own, no plan round and no
+panel in between, until the queue runs out or a queued gate's own proof
+reads stale against the tree. Each block is a complete gate: `purpose`,
+`scope`, `proof`, and, when you know them, `gate-proof`, a model override
+and a direction for what it should teach -- the same seven things a
+single-gate cut has always named, now one block per gate rather than one
+set of fields for the whole round."""
+
+  [[field.item]]
+  id = "purpose"
+  note = """
+What later gates and the run's conclusion will take as true once this
+gate lands -- a claim someone could test, not a summary of what changed.
+Second, which of the five in `standards/approach.md` it serves."""
+
+  [[field.item]]
+  id = "scope"
+  note = "Where the change lives, and what is out of bounds."
+
+  [[field.item]]
+  id = "proof"
+  kind = "proof"
+  note = """
+A command that passes on an empty diff proves nothing, and so does one that
+covers less than `scope` promised. It exercises purpose's claim: a proof that passes while purpose is false has proved
+the wrong thing. Write the exact string to run, never a description of it:
+this field rides into the dispatched child as its own `proof`, shell-executed
+there. This is what must be true when the issue ends. It runs at your
+submit, against the run's tree as it stands, where whoever judges the cut
+reads the result beside it: a real check fails there, before the work; one
+that passes proves nothing; prose does not resolve. It runs again when the
+gate lands, and once more when the run closes, against the finished tree
+after every later gate has landed. Reference the command palette
+(constellation.toml) rather than hardcoding where it applies."""
+
+  [[field.item]]
+  id = "gate-proof"
+  kind = "proof"
+  optional = true
+  note = """
+What must be true when this gate lands, and need not hold after later gates
+have: what the gate left alone -- nothing else changed, a file identical to
+the cut, and the files of the call-tree's nodes outside this slice. The exact command, like `proof`; it runs at your submit and when
+the gate lands, never at close. Measure what the gate touched from
+`$CONSTELLATION_GATE_BASE` (the engine sets it to the last landed gate's
+commit, the branch point for the first gate): `git diff --name-only
+"${CONSTELLATION_GATE_BASE:?}"`, plus `git ls-files --others
+--exclude-standard` for new files. Earlier gates' files are already behind
+that base. Or waived: none."""
+
+  [[field.item]]
+  id = "budget"
+  optional = true
+  note = """
+Seconds past which the proof counts as hung rather than slow. The engine
+allows 600 already, so declare one only for a proof that is right and may
+take longer than that -- a full suite on a busy host, a real build. Whole
+seconds, a bare integer -- not a paragraph of rationale."""
+
+  [[field.item]]
+  id = "model"
+  optional = true
+  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+
+  [[field.item]]
+  id = "direction"
+  optional = true
+  note = """
+A question this gate is expected to answer for the next plan round, when you
+have one -- naming which gate answers it is what bounds a queue that stops
+short of the whole run. The gate's own close form is asked to answer it in
+`residue`, so write something answerable or leave it out -- `waived: none`
+is the ordinary case for a run's last gate. Not a place for anything else
+you noticed: something outside this gate's own scope is the conductor's to
+call `rejected: <reason>` at the review that follows, and the shape of the
+gates after this one is `call-tree`."""

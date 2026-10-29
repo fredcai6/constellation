@@ -1,0 +1,129 @@
+# Step: the planner's one-look review of a queue a stale gate closed. Owned
+# by the planner skill; filled by the planner. `_settle_execution`
+# (engine/cli.py) mints this form, in place of PLAN.toml or REWORK.toml,
+# when the gate the queue was about to dispatch next already answers its
+# own proof -- it passed already, or could not run as a command -- against
+# the tree as it stands: never a panel's finding, so no panel reads what
+# this round returns either.
+
+imperative = """
+`stale` below names the gate the queue would have dispatched next, and why
+it was never started: its own `proof` already passed against the tree as
+it stands, or could not run as a command at all. Trusting it into dispatch
+anyway would have built a gate the tree already answers, or one whose
+check cannot say anything -- so the whole queue that gate stood in closed
+before any of it ran, `closed-queue` below naming every block it held, in
+order, exactly as the plan that queued them wrote each one. `findings` is
+the conductor's own ruling from the most recently landed gate's
+adjudication, where it wrote one -- ground this cut answers to, not an
+objection to rebut. Open the root the staleness points at -- what made the
+proof already true, or why it would not run -- before you cut anything:
+the tree moved since that queue was planned, and this round is where the
+plan catches up to it, not a retyping of what closed. Then cut what the run
+still needs from here, the same bar as any other cut: at least one gate,
+and every chunk whose path is clear, each a complete proof of one thing --
+purpose, scope, proof, and the rest, one block per gate in `gates` below.
+Nothing `closed-queue` held survives into the new queue except what you
+write again here on purpose; a block you do not repeat is gone. The plan
+document itself carries the approach and the risks that would change it,
+and stands on its own: it says nothing about the queue that closed ("as
+before", "unchanged from the round that closed") and reads whole to a cold
+reader, since no panel reads this twice. Where your prefill holds a
+`call-tree`, it is what the closed queue was thinking: check its nodes
+against the code and the staleness itself, mark this cut's own nodes THIS
+GATE, and update the rest -- or pivot, where the staleness says the
+structure changed."""
+
+[[field]]
+id = "plan"
+kind = "artifact"
+note = """
+The plan document this round edited, in this run's work location
+(.agent-work/<work-id>/). Point at it — never retype it: the imperative
+above says what belongs in it."""
+
+[[field]]
+id = "call-tree"
+kind = "evidence"
+note = """
+The call tree of what the spec's done needs, as an outline with one node
+per function or module: what it owns (the state or decision hidden inside
+it), what it receives, what it returns, and who calls it. Mark each node
+`landed` (its name alone), `THIS GATE`, or `ahead`. Take the tree down far
+enough that an implementer could build any node against a testable
+contract, and stop there: the math at the leaves is the implementer's.
+THIS GATE's nodes carry full signatures and the results the proof checks;
+`ahead` nodes stay coarse and may merge or move as work lands. The slice is
+the THIS GATE nodes, one vertical path or subtree whose proof stands on its
+own. The implementer receives the whole tree, owns its THIS GATE nodes,
+reshapes their interiors as it sees fit, and raises a change to an edge
+another node relies on as a blocked note. The next cut's planner receives
+this as what the run was thinking and rebuilds the landed part from the
+code. Whoever judges the round reads the slice's nodes closely and the
+`ahead` nodes loosely. `waived: none` for a gate that is one function."""
+
+[[field]]
+id = "key-terms"
+kind = "evidence"
+note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+
+# Written last: `materialize` (engine/forms.py) writes a `kind = "plan"`
+# field as a bare `[[gates]]` array-of-tables header, and TOML nests every
+# scalar line after it into that array's last block rather than reading it
+# as a sibling field -- `test_reachable_briefs.py`'s own general guard
+# holds every form in the repo to this.
+[[field]]
+id = "gates"
+kind = "plan"
+note = """
+One block per gate this round queues, in the order they run: at least one,
+and every chunk whose path is clear. Same shape as PLAN.toml's `gates` --
+purpose, scope, proof, and, when you know them, gate-proof, a model
+override and a direction."""
+
+  [[field.item]]
+  id = "purpose"
+  note = "What this gate accomplishes, and why the plan needs it."
+
+  [[field.item]]
+  id = "scope"
+  note = "Where the change lives, and what is out of bounds."
+
+  [[field.item]]
+  id = "proof"
+  kind = "proof"
+  note = """
+Same as PLAN.toml's `proof`: the exact command to run, never a description,
+referencing the command palette (constellation.toml) -- one that proves
+nothing on an empty diff or a diff short of `scope`. What must be true when
+the issue ends: run at submit, when the gate lands, and again at close."""
+
+  [[field.item]]
+  id = "gate-proof"
+  kind = "proof"
+  optional = true
+  note = """
+Same as PLAN.toml's `gate-proof`: what must be true when this gate lands
+alone, run at submit and when the gate lands, never at close. Measure what
+the gate touched from `$CONSTELLATION_GATE_BASE`. Or waived: none."""
+
+  [[field.item]]
+  id = "budget"
+  optional = true
+  note = """
+Same as PLAN.toml's `budget`: declare one only for a proof that is right and
+may run past the engine's 600 seconds. Whole seconds, a bare integer."""
+
+  [[field.item]]
+  id = "model"
+  optional = true
+  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+
+  [[field.item]]
+  id = "direction"
+  optional = true
+  note = """
+A question this gate is expected to answer for the next plan round, when you
+have one. The gate's own close form is asked to answer it in `residue`, so
+write something answerable or leave it out -- `waived: none` is the ordinary
+case for a run's last gate."""

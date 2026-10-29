@@ -56,7 +56,13 @@ def _mint_n_gates_with_obligation(n, wid="issue17",
         gid, child = f"g{i}", f"{wid}.g{i}"
         journal.append(wid, "step", id=gid, segment="execute", dispatches="run-a-gate",
                        prefill={"purpose": "gate %d purpose" % i, "scope": "gate %d scope" % i,
-                                "proof": "true"},
+                                # `false` -- a real check, failing before any work
+                                # -- not `true`: a queued gate's own proof is now
+                                # read against the tree before it dispatches
+                                # (`_proof_is_stale`, engine/cli.py), and `true`
+                                # already passes on an untouched tree, the stale
+                                # reading these two tests are not about.
+                                "proof": "false"},
                        child=child, anchor=False, terminal=False, source="mint")
         journal.append(wid, "step", id=f"{gid}-adjudicate", segment="execute",
                        form="forms/GATE_TRANSITION.toml", filler="conductor", child=child,

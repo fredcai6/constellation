@@ -104,13 +104,15 @@ def test_two_rounds_produce_a_drift_the_rooms_renders(workdir, capsys):
     rework_art.write_text("one two three four five six seven eight nine ten eleven twelve\n")
     _fill(_response(rework_child), '''
 plan = "%s"
-purpose = "fix the parser to handle EOF without a trailing newline"
-scope = "src/parser.c only"
-proof = "true"
 call-tree = "waived: none yet"
 findings-addressed = "accepted: thickened gate 1"
 deleted = "nothing; the growth is all prose"
 key-terms = "waived: none"
+
+[[gates]]
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
 ''' % rework_art)
     cli.main([rework_child, "submit"])
     cli.main([rework_child, "close"])
@@ -150,11 +152,13 @@ def test_a_rework_rounds_dispatched_planner_receives_the_prior_call_tree(workdir
     (loc / "plan.md").write_text("one two three\n")
     _fill(_response(child), '''
 plan = "%s/plan.md"
+call-tree = "%s"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-call-tree = "%s"
-key-terms = "waived: none"
 ''' % (loc, tree))
     cli.main([child, "submit"])
     cli.main([child, "close"])

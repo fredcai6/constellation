@@ -318,34 +318,61 @@ def _resolve_one(text, root=None):
 #   gate's runner is what runs it to its full budget. A `budget` that is not
 #   whole seconds is read as none -- the gate's own submit refuses that as
 #   it always has; a trial refuses nothing.
+# Rationale: a cut's `gates` field (PLAN.toml, REWORK.toml, REVIEW_PLAN.toml)
+#   nests one `proof`/`gate-proof` pair per gate inside a `kind = "plan"`
+#   row rather than carrying them as this form's own top-level fields, so
+#   the walk below descends into any such row's own declared items too --
+#   each gate's own two proofs trialled exactly as a single top-level
+#   field already was, field-id'd `"<list-field>.<row index>.<item id>"`
+#   so a reading can still be told which gate it belongs to. Grouped by
+#   each row's own `budget` (falling back to the one shared default) rather
+#   than one call per row: the common case -- no gate overrides it -- still
+#   reaches `hand_in_trial` once, the same single batch a one-gate cut
+#   always handed it, and only cuts whose gates disagree about budget pay
+#   for a second detached run.
 def _trial_proofs(wid, step, form, fields, root):
-    """Run every `proof`-kind field this submit carries, once, and journal
-    each as a `check` entry on this step. Returns the entries this run's own
-    journal now holds for it -- `[]` where the form declares no such field
-    or every one of them is a status word rather than a command, and
-    possibly short of every field where one outran the handback and is
-    still running, detached, when this returns."""
+    """Run every `proof`-kind field this submit carries -- a form's own
+    top-level ones, and any nested inside a `kind = "plan"` row's own
+    items -- once each, and journal every one as a `check` entry on this
+    step. Returns the entries this run's own journal now holds for it --
+    `[]` where the form declares no such field or every one of them is a
+    status word rather than a command, and possibly short of every field
+    where one outran the handback and is still running, detached, when
+    this returns."""
     changed = _changed_since_cut(wid, root)
-    resolved = []
-    for f in form["fields"]:
-        text = str(fields.get(f["id"], "") or "").strip()
-        if f.get("kind") != "proof" or not text:
-            continue
-        if forms.leading_word(text) in ("waived", "unknown"):
-            continue
+    groups = {}
+
+    def consider(fid, text, orders):
+        text = str(text or "").strip()
+        if not text or forms.leading_word(text) in ("waived", "unknown"):
+            return
         try:
             cmd = _resolve_command(text, root)
         except SystemExit as e:
-            journal.append(wid, "check", step=step["id"], field=f["id"],
+            journal.append(wid, "check", step=step["id"], field=fid,
                            command=text, exit=127, output=str(e), trial=True,
                            changed=changed)
-            continue
-        resolved.append((f["id"], cmd))
-    if resolved:
+            return
         try:
-            budget = checkrun.budget_for(fields)
+            budget = checkrun.budget_for(orders)
         except SystemExit:
             budget = checkrun.BUDGET
+        groups.setdefault(budget, []).append((fid, cmd))
+
+    for f in form["fields"]:
+        if f.get("kind") == "proof":
+            consider(f["id"], fields.get(f["id"], ""), fields)
+        elif f.get("kind") == "plan":
+            rows = fields.get(f["id"])
+            if not isinstance(rows, list):
+                continue
+            for i, row in enumerate(rows):
+                if not isinstance(row, dict):
+                    continue
+                for item in f.get("item", []):
+                    if item.get("kind") == "proof":
+                        consider(f"{f['id']}.{i}.{item['id']}", row.get(item["id"], ""), row)
+    for budget, resolved in groups.items():
         checkrun.hand_in_trial(wid, step["id"], resolved, root, budget, changed)
     return list(runmod.state(wid)["proof_trials"])
 
@@ -3343,6 +3370,30 @@ def _rewrite_capped(wid, asm, seg, tseg):
     return True
 
 
+# [close-step-and-pair]
+# Rationale: a submitted `drop <gate-id>` already closed a step and
+#   everything sharing its `child` -- the dispatch and its own adjudication
+#   together, since one never outlives the other -- inline in `_perform`'s
+#   own `close` branch. `_settle_execution`'s own staleness review needs the
+#   identical move, once per still-queued gate the whole open queue holds,
+#   not only the one found stale. Factored out so both callers amend the
+#   same way rather than one drifting from the other the next time either
+#   changes.
+def _close_step_and_pair(wid, step_id, reason):
+    """Amend-close `step_id` and every other not-done step sharing its
+    `child` -- a gate's dispatch and its own adjudication, closed together
+    since one is never left standing without the other. A no-op where
+    `step_id` names nothing live."""
+    st = runmod.state(wid)
+    hit = next((s for s in st["steps"] if s["id"] == step_id), None)
+    if not hit:
+        return
+    for s in st["steps"]:
+        if s.get("child") == hit.get("child") and s["id"] not in st["done"]:
+            journal.append(wid, "amend", action="close", segment=s["segment"],
+                           step=s["id"], reason=reason, anchor=s.get("anchor", False))
+
+
 def _incorporated(wid, seg, step, fields):
     """The prefill an `incorporate` mints its writer's round with: every
     finding the panel returned, attributed -- or, where the conductor's
@@ -3486,14 +3537,7 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "close":
             parts = str(fields.get(field, "")).split(None, 1)
             target_id = parts[1].strip() if len(parts) > 1 else ""
-            st = runmod.state(wid)
-            hit = next((s for s in st["steps"] if s["id"] == target_id), None)
-            if hit:
-                for s in st["steps"]:
-                    if s.get("child") == hit.get("child") and s["id"] not in st["done"]:
-                        journal.append(wid, "amend", action="close", segment=s["segment"],
-                                       step=s["id"], reason=reason,
-                                       anchor=s.get("anchor", False))
+            _close_step_and_pair(wid, target_id, reason)
         elif word == "commit":
             _commit_gate(wid, asm, step)
         elif word == "settle":
@@ -4003,6 +4047,66 @@ def _call_tree_ahead(st, seg_id):
     return {}
 
 
+# [proof-is-stale]
+# Rationale: o6 -- a queued gate whose own proof already reads true, or
+#   cannot run as a command, against the tree as it stands is never
+#   trusted into dispatch on the strength of a plan round that ran before
+#   the tree looked like this. The same resolution and exit-code reading a
+#   plan round's own submit-time trial already applies (`_resolve_command`,
+#   `checkrun.hand_in_trial`) answers it here too -- never a second
+#   proof-runner -- journaled the same way, `trial=True`, so a reading this
+#   leaves behind reads no differently from any other trial.
+def _proof_is_stale(wid, step, root):
+    """True where the queued step's own `proof` (off its `prefill`) already
+    passes against the tree as it stands, or does not resolve to a command
+    at all -- the stale reading that must not be trusted into dispatch.
+    False where it ran and failed -- the healthy reading -- or where it has
+    not resolved within the handback and is still running, detached: this
+    never waits longer than any other trial does."""
+    prefill = step.get("prefill") or {}
+    text = str(prefill.get("proof", "") or "").strip()
+    if not text or forms.leading_word(text) in ("waived", "unknown"):
+        return False
+    changed = _changed_since_cut(wid, root)
+    try:
+        cmd = _resolve_command(text, root)
+    except SystemExit as e:
+        journal.append(wid, "check", step=step["id"], field="proof",
+                       command=text, exit=127, output=str(e), trial=True,
+                       changed=changed)
+        return True
+    try:
+        budget = checkrun.budget_for(prefill)
+    except SystemExit:
+        budget = checkrun.BUDGET
+    if checkrun.hand_in_trial(wid, step["id"], [("proof", cmd)], root, budget,
+                              changed) != "done":
+        return False
+    return runmod.state(wid)["proof_trials"][-1].get("exit") == 0
+
+
+# [last-adjudication-findings]
+# Rationale: mirrors `_call_tree_ahead`'s own backward walk, over the
+#   execute segment's own adjudication steps rather than the plan
+#   segment's own rounds -- the conductor's own `findings` off the most
+#   recently landed gate's own GATE_TRANSITION.toml, ground a stale-gate
+#   review answers to the same way a `replan`'s own findings already carry
+#   forward into REWORK.toml's first round.
+def _last_adjudication_findings(st, seg_id):
+    """The conductor's own `findings` off the most recently completed gate
+    adjudication in `seg_id`'s own segment -- `""` where none has
+    completed yet, or the most recent one waived it. Never walks further
+    back than that one: an older adjudication's findings are not this
+    review's ground, only the latest gate's."""
+    for step in reversed([s for s in st["steps"] if s["segment"] == seg_id and s.get("form")]):
+        done = st["done"].get(step["id"])
+        if not done:
+            continue
+        findings = str(done.get("fields", {}).get("findings", "") or "").strip()
+        return "" if not findings or findings.startswith("waived:") else findings
+    return ""
+
+
 def _settle_execution(wid, asm, committed=False):
     st = runmod.state(wid)
     # [settle-trusts-only-advance]
@@ -4016,6 +4120,38 @@ def _settle_execution(wid, asm, committed=False):
     #   and this guard does not invent one on the side.
     execute = next((s for s in asm["segment"] if s["id"] == "execute"), None)
     if committed and execute and _queue_pending(st, execute["id"]):
+        order = [s for s in st["steps"] if s["segment"] == execute["id"]]
+        next_step = next((s for s in order if _step_pending(s, st, execute["id"])), None)
+        # [stale-gate-is-reviewed]
+        # Rationale: o6 -- trusting the queue is earned by the outcome that
+        #   just committed a gate, but only while the gate it is about to
+        #   dispatch next still answers a question the tree has not
+        #   already answered on its own. A stale reading closes the whole
+        #   open queue -- not only the gate checked -- since a plan round
+        #   that got one gate wrong against the tree it was cut from is not
+        #   one the gates behind it should still be trusted from either;
+        #   the planner gets one look at all of it, with no panel, rather
+        #   than a panel re-reading gates nothing has shown wrong yet.
+        if next_step is not None and _proof_is_stale(wid, next_step, journal.root_for(wid)):
+            st = runmod.state(wid)
+            reading = render.proof_readings([st["proof_trials"][-1]])[0]
+            reason = f"{next_step['id']}'s own proof reads stale against the tree as it stands: {reading}"
+            closed = []
+            for s in order:
+                if s.get("dispatches") and _step_pending(s, st, execute["id"]):
+                    closed.append(s.get("prefill") or {})
+                    _close_step_and_pair(wid, s["id"], reason)
+            plan = next((seg for seg in asm["segment"] if seg["id"] == "plan"), None)
+            if plan:
+                closed_text = "\n\n".join(
+                    "\n".join(f"{k}: {g.get(k, '')}" for k in _GATE_FIELDS)
+                    for g in closed) or "waived: none"
+                prefill = {**_call_tree_ahead(st, plan["id"]),
+                           "stale": f"{next_step['id']} -- {reading}",
+                           "closed-queue": closed_text,
+                           "findings": _last_adjudication_findings(st, execute["id"]) or "waived: none"}
+                _mint_segment_round(wid, asm, plan["id"], prefill=prefill,
+                                    restarts=False, form=plan.get("review-form", ""))
         return
     path = st["boards"].get("execution-state", "")
     if not path or not any(boards.unsettled(r) for r in boards.rows(path)):
@@ -4223,7 +4359,7 @@ def _mint_gates(wid, seg, gates, start=1):
 #   `revise` the conductor chose not to send back) looks like next to a
 #   `rework`/`up`, generic off the outcome rather than off any one form's
 #   own artifact field name.
-_GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "direction", "call-tree")
+_GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "direction")
 
 
 # [projected-source]
@@ -4255,16 +4391,15 @@ def _projected_source(step, st, asm, fields):
     -- the wrong step, a segment with no `projects`, or a `rework`/`up`
     that finishes nothing. Otherwise `(target, gates)`: `target` is the
     segment `projects` names, and `gates` is a list of zero or more gate
-    blocks (each the `_GATE_FIELDS` shape), built from the most recent
-    step in this same segment, walking backward from the transition, whose
-    own submitted fields carry at least one of `_GATE_FIELDS` -- `[]`,
-    legitimately, where the walk finds none. A round's own fields are
-    still singular (one `purpose`, one `scope`...), so today's walk ever
-    finds at most one block; the list shape is what lets a cut naming
-    several gates (obligation 1, once a form can author one) travel the
-    same two call sites -- `_check_projection`'s emptiness check and
-    `_mint_projected_gate`'s hand-off to `_mint_gates` -- without either
-    changing shape again the day that form exists."""
+    blocks (each the `_GATE_FIELDS` shape, plus `call-tree` where the round
+    wrote one), built from the most recent step in this same segment,
+    walking backward from the transition, whose own submitted fields carry
+    a non-empty `gates` list -- `[]`, legitimately, where the walk finds
+    none. `call-tree` is the one gate field PLAN.toml/REWORK.toml/
+    REVIEW_PLAN.toml still write once per round rather than once per gate
+    -- the whole tree, not a slice -- so it is copied onto every block
+    here rather than read off each one: every dispatched gate receives the
+    same tree and marks its own nodes, `[gate-projection]` below."""
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     t = seg.get("transition", {})
     if (step.get("form") != t.get("form") or not t.get("projects")
@@ -4277,10 +4412,13 @@ def _projected_source(step, st, asm, fields):
     gates = []
     for s in reversed(prior):
         source = st["done"].get(s["id"], {}).get("fields", {})
-        candidate = {k: source[k] for k in _GATE_FIELDS if k in source
-                     and not (k == "call-tree" and str(source[k]).strip().startswith("waived:"))}
-        if candidate:
-            gates = [candidate]
+        rows = source.get("gates")
+        if isinstance(rows, list) and rows:
+            tree = str(source.get("call-tree", "") or "")
+            tree = "" if not tree.strip() or tree.strip().startswith("waived:") else tree
+            gates = [{**{k: row[k] for k in _GATE_FIELDS if k in row},
+                      **({"call-tree": tree} if tree else {})}
+                     for row in rows if isinstance(row, dict)]
             break
     return target, gates
 
