@@ -33,7 +33,7 @@ for what they conduct:
 | Tier | Conductor | Assembly | Unit | Dispatches |
 |---|---|---|---|---|
 | epic | `epic-conductor` | `run-an-epic` (not yet built) | one claim too large for one run | issue runs, in waves |
-| issue | `issue-conductor` | `run-an-issue` | one issue | a spec writer, a planner, critics, and gate runs — one gate at a time |
+| issue | `issue-conductor` | `run-an-issue` | one issue | a spec writer, a planner, critics, and gate runs — a cut's gates queued and dispatched in sequence |
 | gate | `gate-conductor` | `run-a-gate` | one bounded diff | an implementer, then the reviewers it picks |
 
 Beside the tiers, `explore-an-idea` (conductor: `explorer`) turns a muddy idea into a spec,
@@ -368,16 +368,20 @@ each conductor dispatches the tier below and judges at its transitions:
 <consolidate>     the problem specification: stands alone, plannable from by
                   a reader with no tracker; the engine is the verdict here,
                   validating the board
-[plan]*           the next gate, fully specified, and a coarse horizon of
-                  what likely follows
-<plan→execute>    critic panel reads the spec and the next gate; revise
-                  refills plan, pass mints one gate dispatch and its
-                  adjudication step
+[plan]*           every gate whose path is clear, cut in one round -- at
+                  least one, up to the whole run -- each fully specified,
+                  and a coarse horizon of what the cut stops short of
+<plan→execute>    critic panel reads the spec and the cut; revise refills
+                  plan, pass mints every gate's dispatch and its own
+                  adjudication step, queued in the order they run
 [ dispatch run-a-gate → <gate adjudication> ]
-                  the adjudication is the replan beat: advance re-enters
-                  plan with the gate's findings as evidence; remint, drop
-                  and replan as before; close once every obligation in the
-                  spec has a disposition
+                  each queued gate runs in turn, no new plan round or panel
+                  between them; advance commits a gate and dispatches the
+                  next queued one on its own. Only once the queue is empty
+                  does the adjudication become the replan beat: the
+                  planner cuts the next round from what was just learned.
+                  remint, drop and replan as before; close once every
+                  obligation in the spec has a disposition
 <close>           returns stamped up if parented
 ```
 
@@ -428,11 +432,16 @@ understanding means the form is missing fields; fix the form, not the boundary.
 
 What the workflow tables above rest on, where the reason is not obvious from the shape.
 
-**1. Planning is rolling-horizon.** The plan step fully specifies the *next* gate and sketches
-the horizon behind it — the likely later gates, coarsely, and the conditions that would change
-them. Plan-to-execute mints one gate. The gate's adjudication is the replan beat: `advance`
-records what the gate satisfied and re-enters the cycle, and the planner cuts the next gate
-from what was just learned; `remint`, `drop` and `replan` keep their meanings. The spec is not
+**1. Planning is rolling-horizon.** The plan step cuts every gate whose path is clear, in one
+round — one gate, or as many as the tree and the spec let it see, up to the whole run — and
+sketches the horizon behind whatever it stops short of: the likely later gates, coarsely, and
+the conditions that would change them. Plan-to-execute mints every gate the cut named, queued
+in the order they run. Once the panel passes the cut, each queued gate dispatches on its own —
+no new plan round, no panel — until the queue runs dry, a queued gate's own proof reads stale
+against the tree, or an obligation stays open with nothing left queued. Only then is a gate's
+adjudication the replan beat: `advance` records what the gate satisfied and re-enters the
+cycle, and the planner cuts the next round from what was just learned; `remint`, `drop` and
+`replan` keep their meanings. The spec is not
 the execution diary: what a gate satisfied is recorded in the run's **execution state** — a
 mechanical file in the work location the engine folds, never a hand edit to the spec. The
 cycle's own first move is the engine's: every obligation in the spec carries a disposition
@@ -447,9 +456,9 @@ all four of its gates passed first time; `#50` shipped two gate specs short of i
 transcription losses between `plan.md` and the spec; and the critic panel has never seen a gate
 spec, because it reads `PLAN.toml` and the specs are authored at the transition after it
 releases (`#27`). One change answers all three: when the plan step's artifact *is* the next
-gate spec, whoever judges the cut — the critic panel on every fresh cut, the conductor on an
-incorporated pass — reads what gets dispatched, there is nothing to transcribe, and a plan
-cannot outgrow the work it plans because it is one gate long. The horizon stays because pure
+gate spec or specs, whoever judges the cut — the critic panel on every fresh cut, the
+conductor on an incorporated pass — reads what gets dispatched, and there is nothing to
+transcribe. The horizon stays because pure
 one-step planning misses seams, ordering and the chance to isolate an uncertain component —
 but it is provisional by construction and no critic attacks it at gate grain.
 

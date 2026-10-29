@@ -16,8 +16,8 @@ or it is appetite: real work, queued rather than done now.
 3. **Build so it will not break.** Unit tests, and especially tests that watch the important
    things pass through the whole project. Time spent here buys back the fiddling later.
 <!-- [short-loops] -->
-4. **Short loops.** Plan enough to do the next step and to hold a rough idea of what follows.
-   Do it. Step back, consolidate, plan again.
+4. **Short loops.** Plan as far as you can see clearly, and act on it. After each step, check
+   what you saw against what you expected: if it holds, keep going; if it doesn't, re-plan.
 <!-- [make-mechanical-things-mechanical] -->
 5. **Make mechanical things mechanical.** A script beats an agent at what a script can do, and
    giving the same instruction twice is a defect in the system rather than a chore.

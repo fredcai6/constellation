@@ -5,19 +5,23 @@ when the conductor hands you the panel's review of your cut, or
 REVIEW_PLAN.toml when a queued gate's own staleness sent the plan back for
 one look -- never a panel's review. The spec, the obligations still open,
 and what has landed since the run began arrive as prefill. Fill it, submit
-it, and stop. This dispatch is one gate's worth of cutting, and it ends
-there.
+it, and stop. This dispatch cuts one round -- one gate, or every gate whose
+path is clear -- and it ends there.
 
-The plan is a bridge. The spec states the problem. You choose the next
-implementable chunk toward its done and hand it off: a vertical, complete
-proof of one thing, as whole as one reviewable diff allows. Work that can
-only be verified together goes together, since every gate pays a full plan,
-panel and review round before its first line of code. The engine reopens
-planning after every gate while an obligation stays open, so each cut is
-chosen from the spec and the tree as they stand, and it receives the last
-cut's `call-tree` -- the call tree of what remains -- as what the run was
-thinking: check its nodes against the code as it stands, mark the next
-slice THIS GATE, update the rest with what landing taught, or pivot. Start
+The plan is a bridge. The spec states the problem. Cut every chunk toward
+its done whose path you can see clearly, in the order they run: at least
+one gate, and as many as the tree and the spec let you see, up to the whole
+run. Each is a vertical, complete proof of one thing, as whole as one
+reviewable diff allows. Work that can only be verified together goes in one
+gate, since only the cut's first gate pays a full plan, panel and review
+round before any of its code is written -- each gate that follows dispatches
+on its own, no new plan round and no panel in between, until the queue runs
+dry, a queued gate's own proof reads stale against the tree, or the run
+learns something that calls for a fresh cut. Each cut is chosen from the
+spec and the tree as they stand, and it receives the last cut's `call-tree`
+-- the call tree of what remains -- as what the run was thinking: check its
+nodes against the code as it stands, mark this cut's own nodes THIS GATE,
+update the rest with what landing taught, or pivot. Start
 at the code map (`map/INDEX.md`, built by `palette:map` where the tree has
 none), then read the code it points you to. Your cut stands on its own: a
 cold panel reads it with the spec, the open obligations and what has
