@@ -53,8 +53,7 @@ optional = true
 note = """
 Same as PLAN.toml's `gate-proof`: what must be true when this gate lands
 alone, run at submit and when the gate lands, never at close. Measure what
-the gate touched from `$CONSTELLATION_GATE_BASE`, not `origin/main`. Or
-waived: none."""
+the gate touched from `$CONSTELLATION_GATE_BASE`. Or waived: none."""
 
 [[field]]
 id = "budget"
