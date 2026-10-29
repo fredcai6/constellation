@@ -80,7 +80,12 @@ note = """
 What must be true when this gate lands, and need not hold after later gates
 have: what the gate left alone -- nothing else changed, a file identical to
 the cut, and the files of the call-tree's nodes outside this slice. The exact command, like `proof`; it runs at your submit and when
-the gate lands, never at close. Or waived: none."""
+the gate lands, never at close. Measure what the gate touched from
+`$CONSTELLATION_GATE_BASE` (the engine sets it to the last landed gate's
+commit, the branch point for the first gate): `git diff --name-only
+"${CONSTELLATION_GATE_BASE:?}"`, plus `git ls-files --others
+--exclude-standard` for new files -- never from `origin/main`, which carries
+every earlier gate's files too. Or waived: none."""
 
 [[field]]
 id = "budget"
