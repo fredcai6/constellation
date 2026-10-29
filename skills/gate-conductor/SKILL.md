@@ -33,6 +33,7 @@ work location, never submit there and never close it. Reading its room is a
 different thing, and the engine offers it — at a paused gate `spine <parent-id>`
 is the only move you have. Your `close` is what returns your work there, and
 that is the whole of what crosses upward.
+Once `close` has printed `closed`, your turn ends: reply `closed` and exit. What follows is the dispatching conductor's.
 
 **The obligations your gate was cut against are yours to claim at close.**
 Your orders carry them by row id, and GATE_CLOSE.toml's `claims` takes each
