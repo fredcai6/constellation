@@ -2659,7 +2659,8 @@ def cmd_submit(argv):
     # run level, and its first step is minted before that spec exists. The
     # budget rides in beside it, from the same orders. A `waived:` one is an
     # order with nothing to run -- a gate cut with no `gate-proof`.
-    orders = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
+    orders = {**(st.get("prefill") or {}), **(step.get("prefill") or {}),
+              **_ruled_proof(st)}
     commands = [(f["id"], _resolve_command(orders.get(f["id"], ""), check_root))
                 for f in form["fields"] if f.get("kind") == "check"
                 and forms.leading_word(str(orders.get(f["id"], ""))) not in forms.NULL_WORDS]
@@ -2671,6 +2672,31 @@ def cmd_submit(argv):
         return cmd_status([wid])  # the room says the proof is still running
     print(f"submitted {step['id']}\n")
     return cmd_status([wid])
+
+
+# [ruled-proof-read-live]
+# Rationale: #214 -- issue299's g3 asked up on a proof that could never pass,
+#   the conductor amended it at the parent, and the resumed round's hand-in
+#   re-ran the old text: the child's prefill is a copy taken at dispatch, and
+#   the amend writes the parent's gate step only. The child had no move of
+#   its own (`amend proof` inside it finds no gate step). So the child's
+#   check reads `proof` off its parent's gate step as it stands when the
+#   check runs, the way close's recheck already does. The copy in the
+#   child's prefill stays what the child was handed; the parent's step is
+#   what binds it.
+# Rejected: journaling the amend into the open child as well. Two places
+#   would then hold the ruling, and a child opened elsewhere, or reopened
+#   after the amend, would have to be found and patched. Reading the one
+#   place that holds it has nothing to keep in sync.
+def _ruled_proof(st):
+    """`{"proof": <text>}` off the parent's gate step for the child that step
+    dispatched, as the parent's journal stands now; `{}` for a run with no
+    parent, or whose parent step carries no proof."""
+    parent, pstep = st.get("parent"), st.get("parent_step")
+    pst = runmod.state(parent) if parent and pstep and journal.exists(parent) else None
+    gate = next((s for s in (pst or {}).get("steps", []) if s["id"] == pstep), None)
+    proof = ((gate or {}).get("prefill") or {}).get("proof")
+    return {"proof": proof} if proof is not None else {}
 
 
 # [complete-submit]
@@ -4623,8 +4649,9 @@ def _amend_reorder(wid, st, step_id, reason, before):
 #   are allowed: the proof is read again after its gate has run, so that is
 #   where an erratum is found. `proof` only: `gate-proof` is never read
 #   once its gate has landed.
-# Rejected: delivering the text into a gate child already running. Neither
-#   issue164 nor issue165 needed it; it waits for a run that does.
+#   A gate child already running reads the ruling too: its check takes
+#   `proof` from the parent's gate step at check time
+#   (`[ruled-proof-read-live]`), issue299's g3 being the run that needed it.
 def _amend_proof(wid, st, step_id, reason, proof):
     gates = [s for s in st["steps"]
              if s.get("dispatches") and "proof" in (s.get("prefill") or {})]
