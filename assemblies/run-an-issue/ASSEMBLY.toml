@@ -176,9 +176,11 @@ projects = "run-a-gate"
 # (`[standing-approach]`, engine/cli.py). A plan lapses once its code lands;
 # a ruling on how chunks are cut does not.
 standing = ["approach"]
-# The panel below reads every fresh cut: the run's opening one, the re-cut
-# after each gate lands (`settle`), a replan's, and a `rewrite`'s. An
-# incorporation and a resumed round stand this form alone (`[one-look]`),
+# The panel below reads every fresh cut: the run's opening one, a replan's,
+# and a `rewrite`'s -- never merely because a gate landed: most gate
+# landings dispatch the next queued gate of the same cut on their own, no
+# new round and no panel in between (`_settle_execution`'s committed=True
+# branch). An incorporation and a resumed round stand this form alone (`[one-look]`),
 # the conductor reading the planner's pass and the engine's run of its
 # proofs (`_trial_proofs`, engine/cli.py) in the room. Read by
 # `_mint_segment_round`; `skeleton()` mints the opening round's panel

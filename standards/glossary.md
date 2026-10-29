@@ -55,8 +55,10 @@ is joint. Coining a synonym for a term below is a defect.
   makes its step: declared on a transition, never grown after — with, optionally, a
   `rework-panel` the transition's later rounds get instead (run-a-gate's one rework reader). A transition also declares which of its rounds the panel reads —
   `panel-rounds = "every"` (the default) or `"fresh"`, each fresh artifact alone — the opening
-  round, a rewrite, a replan, the re-cut after a gate lands — which is run-an-issue's spec and
-  plan seams: an incorporated round stands the conductor's route form with no panel beside it.
+  round, a rewrite, a replan — which is run-an-issue's spec and plan seams: an incorporated
+  round stands the conductor's route form with no panel beside it, and so does a queued gate's
+  own staleness sending the open plan back for one look. Most gate landings mint nothing fresh
+  at all — the next queued gate of the same cut dispatches on its own.
   Review never lives in an interior.
 - **clean** — one of `verdict_fold`'s three per-voice/panel outcomes (`engine/run.py`): a
   voice's return whose leading word is inside that voice's own form's declared vocabulary, or
@@ -328,10 +330,12 @@ is joint. Coining a synonym for a term below is a defect.
   the conductor's **incorporate** hands the writer the panel's findings to take or reject, and a
   **rewrite** starts a fresh spec from the conductor's orders. There is no rework-form: the
   step-form (this same round's own `SPEC.toml`) refills for both.
-- **gate spec** — the purpose, scope, proof and optional model, optional direction a planner
-  writes per round of the plan segment — one gate spec per round, the round's own artifact.
-  Plan-to-execute projects it, unauthored a second time, into that gate's dispatch as read-only
-  prefill. The orders a gate is run from, and the only place a runner is named.
+- **gate spec** — the purpose, scope, proof, optional gate-proof, optional budget, optional
+  model, optional direction a planner writes for one gate — one block in a plan round's `gates`
+  field, which holds one gate spec or several: the round's own artifact, cutting every gate
+  whose path is clear, in the order they run. Plan-to-execute projects each one, unauthored a
+  second time, into that gate's own dispatch as read-only prefill. The orders a gate is run
+  from, and the only place a runner is named.
 - **projection** — a transition whose own segment declares `projects` carrying a just-released
   round's gate fields (`purpose`, `scope`, `proof`, `budget`, `model`, `direction`, `call-tree`) forward into
   a fresh gate at submit, rather than asking a conductor to retype what the panel already judged.
@@ -340,7 +344,9 @@ is joint. Coining a synonym for a term below is a defect.
   approved.
 - **call-tree** — the call tree of what remains to build: one node per function or module the spec's
   done needs, each with what it owns, what it receives, what it returns and who calls it, and a
-  status of `landed`, `THIS GATE` or `ahead`. Sits beside the gate spec on the same round.
+  status of `landed`, `THIS GATE` or `ahead` — once a round cuts more than one gate, a `THIS
+  GATE` node also names which gate owns it, by that gate's own position in the round, never a
+  predicted engine-assigned id. Sits beside the gate spec on the same round.
   A **slice** is the nodes marked `THIS GATE`. The call-tree rides into the implementer's prefill and
   carries to the next re-cut, which rebuilds the landed part from the code; the critic attacks
   the slice's contracts, and the `ahead` nodes stay provisional.

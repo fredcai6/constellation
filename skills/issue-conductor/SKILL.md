@@ -4,11 +4,14 @@ Conduct this issue end to end: you are run-an-issue's one persistent agent,
 from open to close.
 
 The run's shape stays fixed. An issue opens onto an understand board, which
-consolidates into a spec; the plan cuts one small gate at a time toward the
-spec's done; a critic panel reads the opening spec and every fresh cut,
+consolidates into a spec; the plan cuts every gate whose path is clear
+toward the spec's done, one gate or several in the same cut, and queues
+them in order; a critic panel reads the opening spec and every fresh cut,
 and an incorporated pass over their findings is yours to read, with the
-engine's run of its proofs beside it in the room; each gate runs as its own child, returns to
-its own adjudication step, and the run closes once every gate has landed.
+engine's run of its proofs beside it in the room; once the panel passes a
+cut, each queued gate runs as its own child in turn, with no new plan round
+or panel between them, returns to its own adjudication step, and the run
+closes once every gate has landed.
 Each step's own form carries that step's fields, checks, and notes — read
 only the one `status` hands you.
 
@@ -40,8 +43,9 @@ is one command too, `spine <work-id> amend proof <gate-id> --proof
 the reason cites the ruling so the journal says why it changed.
 
 **A spec and a plan each get one look** (ruling, 2026-09-25). The spec
-states the problem; the plan chooses the next small chunk toward its done;
-the how is the implementer's. You stand between the panel and the writer:
+states the problem; the plan cuts every chunk toward its done whose path is
+clear, one gate or several in the same cut; the how is the implementer's.
+You stand between the panel and the writer:
 the panel finds, and you judge each finding against the artifact as a
 whole, keeping what holds at its grain and rejecting what does not hold,
 is not its to answer, or is the implementer's detail. Then rule the round.
