@@ -41,9 +41,8 @@ A check about which files this gate touched measures from
 `$CONSTELLATION_GATE_BASE`, which the engine sets for every check to the last
 landed gate's commit (the branch point for the first gate): `git diff
 --name-only "${CONSTELLATION_GATE_BASE:?}"` lists this gate's own tracked
-changes, and `git ls-files --others --exclude-standard` its new files. `origin/main` is
-the wrong base here -- earlier gates' files sit on the branch, and the check
-would trip on them.
+changes, and `git ls-files --others --exclude-standard` its new files. Earlier
+gates' files sit on the branch already, behind that base.
 
 Do not implement any gate from inside this form, and do not reach into a
 gate's own latitude. Implementation detail below gate grain belongs to the
