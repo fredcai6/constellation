@@ -62,3 +62,38 @@ def test_a_child_with_no_amend_still_checks_the_proof_it_was_cut_with(workdir, c
     ran = [c["command"] for e in journal.read(child) if e["kind"] == "submit"
            for c in e.get("checks") or []]
     assert ran == ["test -f cut.txt"]
+
+
+def _to_released_gate(proof, gate_proof):
+    from functools import partial
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open("issue17")
+    cli.main(["issue17", "submit"])
+    _work_the_board("issue17")
+    _fill_consolidate("issue17")
+    cli.main(["issue17", "submit"])
+    _dispatch_and_close_plan("issue17", fill_fn=partial(_fill_plan, proof=proof,
+                                                         gate_proof=gate_proof))
+    _dispatch_plan_critic("issue17")
+    _fill_plan_to_execute("issue17")
+    cli.main(["issue17", "submit"])
+
+
+def test_a_gate_proof_amended_before_dispatch_is_the_one_the_child_checks(workdir, capsys):
+    """issue223's g2: a ruling made at release widened the gate's boundary
+    before it dispatched. The amended gate-proof is what the child checks."""
+    _to_released_gate("true", "test -f old-boundary.txt")
+    cli.main(["issue17", "amend", "proof", "g1", "--gate-proof", "test -f ruled.txt",
+              "--reason", "n1: the ruling widened the boundary"])
+    cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])
+    child = "issue17.g1"
+    (journal.root_for("issue17") / "ruled.txt").write_text("x\n")
+    _fill_implement(child, "implement")
+    capsys.readouterr()
+    cli.main([child, "submit"])
+
+    ran = [c["command"] for e in journal.read(child) if e["kind"] == "submit"
+           for c in e.get("checks") or []]
+    assert "test -f ruled.txt" in ran and "test -f old-boundary.txt" not in ran
+    gate = next(s for s in runmod.state("issue17")["steps"] if s["id"] == "g1")
+    assert gate["prefill"]["proof"] == "true"          # the other bar stands
