@@ -2731,6 +2731,7 @@ def complete_submit(wid, step_id, fields, ran):
                 {k: v for k, v in fields.items() if k in carries})
         journal.append(wid, "prefill",
                        fields={**(st.get("prefill") or {}), **held})
+    _fold_standing(wid, asm, step, fields)
     _mint(wid, asm, step, form, fields)
     _mint_projected_gate(wid, asm, step, st, fields)
     _resume_paused_child(wid, step, fields)
@@ -2959,6 +2960,34 @@ def _outcome(asm, step, fields, st):
 #   need yet is still open, and never carries a blank field over whatever
 #   prefill already held.
 _HOLDS_OPEN = ("rework", "incorporate", "rewrite", "pause")
+
+
+# [standing-approach]
+# Rationale: a plan for finished code lapses -- the code is the better
+#   artifact -- but a ruling on how every later chunk is cut does not. In
+#   sports-market-manager issue299/issue312 the conductor ruled the proof
+#   standard (full suite, lint and types on shipped code) at one plan seam,
+#   as `orders`, and orders are spent with their round: each later cut was a
+#   fresh planner who never saw it, so it went back to a proof that could not
+#   pass, and the same ruling was re-made over six cuts. A transition's
+#   `standing` fields join the run's prefill on ANY submit, so the ruling
+#   reaches every later dispatch -- planner, critic-checked cut, gate --
+#   from the round it was made in. A null leaves what stands; a value
+#   replaces it whole, so the field always reads as the full standing text.
+# Rejected: folding them through `carries`. That waits for a release, and an
+#   approach ruling is most often made on the send-back (`incorporate`,
+#   `rewrite`) that discovered it was needed.
+def _fold_standing(wid, asm, step, fields):
+    seg = next((s for s in asm.get("segment", []) if s["id"] == step["segment"]), {})
+    t = seg.get("transition", {})
+    if not t.get("standing") or step.get("form") != t.get("form"):
+        return
+    held = {k: v for k, v in fields.items() if k in t["standing"]
+            and str(v).strip()
+            and forms.leading_word(str(v)) not in forms.NULL_WORDS}
+    if held:
+        st = runmod.state(wid)
+        journal.append(wid, "prefill", fields={**(st.get("prefill") or {}), **held})
 
 
 def _releases(outcome):

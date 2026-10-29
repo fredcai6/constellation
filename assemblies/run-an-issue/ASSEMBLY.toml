@@ -166,6 +166,11 @@ filler = "conductor"
 # `plan`, since this form's own `incorporate`, `rewrite` and `up` also
 # reach this step and none of them has passed critique intact.
 projects = "run-a-gate"
+# `approach` outlives the round it is ruled in: it joins the run's prefill on
+# any submit of this form, so every later cut and gate reads it
+# (`[standing-approach]`, engine/cli.py). A plan lapses once its code lands;
+# a ruling on how chunks are cut does not.
+standing = ["approach"]
 # The panel below reads every fresh cut: the run's opening one, the re-cut
 # after each gate lands (`settle`), a replan's, and a `rewrite`'s. An
 # incorporation and a resumed round stand this form alone (`[one-look]`),
