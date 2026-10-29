@@ -529,9 +529,16 @@ def test_an_issue_tier_ask_stops_drive_without_a_filler(bare_workdir, capsys):
     assert "principal" in out
 
 
-def _gate_tier_ask(root):
-    """An ask a paused gate carried up into its parent's journal, standing
-    under the parent's `conductor` filler. Returns the ask step."""
+def test_a_gate_tier_ask_is_still_driven_by_the_parents_filler(
+        bare_workdir, capsys, monkeypatch):
+    """The same ask minted where a parent run holds the dispatch step lands
+    in the parent's journal under the `conductor` filler -- the parent's
+    conductor is a different party from the gate that paused -- and `drive`
+    on the parent spawns a filler for it as for any other childless form
+    step."""
+    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
+    marker = bare_workdir / "spawned"
+    _throwaway_filler_dispatch(bare_workdir, marker)
     journal.append("i1", "run", title="t", assembly="run-an-issue")
     journal.append("i1", "step", id="g1", segment="execute", dispatches="run-a-gate",
                    prefill={"purpose": "fix the parser", "scope": "src/ only", "proof": "true"},
@@ -547,61 +554,8 @@ def _gate_tier_ask(root):
     ask = runmod.state("i1")["current"]
     assert ask["form"] == ASK_FORM
     assert ask["filler"] == "conductor"
-    return ask
 
-
-def test_a_gate_tier_ask_is_the_conductors_and_drive_spawns_no_filler(
-        bare_workdir, capsys):
-    """The ask lands in the parent's journal under the `conductor` filler:
-    the parent's conductor fills it, so `drive` renders it and returns, the
-    way it does for the principal's own form. issue299 (2026-10-29): `drive`
-    spawned a heavy-tier `claude -p` into exactly this ask while a conductor
-    was present, and the conductor killed it by hand."""
-    marker = bare_workdir / "spawned"
-    _throwaway_filler_dispatch(bare_workdir, marker)
-    ask = _gate_tier_ask(bare_workdir)
-
-    began = time.monotonic()
-    code = cli.main(["i1", "drive", "--for", "5"])
-    elapsed = time.monotonic() - began
-    out = capsys.readouterr().out
-
-    assert code == 0
-    assert elapsed < 1
-    assert not marker.exists()
-    assert _form_filler_entries("i1") == []
-    assert ask["id"] in out
-
-
-def test_a_gate_adjudication_is_the_conductors_and_drive_spawns_no_filler(
-        bare_workdir, capsys):
-    """The other issue299 step: a gate's adjudication form, filled by the
-    conductor, is not a form `drive` hands to a heavy-tier process."""
-    marker = bare_workdir / "spawned"
-    _throwaway_filler_dispatch(bare_workdir, marker)
-    journal.append("i1", "run", title="t", assembly="run-an-issue")
-    journal.append("i1", "step", id="g1-adjudicate", segment="execute",
-                   form="forms/GATE_TRANSITION.toml", filler="conductor", child="i1.g1",
-                   anchor=False, terminal=False, validates="", source="mint")
-
-    code = cli.main(["i1", "drive", "--for", "5"])
-    capsys.readouterr()
-
-    assert code == 0
-    assert not marker.exists()
-    assert _form_filler_entries("i1") == []
-
-
-def test_headless_drive_still_fills_a_conductor_step(bare_workdir, capsys, monkeypatch):
-    """`drive --headless` is the explicit opt-in for a run with no conductor
-    present: the conductor's own steps then get a filler, as `drive` once
-    gave them unasked."""
-    monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
-    marker = bare_workdir / "spawned"
-    _throwaway_filler_dispatch(bare_workdir, marker)
-    ask = _gate_tier_ask(bare_workdir)
-
-    code = cli.main(["i1", "drive", "--headless", "--for", "1"])
+    code = cli.main(["i1", "drive", "--for", "1"])
     capsys.readouterr()
 
     assert code == 0
