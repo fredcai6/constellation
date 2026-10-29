@@ -66,6 +66,18 @@ where the findings say it all. Never write an order into `calls` as if the
 panel had returned it."""
 
 [[field]]
+id = "approach"
+kind = "evidence"
+optional = true
+note = """
+A ruling on how every later chunk is cut, not on this one: the proof
+standard, a convention the code holds to, a way of working this run has
+settled. It joins the run's standing orders on this submit, whatever the
+resolution, so every later cut and gate reads it. A value replaces what
+stands, so write the whole standing text. `waived: none` leaves it as it
+is."""
+
+[[field]]
 id = "plan"
 kind = "artifact"
 optional = true
