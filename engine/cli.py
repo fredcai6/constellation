@@ -32,13 +32,11 @@ spine <work-id> submit              hand in the filled response form
 spine <work-id> wait [--for N]      block while the current step's child is
     outstanding -- starting a never-dispatched one and restarting one gone
     without returning, capped -- then print status
-spine <work-id> drive [--for N] [--headless]   walk the run, pass after pass,
-    through every step shape the engine can resolve on its own -- a gate
-    dispatch or a panel (via `wait`'s own mechanism), a worker's form step --
-    stopping on an ask, a close form, a step the conductor fills, a spent
-    gate or panelist, a step before the plan segment, or its own bound
-    running out; --headless also fills the conductor's steps (no conductor
-    present)
+spine <work-id> drive [--for N]     walk the run, pass after pass, through
+    every step shape the engine can resolve on its own -- a gate dispatch or
+    a panel (via `wait`'s own mechanism), a form step already in flight --
+    stopping on an ask, a close form, a spent gate or panelist, a step
+    before the plan segment, or its own bound running out
 spine <work-id> up "<reason>"       pause: ask the parent for a decision this
     run cannot make itself
 spine <work-id> note <kind> <text>  record an observation, block, or decision
@@ -2436,11 +2434,9 @@ def cmd_drive(argv):
     gate or panelist spent past `checkrun.MAX_STARTS` with nothing else
     outstanding for that step, or a childless form step's own filler spent
     past `checkrun.FORM_FILLER_MAX_STARTS` -- each stops and renders rather
-    than crash or spin. A step the conductor fills (`filler == "conductor"`)
-    stops and renders too, unless `--headless` says no conductor is present."""
+    than crash or spin."""
     wid = argv[0]
     bound = _drive_bound(argv[1:])
-    headless = "--headless" in argv[1:]
     st = runmod.state(wid)
     if st is None:
         _no_run(wid)
@@ -2476,24 +2472,6 @@ def cmd_drive(argv):
         else:
             if runmod.principal_fills(step):
                 return cmd_status([wid])  # the principal's own form -- rendered, never driven
-            # [drive-leaves-the-conductors-steps]
-            # Rationale: a step whose filler is the bare `conductor` indirection
-            #   is the conductor's to fill -- a gate's ASK answered upward, a
-            #   gate adjudication -- and `drive` runs under that conductor. The
-            #   spawn would put the heavy tier (`_role_tier`: `conductor` is
-            #   always heavy) on a form the present conductor is about to fill
-            #   itself: issue299 spawned `claude-opus-5` into execute-a530b and
-            #   g1-adjudicate, and the conductor killed it by hand twice, then
-            #   stopped using `drive`. So `drive` does what `wait` does there:
-            #   it renders the room and returns, naming the step to fill. A
-            #   worker role (`implementer`, `planner`, ...) is still `drive`'s
-            #   to start, on that role's own tier.
-            #   `--headless` is the explicit opt-in for a run with no conductor
-            #   present: the conductor's steps then get a filler as before.
-            # Rejected: a guard on the spawn that refuses opus. The tier is not
-            #   the defect; a filler for a seat someone else holds is.
-            if step.get("filler") == "conductor" and not headless:
-                return cmd_status([wid])
             if runmod.in_flight(st, step):
                 time.sleep(checkrun.WAIT_POLL)
                 continue
