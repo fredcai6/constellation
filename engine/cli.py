@@ -2811,7 +2811,7 @@ def _mint_transition(wid, seg, prefill=None):
     t = seg.get("transition", {})
     form = t.get("form", "")
     if form:
-        journal.append(wid, "step", id=f"{seg['id']}-a{secrets.token_hex(2)}",
+        journal.append(wid, "step", id=_fresh_step_id(wid, seg['id']),
                        segment=seg["id"], form=form, filler=t.get("filler", "conductor"),
                        prefill=prefill or {}, anchor=t.get("anchor", False),
                        terminal=t.get("terminal", False), validates=t.get("validates", ""),
@@ -3353,7 +3353,7 @@ def _perform(wid, asm, seg, does, fields, step):
                 continue
             judged, outlet = _panel_judged_rework(wid, asm, tseg, step, fields)
             if outlet:
-                journal.append(wid, "step", id=f"{tseg['id']}-a{secrets.token_hex(2)}",
+                journal.append(wid, "step", id=_fresh_step_id(wid, tseg['id']),
                                segment=tseg["id"], form=outlet, filler="conductor",
                                # The count the outlet fired on, so the room
                                # states it and the form need not name a number
@@ -3500,7 +3500,7 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
             for r in calls if isinstance(r, dict))
     elif fields.get("why"):
         ask["findings"] = fields["why"]
-    ask_id = f"{ask_seg}-a{secrets.token_hex(2)}"
+    ask_id = _fresh_step_id(ask_wid, ask_seg)
     # [ask-filler-is-who-it-stands-before]
     # Rationale: an ask landing in the parent's journal is the parent's
     #   conductor's to answer; one landing in this run's own journal -- the
@@ -3542,7 +3542,7 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     #   own `does = "pause"` rows (`_perform`), reproducing today's
     #   behaviour there exactly -- only `cmd_up`'s same-segment case ever
     #   supplies either.
-    marker_id = f"{tseg['id']}-a{secrets.token_hex(2)}"
+    marker_id = _fresh_step_id(wid, tseg['id'])
     journal.append(wid, "step", id=marker_id, segment=tseg["id"], paused=tseg["id"],
                    sibling=sibling or "", filler="conductor", anchor=False,
                    terminal=False, validates="", source="mint",
@@ -4012,6 +4012,25 @@ def _minted_step_ids(wid):
     return {e["id"] for e in journal.read(wid) if e.get("kind") == "step"}
 
 
+# [fresh-step-id]
+# Rationale: every minted step id is `<segment>-a<4 hex>`, 16 bits drawn
+#   fresh each time. A long run's busiest segment holds dozens of ids, so a
+#   draw landing on one is a matter of time, not luck: sports-market-manager
+#   issue312 (2026-10-29) minted its release step as `plan-a4cac`, the id of
+#   a planner step complete for an hour, so the release read as done and the
+#   run fell through to close with no gate. Drawing against every id the
+#   journal has ever named makes the collision impossible rather than rare.
+# Rejected: a wider tag alone. It makes the collision rarer and every id
+#   longer, and an id is something a conductor types.
+def _fresh_step_id(wid, seg_id):
+    """A `<seg_id>-a<tag>` id no step in `wid`'s journal has ever carried."""
+    spent = _minted_step_ids(wid)
+    while True:
+        sid = f"{seg_id}-a{secrets.token_hex(2)}"
+        if sid not in spent:
+            return sid
+
+
 def _mint_gates(wid, seg, gates, start=1):
     """Each gate block becomes a dispatch step and, right after it, the
     adjudication step that will hold its returns -- the pair the execute
@@ -4473,7 +4492,7 @@ def _amend_add(wid, st, argv, reason):
         # anchored.
         segment = next(x for x in asm["segment"] if x["id"] == seg)
         t = segment.get("transition", {})
-        sid = f"{seg}-a{secrets.token_hex(2)}"
+        sid = _fresh_step_id(wid, seg)
         step = {"id": sid, "segment": seg, "filler": t.get("filler", "conductor"),
                 "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
                 "validates": t.get("validates", ""),
@@ -4490,7 +4509,7 @@ def _amend_add(wid, st, argv, reason):
     # Random, not counted: two sessions amending at once both compute the same
     # next number, and duplicate ids are worse than ugly -- `done` is keyed by
     # step id, so one submit would silently complete every step sharing it.
-    sid = f"{seg}-a{secrets.token_hex(2)}"
+    sid = _fresh_step_id(wid, seg)
     # a dispatched run's own prefill (its orders) rides its amended steps too --
     # that is how a `check` field on the interior's own form (IMPLEMENT.toml's
     # `proof`) finds the gate spec's command without a --prefill flag to type.
@@ -4680,7 +4699,7 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     if has_interior:
         prior = runmod._rounds(runmod.state(wid), seg_id)
         sent_back = 0 if restarts else (prior[-1]["sent_back"] + 1 if prior else 1)
-        step = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
+        step = {"id": _fresh_step_id(wid, seg_id), "segment": seg_id,
                 "filler": seg.get("worker", "conductor"), "prefill": prefill or {},
                 "anchor": False, "terminal": False, "validates": "", "source": "mint",
                 "sent_back": sent_back}
@@ -4711,7 +4730,7 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     # one both keys, every reader of them is a bare `step.get(...)`, and a
     # fresh round that omitted them skipped the guards its assembly declares
     # with no refusal and no journal trace (#110).
-    fresh = {"id": f"{seg_id}-a{secrets.token_hex(2)}", "segment": seg_id,
+    fresh = {"id": _fresh_step_id(wid, seg_id), "segment": seg_id,
              "filler": t.get("filler", "conductor"),
              "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
              "validates": t.get("validates", ""), "carries": t.get("carries", False),

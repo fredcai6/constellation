@@ -80,3 +80,24 @@ def test_a_dropped_gate_does_not_donate_its_id_to_a_later_plan_round(workdir, ca
 
     step_ids = [e["id"] for e in journal.read("issue17") if e["kind"] == "step"]
     assert len(step_ids) == len(set(step_ids)), step_ids     # no id named twice
+
+
+def test_a_fresh_round_never_reuses_a_spent_step_id(workdir, capsys, monkeypatch):
+    """sports-market-manager issue312: an incorporate round's release step was
+    minted under the id of a planner step already complete, so it read as
+    done and the run fell through to close. Force the random tag onto a
+    spent id: both of the round's steps still come out unique."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    capsys.readouterr()
+    wid = "issue17"
+    journal.append(wid, "step", id="plan-adead", segment="plan", form="x",
+                   filler="conductor", anchor=False, terminal=False,
+                   validates="", source="mint")
+    tags = iter(["dead", "dead", "beef", "f00d"])
+    monkeypatch.setattr(cli.secrets, "token_hex", lambda n: next(tags))
+    asm = runmod.load_assembly(runmod.state(wid)["assembly"])
+
+    cli._mint_segment_round(wid, asm, "plan", prefill={"orders": "again"})
+
+    ids = [e["id"] for e in journal.read(wid) if e["kind"] == "step"]
+    assert "plan-abeef" in ids and "plan-af00d" in ids, ids  # redrawn, not suffixed
