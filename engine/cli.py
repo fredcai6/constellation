@@ -3357,6 +3357,35 @@ def _incorporated(wid, seg, step, fields):
     return prefill
 
 
+# [step-pending]
+# Rationale: `_perform`'s `skip` verb already read this exact test inline --
+#   a step in the target segment, not yet folded done, not its terminal
+#   step -- to sweep a segment's own worklist closed. `_queue_pending`
+#   below needs the identical per-step question to ask it in aggregate, over
+#   the execute segment's own worklist; factoring it into one function both
+#   read keeps the test itself in one place rather than two copies drifting
+#   apart the next time either caller's segment-selection logic changes.
+def _step_pending(s, st, seg_id):
+    """`s` stands in `seg_id`'s own segment, is not folded done, and is not
+    its terminal step -- the undone-and-live test `skip` sweeps a segment
+    with, and `_queue_pending` reads over every step in a segment."""
+    return (s["segment"] == seg_id and s["id"] not in st["done"]
+            and not s.get("terminal"))
+
+
+# [queue-pending]
+# Rationale: whether the execute segment's own worklist still holds a gate
+#   this cut already minted, not yet reached -- read ahead of
+#   `_settle_execution`'s own board-unsettled check so an `advance` that
+#   still has queued gates behind it can keep plan closed rather than
+#   recutting it for every gate in a multi-gate cut, the trust obligation 4
+#   extends to the queue once the first gate in it has landed.
+def _queue_pending(st, seg_id):
+    """True where `seg_id`'s own worklist still holds an undone,
+    non-terminal step -- a gate this cut already minted, not yet reached."""
+    return any(_step_pending(s, st, seg_id) for s in st["steps"])
+
+
 # [impasse-verbs]
 # Rationale: `advance` and `rework` used to be handled by a stand-alone
 #   impasse actor, a reader outside the outcome mechanism. Absorbing the
@@ -3408,8 +3437,7 @@ def _perform(wid, asm, seg, does, fields, step):
         if word == "skip":
             st = runmod.state(wid)
             for s in st["steps"]:
-                if (s["segment"] == tseg["id"] and s["id"] not in st["done"]
-                        and not s.get("terminal")):
+                if _step_pending(s, st, tseg["id"]):
                     journal.append(wid, "amend", action="close", segment=tseg["id"],
                                    step=s["id"], reason=reason, anchor=s.get("anchor", False))
         elif word == "refill" and tseg.get("interior") == "board":
@@ -3469,7 +3497,18 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "commit":
             _commit_gate(wid, asm, step)
         elif word == "settle":
-            _settle_execution(wid, asm)
+            # [settle-after-commit]
+            # Rationale: a `does` string lists its own verbs once, in
+            #   order -- `advance`'s "commit; settle" names both, `drop
+            #   <gate-id>`'s "close; settle" names only the second. Reading
+            #   that list is what tells `_settle_execution` whether this
+            #   settle followed the outcome that just committed a gate,
+            #   never a predicted outcome name -- a third verb sequence
+            #   that also commits inherits the trust for free, and one
+            #   that does not stays on today's unconditional replan.
+            committed = any(v.strip().partition(" ")[0] == "commit"
+                            for v in does.split(";"))
+            _settle_execution(wid, asm, committed)
 
 
 # [pause-gate]
@@ -3964,8 +4003,20 @@ def _call_tree_ahead(st, seg_id):
     return {}
 
 
-def _settle_execution(wid, asm):
+def _settle_execution(wid, asm, committed=False):
     st = runmod.state(wid)
+    # [settle-trusts-only-advance]
+    # Rationale: `committed` is `True` only when the settle answering this
+    #   call followed the outcome that just committed a gate (`advance`'s
+    #   "commit; settle") -- the one outcome obligation 4 says the queue has
+    #   earned trust from. A `drop <gate-id>` ("close; settle") never passes
+    #   `True` here, so it keeps falling through to the unconditional
+    #   board-unsettled check below exactly as it does today: nothing yet
+    #   gives a mid-cut drop or remint anything lighter (obligations 5, 7),
+    #   and this guard does not invent one on the side.
+    execute = next((s for s in asm["segment"] if s["id"] == "execute"), None)
+    if committed and execute and _queue_pending(st, execute["id"]):
+        return
     path = st["boards"].get("execution-state", "")
     if not path or not any(boards.unsettled(r) for r in boards.rows(path)):
         return
@@ -4202,11 +4253,18 @@ _GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "d
 def _projected_source(step, st, asm, fields):
     """`None` when this submit is not a projecting transition's own release
     -- the wrong step, a segment with no `projects`, or a `rework`/`up`
-    that finishes nothing. Otherwise `(target, gate)`: `target` is the
-    segment `projects` names, and `gate` is built from the most recent
+    that finishes nothing. Otherwise `(target, gates)`: `target` is the
+    segment `projects` names, and `gates` is a list of zero or more gate
+    blocks (each the `_GATE_FIELDS` shape), built from the most recent
     step in this same segment, walking backward from the transition, whose
-    own submitted fields carry at least one of `_GATE_FIELDS` -- `{}`,
-    legitimately, where the walk finds none."""
+    own submitted fields carry at least one of `_GATE_FIELDS` -- `[]`,
+    legitimately, where the walk finds none. A round's own fields are
+    still singular (one `purpose`, one `scope`...), so today's walk ever
+    finds at most one block; the list shape is what lets a cut naming
+    several gates (obligation 1, once a form can author one) travel the
+    same two call sites -- `_check_projection`'s emptiness check and
+    `_mint_projected_gate`'s hand-off to `_mint_gates` -- without either
+    changing shape again the day that form exists."""
     seg = next((s for s in asm["segment"] if s["id"] == step.get("segment")), {})
     t = seg.get("transition", {})
     if (step.get("form") != t.get("form") or not t.get("projects")
@@ -4216,15 +4274,15 @@ def _projected_source(step, st, asm, fields):
     if not target:
         return None
     prior = [s for s in st["steps"] if s["segment"] == step["segment"] and s["id"] != step["id"]]
-    gate = {}
+    gates = []
     for s in reversed(prior):
         source = st["done"].get(s["id"], {}).get("fields", {})
         candidate = {k: source[k] for k in _GATE_FIELDS if k in source
                      and not (k == "call-tree" and str(source[k]).strip().startswith("waived:"))}
         if candidate:
-            gate = candidate
+            gates = [candidate]
             break
-    return target, gate
+    return target, gates
 
 
 def _check_projection(asm, step, st, fields):
@@ -4234,13 +4292,13 @@ def _check_projection(asm, step, st, fields):
     durable, so the true dead end (a segment with no round to project at
     all) refuses loudly and says what it could not project, in place of
     the silent nothing-minted `_mint_projected_gate` used to leave behind.
-    Not applicable (`None`) and found something (a non-empty `gate`) both
-    pass through untouched."""
+    Not applicable (`None`) and found something (a non-empty `gates` list)
+    both pass through untouched."""
     found = _projected_source(step, st, asm, fields)
     if found is None:
         return
-    target, gate = found
-    if not gate:
+    target, gates = found
+    if not gates:
         raise SystemExit(render.refusal(
             step["id"], f"projects into {target['id']!r} but this segment "
             "has no round behind it that ever carried a gate field -- "
@@ -4248,27 +4306,27 @@ def _check_projection(asm, step, st, fields):
 
 
 def _mint_projected_gate(wid, asm, step, st, fields):
-    """A transition step whose own segment declares `projects` mints one
-    gate into the segment `projects` names, on submit -- built from this
-    segment's own most recent interior return, never from anything typed on
-    the transition's own form. A no-op off that step, where the segment it
-    names is not one this assembly's own `_mint_gates` can reach, or where
-    the walk finds no round to project -- `_check_projection` is what
-    refuses that last case before this ever runs; here it is simply
-    nothing to mint."""
+    """A transition step whose own segment declares `projects` mints every
+    gate this round named into the segment `projects` names, on submit --
+    built from this segment's own most recent interior return, never from
+    anything typed on the transition's own form. A no-op off that step,
+    where the segment it names is not one this assembly's own `_mint_gates`
+    can reach, or where the walk finds no round to project --
+    `_check_projection` is what refuses that last case before this ever
+    runs; here it is simply nothing to mint."""
     found = _projected_source(step, st, asm, fields)
     if found is None:
         return
-    target, gate = found
-    if gate:
+    target, gates = found
+    if gates:
         # Sequential, not position-1 every round: unlike a remint (still
         # redoing one gate's own slot, so colliding into a suffix is the
-        # point), each plan round cuts the issue's next gate, and numbering
-        # it g1, g2, g3... reads the same way the run does.
+        # point), each plan round cuts the issue's next gate(s), and
+        # numbering them g1, g2, g3... reads the same way the run does.
         cut_so_far = sum(1 for s in st["steps"]
                          if s.get("segment") == target["id"]
                          and s.get("dispatches") == target["dispatches"])
-        _mint_gates(wid, target, [gate], start=cut_so_far + 1)
+        _mint_gates(wid, target, gates, start=cut_so_far + 1)
 
 
 # [resume-paused-child]
