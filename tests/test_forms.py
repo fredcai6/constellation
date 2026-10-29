@@ -183,8 +183,8 @@ def test_materialize_implement_omits_check_field(tmp_path):
 
 
 @pytest.mark.parametrize("path, table", [
-    ("skills/planner/forms/PLAN.toml", None),
-    ("skills/planner/forms/REWORK.toml", None),
+    ("skills/planner/forms/PLAN.toml", "gates"),
+    ("skills/planner/forms/REWORK.toml", "gates"),
     (GATE_TRANSITION, "gate-spec"),
 ])
 def test_a_command_typed_into_a_minted_proof_slot_reads_back_as_typed(tmp_path, path, table):

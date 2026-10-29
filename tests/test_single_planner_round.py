@@ -103,13 +103,15 @@ def test_an_incorporation_round_also_dispatches_a_single_planner(workdir, capsys
     _write_plan_artifact(journal.location(child) / "plan.md")
     _fill(_response(child), '''
 plan = "%s/plan.md"
-purpose = "fix the parser"
-scope = "src/parser.c only"
-proof = "true"
 call-tree = "waived: none yet"
 findings-addressed = "accepted: addressed the critic's gap"
 deleted = "waived: nothing"
 key-terms = "waived: none"
+
+[[gates]]
+purpose = "fix the parser"
+scope = "src/parser.c only"
+proof = "true"
 ''' % journal.location(child))
     cli.main([child, "submit"])
     cli.main([child, "close"])

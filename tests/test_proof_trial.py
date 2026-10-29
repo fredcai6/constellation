@@ -57,12 +57,14 @@ def _cut(child, proof, budget=""):
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(child), '''
 plan = "%s/plan.md"
+call-tree = "waived: none yet"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "fix the parser"
 scope = "src/parser.c only"
 proof = """%s"""
-%scall-tree = "waived: none yet"
-key-terms = "waived: none"
-''' % (loc, proof, f'budget = "{budget}"\n' if budget else ""))
+%s''' % (loc, proof, f'budget = "{budget}"\n' if budget else ""))
 
 
 def _checks(wid):
@@ -91,7 +93,7 @@ def test_the_planners_submit_runs_the_proof_once_and_journals_a_check(workdir, c
 
     ran = _checks(child)
     assert len(ran) == 1
-    assert ran[0]["step"] == "cut" and ran[0]["field"] == "proof"
+    assert ran[0]["step"] == "cut" and ran[0]["field"] == "gates.0.proof"
     assert ran[0]["command"] == "exit 3" and ran[0]["exit"] == 3
     assert "resolved, exit 3" in out            # the planner is told too
     assert "cut" in runmod.state(child)["done"]  # and nothing was refused

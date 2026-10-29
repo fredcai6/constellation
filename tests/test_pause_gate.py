@@ -33,10 +33,17 @@ def _seed_two_gates(pwid):
     this file pauses, and `g2`, the sibling every assertion here holds
     untouched."""
     journal.append(pwid, "run", title="t", assembly="run-an-issue")
-    for gid, purpose in (("g1", "fix the parser"), ("g2", "fix the linter")):
+    for gid, purpose, proof in (("g1", "fix the parser", "true"),
+                                # `false` -- a real check, failing before any
+                                # work -- not `true`: `g1`'s own advance now
+                                # checks the next queued gate's proof against
+                                # the tree before trusting it into dispatch
+                                # (`_proof_is_stale`, engine/cli.py), and
+                                # `true` already passes on an untouched tree.
+                                ("g2", "fix the linter", "false")):
         child = f"{pwid}.{gid}"
         journal.append(pwid, "step", id=gid, segment="execute", dispatches="run-a-gate",
-                       prefill={"purpose": purpose, "scope": "src/ only", "proof": "true"},
+                       prefill={"purpose": purpose, "scope": "src/ only", "proof": proof},
                        child=child, anchor=False, terminal=False, source="mint")
         journal.append(pwid, "step", id=f"{gid}-adjudicate", segment="execute",
                        form="forms/GATE_TRANSITION.toml", filler="conductor", child=child,

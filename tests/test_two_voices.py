@@ -95,11 +95,13 @@ def _fill_plan_form(wid):
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(wid), '''
 plan = "%s/plan.md"
+call-tree = "waived: none yet"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-call-tree = "waived: none yet"
-key-terms = "waived: none"
 ''' % loc)
 
 
@@ -135,13 +137,15 @@ def _fill_rework_form(wid, findings_addressed="accepted: made gate 1 testable",
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(wid), '''
 plan = "%s/plan.md"
-purpose = "fix the parser to handle EOF without a trailing newline"
-scope = "src/parser.c only"
-proof = "true"
 call-tree = "waived: none yet"
 findings-addressed = "%s"
 deleted = "%s"
 key-terms = "waived: none"
+
+[[gates]]
+purpose = "fix the parser to handle EOF without a trailing newline"
+scope = "src/parser.c only"
+proof = "true"
 ''' % (loc, findings_addressed, deleted))
 
 

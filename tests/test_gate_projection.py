@@ -88,13 +88,15 @@ def test_childs_prefill_carries_gate_fields_and_the_call_tree(workdir, capsys):
         (journal.location(w) / "plan.md").write_text("the plan document.\n")
         _fill(_response(w), '''
 plan = "%s/plan.md"
+call-tree = "%s"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
 model = "light"
 direction = "whether the fix generalizes to CRLF too"
-call-tree = "%s"
-key-terms = "waived: none"
 ''' % (journal.location(w), tree))
 
     wid = _drive_to_plan_to_execute(fill_fn=fill)
@@ -147,11 +149,13 @@ def test_the_critics_read_the_tree_beside_the_gate(workdir, capsys):
         (journal.location(w) / "plan.md").write_text("the plan document.\n")
         _fill(_response(w), '''
 plan = "%s/plan.md"
+call-tree = "next: a regression test gate, once this one lands"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-call-tree = "next: a regression test gate, once this one lands"
-key-terms = "waived: none"
 ''' % journal.location(w))
     _dispatch_and_close_plan(wid, fill_fn=_fill_with_call_tree)  # round one's single planner
     capsys.readouterr()
@@ -159,7 +163,7 @@ key-terms = "waived: none"
     cli.main(["open", "give-a-verdict", "--parent", wid, "--step", "plan.p1"])
     prefill = runmod.state(f"{wid}.plan.p1")["prefill"]
     assert prefill["call-tree"] == "next: a regression test gate, once this one lands"
-    assert prefill["purpose"].startswith("fix the parser")
+    assert prefill["gates"][0]["purpose"].startswith("fix the parser")
 
 
 # -- 3. an artifact field holding prose is measured, not silently zero -------
@@ -218,11 +222,13 @@ def test_an_artifact_field_holding_prose_inline_is_refused_not_measured_zero(wor
     child = f"{wid}.plan-1"
     _fill(_response(child), '''
 plan = "the approach is to adjust the loop bound and add a regression test"
+call-tree = "waived: none yet"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-call-tree = "waived: none yet"
-key-terms = "waived: none"
 ''')
     with pytest.raises(SystemExit) as e:
         cli.main([child, "submit"])
@@ -254,11 +260,13 @@ def test_an_artifact_field_answered_waived_is_not_refused(workdir, capsys):
     child = f"{wid}.plan-1"
     _fill(_response(child), '''
 plan = "waived: no plan document for this trivial gate"
+call-tree = "waived: none yet"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "fix the parser to handle EOF without a trailing newline"
 scope = "src/parser.c only"
 proof = "true"
-call-tree = "waived: none yet"
-key-terms = "waived: none"
 ''')
     cli.main([child, "submit"])  # must not raise
     capsys.readouterr()

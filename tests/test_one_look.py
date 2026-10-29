@@ -118,12 +118,14 @@ def _fill_plan_with_call_tree(wid, tree, purpose="fix the parser to handle EOF w
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(wid), '''
 plan = "%s/plan.md"
+call-tree = "%s"
+key-terms = "waived: none"
+
+[[gates]]
 purpose = "%s"
 scope = "%s"
 proof = "%s"
-call-tree = "%s"
-key-terms = "waived: none"
-''' % (loc, purpose, scope, proof, tree))
+''' % (loc, tree, purpose, scope, proof))
 
 
 # -- 1. incorporate on understand: every panelist's findings, orders ahead --

@@ -112,33 +112,56 @@ def _fill_consolidate_route_with_calls(wid, resolution, *calls):
     _fill_consolidate(wid, resolution, calls=blocks)
 
 
+def _gate_blocks(gates):
+    """One `[[gates]]` block per gate dict in `gates` -- the shared helper
+    `_fill_plan`, `_fill_plan_rework` and `_fill_review_plan` all fill
+    PLAN.toml/REWORK.toml/REVIEW_PLAN.toml's own `gates` field through
+    (Principal ruling, 2026-10-29: a cut's gates are one uniform list, the
+    first included, and there is no second path for a one-gate cut).
+    Written last in the template: a plan field renders as a bare
+    `[[gates]]` header, and a scalar declared after it would nest inside
+    the array's last block instead of standing as its own field."""
+    lines = []
+    for g in gates:
+        lines.append("[[gates]]")
+        lines.append('purpose = "%s"' % g.get("purpose", ""))
+        lines.append('scope = "%s"' % g.get("scope", ""))
+        lines.append('proof = "%s"' % g.get("proof", "true"))
+        if g.get("gate_proof"):
+            lines.append("gate-proof = '%s'" % g["gate_proof"])
+        if g.get("model"):
+            lines.append('model = "%s"' % g["model"])
+        if g.get("direction"):
+            lines.append('direction = "%s"' % g["direction"])
+    return "\n".join(lines) + "\n"
+
+
 def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing newline",
                scope="src/parser.c only", proof="true", model="", direction="",
-               gate_proof=""):
+               gate_proof="", gates=None):
     """Fill PLAN.toml at `wid`'s own current step -- `journal.location`,
     not string interpolation, so a dotted child id (`issue17.plan-1`, the
     first round's own dispatch) nests instead of colliding with a literal
     dot in a directory name. Also what a `replan` mints locally, since that
     round takes the same step-form the first round does. The gate spec
     (purpose/scope/proof, optional model/direction) is the round's own
-    artifact now -- plan-to-execute projects it, it does not retype it."""
+    artifact now -- plan-to-execute projects it, it does not retype it.
+
+    `gates`, when given, is a list of gate dicts (same keys as this
+    function's own kwargs) cutting more than one gate in this round;
+    the default kwargs still cut the ordinary single gate, through the
+    same `[[gates]]` shape -- `_gate_blocks` above."""
     loc = journal.location(wid)
-    extra = ""
-    if model:
-        extra += 'model = "%s"\n' % model
-    if direction:
-        extra += 'direction = "%s"\n' % direction
-    if gate_proof:
-        extra += "gate-proof = '%s'\n" % gate_proof
+    rows = gates if gates is not None else [{
+        "purpose": purpose, "scope": scope, "proof": proof,
+        "model": model, "direction": direction, "gate_proof": gate_proof}]
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(wid), '''
 plan = "%s/plan.md"
-purpose = "%s"
-scope = "%s"
-proof = "%s"
-%scall-tree = "waived: none yet"
+call-tree = "waived: none yet"
 key-terms = "waived: none"
-''' % (loc, purpose, scope, proof, extra))
+
+%s''' % (loc, _gate_blocks(rows)))
 
 
 def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
@@ -337,22 +360,38 @@ def _fill_critic(wid, verdict, findings="none: waived: clean"):
 
 def _fill_plan_rework(wid, purpose="fix the parser to handle EOF without a trailing newline",
                       scope="src/parser.c only", proof="true",
-                      findings_addressed="waived: first pass", deleted="waived: nothing"):
+                      findings_addressed="waived: first pass", deleted="waived: nothing",
+                      gates=None):
     """A revise round's dispatched child fills REWORK.toml, not PLAN.toml --
     the form override `_mint_segment_round` carries on the fresh interior
-    step."""
+    step. `gates`, as `_fill_plan`'s own, cuts more than one gate through
+    the same `[[gates]]` shape (`_gate_blocks`)."""
     loc = journal.location(wid)
+    rows = gates if gates is not None else [{"purpose": purpose, "scope": scope, "proof": proof}]
     _write_plan_artifact(loc / "plan.md")
     _fill(_response(wid), '''
 plan = "%s/plan.md"
-purpose = "%s"
-scope = "%s"
-proof = "%s"
 call-tree = "waived: none yet"
 findings-addressed = "%s"
 deleted = "%s"
 key-terms = "waived: none"
-''' % (loc, purpose, scope, proof, findings_addressed, deleted))
+
+%s''' % (loc, findings_addressed, deleted, _gate_blocks(rows)))
+
+
+def _fill_review_plan(wid, gates):
+    """The staleness-triggered review round fills REVIEW_PLAN.toml, the
+    same first-gate-plus-additional-blocks shape PLAN.toml/REWORK.toml
+    both take, minted in their place with no panel
+    (`_settle_execution`, engine/cli.py)."""
+    loc = journal.location(wid)
+    _write_plan_artifact(loc / "plan.md")
+    _fill(_response(wid), '''
+plan = "%s/plan.md"
+call-tree = "waived: none yet"
+key-terms = "waived: none"
+
+%s''' % (loc, _gate_blocks(gates)))
 
 
 def _drive_plan_to_pause(wid, findings="gap: wrong artifact entirely"):
