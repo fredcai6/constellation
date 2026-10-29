@@ -495,3 +495,78 @@ def test_the_widened_guard_returns_none_off_a_non_transition_step(workdir, capsy
 
     cli._check_projection(asm, step, st, {})  # must not raise
     assert cli._projected_source(step, st, asm, {}) is None
+
+
+# -- 7. the gate projected after an incorporate is the rework's cut ---------
+
+
+def _incorporate_then_rework(wid="issue17"):
+    """Round one cuts the original; the critic panel revises it; the
+    conductor incorporates; the rework planner cuts a different gate. Stops
+    on the fresh PLAN_TO_EXECUTE the rework's return stands behind."""
+    cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
+    _fill_open(wid)
+    cli.main([wid, "submit"])
+    _work_the_board(wid)
+    _fill_consolidate(wid)
+    cli.main([wid, "submit"])
+    _dispatch_and_close_plan(wid, fill_fn=lambda w: _fill_plan(
+        w, purpose="the original cut", scope="original scope"))
+    _dispatch_plan_critic(wid, verdict="revise", findings="gap: the original is untestable",
+                          resolution="incorporate")
+    st = runmod.state(wid)
+    rework = next(s for s in st["steps"]
+                  if s["segment"] == "plan" and s.get("source") == "mint"
+                  and s["id"] not in st["done"] and s.get("dispatches"))
+    _dispatch_and_close_plan(wid, rework["id"], lambda w: _fill_plan_rework(
+        w, purpose="the rework cut", scope="rework scope"))
+    return wid
+
+
+def _projected_purpose(wid):
+    st = runmod.state(wid)
+    return next(s for s in st["steps"] if s.get("dispatches") == "run-a-gate")["prefill"]["purpose"]
+
+
+def test_an_incorporate_then_release_projects_the_reworks_cut(workdir, capsys):
+    """The ordinary incorporate-to-release path: the gate carries the rework
+    planner's purpose, not the original cut's."""
+    wid = _incorporate_then_rework()
+    _fill_plan_to_execute(wid)
+    cli.main([wid, "submit"])
+    assert _projected_purpose(wid) == "the rework cut"
+
+
+def test_a_fresh_round_never_draws_the_id_of_a_step_already_journaled(
+        workdir, capsys, monkeypatch):
+    """sports-market-manager issue312, 2026-10-29: a round's fresh transition
+    drew the id of an earlier, finished planner step. The id read as complete,
+    the run skipped the release, and the conductor's `amend add` release
+    projected the EARLIER cut -- the walk back met that finished step's return
+    under the shared id before the latest round's own. The draw is made
+    against the ids the journal holds, so the shared id cannot be minted and
+    the ordinary release projects the latest cut."""
+    import secrets
+    wid = _incorporate_then_rework()
+    earlier = next(s["id"] for s in runmod.state(wid)["steps"]
+                   if s.get("dispatches") == "cut-a-gate" and s["id"] != "plan-1"
+                   and s["id"] in runmod.state(wid)["done"])
+    tags = iter(["ffff", earlier.rsplit("-a", 1)[-1]])      # interior, then transition
+    real = secrets.token_hex
+    monkeypatch.setattr(secrets, "token_hex", lambda n: next(tags, None) or real(n))
+    _fill_plan_to_execute(wid, "rewrite", calls='orders = "cut it again"\n')
+    cli.main([wid, "submit"])
+    monkeypatch.setattr(secrets, "token_hex", real)
+
+    ids = [e["id"] for e in journal.read(wid) if e["kind"] == "step"]
+    assert len(ids) == len(set(ids))
+    st = runmod.state(wid)
+    latest = next(s for s in st["steps"] if s.get("dispatches") == "cut-a-gate"
+                  and s["id"] not in st["done"])
+    _dispatch_and_close_plan(wid, latest["id"], lambda w: _fill_plan(
+        w, purpose="the latest cut", scope="latest scope"))
+    _dispatch_plan_critic(wid)
+    assert runmod.state(wid)["current"]["form"] == "forms/PLAN_TO_EXECUTE.toml"
+    _fill_plan_to_execute(wid)
+    cli.main([wid, "submit"])
+    assert _projected_purpose(wid) == "the latest cut"
