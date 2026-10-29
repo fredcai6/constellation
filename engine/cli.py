@@ -43,8 +43,9 @@ spine <work-id> note <kind> <text>  record an observation, block, or decision
 spine <work-id> amend add --segment S --form F --reason "..."
 spine <work-id> amend close <step-id> --reason "..."
 spine <work-id> amend reorder <step-id> --before <step-id> --reason "..."
-spine <work-id> amend proof <gate-id> --proof "<command>" --reason "<ruling>: ..."
-    replace a gate's `proof`, the one close re-runs; cite the ruling
+spine <work-id> amend proof <gate-id> --proof|--gate-proof "<command>" --reason "<ruling>: ..."
+    replace a gate's `proof` (the one close re-runs) or its `gate-proof`
+    (the one its landing runs); cite the ruling
 spine <work-id> amend waive <step-id> --reason "..."   waive the panelists
     still outstanding on a step; the step stands, its own form still yours
 spine <work-id> close               terminal: legal once every step is done
@@ -2667,14 +2668,14 @@ def cmd_submit(argv):
 #   after the amend, would have to be found and patched. Reading the one
 #   place that holds it has nothing to keep in sync.
 def _ruled_proof(st):
-    """`{"proof": <text>}` off the parent's gate step for the child that step
-    dispatched, as the parent's journal stands now; `{}` for a run with no
-    parent, or whose parent step carries no proof."""
+    """`proof` and `gate-proof` off the parent's gate step for the child that
+    step dispatched, as the parent's journal stands now -- each only where
+    the step carries it; `{}` for a run with no parent."""
     parent, pstep = st.get("parent"), st.get("parent_step")
     pst = runmod.state(parent) if parent and pstep and journal.exists(parent) else None
     gate = next((s for s in (pst or {}).get("steps", []) if s["id"] == pstep), None)
-    proof = ((gate or {}).get("prefill") or {}).get("proof")
-    return {"proof": proof} if proof is not None else {}
+    held = (gate or {}).get("prefill") or {}
+    return {k: held[k] for k in ("proof", "gate-proof") if held.get(k) is not None}
 
 
 # [complete-submit]
@@ -4552,7 +4553,8 @@ def cmd_amend(argv):
     if action == "waive":
         return _amend_waive(wid, st, argv[2], reason)
     if action == "proof":
-        return _amend_proof(wid, st, argv[2], reason, _opt(argv, "--proof"))
+        field = "gate-proof" if _opt(argv, "--gate-proof") is not None else "proof"
+        return _amend_proof(wid, st, argv[2], reason, _opt(argv, f"--{field}"), field)
     raise SystemExit(f"unknown amend action {action!r} -- add | close | reorder | waive | proof")
 
 
@@ -4654,12 +4656,16 @@ def _amend_reorder(wid, st, step_id, reason, before):
 #   and every re-read the engine makes of it -- close's recheck, and the
 #   dispatch of a gate not yet started -- reads the new text. Done gates
 #   are allowed: the proof is read again after its gate has run, so that is
-#   where an erratum is found. `proof` only: `gate-proof` is never read
-#   once its gate has landed.
+#   where an erratum is found. `--gate-proof` replaces the landing-time
+#   boundary the same way: issue223's g2 was released with a boundary
+#   that a principal's ruling, made at the release, widened (a shared test
+#   helper had to move), and the gate had not yet dispatched. A gate-proof
+#   is never read once its gate has landed, so amending a done gate's is
+#   journaled and inert.
 #   A gate child already running reads the ruling too: its check takes
 #   `proof` from the parent's gate step at check time
 #   (`[ruled-proof-read-live]`), issue299's g3 being the run that needed it.
-def _amend_proof(wid, st, step_id, reason, proof):
+def _amend_proof(wid, st, step_id, reason, proof, field="proof"):
     gates = [s for s in st["steps"]
              if s.get("dispatches") and "proof" in (s.get("prefill") or {})]
     step = next((s for s in gates if s["id"] == step_id), None)
@@ -4669,12 +4675,13 @@ def _amend_proof(wid, st, step_id, reason, proof):
             escape=f"gates: {', '.join(s['id'] for s in gates) or 'none'}"))
     if not (proof or "").strip():
         raise SystemExit(render.refusal(
-            "proof", "amend proof needs the replacement",
-            escape=f'spine {wid} amend proof {step_id} --proof "<command>" --reason "<ruling>: ..."'))
-    journal.append(wid, "amend", action="proof", segment=step["segment"], step=step_id,
-                   proof=proof, was=str((step.get("prefill") or {}).get("proof", "")),
+            field, "amend proof needs the replacement",
+            escape=f'spine {wid} amend proof {step_id} --{field} "<command>" --reason "<ruling>: ..."'))
+    journal.append(wid, "amend", action="proof", field=field, segment=step["segment"],
+                   step=step_id, proof=proof,
+                   was=str((step.get("prefill") or {}).get(field, "")),
                    reason=reason, anchor=step.get("anchor", False))
-    print(f"amended: {step_id}'s proof is now `{proof}`\n")
+    print(f"amended: {step_id}'s {field} is now `{proof}`\n")
     return cmd_status([wid])
 
 

@@ -324,7 +324,8 @@ def _apply_amend(raw_steps, e):
     elif action == "proof":
         step = next((s for s in raw_steps if s["id"] == e.get("step")), None)
         if step:
-            step["prefill"] = {**(step.get("prefill") or {}), "proof": e.get("proof", "")}
+            field = e.get("field") or "proof"
+            step["prefill"] = {**(step.get("prefill") or {}), field: e.get("proof", "")}
 
 
 def _ordered(raw_steps, seg_order):
