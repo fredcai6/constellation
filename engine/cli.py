@@ -32,11 +32,13 @@ spine <work-id> submit              hand in the filled response form
 spine <work-id> wait [--for N]      block while the current step's child is
     outstanding -- starting a never-dispatched one and restarting one gone
     without returning, capped -- then print status
-spine <work-id> drive [--for N]     walk the run, pass after pass, through
-    every step shape the engine can resolve on its own -- a gate dispatch or
-    a panel (via `wait`'s own mechanism), a form step already in flight --
-    stopping on an ask, a close form, a spent gate or panelist, a step
-    before the plan segment, or its own bound running out
+spine <work-id> drive [--for N] [--headless]   walk the run, pass after pass,
+    through every step shape the engine can resolve on its own -- a gate
+    dispatch or a panel (via `wait`'s own mechanism), a worker's form step --
+    stopping on an ask, a close form, a step the conductor fills, a spent
+    gate or panelist, a step before the plan segment, or its own bound
+    running out; --headless also fills the conductor's steps (no conductor
+    present)
 spine <work-id> up "<reason>"       pause: ask the parent for a decision this
     run cannot make itself
 spine <work-id> note <kind> <text>  record an observation, block, or decision
@@ -2015,6 +2017,32 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     }
 
 
+# [lingering-children]
+# Rationale: a dispatched child's process is meant to end with its run (the
+#   closed room tells it so), but one that does not stays alive for tens of
+#   minutes, busy-polling -- and a conductor tidying them once killed a live
+#   rework round, because nothing told a finished child from a running one.
+#   The engine already records the pid at `dispatch-started`, so the parent's
+#   status says the one thing a tidier needs: this child's run is closed and
+#   its process is still there. A child whose run is open is working and is
+#   never listed. It names the pid and log and does nothing about them -- the
+#   engine reports, the conductor decides.
+# Rejected: killing the process from `close`. The engine is a secretary, never
+#   a guard, and a pid read from a journal is not one it may signal.
+def _lingering_children(wid):
+    """`[(child_id, pid, log)]` for each dispatched child of `wid` whose own
+    run is closed while the process recorded at its latest
+    `dispatch-started` is still alive."""
+    out = []
+    for child, rec in _dispatch_records(wid).items():
+        cst = runmod.state(child)
+        if cst is None or not cst.get("closed") or rec.get("pid") is None:
+            continue
+        if checkrun.alive(rec["pid"]):
+            out.append((child, rec["pid"], rec.get("log", "")))
+    return out
+
+
 def cmd_status(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -2033,6 +2061,9 @@ def cmd_status(argv):
     if filled and not (st["open"] and st.get("current") and st["current"]["id"] == filled):
         print(render.filler_done(filled))
         return 0
+    lingering = _lingering_children(wid)
+    if lingering:
+        print(render.lingering(lingering))
     if not st["open"] or st["awaiting_close"]:
         print(render.status(st, {}, "", position=runmod.position(st, None),
                             onward_to=_onward(st)))
@@ -2405,9 +2436,11 @@ def cmd_drive(argv):
     gate or panelist spent past `checkrun.MAX_STARTS` with nothing else
     outstanding for that step, or a childless form step's own filler spent
     past `checkrun.FORM_FILLER_MAX_STARTS` -- each stops and renders rather
-    than crash or spin."""
+    than crash or spin. A step the conductor fills (`filler == "conductor"`)
+    stops and renders too, unless `--headless` says no conductor is present."""
     wid = argv[0]
     bound = _drive_bound(argv[1:])
+    headless = "--headless" in argv[1:]
     st = runmod.state(wid)
     if st is None:
         _no_run(wid)
@@ -2443,6 +2476,24 @@ def cmd_drive(argv):
         else:
             if runmod.principal_fills(step):
                 return cmd_status([wid])  # the principal's own form -- rendered, never driven
+            # [drive-leaves-the-conductors-steps]
+            # Rationale: a step whose filler is the bare `conductor` indirection
+            #   is the conductor's to fill -- a gate's ASK answered upward, a
+            #   gate adjudication -- and `drive` runs under that conductor. The
+            #   spawn would put the heavy tier (`_role_tier`: `conductor` is
+            #   always heavy) on a form the present conductor is about to fill
+            #   itself: issue299 spawned `claude-opus-5` into execute-a530b and
+            #   g1-adjudicate, and the conductor killed it by hand twice, then
+            #   stopped using `drive`. So `drive` does what `wait` does there:
+            #   it renders the room and returns, naming the step to fill. A
+            #   worker role (`implementer`, `planner`, ...) is still `drive`'s
+            #   to start, on that role's own tier.
+            #   `--headless` is the explicit opt-in for a run with no conductor
+            #   present: the conductor's steps then get a filler as before.
+            # Rejected: a guard on the spawn that refuses opus. The tier is not
+            #   the defect; a filler for a seat someone else holds is.
+            if step.get("filler") == "conductor" and not headless:
+                return cmd_status([wid])
             if runmod.in_flight(st, step):
                 time.sleep(checkrun.WAIT_POLL)
                 continue

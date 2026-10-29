@@ -626,6 +626,9 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
             # the room at the other end describe itself.
             out.append("")
             out.append(f"  returned to {destination(onward_to)}.")
+            out.append(_para("If you are the session dispatched for this run, your "
+                             "turn ends here: reply `closed` and exit. What follows "
+                             "is the dispatching conductor's.", indent="  "))
             out.append(located(f"  continue there:    spine {onward_to[0]}"))
         return "\n".join(out)
 
@@ -751,6 +754,15 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     if not standalone:
         out.append(legal_moves(wid))
     return "\n".join(out)
+
+
+def lingering(children):
+    """Dispatched children whose run is closed but whose process is not."""
+    lines = [f"  still alive after its run closed: {child} (pid {pid}"
+             + (f", log {log}" if log else "") + ")" for child, pid, log in children]
+    return "\n".join(lines + [_para(
+        "Their work is already returned; a process listed here is finished, "
+        "and a child whose run is still open is never listed.", indent="  "), ""])
 
 
 def filler_done(step_id):
