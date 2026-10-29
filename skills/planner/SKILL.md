@@ -37,6 +37,14 @@ submit, against the tree as it stands, and whoever judges the cut sees what
 they did. A real check fails there, before the work. One that passes
 proves nothing. Prose does not resolve.
 
+A check about which files this gate touched measures from
+`$CONSTELLATION_GATE_BASE`, which the engine sets for every check to the last
+landed gate's commit (the branch point for the first gate): `git diff
+--name-only "${CONSTELLATION_GATE_BASE:?}"` lists this gate's own tracked
+changes, and `git ls-files --others --exclude-standard` its new files. `origin/main` is
+the wrong base here -- earlier gates' files sit on the branch, and the check
+would trip on them.
+
 Do not implement any gate from inside this form, and do not reach into a
 gate's own latitude. Implementation detail below gate grain belongs to the
 implementer, who reads the same code you did. A spec that reads as the wrong

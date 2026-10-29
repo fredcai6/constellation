@@ -36,6 +36,7 @@ import subprocess
 import sys
 
 from engine import journal
+from engine import run as runmod
 from engine import render
 
 HANDBACK = 90  # seconds `submit` holds its caller -- see the module docstring
@@ -174,7 +175,8 @@ def hand_in(wid, step, fields, commands, check_root, budget):
     where = str(pathlib.Path(check_root).resolve())
     payload.write_text(json.dumps({
         "wid": wid, "step": step["id"], "fields": fields, "commands": commands,
-        "cwd": where, "budget": budget, "result": str(result.resolve())}),
+        "cwd": where, "budget": budget, "result": str(result.resolve()),
+        "base": gate_base(wid, where)}),
         encoding="utf-8")
     proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
     try:
@@ -231,7 +233,8 @@ def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
     where = str(pathlib.Path(cwd).resolve())
     payload.write_text(json.dumps({
         "wid": wid, "step": step_id, "commands": commands, "cwd": where,
-        "budget": budget, "trial": True, "changed": changed}), encoding="utf-8")
+        "budget": budget, "trial": True, "changed": changed,
+        "base": gate_base(wid, where)}), encoding="utf-8")
     proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
     try:
         code = proc.wait(timeout=HANDBACK)
@@ -556,7 +559,7 @@ def _trial_main(payload):
     wid, step_id, budget = payload["wid"], payload["step"], payload["budget"]
     changed = payload.get("changed")
     for fid, cmd in payload["commands"]:
-        code, output = _run(cmd, payload["cwd"], budget)
+        code, output = _run(cmd, payload["cwd"], budget, payload.get("base", ""))
         _attempt(fid, cmd, code, output)
         if code is None:
             journal.append(wid, "check", step=step_id, field=fid, command=cmd,
@@ -600,13 +603,66 @@ def _as_text(stream):
 _SHELL = shutil.which("bash")
 
 
-def _run(cmd, cwd, budget):
-    """(exit, output) for one check; exit `None` when it outran the budget."""
+# [gate-base]
+# Rationale: issue299 g4 (sports-market-manager, 2026-10-26) -- an issue-tier
+#   run lands its gates in sequence on one branch, and every planner wrote its
+#   scope check as `git diff --name-only origin/main...HEAD`. Gate N then saw
+#   every file gates 1..N-1 had landed and tripped on files it never touched;
+#   the conductor unblocked g4 by hand and ordered each later gate-proof to
+#   diff against the last gate commit, one human computation per gate. The
+#   base is a fact the branch already holds -- the newest commit carrying a
+#   gate's `Work-Id` trailer (`_commit_gate`), else where the run branched off
+#   its cut ref -- so the engine computes it and every check runs with it as
+#   `CONSTELLATION_GATE_BASE`. A planner writes `git diff --name-only
+#   "$CONSTELLATION_GATE_BASE"` and the right base is the only one on offer.
+# Rejected: a placeholder substituted into the proof text -- the journal then
+#   stores a sha where the planner wrote a name, and a minted proof cannot be
+#   edited when the sha goes stale after a rebase. An environment variable is
+#   read at run time, so the same text is right at every gate and after a
+#   rebase (the trailer survives it; the cut sha does not).
+# Rejected: the run's recorded cut sha for g1 -- a rebase onto a moved main
+#   (issue299 g1 did exactly this) leaves it behind, and `sha..HEAD` would
+#   then list main's own commits. The merge-base against the cut's ref tracks
+#   the rebase.
+# Rejected: defaulting to `HEAD` -- a gate's own work is uncommitted until the
+#   engine commits it on advance, so HEAD is the base only by that accident.
+def gate_base(wid, cwd):
+    """The commit a gate's own diff is measured from: the newest gate commit
+    on the run's branch, else the branch point off the ref the run was cut
+    from. Empty where git or the cut cannot say -- a check then sees no
+    `CONSTELLATION_GATE_BASE` at all, never a wrong one."""
+    def git(*args):
+        try:
+            r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
+                               text=True, encoding="utf-8", errors="replace",
+                               timeout=30)
+        except (OSError, subprocess.TimeoutExpired):
+            return ""
+        return r.stdout.strip() if r.returncode == 0 else ""
+    last = git("log", "-1", "--format=%H", "--extended-regexp",
+               r"--grep=^Work-Id: .+\.g[0-9]+$", "HEAD")
+    if last:
+        return last
+    try:
+        cut = runmod.state(wid).get("from") or ""
+    except Exception:
+        return ""
+    ref, _, sha = cut.rpartition("@")
+    return ((ref not in ("", "HEAD") and git("merge-base", "HEAD", ref))
+            or (sha and git("rev-parse", "--verify", f"{sha}^{{commit}}")))
+
+
+def _run(cmd, cwd, budget, base=""):
+    """(exit, output) for one check; exit `None` when it outran the budget.
+    `base` is `gate_base`'s answer, exported as `CONSTELLATION_GATE_BASE`."""
+    env = {k: v for k, v in os.environ.items() if k != "CONSTELLATION_GATE_BASE"}
+    if base:
+        env["CONSTELLATION_GATE_BASE"] = base
     try:
         r = subprocess.run(cmd, shell=True, executable=_SHELL,
                            capture_output=True, text=True,
                            encoding="utf-8", errors="replace",
-                           timeout=budget, cwd=cwd)
+                           timeout=budget, cwd=cwd, env=env)
     except subprocess.TimeoutExpired as e:
         # What it printed before it was killed is the only account of a proof
         # that outran its budget, and `run` hands it back on the exception.
@@ -688,7 +744,7 @@ def main(argv):
     wid, step_id, budget = payload["wid"], payload["step"], payload["budget"]
     ran = []
     for fid, cmd in payload["commands"]:
-        code, output = _run(cmd, payload["cwd"], budget)
+        code, output = _run(cmd, payload["cwd"], budget, payload.get("base", ""))
         _attempt(fid, cmd, code, output)
         if code is None:
             journal.append(wid, "check", step=step_id, command=cmd, exit=-1,

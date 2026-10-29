@@ -20,6 +20,8 @@ import pathlib
 from engine import cli, forms, journal, run as runmod
 from gitremote import stub_gh
 from test_execution_state import _to_close_with_g1_satisfied
+from test_gate_commit import _dispatch_and_close_child_with_diff
+from test_nesting import _fill_gate_transition, _mint_first_gate
 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -97,3 +99,54 @@ def test_nothing_has_landed_on_the_opening_cut(workdir, capsys):
     cli.main(["issue17", "submit"])
     capsys.readouterr()
     assert cli._landed(runmod.state("issue17"), journal.root_for("issue17")) == {}
+
+
+# -- the base a gate's scope check diffs against -----------------------------
+# issue299 g4 (sports-market-manager, 2026-10-26): every gate-proof diffed
+# `origin/main...HEAD`, so gate N tripped on files gates 1..N-1 had landed on
+# the branch. The engine now names the base: CONSTELLATION_GATE_BASE.
+
+
+def _sh(cwd, *argv):
+    import subprocess
+    return subprocess.run(list(argv), cwd=str(cwd), capture_output=True,
+                          text=True).stdout
+
+
+def test_the_first_gate_s_base_is_the_branch_point_off_main(
+        workdir, capsys, monkeypatch):
+    stub_gh(monkeypatch)
+    _to_close_with_g1_satisfied(
+        "test -f landed.txt",
+        gate_proof='test -n "$CONSTELLATION_GATE_BASE" && test "$CONSTELLATION_GATE_BASE" = '
+                   '"$(git rev-parse HEAD)"')
+    assert _gate_checks("issue17.g1")[-1].startswith('test -n "$CONSTELLATION_GATE_BASE"')
+
+
+def test_a_later_gate_s_base_is_the_last_landed_gate_commit_not_main(
+        workdir, capsys, monkeypatch):
+    """After g1 lands a file, g2's scope diff against the base is empty
+    while the same diff against origin/main lists g1's file."""
+    from engine import checks
+    _mint_first_gate()
+    worktree = workdir / ".worktrees" / "issue17"
+    _dispatch_and_close_child_with_diff("issue17", "g1")
+    _fill_gate_transition("issue17")
+    cli.main(["issue17", "submit"])
+    capsys.readouterr()
+
+    landed = _sh(worktree, "git", "rev-parse", "HEAD").strip()
+    base = checks.gate_base("issue17", worktree)
+    assert base == landed
+    cut = runmod.state("issue17")["from"].rpartition("@")[2]
+    assert _sh(worktree, "git", "diff", "--name-only", cut + "...HEAD").split() == ["src.txt"]
+    assert _sh(worktree, "git", "diff", "--name-only", base).split() == []
+    code, out = checks._run('test "$(git diff --name-only "$CONSTELLATION_GATE_BASE" '
+                            '| wc -l)" = 0', worktree, 30, base)
+    assert code == 0, out
+
+
+def test_a_proof_run_without_a_base_gets_none_rather_than_a_guess():
+    from engine import checks
+    code, out = checks._run('test -z "${CONSTELLATION_GATE_BASE+x}"', ".", 30, "")
+    assert code == 0, out
