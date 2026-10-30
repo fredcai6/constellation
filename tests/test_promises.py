@@ -457,6 +457,12 @@ VOCABULARIES = [
     ("skills/excursion/forms/PROTOTYPE.toml", "branch",
      ["logic", "ui", "measurement"],
      "recorded for the dispatcher; no engine branch reads it"),
+    # g5: the conductor's own ruling on a cut's critical question, read by
+    # `_critical_question_differs` -- `_settle_execution`'s own call, never
+    # `_outcome`'s, so it is `_check_vocabulary`'s field like the two above
+    # rather than a `decides` one.
+    ("assemblies/run-an-issue/forms/GATE_TRANSITION.toml", "critical-question",
+     ["matches", "differs"], cli._critical_question_differs),
 ]
 
 

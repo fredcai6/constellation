@@ -38,6 +38,18 @@ crossed into nothing, since no run ever replanned. Your verification of the
 return belongs in the journal as a note, not here."""
 
 [[field]]
+id = "critical-question"
+kind = "decision"
+optional = true
+note = """
+matches | differs: <reason> -- only where the cut's own `critical-questions`
+block named this gate as a question's answerer, by its own position in the
+round. Rule it here, grounded in this gate's own residue: did its actual
+answer match the plan's own expected one, or differ. Never an engine
+string-compare against free text -- yours is the ruling the engine reads.
+Leave blank where this gate answers no question the cut named."""
+
+[[field]]
 id = "plan-holds"
 kind = "decision"
 note = """

@@ -4169,26 +4169,63 @@ def _proof_is_stale(wid, step, root):
     return runmod.state(wid)["proof_trials"][-1].get("exit") == 0
 
 
-# [last-adjudication-findings]
-# Rationale: mirrors `_call_tree_ahead`'s own backward walk, over the
-#   execute segment's own adjudication steps rather than the plan
-#   segment's own rounds -- the conductor's own `findings` off the most
-#   recently landed gate's own GATE_TRANSITION.toml, ground a stale-gate
-#   review answers to the same way a `replan`'s own findings already carry
-#   forward into REWORK.toml's first round.
+# [most-recent-adjudication]
+# Rationale: the backward walk over an execute segment's own adjudication
+#   steps, mirroring `_call_tree_ahead`'s own -- shared by
+#   `_last_adjudication_findings` (the conductor's `findings`, carried
+#   forward into a stale-gate review and a replan's first round alike) and
+#   `_critical_question_differs` (g5, below), so a second caller reading a
+#   different field off the same most-recently-landed gate is one walk, not
+#   two hand-copies of it.
+def _most_recent_adjudication(st, seg_id):
+    """The most recently completed gate adjudication step in `seg_id`'s own
+    segment -- `None` where none has completed yet. Never walks further
+    back than that one: an older adjudication is not this review's ground,
+    only the latest gate's."""
+    for step in reversed([s for s in st["steps"] if s["segment"] == seg_id and s.get("form")]):
+        if st["done"].get(step["id"]):
+            return step
+    return None
+
+
 def _last_adjudication_findings(st, seg_id):
     """The conductor's own `findings` off the most recently completed gate
     adjudication in `seg_id`'s own segment -- `""` where none has
-    completed yet, or the most recent one waived it. Never walks further
-    back than that one: an older adjudication's findings are not this
-    review's ground, only the latest gate's."""
-    for step in reversed([s for s in st["steps"] if s["segment"] == seg_id and s.get("form")]):
-        done = st["done"].get(step["id"])
-        if not done:
-            continue
-        findings = str(done.get("fields", {}).get("findings", "") or "").strip()
-        return "" if not findings or findings.startswith("waived:") else findings
-    return ""
+    completed yet, or the most recent one waived it."""
+    step = _most_recent_adjudication(st, seg_id)
+    if not step:
+        return ""
+    findings = str(st["done"][step["id"]].get("fields", {}).get("findings", "") or "").strip()
+    return "" if not findings or findings.startswith("waived:") else findings
+
+
+# [critical-question-differs]
+# Rationale: obligation 5's second bullet -- a cut's own `critical-
+#   questions` block (PLAN.toml/REWORK.toml/REVIEW_PLAN.toml) names which
+#   queued gate it expects to answer each open question, and the answer it
+#   expects. That gate's own adjudication rules whether its actual answer
+#   matched or differed (GATE_TRANSITION.toml's `critical-question`), the
+#   conductor's own judgment in the room, grounded in the gate's own
+#   residue -- never an engine string-compare against free text. This
+#   reads only the leading word of that ruling; a gate the cut never named
+#   as an answerer leaves the field blank, which reads as `""` here, the
+#   same as a waived one.
+def _critical_question_differs(st, seg_id):
+    """A reason naming the most recently landed gate in `seg_id`, where its
+    own `critical-question` ruling reads `differs` -- `""` where it was
+    never named as an answerer (the field left blank) or ruled `matches`."""
+    step = _most_recent_adjudication(st, seg_id)
+    if not step:
+        return ""
+    value = str(st["done"][step["id"]].get("fields", {}).get(
+        "critical-question", "") or "").strip()
+    word = forms.leading_word(value)
+    if word not in ("matches", "differs"):
+        return ""  # blank, or a non-ruling (waived:, unknown:) -- read as blank
+    if word == "matches":
+        return ""
+    return (f"{step['id']}'s own answer to the cut's critical question differs "
+            f"from what the plan expected: {value}")
 
 
 # [review-the-open-plan]
@@ -4246,6 +4283,19 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None):
     if committed and execute and _queue_pending(st, execute["id"]):
         order = [s for s in st["steps"] if s["segment"] == execute["id"]]
         next_step = next((s for s in order if _step_pending(s, st, execute["id"])), None)
+        # [reasons-collected-before-minting]
+        # Rationale: o5's second and third bullets both reopen plan the same
+        #   no-panel way a stale reading does, each contributing its own
+        #   reason rather than its own mint -- the gate that just landed may
+        #   have ruled its own critical-question answer as differing while
+        #   the next queued gate's own proof also reads stale, and both are
+        #   read before anything mints so one settle calls
+        #   `_review_the_open_plan` exactly once, carrying every reason that
+        #   fired, never once per condition.
+        reasons = []
+        differs = _critical_question_differs(st, execute["id"])
+        if differs:
+            reasons.append(differs)
         # [stale-gate-is-reviewed]
         # Rationale: o6 -- trusting the queue is earned by the outcome that
         #   just committed a gate, but only while the gate it is about to
@@ -4259,8 +4309,10 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None):
         if next_step is not None and _proof_is_stale(wid, next_step, journal.root_for(wid)):
             st = runmod.state(wid)
             reading = render.proof_readings([st["proof_trials"][-1]])[0]
-            reason = f"{next_step['id']}'s own proof reads stale against the tree as it stands: {reading}"
-            _review_the_open_plan(wid, asm, execute, st, [reason])
+            reasons.append(f"{next_step['id']}'s own proof reads stale against the tree "
+                            f"as it stands: {reading}")
+        if reasons:
+            _review_the_open_plan(wid, asm, execute, st, reasons)
         return
     # [mid-queue-drop-remint-is-reviewed]
     # Rationale: obligation 5's third bullet -- a drop or a remint that
