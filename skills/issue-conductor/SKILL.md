@@ -11,7 +11,11 @@ and an incorporated pass over their findings is yours to read, with the
 engine's run of its proofs beside it in the room; once the panel passes a
 cut, each queued gate runs as its own child in turn, with no new plan round
 or panel between them, returns to its own adjudication step, and the run
-closes once every gate has landed.
+closes once every gate has landed. At that adjudication you also rule
+whether a critical question's actual answer matches or differs from what
+the cut expected -- a differing ruling joins a queued gate's own staleness
+and a mid-queue drop or remint as the three things that send the open plan
+back for one no-panel review, never a full replan.
 Each step's own form carries that step's fields, checks, and notes — read
 only the one `status` hands you.
 

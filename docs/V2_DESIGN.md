@@ -56,7 +56,7 @@ close are the engine's, not an agent's. The tables mark each beat with who acts:
 | understand · review | critic subagents, cold | `CRITIC` | completeness and ambiguity: findings classed gap; `pass | revise` | route |
 | understand · route | issue-conductor | `CONSOLIDATE`; `IMPASSE` on a send-back | forward when the spec is sufficient; back to do 2 only by ruling — `impasse-after = 0`, one look over a spec and the rest is found by the gates that build from it; up when the issue itself is wrong | the gate cycle |
 | **gate cycle** · route | engine | — | every obligation in the spec has a disposition → close; otherwise → plan | plan, or close |
-| **plan** · do | subagent, the planner | `PLAN` (first cut), `REWORK` (a revise) | the **next gate** from the spec and what has landed, plus a coarse horizon | review |
+| **plan** · do | subagent, the planner | `PLAN` (first cut), `REWORK` (a revise) | the **next gate** from the spec and what has landed, plus its critical questions and a coarse horizon of what it stops short of | review |
 | plan · review | critic subagents, cold — on every fresh cut (`panel-rounds = "fresh"`); an incorporated pass is the conductor's to read, with the engine's run of its proofs beside it | `CRITIC` | intent-fit, testability, simplicity, and replaceability where a component is uncertain: findings classed gap; `pass | revise` | route |
 | plan · route | issue-conductor | `PLAN_TO_EXECUTE`; `IMPASSE` on a send-back | pass → the **gate spec** (purpose, scope, proof, model, direction) minted as a dispatch and its review step; a send-back → a ruling (`impasse-after = 0`: another cut only where the conductor names what it changes); up → an ask for help | execute |
 | **execute** · do | subagent, the gate-conductor, as a `run-a-gate` child | the spec as prefill | the **gate report** — the diff on the worktree, residue, and the engine's record of cycles, verdict, checks, amends | review |
@@ -370,18 +370,24 @@ each conductor dispatches the tier below and judges at its transitions:
                   validating the board
 [plan]*           every gate whose path is clear, cut in one round -- at
                   least one, up to the whole run -- each fully specified,
-                  and a coarse horizon of what the cut stops short of
+                  and, short of the whole run, its critical questions and
+                  a coarse horizon of what it stops short of
 <plan→execute>    critic panel reads the spec and the cut; revise refills
                   plan, pass mints every gate's dispatch and its own
                   adjudication step, queued in the order they run
 [ dispatch run-a-gate → <gate adjudication> ]
                   each queued gate runs in turn, no new plan round or panel
                   between them; advance commits a gate and dispatches the
-                  next queued one on its own. Only once the queue is empty
-                  does the adjudication become the replan beat: the
-                  planner cuts the next round from what was just learned.
-                  remint, drop and replan as before; close once every
-                  obligation in the spec has a disposition
+                  next queued one on its own. A queued gate's own
+                  staleness, a critical question's answer ruled as
+                  differing, or a drop/remint while later gates of this cut
+                  are still queued each send the open plan back for one
+                  no-panel review instead -- not a replan. Only once the
+                  queue runs dry with an obligation still open does the
+                  adjudication become the replan beat: the planner cuts
+                  the next round from what was just learned. remint, drop
+                  and replan as before; close once every obligation in the
+                  spec has a disposition
 <close>           returns stamped up if parented
 ```
 
@@ -433,15 +439,18 @@ understanding means the form is missing fields; fix the form, not the boundary.
 What the workflow tables above rest on, where the reason is not obvious from the shape.
 
 **1. Planning is rolling-horizon.** The plan step cuts every gate whose path is clear, in one
-round — one gate, or as many as the tree and the spec let it see, up to the whole run — and
-sketches the horizon behind whatever it stops short of: the likely later gates, coarsely, and
-the conditions that would change them. Plan-to-execute mints every gate the cut named, queued
-in the order they run. Once the panel passes the cut, each queued gate dispatches on its own —
-no new plan round, no panel — until the queue runs dry, a queued gate's own proof reads stale
-against the tree, or an obligation stays open with nothing left queued. Only then is a gate's
-adjudication the replan beat: `advance` records what the gate satisfied and re-enters the
-cycle, and the planner cuts the next round from what was just learned; `remint`, `drop` and
-`replan` keep their meanings. The spec is not
+round — one gate, or as many as the tree and the spec let it see, up to the whole run — and,
+short of the whole run, names its critical questions and sketches the horizon behind whatever
+it stops short of: the likely later gates, coarsely, and the conditions that would change them.
+Plan-to-execute mints every gate the cut named, queued in the order they run. Once the panel
+passes the cut, each queued gate dispatches on its own — no new plan round, no panel — until
+the queue runs dry. Three things reopen the plan for one no-panel review along the way, never a
+full replan: a queued gate's own proof reading stale against the tree as it stands, a critical
+question's answer ruled as differing from what the plan expected, and a drop or remint while
+later gates of the same cut are still queued. Only once the queue runs dry with an obligation
+still open is a gate's adjudication the replan beat: `advance` records what the gate satisfied
+and re-enters the cycle, and the planner cuts the next round from what was just learned;
+`remint`, `drop` and `replan` keep their meanings. The spec is not
 the execution diary: what a gate satisfied is recorded in the run's **execution state** — a
 mechanical file in the work location the engine folds, never a hand edit to the spec. The
 cycle's own first move is the engine's: every obligation in the spec carries a disposition

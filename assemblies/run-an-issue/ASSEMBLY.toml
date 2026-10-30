@@ -146,10 +146,13 @@ step-form = "skills/planner/forms/PLAN.toml"
 # step-form instead: a fresh cut from the conductor's orders alone
 # (`[one-look]`, engine/cli.py; ruling, 2026-09-25).
 rework-form = "skills/planner/forms/REWORK.toml"
-# Minted in place of the step-form, the same way `rework-form` is, when a
-# queued gate's own proof reads stale against the tree as it stands
-# (`_settle_execution`, engine/cli.py): the whole open queue closed before
-# any of it ran, and this is where the planner looks again with no panel.
+# Minted in place of the step-form, the same way `rework-form` is, on any
+# of three triggers (`_settle_execution`, engine/cli.py): a queued gate's
+# own proof reads stale against the tree as it stands, the gate that just
+# landed ruled its own critical-question answer as differing from what
+# the plan expected, or a `drop <gate-id>`/`remint` leaves another gate of
+# this cut still queued -- each closes the whole open queue before any of
+# it runs, and this is where the planner looks again with no panel.
 review-form = "skills/planner/forms/REVIEW_PLAN.toml"
 # See the same field on `understand` above: this seam is `plan-to-execute`.
 # A release after every gate starts the count over, so each cut in a
@@ -255,10 +258,16 @@ decides = "plan-holds"
 
   [[segment.outcome]]
   value = "advance"
-  does = "commit; settle"     # one commit for the gate that just proved out; then the
-    # engine's own call -- an obligation still open on the execution-state
-    # board refills plan for another round, every obligation disposed mints
-    # nothing and the run walks to close
+  does = "commit; settle"     # one commit for the gate that just proved out; then
+    # settle's own call (`_settle_execution`, engine/cli.py): the next
+    # queued gate's own proof reading stale against the tree, or this
+    # gate's own critical-question answer ruled as differing from what
+    # the plan expected, sends the open plan back for one no-panel review
+    # instead -- the same review a `drop <gate-id>` or `remint` reaches
+    # below when later gates of this cut are still queued; short of that,
+    # an obligation still open on the execution-state board refills plan
+    # for another round, and every obligation disposed mints nothing as
+    # the run walks to close
 
   [[segment.outcome]]
   value = "remint"
