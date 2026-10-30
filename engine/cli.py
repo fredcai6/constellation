@@ -3437,6 +3437,27 @@ def _queue_pending(st, seg_id):
     return any(_step_pending(s, st, seg_id) for s in st["steps"])
 
 
+# [later-gate-still-queued]
+# Rationale: obligation 5's third bullet reads "later gates of the same
+#   cut ... still queued", not "any other gate still queued" -- a `drop
+#   <gate-id>` can name any still-pending gate, not only the earliest one,
+#   so a gate dropped near the end of the queue with an *earlier* one
+#   still pending behind the decider must not review: nothing later than
+#   the dropped gate was ever queued, only something that was already
+#   going to dispatch next regardless (`tests/test_nesting.py`'s own
+#   `test_drop_closes_only_the_named_gate_and_never_the_deciding_step`).
+#   `pre_order` is the cut's own mint order (dispatch ids only, pre-verb),
+#   so position in it is queue position; a target absent from it (a typo,
+#   or a gate this settle's own verb already closed by some other route)
+#   finds nothing after it and reviews nothing, same as "no later gate".
+def _later_gate_still_queued(pre_order, pre_pending, target_id):
+    """True where some gate positioned after `target_id` in `pre_order`
+    was still pending (`pre_pending`) at the pre-verb snapshot."""
+    if target_id not in pre_order:
+        return False
+    return any(gid in pre_pending for gid in pre_order[pre_order.index(target_id) + 1:])
+
+
 # [impasse-verbs]
 # Rationale: `advance` and `rework` used to be handled by a stand-alone
 #   impasse actor, a reader outside the outcome mechanism. Absorbing the
@@ -3482,6 +3503,37 @@ def _perform(wid, asm, seg, does, fields, step):
     reaches a terminal step, so this narrows nothing already relied on."""
     field = _decided_here(asm, step)
     reason = str(fields.get(field, does)).strip() if field else does
+    verbs = [v.strip().partition(" ")[0] for v in does.split(";") if v.strip()]
+    # [pre-verb-queue-snapshot]
+    # Rationale: a `close` or a `remint` either drops a step or mints a
+    #   fresh one before `settle` (below) ever runs -- so whether *another*
+    #   queued gate justifies a review has to be read now, before either
+    #   verb runs, never from a state `settle` would read fresh afterward.
+    #   A remint's own replacement always mints before settle, so a fresh
+    #   read there would find it pending and review every remint, including
+    #   one landing the cut's own last gate -- which obligation 5 does not
+    #   ask for. The gate just decided is already folded into `done` by the
+    #   time `_perform` runs (its submit journaled ahead of this call), so
+    #   this snapshot already excludes it without having to subtract it.
+    #   Kept as the cut's own mint order (`pre_order`), not a bare set: a
+    #   `drop <gate-id>` can name *any* still-pending gate, earlier or
+    #   later than others also pending (`test_nesting.py`'s own
+    #   `test_drop_closes_only_the_named_gate_and_never_the_deciding_step`
+    #   drops the cut's last gate while an earlier one sits pending behind
+    #   the decider) -- obligation 5's own wording is "later gates ... still
+    #   queued", not "any other gate", so the read below asks position, not
+    #   mere presence. A remint always targets the gate whose own
+    #   adjudication just decided it, which sequential dispatch guarantees
+    #   is the earliest not-yet-done gate in the cut -- so for a remint
+    #   "later than the target" and "anything else pending" always agree.
+    execute = next((s for s in asm["segment"] if s["id"] == "execute"), None)
+    st0 = runmod.state(wid)
+    pre_order = ([s["id"] for s in st0["steps"]
+                  if s["segment"] == execute["id"] and s.get("dispatches")]
+                 if execute else [])
+    pre_pending = ({s["id"] for s in st0["steps"]
+                   if s.get("dispatches") and _step_pending(s, st0, execute["id"])}
+                  if execute else set())
     for verb in filter(None, (v.strip() for v in does.split(";"))):
         word, _, target = verb.partition(" ")
         tseg = next((s for s in asm["segment"] if s["id"] == (target or seg["id"])), seg)
@@ -3550,9 +3602,41 @@ def _perform(wid, asm, seg, does, fields, step):
             #   never a predicted outcome name -- a third verb sequence
             #   that also commits inherits the trust for free, and one
             #   that does not stays on today's unconditional replan.
-            committed = any(v.strip().partition(" ")[0] == "commit"
-                            for v in does.split(";"))
-            _settle_execution(wid, asm, committed)
+            committed = "commit" in verbs
+            # [mid-queue-reason]
+            # Rationale: obligation 5's third bullet -- a drop or a remint
+            #   that leaves another gate of this cut still queued (read
+            #   above, before either verb ran) reopens plan for a review,
+            #   no panel, same as a stale reading already does; naming
+            #   which gate was dropped or re-minted is this branch's own
+            #   contribution to the reasons list `_review_the_open_plan`
+            #   collects. Never fires for `advance` (`committed`), and
+            #   never where nothing else was queued -- there a remint's own
+            #   fresh replacement, or a drop's clean board, simply carries
+            #   on exactly as today.
+            #   A `drop <gate-id>` names, in the ruling text, a *different*
+            #   pending gate than the one deciding -- "drop closes a pending
+            #   one" (docs/V2_DESIGN.md), the earlier gate's own adjudication
+            #   culling a later one it now knows is pointless. The gate this
+            #   reason names is that closed target (the same parse `close`
+            #   itself just used), never the decider's own id. A `remint`
+            #   carries no such separate target -- it always replaces the
+            #   deciding step's own gate -- so there the decider's id is the
+            #   one reminted.
+            mid_queue_reason = None
+            if not committed:
+                if "close" in verbs:
+                    parts = str(fields.get(field, "")).split(None, 1)
+                    target_id = parts[1].strip() if len(parts) > 1 else ""
+                    if _later_gate_still_queued(pre_order, pre_pending, target_id):
+                        mid_queue_reason = (f"{target_id} was dropped while later gates of "
+                                            "this cut were still queued")
+                elif "remint" in verbs:
+                    gate_id = _gate_id_for(st0, step.get("child", ""))
+                    if _later_gate_still_queued(pre_order, pre_pending, gate_id):
+                        mid_queue_reason = (f"{gate_id} was re-minted while later gates of "
+                                            "this cut were still queued")
+            _settle_execution(wid, asm, committed, mid_queue_reason)
 
 
 # [pause-gate]
@@ -4107,17 +4191,57 @@ def _last_adjudication_findings(st, seg_id):
     return ""
 
 
-def _settle_execution(wid, asm, committed=False):
+# [review-the-open-plan]
+# Rationale: o6's stale-gate review already closed the whole still-queued
+#   execute worklist and reopened plan on its review form, no panel,
+#   carrying the closed queue's own gate fields and the most recently
+#   landed gate's own findings. Obligation 5's third bullet asks the same
+#   move for a mid-queue drop or remint, and g5 (ahead) for an answer that
+#   differs from what the plan expected -- so this is factored into one
+#   helper every caller shares, parameterized by a list of reasons rather
+#   than one: however many reasons fire on a single settle, this still
+#   mints the review exactly once, carrying all of them.
+def _review_the_open_plan(wid, asm, execute, st, reasons):
+    """Close every still-pending dispatch/adjudication pair in `execute`'s
+    own worklist and reopen the plan segment on its review form (no
+    panel), carrying `reasons` -- one line per cause that fired this
+    settle -- the closed queue's own gate fields, and the most recently
+    landed gate's own adjudication findings."""
+    order = [s for s in st["steps"] if s["segment"] == execute["id"]]
+    reason_text = "; ".join(reasons)
+    closed = []
+    for s in order:
+        if s.get("dispatches") and _step_pending(s, st, execute["id"]):
+            closed.append(s.get("prefill") or {})
+            _close_step_and_pair(wid, s["id"], reason_text)
+    plan = next((seg for seg in asm["segment"] if seg["id"] == "plan"), None)
+    if not plan:
+        return
+    closed_text = "\n\n".join(
+        "\n".join(f"{k}: {g.get(k, '')}" for k in _GATE_FIELDS)
+        for g in closed) or "waived: none"
+    prefill = {**_call_tree_ahead(st, plan["id"]),
+               "stale": "\n\n".join(reasons),
+               "closed-queue": closed_text,
+               "findings": _last_adjudication_findings(st, execute["id"]) or "waived: none"}
+    _mint_segment_round(wid, asm, plan["id"], prefill=prefill,
+                        restarts=False, form=plan.get("review-form", ""))
+
+
+def _settle_execution(wid, asm, committed=False, mid_queue_reason=None):
     st = runmod.state(wid)
     # [settle-trusts-only-advance]
     # Rationale: `committed` is `True` only when the settle answering this
     #   call followed the outcome that just committed a gate (`advance`'s
     #   "commit; settle") -- the one outcome obligation 4 says the queue has
-    #   earned trust from. A `drop <gate-id>` ("close; settle") never passes
-    #   `True` here, so it keeps falling through to the unconditional
-    #   board-unsettled check below exactly as it does today: nothing yet
-    #   gives a mid-cut drop or remint anything lighter (obligations 5, 7),
-    #   and this guard does not invent one on the side.
+    #   earned trust from. A `drop <gate-id>` ("close; settle") or a
+    #   `remint` (its own fresh-dispatch verb, then "settle") never passes
+    #   `True` here, so both keep falling through past this branch -- but,
+    #   below, `_perform` has already told this call whether another gate
+    #   of the same cut was still queued before either verb ran
+    #   (obligation 5's third bullet), which gates its own, lighter review
+    #   rather than the unconditional board-unsettled replan this branch's
+    #   own absence used to leave as the only path.
     execute = next((s for s in asm["segment"] if s["id"] == "execute"), None)
     if committed and execute and _queue_pending(st, execute["id"]):
         order = [s for s in st["steps"] if s["segment"] == execute["id"]]
@@ -4136,22 +4260,20 @@ def _settle_execution(wid, asm, committed=False):
             st = runmod.state(wid)
             reading = render.proof_readings([st["proof_trials"][-1]])[0]
             reason = f"{next_step['id']}'s own proof reads stale against the tree as it stands: {reading}"
-            closed = []
-            for s in order:
-                if s.get("dispatches") and _step_pending(s, st, execute["id"]):
-                    closed.append(s.get("prefill") or {})
-                    _close_step_and_pair(wid, s["id"], reason)
-            plan = next((seg for seg in asm["segment"] if seg["id"] == "plan"), None)
-            if plan:
-                closed_text = "\n\n".join(
-                    "\n".join(f"{k}: {g.get(k, '')}" for k in _GATE_FIELDS)
-                    for g in closed) or "waived: none"
-                prefill = {**_call_tree_ahead(st, plan["id"]),
-                           "stale": f"{next_step['id']} -- {reading}",
-                           "closed-queue": closed_text,
-                           "findings": _last_adjudication_findings(st, execute["id"]) or "waived: none"}
-                _mint_segment_round(wid, asm, plan["id"], prefill=prefill,
-                                    restarts=False, form=plan.get("review-form", ""))
+            _review_the_open_plan(wid, asm, execute, st, [reason])
+        return
+    # [mid-queue-drop-remint-is-reviewed]
+    # Rationale: obligation 5's third bullet -- a drop or a remint that
+    #   left another gate of this cut still queued, read before either
+    #   verb ran (`_perform`'s own pre-verb snapshot), gets the same
+    #   no-panel review a stale reading already does, rather than today's
+    #   unconditional full-panel replan. Where nothing else was queued,
+    #   `mid_queue_reason` is never set, and both outcomes fall through
+    #   unchanged below: a drop only recuts plan if the board still holds
+    #   an unsettled row, and a remint's own fresh replacement simply
+    #   dispatches.
+    if not committed and execute and mid_queue_reason:
+        _review_the_open_plan(wid, asm, execute, st, [mid_queue_reason])
         return
     path = st["boards"].get("execution-state", "")
     if not path or not any(boards.unsettled(r) for r in boards.rows(path)):

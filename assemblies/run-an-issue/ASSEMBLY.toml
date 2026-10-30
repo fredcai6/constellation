@@ -262,7 +262,10 @@ decides = "plan-holds"
 
   [[segment.outcome]]
   value = "remint"
-  does = "remint gate-spec"     # mints a fresh dispatch/adjudication pair from gate-spec
+  does = "remint gate-spec; settle"     # mints a fresh dispatch/adjudication pair from gate-spec,
+    # then the same read `drop <gate-id>` below already reaches: another
+    # gate of this cut still queued reopens plan for one review round, no
+    # panel; nothing else queued and the fresh replacement simply dispatches
 
   # `settle` beside `close` because a drop is the other way this segment
   # empties. The execution-state board's one read hung on `advance`, a gate

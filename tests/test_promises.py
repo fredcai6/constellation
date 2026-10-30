@@ -278,12 +278,14 @@ MINT_TARGETS = {
     # `_forms_in_role` already reads for every other rework-shaped mint.
     ("_incorporated", None): (("step-form|rework-form", "understand"),
                               ("step-form|rework-form", "plan")),
-    # The stale-gate review's own fresh round: built as a local `prefill =
-    # {...}` dict, same reason `_incorporated`'s is -- the `form` it mints
-    # against (`review-form`) is a separate keyword on the
-    # `_mint_segment_round` call this sweep's `ast.Dict` check does not
-    # read a name out of.
-    ("_settle_execution", None): (("review-form", "plan"),),
+    # The stale-gate, mid-queue-drop/remint and replan reviews' shared fresh
+    # round: built as a local `prefill = {...}` dict in the one helper every
+    # caller now shares (`_review_the_open_plan`, factored out of
+    # `_settle_execution`'s own staleness branch, g4) -- same reason
+    # `_incorporated`'s is -- the `form` it mints against (`review-form`) is
+    # a separate keyword on the `_mint_segment_round` call this sweep's
+    # `ast.Dict` check does not read a name out of.
+    ("_review_the_open_plan", None): (("review-form", "plan"),),
 }
 
 # A form that receives a minted key its own prose never names, and the file

@@ -101,34 +101,53 @@ def test_queue_dispatches_without_a_plan_round_between_gates(workdir, capsys):
     assert "g3" in {s["id"] for s in st["steps"]} and "g3" not in st["done"]
 
 
-def test_drop_of_an_early_gate_still_reopens_plan_while_later_gates_are_queued(
+def test_drop_of_an_early_gate_with_a_later_gate_queued_reviews_the_open_plan_no_panel(
         workdir, capsys):
-    """Obligation 5: a `drop <gate-id>` while later gates of the same cut
-    are still queued still reopens plan exactly as it does today -- the
-    queue-pending guard trusts only the outcome that just committed a gate
-    (`advance`), never a `drop`, since nothing yet exists (obligations 5, 7,
-    ahead) to give a mid-cut drop anything lighter than the unconditional
-    replan. The case the round the panel read did not exercise."""
+    """Obligation 5's third bullet: a `drop <gate-id>` while later gates of
+    the same cut are still queued now reopens plan for one review round, no
+    panel -- the same no-panel route a stale gate already gets
+    (`tests/test_stale_gate_review.py`) -- rather than the unconditional,
+    full-panel replan this test used to pin as the gap. The review closes
+    the rest of the queue too (`g3`, not only the gate named): a plan round
+    that got one gate wrong against the tree is not one the rest of the
+    queue should still be trusted from either. The execution-state board's
+    own open obligation (`_mint_n_gates_with_obligation`'s seed) would,
+    before this gate, have forced the unconditional board-unsettled replan
+    regardless of what else was queued -- the mid-queue reading now wins
+    before that check is ever reached."""
     _mint_n_gates_with_obligation(3)
     capsys.readouterr()
 
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
 
+    before = len(journal.read("issue17"))
     _fill_gate_transition_drop("issue17", "g2")   # drops the early one; g3 is still queued
     cli.main(["issue17", "submit"])
     capsys.readouterr()
 
-    amends = [e for e in journal.read("issue17") if e["kind"] == "amend"]
-    assert {a["step"] for a in amends} == {"g2", "g2-adjudicate"}
+    new_entries = journal.read("issue17")[before:]
+    amends = [e for e in new_entries if e["kind"] == "amend"]
+    assert {a["step"] for a in amends} == {"g2", "g2-adjudicate", "g3", "g3-adjudicate"}
 
     st = runmod.state("issue17")
+    ids = {s["id"] for s in st["steps"]}
+    assert not ({"g2", "g2-adjudicate", "g3", "g3-adjudicate"} & ids), \
+        "the whole rest of the queue should have closed, not only the gate named"
+
     assert st["current"]["segment"] == "plan"     # reopened, not g3
     assert st["current"]["form"] != "forms/CLOSE.toml"
     fresh_plan = next(s for s in st["steps"]
-                      if s["segment"] == "plan" and s.get("source") == "mint")
+                      if s["segment"] == "plan" and s.get("source") == "mint"
+                      and s["id"] not in st["done"] and s.get("dispatches"))
     assert fresh_plan["dispatches"] == "cut-a-gate"   # a real round, ruling 6 intact
+    assert fresh_plan["form"] == "skills/planner/forms/REVIEW_PLAN.toml"  # the review route
 
-    ids = {s["id"] for s in st["steps"]}
-    assert not ({"g2", "g2-adjudicate"} & ids)        # the dropped gate is gone
-    assert "g3" in ids and "g3" not in st["done"]      # the other queued gate: untouched
+    transition_entries = [e for e in new_entries if e.get("kind") == "step"
+                          and e.get("segment") == "plan" and e.get("source") == "panel"]
+    assert len(transition_entries) == 1
+    assert "panel" not in transition_entries[0], "a mid-queue drop review mints no panel"
+
+    prefill = fresh_plan["prefill"]
+    assert "g2" in prefill.get("stale", "") and "dropped" in prefill.get("stale", "")
+    assert "gate 3 purpose" in prefill.get("closed-queue", "")
