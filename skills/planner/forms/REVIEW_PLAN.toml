@@ -49,9 +49,12 @@ note = """
 The call tree of what the spec's done needs, as an outline with one node
 per function or module: what it owns (the state or decision hidden inside
 it), what it receives, what it returns, and who calls it. Mark each node
-`landed` (its name alone), `THIS GATE`, or `ahead`. Take the tree down far
-enough that an implementer could build any node against a testable
-contract, and stop there: the math at the leaves is the implementer's.
+`landed` (its name alone), `THIS GATE`, or `ahead`. Once a round cuts more
+than one gate, a `THIS GATE` node also names which gate, by its own
+position in the round, owns it -- never a predicted engine-assigned id.
+Take the tree down far enough that an implementer could build any node
+against a testable contract, and stop there: the math at the leaves is the
+implementer's.
 THIS GATE's nodes carry full signatures and the results the proof checks;
 `ahead` nodes stay coarse and may merge or move as work lands. The slice is
 the THIS GATE nodes, one vertical path or subtree whose proof stands on its
@@ -66,6 +69,35 @@ code. Whoever judges the round reads the slice's nodes closely and the
 id = "key-terms"
 kind = "evidence"
 note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+
+[[field]]
+id = "critical-questions"
+kind = "plan"
+optional = true
+note = """
+One block per question this cut cannot yet see past: what the cut cannot
+yet say, which queued gate -- by its own position in this round, e.g. g2,
+never a predicted engine-assigned id -- is expected to answer it, and the
+answer this cut expects. The queue ends at the first gate whose own work
+depends on one of these left open. That gate's own adjudication rules
+whether its actual answer matched or differed; a differing answer reopens
+this plan for one review round, no panel, the same route a stale reading
+already gets. Omit where this cut reaches the whole run and leaves nothing
+open behind it."""
+
+  [[field.item]]
+  id = "question"
+  note = "What the cut cannot yet see past this point in the queue."
+
+  [[field.item]]
+  id = "gate"
+  note = """
+Which queued gate, by its own position in this round (g2, not a predicted
+engine-assigned id), is expected to answer it."""
+
+  [[field.item]]
+  id = "expected-answer"
+  note = "The answer this cut expects that gate to find."
 
 # Written last: `materialize` (engine/forms.py) writes a `kind = "plan"`
 # field as a bare `[[gates]]` array-of-tables header, and TOML nests every

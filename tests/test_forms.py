@@ -87,23 +87,29 @@ def test_load_implement():
 
 def test_load_gate_transition():
     form = forms.load(GATE_TRANSITION)
-    assert _ids(form) == ["purpose-holds", "findings", "plan-holds", "dispositions",
-                          "gate-spec"]
+    assert _ids(form) == ["purpose-holds", "findings", "critical-question", "plan-holds",
+                          "dispositions", "gate-spec"]
     kinds = _kinds(form)
     # `plan-holds` is a decision because the engine acts on its value, and that
     # kind is what makes its note's alternatives enforced -- see
-    # forms.enforced_vocabulary. `purpose-holds` and `findings` are prose the
-    # engine only records: the wide question is shaped by the field, never
-    # checked by the engine. `dispositions` is a plan field like `gate-spec`
-    # -- the engine mints its rows onto the execution-state board rather than
-    # acting on the field itself, so it carries no enforced vocabulary either
-    # (#56); it opens holding the gate's own `claims`, for the conductor to
-    # accept or contest.
+    # forms.enforced_vocabulary. `critical-question` is a decision for the same
+    # reason (g5): `_critical_question_differs` (engine/cli.py) acts on its
+    # `differs` word. `purpose-holds` and `findings` are prose the engine only
+    # records: the wide question is shaped by the field, never checked by the
+    # engine. `dispositions` is a plan field like `gate-spec` -- the engine
+    # mints its rows onto the execution-state board rather than acting on the
+    # field itself, so it carries no enforced vocabulary either (#56); it
+    # opens holding the gate's own `claims`, for the conductor to accept or
+    # contest.
     assert kinds["purpose-holds"] == "evidence"
     assert kinds["findings"] == "evidence"
+    assert kinds["critical-question"] == "decision"
     assert kinds["plan-holds"] == "decision"
     assert kinds["dispositions"] == "plan"
     assert kinds["gate-spec"] == "plan"
+    cq = next(f for f in form["fields"] if f["id"] == "critical-question")
+    assert cq["optional"] is True
+    assert forms.enforced_vocabulary(cq) == ["matches", "differs"]
     dispositions = next(f for f in form["fields"] if f["id"] == "dispositions")
     assert dispositions["drafted-by"] == "claims"
     assert [it["id"] for it in dispositions["item"]] == ["obligation", "disposition", "root"]
