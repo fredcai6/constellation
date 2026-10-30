@@ -56,8 +56,8 @@ is joint. Coining a synonym for a term below is a defect.
   `rework-panel` the transition's later rounds get instead (run-a-gate's one rework reader). A transition also declares which of its rounds the panel reads —
   `panel-rounds = "every"` (the default) or `"fresh"`, each fresh artifact alone — the opening
   round, a rewrite, a replan — which is run-an-issue's spec and plan seams: an incorporated
-  round stands the conductor's route form with no panel beside it, and so does a queued gate's
-  own staleness sending the open plan back for one look. Most gate landings mint nothing fresh
+  round stands the conductor's route form with no panel beside it, and so does a review of the
+  open plan (below) sending it back for one look. Most gate landings mint nothing fresh
   at all — the next queued gate of the same cut dispatches on its own.
   Review never lives in an interior.
 - **clean** — one of `verdict_fold`'s three per-voice/panel outcomes (`engine/run.py`): a
@@ -336,6 +336,26 @@ is joint. Coining a synonym for a term below is a defect.
   whose path is clear, in the order they run. Plan-to-execute projects each one, unauthored a
   second time, into that gate's own dispatch as read-only prefill. The orders a gate is run
   from, and the only place a runner is named.
+- **queued gate** — a gate a released cut minted that has not yet dispatched: plan-to-execute's
+  `projects` mints every gate a cut named at once, in the order they run, and each one dispatches
+  on its own once the gate ahead of it lands — no new plan round, no panel. Before it starts, its
+  own `proof` is checked against the tree as it stands; reading already true, or not resolving as
+  a command, is staleness, and sends the open plan back for a review of the open plan (below)
+  rather than trusting it into dispatch.
+- **critical question** — a question a cut names when it stops short of the whole run: which
+  queued gate (by its own position in the round, never a predicted engine-assigned id) is
+  expected to answer it, and the answer the cut expects. That gate's own adjudication rules the
+  actual answer as matching or differing; a differing ruling sends the open plan back for a
+  review of the open plan (below), the same route a queued gate's own staleness or a mid-queue
+  drop or remint already gets. An answer ruled as matching reopens nothing, and the queue
+  dispatches on exactly as it would have.
+- **review of the open plan** — the planner's one-look pass over a cut's still-queued gates, no
+  panel: a fresh context reads the queue against what has landed and either adjusts it or finds
+  the cut itself needs rework, read by the conductor alone, the same one-look ruling
+  (2026-09-25) an incorporated round already stands alone on. Three things trigger it, never a
+  full replan: a queued gate's own proof reading stale against the tree as it stands; a
+  critical question's own answer ruled as differing from what the cut expected; and a drop or
+  remint that leaves a later gate of the same cut still queued.
 - **projection** — a transition whose own segment declares `projects` carrying a just-released
   round's gate fields (`purpose`, `scope`, `proof`, `budget`, `model`, `direction`, `call-tree`) forward into
   a fresh gate at submit, rather than asking a conductor to retype what the panel already judged.

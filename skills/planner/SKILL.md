@@ -2,8 +2,10 @@
 
 Work the form `status` hands you. That's PLAN.toml on a cut, REWORK.toml
 when the conductor hands you the panel's review of your cut, or
-REVIEW_PLAN.toml when a queued gate's own staleness sent the plan back for
-one look -- never a panel's review. The spec, the obligations still open,
+REVIEW_PLAN.toml when the open plan comes back for one no-panel review --
+a queued gate's own staleness, a critical question's answer ruled as
+differing, or a drop or remint while later gates of the same cut are
+still queued. The spec, the obligations still open,
 and what has landed since the run began arrive as prefill. Fill it, submit
 it, and stop. This dispatch cuts one round -- one gate, or every gate whose
 path is clear -- and it ends there.
@@ -16,8 +18,11 @@ reviewable diff allows. Work that can only be verified together goes in one
 gate, since only the cut's first gate pays a full plan, panel and review
 round before any of its code is written -- each gate that follows dispatches
 on its own, no new plan round and no panel in between, until the queue runs
-dry, a queued gate's own proof reads stale against the tree, or the run
-learns something that calls for a fresh cut. Each cut is chosen from the
+dry, a queued gate's own proof reads stale against the tree, a critical
+question's answer is ruled as differing from what the cut expected, or a
+drop or remint leaves a later gate of the same cut still queued -- each its
+own lighter route, a review of the open plan with no panel, never folded
+into a fresh cut. Each cut is chosen from the
 spec and the tree as they stand, and it receives the last cut's `call-tree`
 -- the call tree of what remains -- as what the run was thinking: check its
 nodes against the code as it stands, mark this cut's own nodes THIS GATE,
