@@ -1150,38 +1150,37 @@ def test_remint_mints_a_gate_that_is_reachable_not_already_done(workdir, capsys)
     assert new_gate["id"] in runmod.state("issue17")["done"]
 
 
-def test_drop_closes_a_remint_minted_pair_too(workdir, capsys):
-    """The pairing `drop` relies on is derived from `child`, written on both
+def test_the_mid_queue_review_closes_a_remint_minted_pair_by_child_too(workdir, capsys):
+    """The pairing a close relies on is derived from `child`, written on both
     halves of a pair by `_mint_gates` -- and `_mint_gates` runs from two call
-    sites, plan-minted gates and a remint. This drives the remint route: a
-    pair minted mid-run, never part of the original plan cut, dropped like
-    any other."""
+    sites, plan-minted gates and a remint. Reminting `g1` while `g2` is still
+    queued now reviews the open plan rather than carrying on (obligation 5's
+    third bullet, g4): `g2` was always going to close by its own id, but the
+    remint's own fresh replacement -- minted mid-run, never part of the
+    original plan cut, and so never named by this round's own submit at all
+    -- has to be found and closed the same way: by `child`, not by id-suffix.
+    `_dispatch_and_close_child("issue17", "g2")`, this test's old next step,
+    is no longer reachable: the review closed `g2` already."""
     _mint_n_gates(2)
     capsys.readouterr()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
 
+    before = len(journal.read("issue17"))
     _fill_gate_transition_remint("issue17", purpose="redo the fix", scope="src/parser.c")
     cli.main(["issue17", "submit"])
     capsys.readouterr()
 
-    new_gate = next(s for s in runmod.state("issue17")["steps"]
-                    if s.get("dispatches") == "run-a-gate" and s["id"] not in ("g1", "g2"))
+    new_entries = journal.read("issue17")[before:]
+    new_gate = next(e for e in new_entries
+                    if e.get("kind") == "step" and e.get("dispatches") == "run-a-gate")
     new_id = new_gate["id"]
 
-    _dispatch_and_close_child("issue17", "g2")
-    capsys.readouterr()
-    assert runmod.state("issue17")["current"]["id"] == "g2-adjudicate"
-
-    _fill_gate_transition_drop("issue17", new_id)
-    cli.main(["issue17", "submit"])
-    capsys.readouterr()
-
-    amends = [e for e in journal.read("issue17") if e["kind"] == "amend"]
-    assert {a["step"] for a in amends} == {new_id, f"{new_id}-adjudicate"}
+    amends = [e for e in new_entries if e["kind"] == "amend"]
+    assert {a["step"] for a in amends} == {"g2", "g2-adjudicate", new_id, f"{new_id}-adjudicate"}
 
     ids = {s["id"] for s in runmod.state("issue17")["steps"]}
-    assert not ({new_id, f"{new_id}-adjudicate"} & ids)
+    assert not ({new_id, f"{new_id}-adjudicate", "g2", "g2-adjudicate"} & ids)
 
 
 def test_drop_pairs_by_shared_child_not_by_id_suffix(workdir, capsys):
@@ -1220,10 +1219,14 @@ def test_drop_pairs_by_shared_child_not_by_id_suffix(workdir, capsys):
 
 def test_reminting_twice_derives_distinct_ids_from_the_same_default(workdir, capsys):
     """Two reminds that both leave the id blank both derive the same default
-    ("g1", position 1 within their own block) and both collide with the
-    original g1 -- this is what the suffix mechanism must actually resolve,
-    not merely tolerate once."""
-    _mint_n_gates(2)
+    ("g1", position 1 within their own block) -- the first colliding with
+    the original `g1`, the second with both the original and the first
+    remint's own replacement -- this is what the suffix mechanism must
+    actually resolve, not merely tolerate once. Both land on the cut's own
+    only gate, in turn, so neither ever leaves a later gate queued behind
+    it (obligation 5, g4 -- that would review instead of simply minting the
+    replacement); this test is about id collision, not the review."""
+    _mint_n_gates(1)
     capsys.readouterr()
 
     _dispatch_and_close_child("issue17", "g1")
@@ -1232,16 +1235,15 @@ def test_reminting_twice_derives_distinct_ids_from_the_same_default(workdir, cap
     capsys.readouterr()
     st = runmod.state("issue17")
     first_new = next(s["id"] for s in st["steps"]
-                     if s.get("dispatches") == "run-a-gate" and s["id"] not in ("g1", "g2"))
+                     if s.get("dispatches") == "run-a-gate" and s["id"] != "g1")
 
-    _dispatch_and_close_child("issue17", "g2")
+    _dispatch_and_close_child("issue17", first_new)
     _fill_gate_transition_remint("issue17", purpose="second redo")
     cli.main(["issue17", "submit"])
     capsys.readouterr()
     st = runmod.state("issue17")
-    new_ids = {s["id"] for s in st["steps"] if s.get("dispatches") == "run-a-gate"} \
-        - {"g1", "g2"}
-    second_new = (new_ids - {first_new}).pop()
+    second_new = next(s["id"] for s in st["steps"]
+                      if s.get("dispatches") == "run-a-gate" and s["id"] not in ("g1", first_new))
 
     assert first_new != second_new
     assert first_new.startswith("g1-a") and second_new.startswith("g1-a")
