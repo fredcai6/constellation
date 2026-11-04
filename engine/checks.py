@@ -640,7 +640,7 @@ def gate_base(wid, cwd):
             return ""
         return r.stdout.strip() if r.returncode == 0 else ""
     last = git("log", "-1", "--format=%H", "--extended-regexp",
-               r"--grep=^Work-Id: .+\.g[0-9]+$", "HEAD")
+               r"--grep=^Work-Id: .+\.g[0-9]+(-[0-9a-f]+)?$", "HEAD")
     if last:
         return last
     try:
