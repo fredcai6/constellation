@@ -152,6 +152,10 @@ def _tmpfs_temproot():
 
 
 def pytest_configure(config):
+    # #226: a gate session's dispatch binds its own run in the environment;
+    # tests that spawn the engine would inherit that binding and misread it.
+    for name in ("CONSTELLATION_BOUND", "CONSTELLATION_FILLS", "CONSTELLATION_GATE_BASE"):
+        os.environ.pop(name, None)
     """Point pytest's temp root at tmpfs when there is one, unless the caller
     already chose a location (`--basetemp`, or an environment that names one
     for its own reasons -- CI writing somewhere it can collect afterward)."""

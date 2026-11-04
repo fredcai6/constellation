@@ -97,3 +97,16 @@ def test_a_gate_proof_amended_before_dispatch_is_the_one_the_child_checks(workdi
     assert "test -f ruled.txt" in ran and "test -f old-boundary.txt" not in ran
     gate = next(s for s in runmod.state("issue17")["steps"] if s["id"] == "g1")
     assert gate["prefill"]["proof"] == "true"          # the other bar stands
+
+
+def test_a_bound_child_still_reads_the_ruling_made_at_its_parent(workdir, capsys, monkeypatch):
+    """#230: the child runs with CONSTELLATION_BOUND set to itself, which puts
+    the parent out of scope; the ruled proof must still reach it."""
+    child = _to_open_gate("test -f ruled.txt")
+    (journal.root_for("issue17") / "other.txt").write_text("x\n")
+    _fill_implement(child, "implement")
+    cli.main(["issue17", "amend", "proof", "g1", "--proof", "test -f other.txt",
+              "--reason", "n1: the bar named the wrong file"])
+    capsys.readouterr()
+    monkeypatch.setenv("CONSTELLATION_BOUND", child)
+    assert cli._ruled_proof(runmod.state(child))["proof"] == "test -f other.txt"

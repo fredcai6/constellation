@@ -2699,7 +2699,10 @@ def _ruled_proof(st):
     step dispatched, as the parent's journal stands now -- each only where
     the step carries it; `{}` for a run with no parent."""
     parent, pstep = st.get("parent"), st.get("parent_step")
-    pst = runmod.state(parent) if parent and pstep and journal.exists(parent) else None
+    pst = None
+    if parent and pstep:
+        with journal.unbound():
+            pst = runmod.state(parent) if journal.exists(parent) else None
     gate = next((s for s in (pst or {}).get("steps", []) if s["id"] == pstep), None)
     held = (gate or {}).get("prefill") or {}
     return {k: held[k] for k in ("proof", "gate-proof") if held.get(k) is not None}

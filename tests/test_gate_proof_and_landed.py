@@ -158,3 +158,18 @@ def test_a_proof_run_without_a_base_gets_none_rather_than_a_guess():
     from engine import checks
     code, out = checks._run('test -z "${CONSTELLATION_GATE_BASE+x}"', ".", 30, "")
     assert code == 0, out
+
+
+def test_a_reminted_gate_s_commit_is_the_next_gate_s_base(tmp_path):
+    """#231: a reminted gate lands as `issue4.g2-aec88`; the base must see it."""
+    import subprocess
+    from engine import checks
+    def git(*a):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *a],
+                              cwd=tmp_path, capture_output=True, text=True, check=True).stdout.strip()
+    git("init", "-q")
+    for trailer in ("issue4.g1", "issue4.g2-aec88"):
+        (tmp_path / trailer).write_text("x\n")
+        git("add", "-A")
+        git("commit", "-q", "-m", f"gate\n\nWork-Id: {trailer}")
+    assert checks.gate_base("issue4", tmp_path) == git("rev-parse", "HEAD")
