@@ -111,6 +111,17 @@ decides = "resolution"
   model = "standard"
   criteria = "claims: is every statement the diff writes -- in docs, reports, comments, printed conclusions, its own change note -- backed by something it ran? Name each claim that says more than the numbers establish, a number carried from somewhere and not reproduced, or a cause stated as fact that nothing tested"
 
+  # All eight of story_time's remints came from a conductor running the code
+  # after a gate had been through review. A blind standard-tier reader on this
+  # lens found a defect the conductor reminted for in four of five such gates
+  # (2026-11-05 replay);
+  # on four clean gates its noise was setups no run could reach, hence "reach".
+  [[segment.transition.panel]]
+  form = "skills/reviewer/forms/REVIEW.toml"
+  worker = "reviewer"
+  model = "standard"
+  criteria = "break: try to make the gate's purpose false. Write scenarios its own tests do not contain, ones a real run could reach, and run them through the project's real entry point rather than through the unit under test. A finding is something you ran; the diff tells you where to aim"
+
   # Every round after the first: one reader, reading for the two things a
   # later round has ever found -- the blocking findings answered, and nothing
   # the rework wrote now false. Those findings ride in on this round's own

@@ -17,7 +17,7 @@ more (ruling, 2026-09-25): it is minted with its own declared panel --
 three reviewers on this, the run's opening round -- at `open` time, the
 same moment `work-1` is, so submitting `work-1` walks straight onto a
 panel-outstanding step and `drive` never reaches a second form-filler
-branch. That panel is real too, but none of its three panelists is ever
+branch. That panel is real too, but none of its panelists is ever
 meant to resolve: this test's one dispatch entry does nothing for a
 dispatch child's own brief (which never carries a "your response form:"
 line -- that wording is `_form_filler_brief`'s alone), so each spawned
@@ -106,8 +106,9 @@ def test_drive_fills_and_submits_a_real_childless_form_step(
     assert code == 0
     assert elapsed < 8, f"elapsed {elapsed}"   # stopped spent, not on the bound
     panel_starts = [e for e in journal.read(wid) if e.get("kind") == "dispatch-started"]
-    # three declared panelists, each restarted up to the same cap
-    assert len(panel_starts) == 3 * checkrun.MAX_STARTS
+    # every declared panelist, each restarted up to the same cap
+    panelists = max(len(s.get("panel") or []) for s in runmod.state(wid)["steps"])
+    assert len(panel_starts) == panelists * checkrun.MAX_STARTS
 
     filler_entries = {e["step"]: e for e in journal.read(wid)
                       if e.get("kind") == "form-filler-started"}
