@@ -32,6 +32,8 @@ py`-style `_mint_a_cut` shape, not `test_multi_gate_cut.py`'s own
 seeded-journal one, since the authoring side of naming several gates in one
 submit already landed (g1)."""
 
+import pathlib
+
 from engine import journal, run as runmod
 from engine import cli
 from test_nesting import (
@@ -154,6 +156,7 @@ def test_remint_with_a_later_gate_still_queued_reviews_the_open_plan(workdir, ca
     assert "gate 2 purpose" in prefill.get("closed-queue", "")
     assert "gate 3 purpose" in prefill.get("closed-queue", "")
     assert prefill.get("findings") == "the spec was wrong, needs a redo"
+    assert prefill.get("taught") and "`taught`" in _review_form_text()
 
 
 def test_remint_of_the_cuts_own_last_gate_with_nothing_else_queued_dispatches_without_review(
@@ -234,3 +237,8 @@ def test_replan_with_several_gates_queued_closes_every_one_and_stands_alone_with
     assert fresh["prefill"]["findings"] == "the cut was wrong from the start"
     assert _transition_entry(new_entries).get("panel"), \
         "a replan stands alone with its own fresh panel"
+
+
+def _review_form_text():
+    root = pathlib.Path(__file__).resolve().parent.parent
+    return (root / "skills/planner/forms/REVIEW_PLAN.toml").read_text(encoding="utf-8")
