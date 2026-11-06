@@ -41,19 +41,20 @@ makes a better next step, reject the rest, and say which in
 
 A gate carries two proofs. `proof` is what must be true when the issue
 ends: it runs when you submit, when the gate lands, and again when the run
-closes, against the finished tree. `gate-proof` is what must be true when
-this gate lands -- what it left alone, a file identical to the cut -- and
-runs when you submit and when the gate lands. The engine runs both at your
+closes, against the finished tree. `gate-proof` is the rare boundary this
+gate must leave intact -- a file the plan has a reason to hold still, named
+by its own path -- and runs when you submit and when the gate lands. Most
+gates waive it: the implementer chooses what else the work touches, and
+review reads the diff for where it went. The engine runs both at your
 submit, against the tree as it stands, and whoever judges the cut sees what
 they did. A real check fails there, before the work. One that passes
 proves nothing. Prose does not resolve.
 
-A check about which files this gate touched measures from
-`$CONSTELLATION_GATE_BASE`, which the engine sets for every check to the last
-landed gate's commit (the branch point for the first gate): `git diff
---name-only "${CONSTELLATION_GATE_BASE:?}"` lists this gate's own tracked
-changes, and `git ls-files --others --exclude-standard` its new files. Earlier
-gates' files sit on the branch already, behind that base.
+A boundary check measures from `$CONSTELLATION_GATE_BASE`, which the engine
+sets for every check to the last landed gate's commit (the branch point for
+the first gate): `git diff --quiet "${CONSTELLATION_GATE_BASE:?}" -- <paths>`
+passes while those paths stay untouched. Earlier gates' files sit on the
+branch already, behind that base.
 
 Do not implement any gate from inside this form, and do not reach into a
 gate's own latitude. Implementation detail below gate grain belongs to the

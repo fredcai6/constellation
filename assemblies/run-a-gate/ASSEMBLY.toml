@@ -98,8 +98,7 @@ decides = "resolution"
   # `shape` is one question at two scales: placement against the existing
   # code (the old `simplicity`) and against the plan's call-tree, which the
   # gate's prefill carries. A separate reader for the call-tree was tried and
-  # folded back -- it was the same judgment (Tommy, 2026-10-23). That other
-  # nodes' files stay untouched is the planner's `gate-proof`, not a reader's.
+  # folded back -- it was the same judgment (Tommy, 2026-10-23).
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
