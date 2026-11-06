@@ -184,7 +184,7 @@ seconds, a bare integer -- not a paragraph of rationale."""
   [[field.item]]
   id = "model"
   optional = true
-  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+  note = "Tier override for this gate: light | standard, or heavy where the principal has authorized it. Omit for the assembly default."
 
   [[field.item]]
   id = "direction"
