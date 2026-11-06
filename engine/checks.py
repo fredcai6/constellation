@@ -628,9 +628,11 @@ _SHELL = shutil.which("bash")
 #   engine commits it on advance, so HEAD is the base only by that accident.
 def gate_base(wid, cwd):
     """The commit a gate's own diff is measured from: the newest gate commit
-    on the run's branch, else the branch point off the ref the run was cut
-    from. Empty where git or the cut cannot say -- a check then sees no
-    `CONSTELLATION_GATE_BASE` at all, never a wrong one."""
+    past the run's cut, else the branch point off the ref the run was cut
+    from. Only past the cut: runs stacked on one branch inherit the last
+    issue's gate commits, and those are that issue's. Empty where git or the
+    cut cannot say -- a check then sees no `CONSTELLATION_GATE_BASE` at all,
+    never a wrong one."""
     def git(*args):
         try:
             r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True,
@@ -639,17 +641,17 @@ def gate_base(wid, cwd):
         except (OSError, subprocess.TimeoutExpired):
             return ""
         return r.stdout.strip() if r.returncode == 0 else ""
-    last = git("log", "-1", "--format=%H", "--extended-regexp",
-               r"--grep=^Work-Id: .+\.g[0-9]+(-[0-9a-f]+)?$", "HEAD")
-    if last:
-        return last
     try:
         cut = runmod.state(wid).get("from") or ""
     except Exception:
-        return ""
+        cut = ""
     ref, _, sha = cut.rpartition("@")
-    return ((ref not in ("", "HEAD") and git("merge-base", "HEAD", ref))
-            or (sha and git("rev-parse", "--verify", f"{sha}^{{commit}}")))
+    point = ((ref not in ("", "HEAD") and git("merge-base", "HEAD", ref))
+             or (sha and git("rev-parse", "--verify", f"{sha}^{{commit}}")))
+    last = git("log", "-1", "--format=%H", "--extended-regexp",
+               r"--grep=^Work-Id: .+\.g[0-9]+(-[0-9a-f]+)?$",
+               f"{point}..HEAD" if point else "HEAD")
+    return last or point
 
 
 def _run(cmd, cwd, budget, base=""):

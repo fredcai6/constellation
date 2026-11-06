@@ -173,3 +173,29 @@ def test_a_reminted_gate_s_commit_is_the_next_gate_s_base(tmp_path):
         git("add", "-A")
         git("commit", "-q", "-m", f"gate\n\nWork-Id: {trailer}")
     assert checks.gate_base("issue4", tmp_path) == git("rev-parse", "HEAD")
+
+
+def test_the_previous_issue_s_gate_commit_is_never_this_run_s_base(
+        tmp_path, monkeypatch):
+    """Issues stacked on one branch: the run's history reaches the last
+    issue's gate commits, and with no gate landed yet the base resolved to
+    one of them. fe47e5e, story_time's issue52 cut, gave issue51's 40d6146,
+    and the first gate's scope diff tripped on the last issue's close."""
+    import subprocess
+    from engine import checks
+    def git(*a):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *a],
+                              cwd=tmp_path, capture_output=True, text=True, check=True).stdout.strip()
+    def commit(name, message):
+        (tmp_path / name).write_text("x\n")
+        git("add", "-A")
+        git("commit", "-q", "-m", message)
+    git("init", "-q", "-b", "integration")
+    commit("earlier", "gate\n\nWork-Id: issue51.g1-a14a4")
+    commit("close", "close issue51, no gate trailer")
+    cut = git("rev-parse", "HEAD")
+    monkeypatch.setattr(runmod, "state", lambda wid: {"from": f"integration@{cut}"})
+    git("checkout", "-q", "-b", "issue52")
+    assert checks.gate_base("issue52", tmp_path) == cut
+    commit("mine", "gate\n\nWork-Id: issue52.g1")
+    assert checks.gate_base("issue52.g2", tmp_path) == git("rev-parse", "HEAD")
