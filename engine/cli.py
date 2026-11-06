@@ -835,6 +835,17 @@ def cmd_open(argv):
     for step in runmod.skeleton(asm):
         journal.append(wid, "step", **step)
     if on_issue_tier:
+        # [repo-standing]
+        # Rationale: `[standing-approach]` lasts one run, and a ruling about
+        #   the repository outlives runs. story_time's conductor made the
+        #   same proof ruling in all five of issue49-53, by `approach` in
+        #   two and by hand-amending every cut's proofs in the other three.
+        #   A repo's `[standing]` table seeds the run's prefill at open, the
+        #   same place a standing ruling lands, so a ruling in the run
+        #   replaces it the same way.
+        standing = _palette().get("standing") or {}
+        if standing:
+            journal.append(wid, "prefill", fields=standing)
         _commit_open(wid, pathlib.Path.cwd())
     print(f"opened {wid}\n{landed}")
     return cmd_status([wid])

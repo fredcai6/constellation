@@ -97,7 +97,7 @@ says what goes in it.
 | `tools/` | decoupled tooling: no verb, no step, no form field, no import from `engine/`. |
 | `tests/` | the fast suite: no model calls |
 | `evals/` | end-to-end runs against a real light model |
-| `constellation.toml` | the palette, and the logical model tiers resolved at dispatch |
+| `constellation.toml` | the palette, the logical model tiers resolved at dispatch, and `[standing]`: rulings every run in this repo opens with |
 | `.worktrees/` | one git worktree per open issue-tier run, made and pushed by `open`, removed by `close` once the archive holds the record. Gitignored. |
 
 ## Documentation map

@@ -16,6 +16,7 @@ test_fresh_cut_panel.py):
 """
 
 import pathlib
+import subprocess
 
 from engine import cli, forms, journal, run as runmod
 from gitremote import stub_gh
@@ -199,3 +200,16 @@ def test_the_previous_issue_s_gate_commit_is_never_this_run_s_base(
     assert checks.gate_base("issue52", tmp_path) == cut
     commit("mine", "gate\n\nWork-Id: issue52.g1")
     assert checks.gate_base("issue52.g2", tmp_path) == git("rev-parse", "HEAD")
+
+
+def test_a_repo_s_standing_rulings_open_with_every_run(workdir, capsys, monkeypatch):
+    """A ruling about the repository outlives any one run's `approach`."""
+    from engine import cli as engine_cli
+    toml = workdir / "constellation.toml"
+    toml.write_text(toml.read_text() + '\n[standing]\napproach = "own tests, then the suite"\n')
+    subprocess.run(["git", "add", "-A"], cwd=workdir, check=True)
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "standing"],
+                   cwd=workdir, check=True)
+    engine_cli.main(["open", "run-an-issue", "--id", "issue17", "--title", "t", "--issue", "17"])
+    capsys.readouterr()
+    assert runmod.state("issue17")["prefill"]["approach"] == "own tests, then the suite"
