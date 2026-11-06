@@ -46,7 +46,7 @@ def _mint_board_step(wid="i1", board_text=None):
 
 def _mint_conductor_step(wid="c1", assembly="run-an-issue", segment="open", form="forms/OPEN.toml"):
     """A transition step whose raw `filler` is the bare `"conductor"`
-    indirection -- `_role_tier`'s always-heavy case, and `runmod.hat`'s
+    indirection -- `_role_tier`'s unlisted-role case, and `runmod.hat`'s
     plain (non-board) case, which unwraps to the assembly's own
     `conductor` field."""
     journal.append(wid, "run", title="t", assembly=assembly)
@@ -297,13 +297,13 @@ def test_form_filler_brief_reports_tier_runner_tree_for_an_implementer_step(work
 # -- _form_filler_brief: the bare "conductor" indirection -------------------
 
 
-def test_form_filler_brief_on_a_conductor_step_resolves_heavy_tier_and_matching_posture(
+def test_form_filler_brief_on_a_conductor_step_resolves_its_tier_and_matching_posture(
         workdir, capsys):
     _mint_conductor_step("c1", assembly="run-an-issue")
     st, asm, step, form = _current("c1")
 
     filler_out = cli._form_filler_brief("c1", st, asm, step, form)
-    assert "    tier         heavy" in filler_out
+    assert "    tier         standard" in filler_out
     assert "    role         issue-conductor" in filler_out
 
     capsys.readouterr()
@@ -315,13 +315,13 @@ def test_form_filler_brief_on_a_conductor_step_resolves_heavy_tier_and_matching_
     assert expected_posture in status_out
 
 
-def test_form_filler_brief_on_a_gate_conductor_step_resolves_heavy_tier_and_matching_posture(
+def test_form_filler_brief_on_a_gate_conductor_step_resolves_its_tier_and_matching_posture(
         workdir, capsys):
     _mint_conductor_step("g1", assembly="run-a-gate", segment="close", form="forms/GATE_CLOSE.toml")
     st, asm, step, form = _current("g1")
 
     filler_out = cli._form_filler_brief("g1", st, asm, step, form)
-    assert "    tier         heavy" in filler_out
+    assert "    tier         standard" in filler_out
     assert "    role         gate-conductor" in filler_out
 
     capsys.readouterr()

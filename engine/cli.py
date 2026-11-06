@@ -424,36 +424,27 @@ def _runner(tier):
     return _palette().get("models", {}).get(tier, "")
 
 
-# [role-tier-conductor-is-structural]
-# Rationale: the heavy-tier reservation is on the `conductor` indirection
-#   itself, whatever it resolves to (`CONSOLIDATE.toml` round-3 key terms
-#   binds this reading to the plan), and never on one spelled name --
-#   checking the bare string before anything unwraps it holds for
-#   `issue-conductor` and `gate-conductor` alike with no second table entry,
-#   and for any future assembly's own conductor value with no change to this
-#   function or its table. `standards/glossary.md`'s own `role` entry is why
-#   a table keyed on resolved role names could not do this instead: a role
-#   is by definition never the literal string `"conductor"`, so a table
-#   keyed on role names could only ever hold this reservation for the one
-#   name whoever built it happened to have in hand.
-# Rejected: reading an assembly's own `conductor` field first and keying the
-#   table on that. It would work for whichever assembly the caller passed in,
-#   but this function takes no assembly and no step -- only the bare
-#   `filler` string -- on purpose (see DIRECTION), so it never has that
-#   field to read.
+# [role-tier]
+# Rationale: anything an engine spawns runs on a tier the repository's owner
+#   chose, and heavy needs the owner's authorization (Tommy, 2026-11-05).
+#   `conductor` used to resolve to heavy before `[roles]` was read, so every
+#   gate's route form spawned an opus filler nobody had asked for: 19 in
+#   story_time's six runs. It now reads `[roles]` like any other filler, and
+#   a repository that wants a heavy filler says `conductor = "heavy"` there.
+#   The bare word stays the key: a role table entry holds for `issue-conductor`
+#   and `gate-conductor` alike, since this function takes no assembly.
+# Rejected: standard for every filler with no table. An unknown role is still
+#   a refusal, so a mistyped filler never spawns under a default runner.
 def _role_tier(filler):
     """A step's raw `filler` resolved to a model tier.
 
-    `filler == "conductor"` -- the bare indirection itself -- is always
-    `"heavy"`, checked before anything asks what any assembly's own
-    `conductor` field would unwrap it to. Otherwise `filler` is looked up in
-    `constellation.toml`'s own `[roles]` table; a `filler` that is neither
-    is a refusal naming the missing role, never a spawn under an
-    unspecified or default runner."""
-    if filler == "conductor":
-        return "heavy"
+    Looked up in `constellation.toml`'s own `[roles]` table. `"conductor"`
+    -- the bare indirection itself -- is the one filler that may go unlisted,
+    and then runs standard. Any other `filler` the table does not hold is a
+    refusal naming the missing role, never a spawn under an unspecified or
+    default runner."""
     roles = _palette().get("roles", {})
-    tier = roles.get(filler)
+    tier = roles.get(filler) or ("standard" if filler == "conductor" else "")
     if not tier:
         raise SystemExit(render.refusal(
             "role", f"no role named {filler!r} in constellation.toml's [roles] table",
@@ -1479,10 +1470,9 @@ def _dispatch_descriptor(wid, asm, step):
 #   knows from its own surroundings -- which is exactly `render.status`'s
 #   new standalone-brief parameters. `tier` is read off the step's own raw
 #   `filler` through `_role_tier`, not off `hat`'s unwrapped name: the two
-#   are different answers to different questions (a model tier for
-#   `filler == "conductor"` is always `heavy`, resolved before anything
-#   unwraps it; the posture and role line shown are `hat`'s own answer, the
-#   assembly's real conductor). `worktree`/`branch` come from `_tree_info`,
+#   are different answers to different questions (a model tier is read for
+#   the bare `conductor`, before anything unwraps it; the posture and role
+#   line shown are `hat`'s own answer, the assembly's real conductor). `worktree`/`branch` come from `_tree_info`,
 #   never cwd, because the filler's own process is not presumed to be
 #   standing in this run's tree the way `cmd_status`'s caller is. Both the
 #   response form and the board -- if this segment carries one -- are

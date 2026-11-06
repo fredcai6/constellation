@@ -160,7 +160,7 @@ may run past the engine's 600 seconds. Whole seconds, a bare integer."""
   [[field.item]]
   id = "model"
   optional = true
-  note = "Tier override for this gate: light | standard | heavy. Omit for the assembly default."
+  note = "Tier override for this gate: light | standard, or heavy where the principal has authorized it. Omit for the assembly default."
 
   [[field.item]]
   id = "direction"
