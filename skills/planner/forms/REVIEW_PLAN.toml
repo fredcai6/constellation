@@ -135,9 +135,10 @@ the issue ends: run at submit, when the gate lands, and again at close."""
   kind = "proof"
   optional = true
   note = """
-Same as PLAN.toml's `gate-proof`: what must be true when this gate lands
-alone, run at submit and when the gate lands, never at close. Measure what
-the gate touched from `$CONSTELLATION_GATE_BASE`. Or waived: none."""
+Same as PLAN.toml's `gate-proof`: the rare boundary this gate must leave
+intact, named by its own paths, `git diff --quiet
+"${CONSTELLATION_GATE_BASE:?}" -- <paths>`. Run at submit and when the gate
+lands, never at close. `waived: none` for most gates."""
 
   [[field.item]]
   id = "budget"
