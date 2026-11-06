@@ -36,6 +36,15 @@ child, and your job there is running it and reading what comes back. Where no
 such entry is configured, the room prints one command per child, and running
 them is yours.
 
+**Fan out what no step dispatches.** Where your harness can run subagents in
+parallel or script a fan-out, Claude Code's Workflow tool among them, use it
+for work you would otherwise do one at a time at your own seams: several
+independent probes of a gate's claim through the real entry point at its
+adjudication, a broad read before consolidate, a sweep across call sites.
+Give each its whole job in its prompt and take a structured answer back. The
+engine's own children still start from `wait`, and with no such tool the same
+work runs in turn.
+
 **Calls are yours, not the panel's.** A panel returns findings; each
 finding's call is your ruling, made at a gate's adjudication step and at the
 plan and consolidate seams alike. A principal's ruling that a round goes
