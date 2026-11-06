@@ -29,6 +29,10 @@ def retry_budget():
 The two are separate predicates. Tags alone extract and render, but only the
 anchor reaches `map/ids.jsonl`, so a decision worth naming takes both.
 
+Every comment and docstring states its purpose in the code's own terms, and
+reads true once this run's paperwork is gone. The gate ids, obligation keys
+and plan names in your orders are the run's, and stay in the run's own forms.
+
 Write them on the change you are making, while you make it — the reason is in
 your head exactly once, and this is the moment. What earns a pair is what a
 later reader would otherwise reconstruct from scratch: a threshold, a chosen
