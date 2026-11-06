@@ -1,37 +1,36 @@
-# Step: the planner's one-look review of a queue a stale gate closed. Owned
-# by the planner skill; filled by the planner. `_settle_execution`
-# (engine/cli.py) mints this form, in place of PLAN.toml or REWORK.toml,
-# when the gate the queue was about to dispatch next already answers its
-# own proof -- it passed already, or could not run as a command -- against
-# the tree as it stands: never a panel's finding, so no panel reads what
-# this round returns either.
+# Step: the planner's one-look review of a queue that closed before it all
+# ran. Owned by the planner skill; filled by the planner. `_settle_execution`
+# (engine/cli.py) mints this form, in place of PLAN.toml or REWORK.toml, on
+# a mid-queue remint or drop, a critical question that came back different,
+# or a queued gate whose own proof already reads stale: never a panel's
+# finding, so no panel reads what this round returns either.
 
 imperative = """
-`stale` below names the gate the queue would have dispatched next, and why
-it was never started: its own `proof` already passed against the tree as
-it stands, or could not run as a command at all. Trusting it into dispatch
-anyway would have built a gate the tree already answers, or one whose
-check cannot say anything -- so the whole queue that gate stood in closed
-before any of it ran, `closed-queue` below naming every block it held, in
-order, exactly as the plan that queued them wrote each one. `findings` is
-the conductor's own ruling from the most recently landed gate's
-adjudication, where it wrote one -- ground this cut answers to, not an
-objection to rebut. Open the root the staleness points at -- what made the
-proof already true, or why it would not run -- before you cut anything:
-the tree moved since that queue was planned, and this round is where the
-plan catches up to it, not a retyping of what closed. Then cut what the run
-still needs from here, the same bar as any other cut: at least one gate,
-and every chunk whose path is clear, each a complete proof of one thing --
-purpose, scope, proof, and the rest, one block per gate in `gates` below.
-Nothing `closed-queue` held survives into the new queue except what you
-write again here on purpose; a block you do not repeat is gone. The plan
-document itself carries the approach and the risks that would change it,
-and stands on its own: it says nothing about the queue that closed ("as
-before", "unchanged from the round that closed") and reads whole to a cold
-reader, since no panel reads this twice. Where your prefill holds a
-`call-tree`, it is what the closed queue was thinking: check its nodes
-against the code and the staleness itself, mark this cut's own nodes THIS
-GATE, and update the rest -- or pivot, where the staleness says the
+`stale` below says why the queue closed before the rest of it ran: a gate
+was reminted or dropped, a critical question came back different from what
+the plan expected, or the gate due next already answers its own proof or
+could not run it. `closed-queue` names every block it held, in order,
+exactly as the plan that queued them wrote each one. `taught` is the
+conductor's account of what the last gate showed and how, and `findings`
+what the conductor took from it for the plan -- ground this cut answers to,
+not an objection to rebut. Before you cut anything, work out what that says
+about the plan itself: what it assumed that turned out false, what kind of
+gap this instance is one example of, and which remaining gates rest on the
+same assumption or could not tell if the same kind of gap sat in their own
+work. Open the code that decides it, and for a stale proof the root the
+staleness points at: what made the proof already true, or why it would not
+run. Then cut what the run still needs from here, the same bar as any other
+cut: at least one gate, and every chunk whose path is clear, each a complete
+proof of one thing -- purpose, scope, proof, and the rest, one block per
+gate in `gates` below. Nothing `closed-queue` held survives into the new
+queue except what you write again here on purpose; a block you do not repeat
+is gone, and one you do repeat you have checked against what the run now
+knows. The plan document itself carries the approach and the risks that
+would change it, and stands on its own: it states what the run knows now and
+reads whole to a cold reader, since no panel reads this twice. Where your
+prefill holds a `call-tree`, it is what the closed queue was thinking: check
+its nodes against the code and what it taught, mark this cut's own nodes
+THIS GATE, and update the rest -- or pivot, where what it taught says the
 structure changed."""
 
 [[field]]
@@ -150,7 +149,7 @@ may run past the engine's 600 seconds. Whole seconds, a bare integer."""
   [[field.item]]
   id = "model"
   optional = true
-  note = "Tier override for this gate: light | standard, or heavy where the principal has authorized it. Omit for the assembly default."
+  note = "Tier override for this gate: light | standard | heavy. Choose one on purpose and say why in `direction`; omit for the assembly default."
 
   [[field.item]]
   id = "direction"

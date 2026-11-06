@@ -4193,15 +4193,19 @@ def _most_recent_adjudication(st, seg_id):
     return None
 
 
-def _last_adjudication_findings(st, seg_id):
-    """The conductor's own `findings` off the most recently completed gate
-    adjudication in `seg_id`'s own segment -- `""` where none has
-    completed yet, or the most recent one waived it."""
+def _last_adjudication_field(st, seg_id, field):
+    """A field off the most recently completed gate adjudication in
+    `seg_id`'s own segment -- `""` where none has completed yet, or the most
+    recent one waived it."""
     step = _most_recent_adjudication(st, seg_id)
     if not step:
         return ""
-    findings = str(st["done"][step["id"]].get("fields", {}).get("findings", "") or "").strip()
-    return "" if not findings or findings.startswith("waived:") else findings
+    value = str(st["done"][step["id"]].get("fields", {}).get(field, "") or "").strip()
+    return "" if not value or value.startswith("waived:") else value
+
+
+def _last_adjudication_findings(st, seg_id):
+    return _last_adjudication_field(st, seg_id, "findings")
 
 
 # [critical-question-differs]
@@ -4243,6 +4247,12 @@ def _critical_question_differs(st, seg_id):
 #   helper every caller shares, parameterized by a list of reasons rather
 #   than one: however many reasons fire on a single settle, this still
 #   mints the review exactly once, carrying all of them.
+# Rationale: `taught` is the adjudication's `purpose-holds`, the conductor's
+#   whole account of what the gate showed. `findings` alone gave a planner
+#   16-65 words against the closed queue's thousands of characters, and all
+#   five of story_time's re-cuts handed the queue back. Replayed blind, the
+#   real re-cuts planned for none of the 7 defects that followed; with
+#   `taught` and the review form's question, 4 of 7 (2026-11-05).
 def _review_the_open_plan(wid, asm, execute, st, reasons):
     """Close every still-pending dispatch/adjudication pair in `execute`'s
     own worklist and reopen the plan segment on its review form (no
@@ -4265,7 +4275,9 @@ def _review_the_open_plan(wid, asm, execute, st, reasons):
     prefill = {**_call_tree_ahead(st, plan["id"]),
                "stale": "\n\n".join(reasons),
                "closed-queue": closed_text,
-               "findings": _last_adjudication_findings(st, execute["id"]) or "waived: none"}
+               "findings": _last_adjudication_findings(st, execute["id"]) or "waived: none",
+               "taught": _last_adjudication_field(st, execute["id"], "purpose-holds")
+                          or "waived: none"}
     _mint_segment_round(wid, asm, plan["id"], prefill=prefill,
                         restarts=False, form=plan.get("review-form", ""))
 
