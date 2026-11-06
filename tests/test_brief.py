@@ -391,3 +391,12 @@ def test_a_reviewer_panelist_is_unmoved_by_a_neighboring_critic(workdir, capsys)
     capsys.readouterr()
     cli.main(["g9.review.p2"])
     _assert_delivered(_posture_line(capsys.readouterr().out), "reviewer")
+
+
+def test_a_brief_names_the_one_command_that_prints_a_child_s_orders():
+    """A spawned child read this brief and nothing else, so it hunted through
+    `find` and `--help` for its own orders before opening the diff."""
+    from engine import render
+    text = render.brief("issue53.g1.review.p3", "reviewer", "standard", "s",
+                        finish_form="skills/reviewer/forms/REVIEW.toml")
+    assert "spine issue53.g1.review.p3 -- run this first" in text

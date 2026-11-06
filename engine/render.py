@@ -415,6 +415,11 @@ def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
     """
     lines = [f"  brief -- {child_id}"]
     lines += _dispatch_lines(role, tier, runner, worktree, branch, written_at=posture(role))
+    # A spawned child's first move: all 76 of story_time's reviewers spent
+    # theirs hunting for this command, on the way to 14 mechanical tool calls
+    # in 33. What a child needs first rides the brief.
+    lines.append(f"    orders       {located(f'spine {child_id}')} -- run this first: "
+                 "it prints your orders and the form you fill")
     close_cmd = located(f"spine {child_id} close")
     if finish_form:
         lines.append(f"    finishing:   fill {finish_form}, then: {close_cmd}")
