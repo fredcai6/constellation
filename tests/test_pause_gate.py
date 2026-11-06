@@ -760,3 +760,54 @@ def test_an_answer_that_resumes_a_child_starts_its_start_count_over(workdir):
 
     journal.append("d1", "dispatch-started", child="d1.g1", pid=2, log="x")
     assert cli._dispatch_start_counts("d1")["d1.g1"] == 1
+
+
+def _criteria(wid, step_id):
+    step = next(s for s in runmod.state(wid)["steps"] if s["id"] == step_id)
+    return [(p.get("criteria") or "").split(":")[0] for p in step.get("panel") or []]
+
+
+def _submit_implement(wid):
+    _fill_implement(wid)
+    cli.main([wid, "submit"])
+
+
+def test_a_round_no_panel_has_read_keeps_the_full_panel_through_a_hand_back(
+        workdir, capsys):
+    """A hand-back during the first implement round resumed into the
+    one-reader `rework` panel, with no findings for it to check: the gate's
+    whole diff landed unreviewed while the yield printed `review r1 pass`.
+    17 of 348 gates went that way, four of them in story_time's runs."""
+    cli.main(["open", "run-a-gate", "--id", "gzp"])
+    cli.main(["gzp", "up", "the gate-proof fence names a file this gate needs"])
+    _fill(_response("gzp"), 'answer = "widen the fence"\n')
+    cli.main(["gzp", "submit"])
+    capsys.readouterr()
+
+    _submit_implement("gzp")
+    capsys.readouterr()
+
+    current = runmod.state("gzp")["current"]["id"]
+    assert _criteria("gzp", current) == ["tests", "shape", "claims"]
+
+
+def test_a_hand_back_after_the_panel_read_still_gets_the_rework_reader(
+        workdir, capsys):
+    """The panel has read this diff and its findings stand, so the round the
+    answer opens is another pass: one reader, for those findings."""
+    cli.main(["open", "run-a-gate", "--id", "gzp"])
+    _submit_implement("gzp")
+    _dispatch_review("gzp", verdict="revise", findings="gap: a real one",
+                     resolution="rework")
+    capsys.readouterr()
+
+    cli.main(["gzp", "up", "the finding needs a ruling first"])
+    _fill(_response("gzp"), 'answer = "fix it this way"\n')
+    cli.main(["gzp", "submit"])
+    capsys.readouterr()
+
+    _submit_implement("gzp")
+    capsys.readouterr()
+
+    current = runmod.state("gzp")["current"]["id"]
+    assert _criteria("gzp", current) == ["rework"]

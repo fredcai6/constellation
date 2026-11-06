@@ -5117,6 +5117,16 @@ def _amend_waive(wid, st, step_id, reason):
 #   already reads whichever form its dispatch step names; teaching it a
 #   second shape to reach the same form would be a second thing to keep in
 #   sync with the planner's skill for no behaviour gained.
+def _panel_has_read(wid, seg_id):
+    """Whether any panel in this segment has returned, or been waived by its
+    conductor: the difference between a round after a reading and a round
+    that is still the first one."""
+    st = runmod.state(wid)
+    return any(s.get("segment") == seg_id and s.get("panel")
+               and (st["returns"].get(s["id"]) or s.get("waived"))
+               for s in st["steps"])
+
+
 def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
                         restarts=False, resumed=False, rewrite=False):
     """Mint one fresh round of a segment: its step-form (or the form the
@@ -5226,11 +5236,15 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     #   ever found. That reader is handed the findings on this round's own
     #   prefill -- the same blocks the rework was -- since a panelist reads
     #   its orders there. A fresh artifact (`restarts`) keeps the full
-    #   panel.
+    #   panel, and so does a round no panel has read yet: a hand-back during
+    #   the opening round resumes here with the whole diff unread and no
+    #   findings for that one reader to check. 17 of 348 gates went that
+    #   way, the yield printing `review r1 pass` over them.
     # Rejected: an agent choosing each round's readers on a form (run-a-gate's
     #   old `select`). Its fills copied the same blocks nearly every time, on
     #   a heavy runner; what is fixed belongs to the assembly.
-    if fresh.get("panel") and t.get("rework-panel") and not restarts:
+    if (fresh.get("panel") and t.get("rework-panel") and not restarts
+            and _panel_has_read(wid, seg_id)):
         fresh["panel"] = t["rework-panel"]
         if prefill:
             fresh["prefill"] = prefill
