@@ -788,7 +788,7 @@ def test_a_round_no_panel_has_read_keeps_the_full_panel_through_a_hand_back(
     capsys.readouterr()
 
     current = runmod.state("gzp")["current"]["id"]
-    assert _criteria("gzp", current) == ["tests", "shape", "claims"]
+    assert _criteria("gzp", current) == ["tests", "shape", "claims", "break"]
 
 
 def test_a_hand_back_after_the_panel_read_still_gets_the_rework_reader(

@@ -203,7 +203,7 @@ def test_opening_an_untagged_or_out_of_range_panel_step_refuses(workdir, capsys)
     with pytest.raises(SystemExit):
         cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", review])
     with pytest.raises(SystemExit):
-        cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", f"{review}.p4"])
+        cli.main(["open", "give-a-verdict", "--parent", "g1", "--step", f"{review}.p99"])
 
 
 # -- the transition acts: pass releases, revise refills ---------------------
