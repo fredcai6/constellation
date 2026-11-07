@@ -272,11 +272,11 @@ decides = "plan-holds"
   [[segment.outcome]]
   value = "remint"
   does = "commit; remint gate-spec; settle"     # commits the gate that ran -- its work
-    # stays in the tree, and history is not amendable -- mints a fresh
-    # dispatch/adjudication pair from gate-spec,
-    # then the same read `drop <gate-id>` below already reaches: another
-    # gate of this cut still queued reopens plan for one review round, no
-    # panel; nothing else queued and the fresh replacement simply dispatches
+    # stays in the tree, and history is not amendable -- then the same read
+    # `drop <gate-id>` below already reaches: another gate of this cut still
+    # queued reopens plan for one review round, no panel, carrying gate-spec
+    # at the head of the closed queue; otherwise gate-spec mints a fresh
+    # dispatch/adjudication pair that simply dispatches
 
   # `settle` beside `close` because a drop is the other way this segment
   # empties. The execution-state board's one read hung on `advance`, a gate

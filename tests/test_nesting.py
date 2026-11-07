@@ -1150,39 +1150,6 @@ def test_remint_mints_a_gate_that_is_reachable_not_already_done(workdir, capsys)
     assert new_gate["id"] in runmod.state("issue17")["done"]
 
 
-def test_the_mid_queue_review_closes_a_remint_minted_pair_by_child_too(workdir, capsys):
-    """The pairing a close relies on is derived from `child`, written on both
-    halves of a pair by `_mint_gates` -- and `_mint_gates` runs from two call
-    sites, plan-minted gates and a remint. Reminting `g1` while `g2` is still
-    queued now reviews the open plan rather than carrying on (obligation 5's
-    third bullet, g4): `g2` was always going to close by its own id, but the
-    remint's own fresh replacement -- minted mid-run, never part of the
-    original plan cut, and so never named by this round's own submit at all
-    -- has to be found and closed the same way: by `child`, not by id-suffix.
-    `_dispatch_and_close_child("issue17", "g2")`, this test's old next step,
-    is no longer reachable: the review closed `g2` already."""
-    _mint_n_gates(2)
-    capsys.readouterr()
-    _dispatch_and_close_child("issue17", "g1")
-    capsys.readouterr()
-
-    before = len(journal.read("issue17"))
-    _fill_gate_transition_remint("issue17", purpose="redo the fix", scope="src/parser.c")
-    cli.main(["issue17", "submit"])
-    capsys.readouterr()
-
-    new_entries = journal.read("issue17")[before:]
-    new_gate = next(e for e in new_entries
-                    if e.get("kind") == "step" and e.get("dispatches") == "run-a-gate")
-    new_id = new_gate["id"]
-
-    amends = [e for e in new_entries if e["kind"] == "amend"]
-    assert {a["step"] for a in amends} == {"g2", "g2-adjudicate", new_id, f"{new_id}-adjudicate"}
-
-    ids = {s["id"] for s in runmod.state("issue17")["steps"]}
-    assert not ({new_id, f"{new_id}-adjudicate", "g2", "g2-adjudicate"} & ids)
-
-
 def test_drop_pairs_by_shared_child_not_by_id_suffix(workdir, capsys):
     """Every pair `_mint_gates` produces carries the `-adjudicate` suffix by
     construction, so driving `drop` only through the normal mint path proves

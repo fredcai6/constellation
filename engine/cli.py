@@ -3510,14 +3510,11 @@ def _perform(wid, asm, seg, does, fields, step):
     reason = str(fields.get(field, does)).strip() if field else does
     verbs = [v.strip().partition(" ")[0] for v in does.split(";") if v.strip()]
     # [pre-verb-queue-snapshot]
-    # Rationale: a `close` or a `remint` either drops a step or mints a
-    #   fresh one before `settle` (below) ever runs -- so whether *another*
-    #   queued gate justifies a review has to be read now, before either
-    #   verb runs, never from a state `settle` would read fresh afterward.
-    #   A remint's own replacement always mints before settle, so a fresh
-    #   read there would find it pending and review every remint, including
-    #   one landing the cut's own last gate -- which obligation 5 does not
-    #   ask for. The gate just decided is already folded into `done` by the
+    # Rationale: a `close` drops a step before `settle` (below) ever runs --
+    #   so whether *another* queued gate justifies a review has to be read
+    #   now, before the verb runs, never from a state `settle` would read
+    #   fresh afterward. A remint's spec is held for settle to mint or hand
+    #   to the review. The gate just decided is already folded into `done` by the
     #   time `_perform` runs (its submit journaled ahead of this call), so
     #   this snapshot already excludes it without having to subtract it.
     #   Kept as the cut's own mint order (`pre_order`), not a bare set: a
@@ -3539,6 +3536,7 @@ def _perform(wid, asm, seg, does, fields, step):
     pre_pending = ({s["id"] for s in st0["steps"]
                    if s.get("dispatches") and _step_pending(s, st0, execute["id"])}
                   if execute else set())
+    held = []
     for verb in filter(None, (v.strip() for v in does.split(";"))):
         word, _, target = verb.partition(" ")
         tseg = next((s for s in asm["segment"] if s["id"] == (target or seg["id"])), seg)
@@ -3590,7 +3588,8 @@ def _perform(wid, asm, seg, does, fields, step):
         elif word == "pause":
             _pause_gate(wid, tseg, reason, fields)
         elif word == "remint":
-            _mint_gates(wid, seg, fields.get(target) or [])
+            # Minted by settle, which knows whether a review takes the queue.
+            held = fields.get(target) or []
         elif word == "close":
             parts = str(fields.get(field, "")).split(None, 1)
             target_id = parts[1].strip() if len(parts) > 1 else ""
@@ -3643,7 +3642,7 @@ def _perform(wid, asm, seg, does, fields, step):
                     if _later_gate_still_queued(pre_order, pre_pending, gate_id):
                         mid_queue_reason = (f"{gate_id} was re-minted while later gates of "
                                             "this cut were still queued")
-            _settle_execution(wid, asm, committed, mid_queue_reason, pre_pending)
+            _settle_execution(wid, asm, committed, mid_queue_reason, held)
 
 
 # [pause-gate]
@@ -4255,7 +4254,7 @@ def _critical_question_differs(st, seg_id):
 #   five of story_time's re-cuts handed the queue back. Replayed blind, the
 #   real re-cuts planned for none of the 7 defects that followed; with
 #   `taught` and the review form's question, 4 of 7 (2026-11-05).
-def _review_the_open_plan(wid, asm, execute, st, reasons):
+def _review_the_open_plan(wid, asm, execute, st, reasons, held=()):
     """Close every still-pending dispatch/adjudication pair in `execute`'s
     own worklist and reopen the plan segment on its review form (no
     panel), carrying `reasons` -- one line per cause that fired this
@@ -4263,7 +4262,7 @@ def _review_the_open_plan(wid, asm, execute, st, reasons):
     landed gate's own adjudication findings."""
     order = [s for s in st["steps"] if s["segment"] == execute["id"]]
     reason_text = "; ".join(reasons)
-    closed = []
+    closed = list(held)
     for s in order:
         if s.get("dispatches") and _step_pending(s, st, execute["id"]):
             closed.append(s.get("prefill") or {})
@@ -4284,7 +4283,7 @@ def _review_the_open_plan(wid, asm, execute, st, reasons):
                         restarts=False, form=plan.get("review-form", ""))
 
 
-def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, queued_before=None):
+def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, held=()):
     st = runmod.state(wid)
     execute = next((s for s in asm["segment"] if s["id"] == "execute"), None)
     queued = ([s for s in st["steps"] if s.get("dispatches") and _step_pending(s, st, execute["id"])]
@@ -4297,13 +4296,12 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, queued_b
     #   and 64 each landed a gate that settled the last row with another
     #   still queued: it dispatched, or read stale and sent a planner a
     #   review with nothing to cut, and the conductor dropped it by hand
-    #   (#237). Only gates queued before this ruling close -- a remint's
-    #   fresh gate is the ruling itself.
+    #   (#237). A remint's `held` gate is the ruling itself, so it mints.
     if path and not unsettled:
         for s in queued:
-            if queued_before is None or s["id"] in queued_before:
-                _close_step_and_pair(wid, s["id"], "every obligation on the "
-                                     "execution-state board is settled")
+            _close_step_and_pair(wid, s["id"], "every obligation on the "
+                                 "execution-state board is settled")
+        _mint_gates(wid, execute, held)
         return
     # [settle-trusts-only-advance]
     # Rationale: an `advance` ("commit; settle") earns the queue trust, as
@@ -4325,8 +4323,14 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, queued_b
             reading = render.proof_readings([st["proof_trials"][-1]])[0]
             reasons.append(f"{next_step['id']}'s own proof reads stale against the tree "
                             f"as it stands: {reading}")
+    # A remint whose cut still queues later gates mints nothing: the review
+    #   closes the queue, and the planner reads the remint's spec in it.
+    #   issue64 minted the fresh gate and the review closed it at once.
     if reasons:
-        _review_the_open_plan(wid, asm, execute, st, reasons)
+        _review_the_open_plan(wid, asm, execute, st, reasons, held)
+        return
+    if held:
+        _mint_gates(wid, execute, held)
         return
     # A queued gate -- the cut's next, or a remint's fresh one -- is what
     #   answers the open rows; the plan recuts only once nothing is queued

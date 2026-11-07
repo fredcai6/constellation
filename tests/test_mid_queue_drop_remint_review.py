@@ -104,12 +104,12 @@ def test_drop_with_a_later_gate_still_queued_reviews_the_open_plan(workdir, caps
 def test_remint_with_a_later_gate_still_queued_reviews_the_open_plan(workdir, capsys):
     """A `remint` ruled at `g1`'s own adjudication -- replacing `g1` itself
     with a fresh gate-spec rather than advancing it -- while `g2` and `g3`
-    are still queued behind it: this mints the fresh replacement first and
-    then reopens plan for one review round, no panel, closing `g2` and `g3`
-    *and* the fresh replacement itself, since all three are "still queued"
-    the moment the review runs. The naming -- which gate was re-minted --
-    reads off the deciding step's own id (`g1`), the pre-verb snapshot's
-    own ground."""
+    are still queued behind it: plan reopens for one review round, no
+    panel, closing `g2` and `g3`. The fresh gate-spec mints nothing; it
+    reaches the planner at the head of the closed queue (#237: issue64
+    minted it and the review closed it in the same instant). The naming --
+    which gate was re-minted -- reads off the deciding step's own id
+    (`g1`), the pre-verb snapshot's own ground."""
     wid = "issue66"
     _mint_a_cut(wid, [
         {"purpose": "gate 1 purpose", "scope": "gate 1 scope", "proof": "true"},
@@ -127,20 +127,16 @@ def test_remint_with_a_later_gate_still_queued_reviews_the_open_plan(workdir, ca
     capsys.readouterr()
 
     new_entries = journal.read(wid)[before:]
-    mints = [e for e in new_entries if e.get("kind") == "step"
-             and e.get("dispatches") == "run-a-gate"]
-    assert len(mints) == 1, "the remint's own fresh replacement, minted before settle ran"
-    new_id = mints[0]["id"]
+    assert not [e for e in new_entries if e.get("kind") == "step"
+                and e.get("dispatches") == "run-a-gate"], "the review takes the remint's spec"
 
     amends = [e for e in new_entries if e["kind"] == "amend"]
-    assert {a["step"] for a in amends} == {
-        new_id, f"{new_id}-adjudicate", "g2", "g2-adjudicate", "g3", "g3-adjudicate"}
+    assert {a["step"] for a in amends} == {"g2", "g2-adjudicate", "g3", "g3-adjudicate"}
 
     st = runmod.state(wid)
     ids = {s["id"] for s in st["steps"]}
-    assert not ({new_id, f"{new_id}-adjudicate", "g2", "g2-adjudicate",
-                 "g3", "g3-adjudicate"} & ids), \
-        "the fresh replacement and the rest of the queue should both have closed"
+    assert not ({"g2", "g2-adjudicate", "g3", "g3-adjudicate"} & ids), \
+        "the rest of the queue should have closed"
 
     assert st["current"]["segment"] == "plan"
     fresh = _fresh_plan_round(wid)
@@ -152,7 +148,7 @@ def test_remint_with_a_later_gate_still_queued_reviews_the_open_plan(workdir, ca
     prefill = fresh["prefill"]
     assert "g1" in prefill.get("stale", "") and "re-minted" in prefill.get("stale", "")
     assert "still queued" in prefill.get("stale", "")
-    assert "g1 redone" in prefill.get("closed-queue", "")
+    assert prefill.get("closed-queue", "").startswith("purpose: g1 redone")
     assert "gate 2 purpose" in prefill.get("closed-queue", "")
     assert "gate 3 purpose" in prefill.get("closed-queue", "")
     assert prefill.get("findings") == "the spec was wrong, needs a redo"
