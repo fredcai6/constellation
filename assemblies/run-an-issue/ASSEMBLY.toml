@@ -266,12 +266,14 @@ decides = "plan-holds"
     # instead -- the same review a `drop <gate-id>` or `remint` reaches
     # below when later gates of this cut are still queued; short of that,
     # an obligation still open on the execution-state board refills plan
-    # for another round, and every obligation disposed mints nothing as
-    # the run walks to close
+    # for another round, and every obligation disposed closes whatever is
+    # still queued as the run walks to close
 
   [[segment.outcome]]
   value = "remint"
-  does = "remint gate-spec; settle"     # mints a fresh dispatch/adjudication pair from gate-spec,
+  does = "commit; remint gate-spec; settle"     # commits the gate that ran -- its work
+    # stays in the tree, and history is not amendable -- mints a fresh
+    # dispatch/adjudication pair from gate-spec,
     # then the same read `drop <gate-id>` below already reaches: another
     # gate of this cut still queued reopens plan for one review round, no
     # panel; nothing else queued and the fresh replacement simply dispatches

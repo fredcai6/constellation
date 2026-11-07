@@ -152,7 +152,9 @@ this field rides into the dispatched child as its own `proof`, shell-executed
 there. This is what must be true when the issue ends. It runs at your
 submit, against the run's tree as it stands, where whoever judges the cut
 reads the result beside it: a real check fails there, before the work; one
-that passes proves nothing; prose does not resolve. It runs again when the
+that passes proves nothing; prose does not resolve. A later gate's proof
+names the tests that gate adds -- its own test ids, or a file of its own --
+so it still fails once the gates ahead of it have landed. It runs again when the
 gate lands, and once more when the run closes, against the finished tree
 after every later gate has landed. Reference the command palette
 (constellation.toml) rather than hardcoding where it applies."""

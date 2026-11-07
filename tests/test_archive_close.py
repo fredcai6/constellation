@@ -112,6 +112,7 @@ def test_the_pr_close_opens_is_a_draft_carrying_the_runs_disposition(
     body = create[create.index("--body") + 1]
     assert body.startswith("merged to main")
     assert "Work-Id: issue17" in body
+    assert "Closes #17" in body                  # merging closes the issue it was opened on
 
 
 def test_close_adopts_a_pr_already_open_on_the_branch(workdir, capsys, monkeypatch):

@@ -820,7 +820,7 @@ def cmd_open(argv):
         os.chdir(worktree)  # the work location this mints lands inside the worktree
         landed = (f"\n  now inside the worktree -- if this shell has not followed:\n"
                   f"  cd {worktree}\n")
-    journal.append(wid, "run", title=title, assembly=assembly,
+    journal.append(wid, "run", title=title, assembly=assembly, issue=issue or "",
                    conductor=asm.get("conductor", ""), branch=wid,
                    worktree=str(pathlib.Path.cwd()), **{"from": cut_point})
     for step in runmod.skeleton(asm):
@@ -3607,7 +3607,9 @@ def _perform(wid, asm, seg, does, fields, step):
             #   never a predicted outcome name -- a third verb sequence
             #   that also commits inherits the trust for free, and one
             #   that does not stays on today's unconditional replan.
-            committed = "commit" in verbs
+            #   A remint commits the gate that ran too, but its queue has
+            #   earned nothing: the conductor just ruled the gate short.
+            committed = "commit" in verbs and "remint" not in verbs
             # [mid-queue-reason]
             # Rationale: obligation 5's third bullet -- a drop or a remint
             #   that leaves another gate of this cut still queued (read
@@ -3641,7 +3643,7 @@ def _perform(wid, asm, seg, does, fields, step):
                     if _later_gate_still_queued(pre_order, pre_pending, gate_id):
                         mid_queue_reason = (f"{gate_id} was re-minted while later gates of "
                                             "this cut were still queued")
-            _settle_execution(wid, asm, committed, mid_queue_reason)
+            _settle_execution(wid, asm, committed, mid_queue_reason, pre_pending)
 
 
 # [pause-gate]
@@ -4282,70 +4284,56 @@ def _review_the_open_plan(wid, asm, execute, st, reasons):
                         restarts=False, form=plan.get("review-form", ""))
 
 
-def _settle_execution(wid, asm, committed=False, mid_queue_reason=None):
+def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, queued_before=None):
     st = runmod.state(wid)
-    # [settle-trusts-only-advance]
-    # Rationale: `committed` is `True` only when the settle answering this
-    #   call followed the outcome that just committed a gate (`advance`'s
-    #   "commit; settle") -- the one outcome obligation 4 says the queue has
-    #   earned trust from. A `drop <gate-id>` ("close; settle") or a
-    #   `remint` (its own fresh-dispatch verb, then "settle") never passes
-    #   `True` here, so both keep falling through past this branch -- but,
-    #   below, `_perform` has already told this call whether another gate
-    #   of the same cut was still queued before either verb ran
-    #   (obligation 5's third bullet), which gates its own, lighter review
-    #   rather than the unconditional board-unsettled replan this branch's
-    #   own absence used to leave as the only path.
     execute = next((s for s in asm["segment"] if s["id"] == "execute"), None)
-    if committed and execute and _queue_pending(st, execute["id"]):
-        order = [s for s in st["steps"] if s["segment"] == execute["id"]]
-        next_step = next((s for s in order if _step_pending(s, st, execute["id"])), None)
-        # [reasons-collected-before-minting]
-        # Rationale: o5's second and third bullets both reopen plan the same
-        #   no-panel way a stale reading does, each contributing its own
-        #   reason rather than its own mint -- the gate that just landed may
-        #   have ruled its own critical-question answer as differing while
-        #   the next queued gate's own proof also reads stale, and both are
-        #   read before anything mints so one settle calls
-        #   `_review_the_open_plan` exactly once, carrying every reason that
-        #   fired, never once per condition.
-        reasons = []
+    queued = ([s for s in st["steps"] if s.get("dispatches") and _step_pending(s, st, execute["id"])]
+              if execute else [])
+    path = st["boards"].get("execution-state", "")
+    unsettled = bool(path) and any(boards.unsettled(r) for r in boards.rows(path))
+    # [settled-board-closes-the-queue]
+    # Rationale: the board is what the run owes, so once every row on it is
+    #   settled a gate still queued serves nothing. story_time issue57, 62
+    #   and 64 each landed a gate that settled the last row with another
+    #   still queued: it dispatched, or read stale and sent a planner a
+    #   review with nothing to cut, and the conductor dropped it by hand
+    #   (#237). Only gates queued before this ruling close -- a remint's
+    #   fresh gate is the ruling itself.
+    if path and not unsettled:
+        for s in queued:
+            if queued_before is None or s["id"] in queued_before:
+                _close_step_and_pair(wid, s["id"], "every obligation on the "
+                                     "execution-state board is settled")
+        return
+    # [settle-trusts-only-advance]
+    # Rationale: an `advance` ("commit; settle") earns the queue trust, as
+    #   long as the gate it dispatches next still answers a question the
+    #   tree has not already answered (o6), and the gate that just landed
+    #   answered the cut's critical question the way the plan expected. A
+    #   drop or a remint that left a later gate of this cut queued
+    #   (`_perform`'s pre-verb snapshot, obligation 5) is reviewed the same
+    #   no-panel way. Every reason is collected before anything mints, so
+    #   one settle reviews the open plan once.
+    reasons = [mid_queue_reason] if mid_queue_reason else []
+    if committed and queued:
         differs = _critical_question_differs(st, execute["id"])
         if differs:
             reasons.append(differs)
-        # [stale-gate-is-reviewed]
-        # Rationale: o6 -- trusting the queue is earned by the outcome that
-        #   just committed a gate, but only while the gate it is about to
-        #   dispatch next still answers a question the tree has not
-        #   already answered on its own. A stale reading closes the whole
-        #   open queue -- not only the gate checked -- since a plan round
-        #   that got one gate wrong against the tree it was cut from is not
-        #   one the gates behind it should still be trusted from either;
-        #   the planner gets one look at all of it, with no panel, rather
-        #   than a panel re-reading gates nothing has shown wrong yet.
-        if next_step is not None and _proof_is_stale(wid, next_step, journal.root_for(wid)):
+        next_step = queued[0]
+        if _proof_is_stale(wid, next_step, journal.root_for(wid)):
             st = runmod.state(wid)
             reading = render.proof_readings([st["proof_trials"][-1]])[0]
             reasons.append(f"{next_step['id']}'s own proof reads stale against the tree "
                             f"as it stands: {reading}")
-        if reasons:
-            _review_the_open_plan(wid, asm, execute, st, reasons)
+    if reasons:
+        _review_the_open_plan(wid, asm, execute, st, reasons)
         return
-    # [mid-queue-drop-remint-is-reviewed]
-    # Rationale: obligation 5's third bullet -- a drop or a remint that
-    #   left another gate of this cut still queued, read before either
-    #   verb ran (`_perform`'s own pre-verb snapshot), gets the same
-    #   no-panel review a stale reading already does, rather than today's
-    #   unconditional full-panel replan. Where nothing else was queued,
-    #   `mid_queue_reason` is never set, and both outcomes fall through
-    #   unchanged below: a drop only recuts plan if the board still holds
-    #   an unsettled row, and a remint's own fresh replacement simply
-    #   dispatches.
-    if not committed and execute and mid_queue_reason:
-        _review_the_open_plan(wid, asm, execute, st, [mid_queue_reason])
-        return
-    path = st["boards"].get("execution-state", "")
-    if not path or not any(boards.unsettled(r) for r in boards.rows(path)):
+    # A queued gate -- the cut's next, or a remint's fresh one -- is what
+    #   answers the open rows; the plan recuts only once nothing is queued
+    #   to answer them. issue57's remint of its last gate recut the plan
+    #   beside its own fresh gate, and the cut that came back was the
+    #   duplicate gate the board then had to drop.
+    if queued or not unsettled:
         return
     plan = next((s for s in asm["segment"] if s["id"] == "plan"), None)
     if plan:
@@ -5520,9 +5508,12 @@ def _publish(wid, top, st, body):
         live = [p["url"] for p in prs if p.get("state") in ("OPEN", "MERGED")]
         if live:
             return live[0]
+    # The issue the run was opened on, so merging the PR closes it: story_time
+    #   #49 and #53 stayed open after their merges for want of the keyword.
+    closes = f"\n\nCloses #{st['issue']}" if st.get("issue") else ""
     pr = _gh(top, "pr", "create", "--draft", "--head", branch,
              "--title", st.get("title") or wid,
-             "--body", f"{body}\n\nWork-Id: {wid}".lstrip())
+             "--body", f"{body}{closes}\n\nWork-Id: {wid}".lstrip())
     if pr.returncode != 0:
         raise SystemExit(render.refusal(
             "pr", f"gh pr create failed -- {(pr.stderr or pr.stdout).strip()}",
