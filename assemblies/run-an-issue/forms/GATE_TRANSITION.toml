@@ -56,8 +56,8 @@ note = """
 advance | remint | drop <gate-id> | replan — on anything but advance, the
 amend is the evidence. Adjudicate the child's amend summary: accept or
 contest each entry. remint fills gate-spec below with the fresh gate; it
-closes nothing, since this gate has already run and history is not
-amendable. drop closes the named gate's dispatch and adjudication steps —
+commits this gate's work and closes nothing, since this gate has already
+run and history is not amendable. drop closes the named gate's dispatch and adjudication steps —
 it must be pending, and never this one."""
 
 [[field]]

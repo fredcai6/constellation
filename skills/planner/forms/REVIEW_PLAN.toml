@@ -126,7 +126,8 @@ override and a direction."""
   note = """
 Same as PLAN.toml's `proof`: the exact command to run, never a description,
 referencing the command palette (constellation.toml) -- one that proves
-nothing on an empty diff or a diff short of `scope`. What must be true when
+nothing on an empty diff, a diff short of `scope`, or the tree the gates
+ahead of it leave: name the tests this gate adds. What must be true when
 the issue ends: run at submit, when the gate lands, and again at close."""
 
   [[field.item]]

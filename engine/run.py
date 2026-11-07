@@ -733,7 +733,7 @@ def state(work_id):
                       opened=e.get("at", ""), parent=e.get("parent", ""),
                       parent_step=e.get("parent_step", ""), model=e.get("model", ""),
                       row=e.get("row", ""), branch=e.get("branch", ""),
-                      worktree=e.get("worktree", ""))
+                      worktree=e.get("worktree", ""), issue=e.get("issue", ""))
             # "from" is a keyword, so it cannot ride the `update(...)` call
             # above as an ordinary argument -- set by subscript instead. The
             # cut point a worktree was branched from, `"<ref>@<sha>"` (#67):

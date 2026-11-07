@@ -234,7 +234,10 @@ def test_only_executes_advance_outcome_declares_commit_across_every_assembly():
                 for outcome in spec.get("outcome", []):
                     if "commit" in outcome.get("does", ""):
                         hits.append((name, where, outcome["value"]))
-    assert hits == [("run-an-issue", "execute", "advance")]
+    # A remint commits too: the gate it replaces already ran, and its work
+    # stays in the tree (#237).
+    assert hits == [("run-an-issue", "execute", "advance"),
+                    ("run-an-issue", "execute", "remint")]
 
 
 # -- the guards: a stamped or missing field is a no-op, never a refusal ----

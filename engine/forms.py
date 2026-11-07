@@ -290,7 +290,10 @@ def materialize(form: dict, dest_path, work_id=None, submit=None, drafts=None) -
 
 
 def _clean(v):
-    """Strip a string's leading/trailing blank lines; recurse into lists/dicts."""
+    """Strip a string's leading/trailing blank lines; recurse into lists/dicts.
+    A repeated block with every field blank is the form's own example left
+    standing, so it is no block: story_time issue57 reminted from one, and
+    the `remint` refusal that names a missing spec never saw it missing."""
     if isinstance(v, str):
         rows = v.split("\n")
         while rows and rows[0].strip() == "":
@@ -299,7 +302,9 @@ def _clean(v):
             rows.pop()
         return "\n".join(rows)
     if isinstance(v, list):
-        return [_clean(x) for x in v]
+        cleaned = [_clean(x) for x in v]
+        return [x for x in cleaned
+                if not (isinstance(x, dict) and all(_is_blank(y) for y in x.values()))]
     if isinstance(v, dict):
         return {k: _clean(x) for k, x in v.items()}
     return v
