@@ -19,7 +19,7 @@ from engine import forms
 # A repo-relative path a finding or a reason names: a directory component,
 # a file with an extension, and an optional trailing line number this
 # strips rather than treats as part of the path -- `engine/cli.py` and
-# `engine/cli.py:123` both name the one file.
+# `engine/cli.py:<line>` both name the one file.
 _FILE = re.compile(r"\b[\w][\w./-]*/[\w.-]+\.[A-Za-z0-9]+\b(?::\d+)?")
 
 

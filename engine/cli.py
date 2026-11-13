@@ -476,9 +476,8 @@ def _role_tier(filler):
 
 
 # [dispatch-configured]
-# Rationale: `o-single-dispatch-room` retires every reader of "is this
-#   repository's palette configured" except one: `cmd_drive`'s own pre-loop
-#   refusal (`o-drive-still-refuses-a-broken-tree`), which has to answer
+# Rationale: every reader of "is this repository's palette configured" is
+#   retired except one: `cmd_drive`'s own pre-loop refusal, which has to answer
 #   that question before it starts spinning, not after a start already
 #   failed. Every other caller this predicate used to feed -- the
 #   dispatch/panel rooms, `cmd_submit`'s and `cmd_close`'s refusals -- now
@@ -797,8 +796,8 @@ def _commit_open(wid, worktree):
 # assembly is issue tier on a real
 # `dispatches` name, never on an engine literal alone. Adding a mint to
 # `_mintable` without adding it here reads every assembly, run-a-gate
-# included, as issue tier, which is git and a worktree where commitment 7
-# says none belong; `tests/test_archive_close.py::
+# included, as issue tier, which is git and a worktree where none
+# belong; `tests/test_archive_close.py::
 # test_a_non_issue_tier_close_never_reaches_git_or_gh` is what says so loudly.
 def _issue_tier(asm):
     return bool(_mintable(asm) - {_BOARD_MINT, _DISPOSE_MINT})
@@ -1173,17 +1172,17 @@ def _tree_info(wid, st):
 
 
 # [already-dispatched]
-# Rationale: "already spawned" (commitment 19) is read the same way
+# Rationale: "already spawned" is read the same way
 #   `checks.hand_in`'s own in-flight check reads "a proof is already
 #   running" -- a scan of the run's own journal for the entry that a spawn
 #   attempt writes, keyed to the one field a caller can already tell apart
 #   panelists by (`child`), not a second piece of state invented to track
 #   what the journal already records. Keyed to the record itself, not just
-#   membership, because commitment 12's per-child status needs that same
+#   membership, because the per-child status needs that same
 #   record's own `pid` to read against `checkrun.alive`. One scan per
 #   rendering (the panel loop calls this once, before its per-panelist
 #   loop, rather than once per child) since nothing a render does can move
-#   a record that only a completed spawn appends -- and after this gate no
+#   a record that only a completed spawn appends -- and no
 #   render ever folds a freshly-spawned record into this dict at all,
 #   because no render spawns anything any more (`_dispatch_child` is a pure
 #   read; `cmd_wait`'s own pre-loop spawn is the only caller left that
@@ -1239,9 +1238,8 @@ def _dispatch_start_counts(wid):
 #   child id -- there is no child, only a process reading and writing the
 #   same run's own response form -- so `form-filler-started` (`step`, `pid`,
 #   `log`) is keyed by `step` the way `_dispatch_records` keys its own
-#   record by `child`. Nothing appends this kind of entry yet (gate 4's
-#   horizon): this is the read half of commitment 7's contract, proven on
-#   its own before any real spawn writes one.
+#   record by `child`. `checks.spawn_form_filler` writes this kind of
+#   entry; this is the read half.
 def _form_filler_records(wid):
     """Every step id that already carries a `form-filler-started` record on
     `wid`'s own journal, mapped to that record -- the same "latest record"
@@ -1293,7 +1291,7 @@ def _form_filler_start_counts(wid):
 
 
 # [startable]
-# Rationale: `IMPASSE.toml`'s own ruling on this gate's third round names
+# Rationale: `IMPASSE.toml`'s own ruling on an earlier round names
 #   the shape every prior round's gap shared -- "a guard whose halves live
 #   in two places, written as though it lived in one" -- and binds the
 #   fourth round: a fourth instance of a clause missing from one copy of a
@@ -1374,7 +1372,7 @@ def _startable(is_returned, record, count, blocked=False):
 #   `spawn_dispatch` itself never writes anything to `log` on that path --
 #   the process never started, so nothing of its own reached the file --
 #   so the failure's reason is the one thing worth appending there, since
-#   the log is where commitment 18 says a person already looks for this
+#   the log is where a person already looks for this
 #   child's story.
 # Rejected: journaling the failure too. `spawn_dispatch`'s own contract
 #   already draws this line -- no journal entry for anything short of a
@@ -1383,7 +1381,7 @@ def _startable(is_returned, record, count, blocked=False):
 #   repository whose entry is simply broken keeps failing, and keeps
 #   logging why, on every `wait` call until someone fixes the entry.
 # [mint-follows-start]
-# Rationale: `o-mint-follows-start` -- whether this child can be started at
+# Rationale: whether this child can be started at
 #   all is decided once, by attempting the start itself through
 #   `checkrun.spawn_dispatch`, which now raises for every one of the four
 #   ways that attempt can fail (no `dispatch` entry, a malformed one, an
@@ -1411,8 +1409,8 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
     that predicate reads false: `child_id` already returned, or it is still
     alive, or it is dead-and-spent (`counts` has reached
     `checkrun.MAX_STARTS`). Otherwise the one attempt this call makes is the
-    single decision that covers every reason a start can fail
-    (`o-mint-follows-start`): `checkrun.spawn_dispatch` either produces a
+    single decision that covers every reason a start can fail:
+    `checkrun.spawn_dispatch` either produces a
     live, journaled process or raises `DispatchFailure`, and only on the
     former does this mint the child's run at all (`journal.exists(child_id)`
     guarding a restart from minting twice) -- so a failed attempt, of any of
@@ -1420,11 +1418,11 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
     started. The log basename is the child id's own tail past the leading
     `wid.` -- not merely its last dotted segment, which two different panel
     steps in the same run would both give `p1` -- so it stays distinct per
-    child inside `wid`'s own work location, which is all commitment 18 asks.
+    child inside `wid`'s own work location.
 
     Returns the journal entry a successful attempt wrote, `None` for every
     other outcome (not startable, or the attempt failed) -- so `cmd_wait`,
-    its one caller in `engine/` after this gate, can tell a genuine spawn
+    its one caller in `engine/`, can tell a genuine spawn
     from a no-op without a second pass over the journal, reading it
     straight off the return rather than rescanning."""
     if not _startable(is_returned, records.get(child_id), counts.get(child_id, 0),
@@ -1447,24 +1445,23 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
 
 # [child-status]
 # Rationale: shared by a dispatch step's lone child and each of a panel
-#   step's several (commitment 11 -- each read against its own history,
+#   step's several (each read against its own history,
 #   never the step's record as a whole) since the read is identical for
 #   both: report which of the four states -- not dispatched, working, gone
 #   without returning, returned -- actually holds off whatever `records`
 #   already carries, modeled the way `_in_flight_status` above already
 #   turns a journaled pid plus `checkrun.alive` into "still running" vs.
 #   "gone with no result" for a check's own proof. This function never
-#   spawns (gate 2's own move, commitments 13-15 -- `cmd_wait` is the sole
-#   spawner now), so a spawn attempt that failed and a child never
+#   spawns (`cmd_wait` is the sole
+#   spawner), so a spawn attempt that failed and a child never
 #   attempted at all read the same word here, "not dispatched",
-#   distinguished only by whether that child's own log holds a reason
-#   (commitment 13) -- neither this function nor its caller needs to tell
-#   them apart.
+#   distinguished only by whether that child's own log holds a reason --
+#   neither this function nor its caller needs to tell them apart.
 # Rejected: two copies of this, one inlined at each of `_dispatch_status`
 #   and `_panel_status`. A second, identical fork here would be the same
 #   duplication one level up.
 # [one-room-not-two]
-# Rationale: `o-single-dispatch-room` -- a child's row never carries a
+# Rationale: a child's row never carries a
 #   hand-typed command, in any of its four states: `spine <work-id> wait`
 #   is what starts or restarts it, whether or not the palette carries a
 #   `dispatch` entry, so there is nothing left for this function to brief.
@@ -1478,8 +1475,7 @@ def _dispatch_child(wid, child_id, records, counts, is_returned):
     it: `spine <work-id> wait` is the only move that starts or restarts a
     child, so no row types one for the reader to copy. A pure read off
     `records` and `counts` -- this call spawns nothing; `cmd_wait` is the
-    only caller left that starts or restarts a child (commitments 13-15,
-    23-28)."""
+    only caller left that starts or restarts a child."""
     if is_returned:
         return "returned"
     record = records.get(child_id)
@@ -1495,13 +1491,12 @@ def _dispatch_child(wid, child_id, records, counts, is_returned):
 
 
 # [child-descriptor]
-# Rationale: `cmd_wait`'s own pre-loop spawn (commitments 13-15) needs the
+# Rationale: `cmd_wait`'s own pre-loop spawn needs the
 #   same role/tier/open_cmd/finish_form a render already derives to build
 #   the brief `_spawn_outstanding` hands the dispatch harness, so that
 #   derivation is pulled out here rather than written a third time inline
-#   in `cmd_wait` -- the shared shape this gate's own `direction` field
-#   names, so gate 3's dead-pid restart rewrite extends this seam instead
-#   of re-deriving it. Two functions, not one, because a dispatch step and
+#   in `cmd_wait` -- so the dead-pid restart path extends this seam
+#   instead of re-deriving it. Two functions, not one, because a dispatch step and
 #   a panel step are already told apart by their own callers (branch order:
 #   `panel_outstanding` before `dispatches`, `_current_form`) before either
 #   is ever reached -- a single combined helper would have to re-guess
@@ -1635,12 +1630,11 @@ def _dispatch_status(wid, st, asm, step, blocked):
     render, starts this step's child through the repository's own
     `dispatch` palette entry -- rendering this room only reads whatever
     `wait` has already done. The room renders exactly one way regardless of
-    whether the palette is configured (`o-single-dispatch-room`): the
+    whether the palette is configured: the
     child's own row carries no brief, ever, and the line above it stating
     how many are outstanding is never withheld -- naming `wait` where it is
-    genuinely the next move (commitments 18, 19), or, where nothing remains
-    live or startable, naming the ruling escape to drop the step instead
-    (commitment 30)."""
+    genuinely the next move, or, where nothing remains
+    live or startable, naming the ruling escape to drop the step instead."""
     child_id = step.get("child") or f"{wid}.{step['id']}"
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
@@ -1662,8 +1656,8 @@ def _dispatch_status(wid, st, asm, step, blocked):
 
 def _panel_status(wid, st, asm, step, blocked):
     """A panel step renders each panelist's own row -- copied, never
-    composed -- with each panelist's own status (commitment 12); no
-    panelist row, in any state, carries a brief (`o-single-dispatch-room`)
+    composed -- with each panelist's own status; no
+    panelist row, in any state, carries a brief
     -- `wait` is what starts or restarts one, whether or not the palette is
     configured. A panelist's role is its own `worker`, not the
     give-a-verdict assembly's conductor: `_open_child` stamps that worker
@@ -1671,11 +1665,11 @@ def _panel_status(wid, st, asm, step, blocked):
     the source of truth, not just the brief that would have named it. The
     room always carries one line above the panelist rows stating how many
     are outstanding and, where `wait` is genuinely the next move, naming it
-    (commitments 18, 19) -- or, where nothing remains live or startable,
+    -- or, where nothing remains live or startable,
     naming the ruling escape instead: dropping the step, unless the step is
     also its conductor's own route form, in which case dropping it would
     drop that form too, and the escape waives the panel instead
-    (commitment 30, and issue811's ruling)."""
+    (issue811's ruling)."""
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
     descriptors = _panel_descriptors(wid, asm, step)
@@ -1737,8 +1731,8 @@ def _paused_status(wid, st, asm, blocked):
 #   has to be told apart here rather than rendered as a proof that will never
 #   land: a check whose process is gone and whose result never arrived is
 #   work to redo, not work to wait for. Its own outstanding line is
-#   unconditional, the same as the dispatch/panel line now is
-#   (`o-single-dispatch-room`) -- because a step's proof is spawned through
+#   unconditional, the same as the dispatch/panel line now is --
+#   because a step's proof is spawned through
 #   the check-runner/`HANDBACK` mechanism, a path with nothing to do with
 #   whether `commands.dispatch` is configured: a repository with no
 #   `dispatch` entry at all can still have a proof genuinely in flight. The
@@ -1764,8 +1758,7 @@ def _paused_status(wid, st, asm, blocked):
 #   back into a bare pointer with no verb and no loop behind it: that is
 #   the exact shape that already killed three runs.
 # Rejected: leaving `wait` refusing to block here on the strength of
-#   issue99's own spec -- commitment 29's in-flight row, resting on
-#   commitment 6 -- whose stated reason was "`wait` blocks only on children
+#   issue99's own spec -- whose stated reason was "`wait` blocks only on children
 #   it can see as processes, so the block is empty whenever there is no
 #   process to watch." That premise is false for a proof: `check-started`
 #   journals a pid, this same function calls `checkrun.alive()` on it two
@@ -1950,7 +1943,7 @@ def _gate_claim(row):
 #   for the same reason `_current_form`'s whole triple is -- a caller
 #   holding it need not pick it apart to call this.
 #
-#   `filler_status` (gate 3's own new read) is computed here too, on the
+#   `filler_status` is computed here too, on the
 #   same `step["id"]` both callers already hold, rather than as a second
 #   keyword either has to derive by hand: `_form_filler_brief` builds the
 #   room for a filler about to start, before any record of it exists, so
@@ -2220,7 +2213,7 @@ def cmd_status(argv):
 
 
 # [wait-outstanding]
-# Rationale: the process-only definition commitment 3 draws -- a live-pid
+# Rationale: the process-only definition -- a live-pid
 #   `dispatch-started` record with no `return` yet -- is read straight off
 #   the journal via `_dispatch_records` rather than through
 #   `_dispatch_child`, because `_dispatch_child` is a pure read now and only
@@ -2246,8 +2239,7 @@ def _wait_outstanding(wid, child_ids, returns_by_child):
 
 def _wait_bound(argv):
     """The bound this call's own `wait` obeys: the default
-    (`checkrun.WAIT_BOUND`) unless overridden with `--for <seconds>`
-    (commitment 8)."""
+    (`checkrun.WAIT_BOUND`) unless overridden with `--for <seconds>`."""
     raw = _opt(argv, "--for")
     if raw is None:
         return checkrun.WAIT_BOUND
@@ -2263,7 +2255,7 @@ def _wait_bound(argv):
 
 
 # [wait-spawn]
-# Rationale: `IMPASSE.toml`'s own ruling on this gate's third round names a
+# Rationale: `IMPASSE.toml`'s own ruling on an earlier round names a
 #   guard whose halves live in two places, written as though it lived in
 #   one, as the shape every prior round's gap shared -- and a second,
 #   partial copy of `_startable` sitting here, beside this call, guessing
@@ -2278,12 +2270,12 @@ def _wait_bound(argv):
 #   rule to fall out of sync with the first. `records` and `counts` are
 #   still computed once, before the loop, and threaded through rather than
 #   re-scanned per child.
-# Rationale: `o-child-never-opens-its-own-run` means an engine-spawned
+# Rationale: an engine-spawned
 #   process's own brief never names an `open` command at all, on a fresh
 #   dispatch or a restart alike -- so `render.brief` takes no `open_cmd`.
 #   `assembly` and `pstep_id` -- the two extra fields `_spawn_outstanding`
 #   needs to mint the run itself, once the process it briefs has actually
-#   started (`o-mint-follows-start` -- never ahead of that, and never for a
+#   started (never ahead of that, and never for a
 #   start that failed) -- ride the same widened descriptor `cmd_wait`
 #   builds, so this loop still threads one tuple per child rather than a
 #   second, parallel list.
@@ -2291,9 +2283,8 @@ def _wait_spawn(wid, st, descriptors):
     """One spawn attempt for each `(child_id, role, tier, open_cmd,
     finish_form, assembly, pstep_id)` in `descriptors`, offered
     unconditionally to `_spawn_outstanding` -- `cmd_wait`'s own pre-loop
-    start, making `wait` the sole spawner, respawner, and (per
-    `o-child-never-opens-its-own-run`) minter of a child (commitments
-    13-15, 23-28). The brief handed to the spawned process names no `open`
+    start, making `wait` the sole spawner, respawner, and
+    minter of a child. The brief handed to the spawned process names no `open`
     command: `_spawn_outstanding` mints the run itself once that process is
     confirmed running, so there is nothing left for the process to open."""
     worktree, branch = _tree_info(wid, st)
@@ -2312,8 +2303,8 @@ def _wait_spawn(wid, st, descriptors):
 #   rather than asking `_current_form` which branch matched -- today it
 #   only ever returns `None` for a panel, paused or dispatch step and a
 #   loaded form for the rest, so a caller still has to re-run the same
-#   checks to tell those apart. This gate's own `direction` field asks
-#   whether that is worth pulling into a shared helper first; written by
+#   checks to tell those apart. Whether that is worth
+#   pulling into a shared helper first is left open; written by
 #   hand a fourth time here, it was no harder to keep correct than the
 #   three copies already standing (`cmd_status`, `cmd_submit`,
 #   `cmd_close`), which itself answers the question for now -- left as a
@@ -2322,10 +2313,10 @@ def _wait_spawn(wid, st, descriptors):
 #   dispatched at all to render immediately with nothing outstanding, the
 #   way gate 1 left it (`GATE_TRANSITION.toml`, finding 1: a prior render
 #   already in `wait`'s own trailing `cmd_status` call started such a
-#   child, not `wait` itself). This gate closes that gap: `cmd_wait`'s own
-#   pre-loop spawn starts such a child itself, before the poll loop begins,
-#   so `wait` no longer depends on some render already in its own call
-#   chain to have started it first.
+#   child, not `wait` itself). `cmd_wait`'s own
+#   pre-loop spawn closes that gap: it starts such a child itself, before
+#   the poll loop begins, so `wait` no longer depends on some render already
+#   in its own call chain to have started it first.
 def cmd_wait(argv):
     wid = argv[0]
     bound = _wait_bound(argv[1:])
@@ -2398,7 +2389,7 @@ def cmd_wait(argv):
             if time.monotonic() >= deadline:
                 break
             time.sleep(checkrun.WAIT_POLL)
-        return cmd_status([wid])  # renders no view of its own (commitment 2)
+        return cmd_status([wid])  # renders no view of its own
     elif _filler_alive(wid, step["id"]) and not _filling(wid, step["id"]):
         # [wait-holds-for-filler]
         # Rationale: a childless form step whose own filler is a live
@@ -2433,13 +2424,13 @@ def cmd_wait(argv):
     _wait_spawn(wid, st, descriptors)
     deadline = time.monotonic() + bound
     while True:
-        fresh = runmod.state(wid)  # re-folded every cycle, never cached (commitment 10)
+        fresh = runmod.state(wid)  # re-folded every cycle, never cached
         if not _wait_outstanding(wid, child_ids, fresh["returns_by_child"]):
             break
         if time.monotonic() >= deadline:
             break
         time.sleep(checkrun.WAIT_POLL)
-    return cmd_status([wid])  # renders no view of its own (commitment 2)
+    return cmd_status([wid])  # renders no view of its own
 
 
 # [drive-for-override]
@@ -2447,10 +2438,9 @@ def cmd_wait(argv):
 #   `_wait_bound` overrides `checkrun.WAIT_BOUND` -- parse, validate, refuse
 #   on anything short of a whole positive number of seconds. Copied rather
 #   than shared with `_wait_bound` itself, differing only in which constant
-#   is the default: this gate's own "nothing existing in this file is
-#   edited, only added to" makes that duplication the direct and reasonable
-#   consequence of its own scope, not an oversight -- a one-line signature
-#   change to `_wait_bound` to take a default is the alternative, left for
+#   is the default: that duplication is deliberate, not an oversight -- a
+#   one-line signature change to `_wait_bound` to take a default is the
+#   alternative, left for
 #   whichever round next touches `_wait_bound` itself to pick with its own
 #   diff in hand.
 def _drive_bound(argv):
@@ -2484,8 +2474,8 @@ def _drive_bound(argv):
 #   one. Reads `_form_filler_records`/`_form_filler_start_counts` rather
 #   than `_dispatch_records`/`_dispatch_start_counts`: a form-step filler
 #   fills this same run's own response form, never a dispatched child of
-#   its own, so it is addressed by the step it fills (gate 3's own read
-#   half, wired to a real spawn here for the first time).
+#   its own, so it is addressed by the step it fills (the read half,
+#   wired to a real spawn here for the first time).
 # Rejected: reusing `_startable` for the startable/spent split. That
 #   predicate's first clause is `is_returned` -- "has this child already
 #   returned" -- a question with no answer for a form filler, which has no
@@ -2543,8 +2533,8 @@ def _drive_form_filler(wid, st, asm, step, form):
 #
 #   A fourth condition -- the current step's own segment sitting earlier
 #   than `plan` in the run's own assembly (`open`, `understand`;
-#   `execution-state` too, but it is never `current` by construction,
-#   `ASSEMBLY.toml:118-123`) -- is read fresh every pass, the same as every
+#   `execution-state` too, but it is never `current` by construction) --
+#   is read fresh every pass, the same as every
 #   other branch below, rather than only once before the loop: nothing
 #   about it can become true again once past `plan`, but re-deriving it
 #   costs nothing and keeps this function from carrying two different
@@ -2556,7 +2546,7 @@ def cmd_drive(argv):
     """Walk `wid` through every step shape the engine can resolve on its
     own, re-deriving the current step fresh every pass exactly as
     `cmd_status`/`cmd_wait` already do -- never a cached shape -- until one
-    of commitment 9's stop conditions is reached or `bound` runs out: an ask
+    of its stop conditions is reached or `bound` runs out: an ask
     carried up (`paused`), the run standing on its own close form
     (`awaiting_close`), a form its principal fills (`runmod.principal_fills`:
     the close form itself, or an ask standing in this run's own journal), a
@@ -2581,7 +2571,7 @@ def cmd_drive(argv):
     while True:
         if time.monotonic() >= deadline:
             return cmd_status([wid])
-        st = runmod.state(wid)  # re-folded every pass, never cached (commitment 2)
+        st = runmod.state(wid)  # re-folded every pass, never cached
         if not st["open"] or st["awaiting_close"]:
             return cmd_status([wid])
         asm, step, form = _current_form(st)
@@ -3638,7 +3628,7 @@ def _step_pending(s, st, seg_id):
 
 
 # [later-gate-still-queued]
-# Rationale: obligation 5's third bullet reads "later gates of the same
+# Rationale: the rule reads "later gates of the same
 #   cut ... still queued", not "any other gate still queued" -- a `drop
 #   <gate-id>` can name any still-pending gate, not only the earliest one,
 #   so a gate dropped near the end of the queue with an *earlier* one
@@ -3717,7 +3707,7 @@ def _perform(wid, asm, seg, does, fields, step):
     #   later than others also pending (`test_nesting.py`'s own
     #   `test_drop_closes_only_the_named_gate_and_never_the_deciding_step`
     #   drops the cut's last gate while an earlier one sits pending behind
-    #   the decider) -- obligation 5's own wording is "later gates ... still
+    #   the decider) -- the rule is "later gates ... still
     #   queued", not "any other gate", so the read below asks position, not
     #   mere presence. A remint always targets the gate whose own
     #   adjudication just decided it, which sequential dispatch guarantees
@@ -3805,7 +3795,7 @@ def _perform(wid, asm, seg, does, fields, step):
             #   earned nothing: the conductor just ruled the gate short.
             committed = "commit" in verbs and "remint" not in verbs
             # [mid-queue-reason]
-            # Rationale: obligation 5's third bullet -- a drop or a remint
+            # Rationale: a drop or a remint
             #   that leaves another gate of this cut still queued (read
             #   above, before either verb ran) reopens plan for a review,
             #   no panel, same as a stale reading already does; naming
@@ -4229,8 +4219,8 @@ def _commit_gate(wid, asm, step):
 #   on to its own terminal step. The engine reads dispositions and refuses
 #   nothing here: `satisfied` and `deferred` count as settled, whatever
 #   reason they carry, and a run that never seeded the board at all --
-#   consolidate's `obligations` field is optional -- settles trivially, the
-#   exact behaviour every run had before this gate. Any other row holds the
+#   consolidate's `obligations` field is optional -- settles trivially. Any
+#   other row holds the
 #   run open: the plan recuts and the run cannot reach its terminal step
 #   while one stands, on purpose (#112 measured what silence used to cost
 #   -- a run that drained to CLOSE.toml with two of its three obligations
@@ -4405,7 +4395,7 @@ def _last_adjudication_findings(st, seg_id):
 
 
 # [critical-question-differs]
-# Rationale: obligation 5's second bullet -- a cut's own `critical-
+# Rationale: a cut's own `critical-
 #   questions` block (PLAN.toml/REWORK.toml/REVIEW_PLAN.toml) names which
 #   queued gate it expects to answer each open question, and the answer it
 #   expects. That gate's own adjudication rules whether its actual answer
@@ -4504,7 +4494,7 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, held=())
     #   tree has not already answered (o6), and the gate that just landed
     #   answered the cut's critical question the way the plan expected. A
     #   drop or a remint that left a later gate of this cut queued
-    #   (`_perform`'s pre-verb snapshot, obligation 5) is reviewed the same
+    #   (`_perform`'s pre-verb snapshot) is reviewed the same
     #   no-panel way. Every reason is collected before anything mints, so
     #   one settle reviews the open plan once.
     reasons = [mid_queue_reason] if mid_queue_reason else []
@@ -4584,7 +4574,7 @@ def _mintable(asm):
 # [board-segment]
 # Rationale: picking the first `interior == "board"` segment was correct
 #   while an assembly held at most one -- run-an-issue now holds two (its
-#   understand board, and the execution-state board this gate adds), so
+#   understand board, and the execution-state board), so
 #   position alone would resolve a `mints = "board rows"` field to whichever
 #   board happens to sort first, silently wrong for the other. A field names
 #   its target explicitly (`board = "understand"`) the moment it could mean
@@ -4758,7 +4748,7 @@ _GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "d
 # Rejected: keying the applicability guard off `fields.get("plan")`, the
 #   transition form's own field name for "did this release with something
 #   to project." That bakes one form's own artifact field into a function
-#   obligation 2 requires stay written off the transition's `projects`
+#   that must stay written off the transition's `projects`
 #   declaration and the gate fields alone -- a second assembly growing a
 #   projecting transition with a differently-named artifact field would
 #   silently inherit nothing. `_releases(_outcome(...))` asks the same
@@ -5008,7 +4998,7 @@ def _seed_board(template, dest, rows):
 #   proves that today -- so checking `interior` too would refuse over a
 #   segment nothing else in the tree treats as unusual.
 # Rejected: also requiring `interior in ("steps", "board")`. All three
-#   critics on this gate's own plan flagged that as wrong for the identical
+#   critics on the plan flagged that as wrong for the identical
 #   reason `skeleton()`'s own rejected-alternative comment already gives:
 #   it would skip `understand` for its board interior and wrongly continue
 #   toward `open`, which has no `step-form` at all, ending in a refusal over
@@ -5368,7 +5358,7 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     seg = next(s for s in asm["segment"] if s["id"] == seg_id)
     t = seg.get("transition", {})
     # [verdict-shaped-segment-round]
-    # Rationale: mirrors `skeleton()`'s own gate (engine/run.py:176) exactly
+    # Rationale: mirrors `skeleton()`'s own gate (in engine/run.py) exactly
     #   -- a segment with no real interior (give-a-verdict's `verdict`) is
     #   already one `open` never mints an interior step for, so a resume
     #   must not mint one either. Before this, a resumed panelist got TWO

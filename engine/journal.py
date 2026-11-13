@@ -98,7 +98,7 @@ def journal_path(work_id: str, root: pathlib.Path = None) -> pathlib.Path:
     return location(work_id, root) / "journal.toml"
 
 
-# See: engine/cli.py:808 -- `[child-cannot-act-on-its-parent]`, the same
+# See: `[child-cannot-act-on-its-parent]` in engine/cli.py, the same
 #   anchor, not repeated here as a second claim on the slug (see this
 #   round's own blocked note: `tests/test_code_map_parents.py`'s
 #   `test_no_anchor_id_is_claimed_at_more_than_one_site` treats a second

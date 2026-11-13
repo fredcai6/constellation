@@ -277,7 +277,7 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None, engine=False):
 
     Shared by `hand_in`'s own proof runner (`cwd=None`, inheriting the
     caller's) and `spawn_dispatch`'s child launch (`cwd=` the child's own
-    tree) -- one `Popen` call carrying commitments 6, 17 and 18 for both,
+    tree) -- one `Popen` call serving both,
     rather than a second copy of the same five keyword arguments.
 
     `engine=True` is for the one argv that is this engine's own module (the
@@ -319,7 +319,7 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None, engine=False):
 
 
 # [dispatch-failure]
-# Rationale: `o-absent-dispatch-raises` collapses what used to be two axes --
+# Rationale: starting a child collapses what used to be two axes --
 #   a genuinely absent `dispatch` key read as nothing to spawn and no
 #   failure, every other case a reported, distinguishable failure -- into
 #   one: every way a start can fail to produce a running, journaled process
@@ -328,8 +328,8 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None, engine=False):
 #   distinguishable from each other -- a caller branches on `exc.reason`,
 #   never on `str(exc)`.
 # Rejected: keeping the absent case a silent `None`, with only the other
-#   three raising. That is the two-state rendering `o-single-dispatch-room`
-#   deletes elsewhere in this same run -- a caller that catches
+#   three raising. That is the two-state rendering the dispatch rooms in
+#   `engine/cli.py` no longer have -- a caller that catches
 #   `DispatchFailure` already handles "no journal entry, reason logged" for
 #   three of the four causes, so leaving the fourth a different shape is one
 #   more place the old contract survives after the room it justified is
@@ -356,8 +356,8 @@ _DISPATCH_TOKENS = {"{brief}": "brief", "{runner}": "runner", "{tree}": "tree"}
 # Rationale: `{brief}`/`{runner}`/`{tree}` are matched by exact whole-word
 #   equality, never a substring or a general `{...}` parse -- a word that
 #   merely contains braces (a real args element that happens to have some
-#   other `{token}` in it) is data, not a placeholder, and commitment 2 asks
-#   for whole-word substitution only. Checking the three names directly,
+#   other `{token}` in it) is data, not a placeholder, and the rule is
+#   whole-word substitution only. Checking the three names directly,
 #   rather than stripping braces and looking the stripped name up in a set,
 #   means an unrecognized brace-token (`{host}`, say) simply falls through
 #   to "left untouched" with no special-casing -- it was never one of the
@@ -373,7 +373,7 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
     """Spawn one dispatched child's process from a `[commands]`-shaped
     mapping's `dispatch` entry, substituting `{brief}`, `{runner}` and
     `{tree}` into it as whole argv words, and journal the spawn keyed by
-    `child_id` (commitment 9) -- never by `wid`'s current step, which a
+    `child_id` -- never by `wid`'s current step, which a
     panel step shares across several children.
 
     Returns the journal entry `journal.append` wrote (identity, pid, start
@@ -391,7 +391,7 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
     there is no window in which a partial entry could land.
 
     `tree` also becomes the spawned process's own working directory
-    (commitment 7) regardless of whether the entry's text uses `{tree}` at
+    regardless of whether the entry's text uses `{tree}` at
     all; `log` is where its stdout and stderr are captured, opened in
     append mode exactly like a check's own log."""
     if "dispatch" not in commands:

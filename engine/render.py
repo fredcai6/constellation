@@ -488,7 +488,7 @@ def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
     plus the engine root a form's `standards/...` citation resolves from. This is the text a
     conductor hands its harness -- nothing else should be needed to start.
     It names no `open` command: the engine mints the child's run itself
-    before starting the process (`o-child-never-opens-its-own-run`).
+    before starting the process.
     """
     skill = runmod.resolve_skill(role)
     lines = [f"  brief -- {child_id}"]

@@ -412,7 +412,7 @@ def panel_forms(assembly, step):
 
 # [pair-return-by-pn-index]
 # Rationale: a panel step's several children are each read against their own
-#   history (commitment 11), so a return is attributed to its own panelist by
+#   history, so a return is attributed to its own panelist by
 #   the child id's own `pN` tag -- the same tag `_panel_status` (engine/cli.py)
 #   mints as `f"{wid}.{step['id']}.p{i}"` -- indexed into `panel_forms` the
 #   way every existing reader indexes `step["panel"][N-1]`.
@@ -493,7 +493,7 @@ def voice_outcomes(returns, panel_forms):
 
 
 # [refusal-outranks-every-clean-word]
-# Rationale: obligation 6 binds the seam not to release on a refusal, and a
+# Rationale: the seam must not release on a refusal, and a
 #   clean word from a co-panelist cannot buy that back -- so a refusal from
 #   any voice is the whole panel's result, naming the voice, ahead of any
 #   ranking among the clean words and regardless of precedence among them.
@@ -585,18 +585,18 @@ def verdict_record(outcome):
 #   (`declared_does`), and where a row sits relative to another means
 #   nothing to any existing reader. From here it does, whenever two rows
 #   land on the same disposition -- and every table in the tree that has
-#   such a pair already reads this way unforced, before this gate ever
-#   named it: the word that leaves the round alone sits first, the one that
+#   such a pair already reads this way unforced: the word that leaves the
+#   round alone sits first, the one that
 #   sends it back sits after.
 # Rejected: a panelist's own form -- the note its `verdict` field declares
 #   its alternatives in. Two voices in one panel can be dispatched under
-#   two different forms (commitment 11's own reason a return is paired by
+#   two different forms (which is why a return is paired by
 #   the child's `pN` tag, not by position), so two notes' word orders are
 #   not one order to rank across. The table is one order shared by the
 #   whole panel already, and it is already the argument this function
 #   reads -- no new parameter, no new pairing to get wrong.
 # Rejected: comparing the two words to each other directly. That is the
-#   defect this gate exists to remove.
+#   defect `_table_row_rank` exists to remove.
 def _table_row_rank(table, value):
     """`value`'s position among `table`'s own `[[outcome]]` rows, or `-1`
     where no row names it at all -- lower than any real position, so an
