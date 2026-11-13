@@ -142,11 +142,24 @@ def cycles(entries):
 
 
 def blocks(entries):
-    """One line per returned block -- a child's own `[[field]]` rows,
-    GATE_CLOSE.toml's `claims` the first -- each value beside its key, so a
-    list of tables never prints as a Python repr."""
-    return [", ".join(f"{k} {v}" for k, v in e.items()) if isinstance(e, dict) else str(e)
-            for e in entries or []]
+    """One item per returned block -- a child's own `[[field]]` rows,
+    GATE_CLOSE.toml's `claims` the first. Each block opens with `- ` and
+    gives one `key: value` a line, wrapped under its key, so a list of
+    tables reads as a list and never as a Python repr or one run-on line."""
+    out = []
+    for e in entries or []:
+        if not isinstance(e, dict):
+            out.append(f"- {e}")
+            continue
+        lines = []
+        for k, v in e.items():
+            lead = "- " if not lines else "  "
+            lines.append(textwrap.fill(
+                f"{k}: {' '.join(str(v).split())}", WIDTH - 10,
+                break_on_hyphens=False, initial_indent=lead,
+                subsequent_indent="    "))
+        out.append("\n".join(lines))
+    return out
 
 
 def prior_drops(entries):
@@ -162,14 +175,32 @@ def prior_drops(entries):
     return out
 
 
+# [pairs-keep-structure]
+# Rationale: a value written on several lines was written that way on purpose
+#   -- a call-tree outline, a list of obligations, a scope broken per file.
+#   Folding it into one wrapped paragraph erased the indentation that says
+#   which line belongs under which, and a reader then rebuilt the outline by
+#   guessing. A multi-line value prints under its label as it was written.
+#   A blank value prints nothing: a label with no value tells a reader only
+#   that there is something it was not told.
 def _pairs(rows, indent="    "):
-    """Aligned label/value lines, wrapped under the label."""
+    """Aligned label/value lines. A one-line value wraps beside its label; a
+    multi-line value prints under its label with its own line breaks and
+    relative indentation; a blank value is left out."""
+    rows = [(k, "" if v is None else str(v)) for k, v in rows or []]
+    rows = [(k, v) for k, v in rows if v.strip()]
     if not rows:
         return ""
     pad = max(len(k) for k, _ in rows) + 2
     out = []
     for k, v in rows:
-        body = textwrap.fill(" ".join(str(v).split()), WIDTH - len(indent) - pad,
+        lines = textwrap.dedent(v.strip("\n")).rstrip().split("\n")
+        if len(lines) > 1:
+            out.append(f"{indent}{k}")
+            out.extend(f"{indent}  {line.rstrip()}" if line.strip() else ""
+                       for line in lines)
+            continue
+        body = textwrap.fill(" ".join(v.split()), WIDTH - len(indent) - pad,
                              break_on_hyphens=False) or ""
         first, *rest = body.split("\n") or [""]
         out.append(f"{indent}{k.ljust(pad)}{first}")
@@ -552,7 +583,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            returns_from="", role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
            filler_status="", waived=None, proofs=(), proof_wait=None,
-           drops=()):
+           drops=(), runs_as=None):
     """The room description.
 
     `proofs` is `proof_readings`' own lines for the cut this room disposes
@@ -638,9 +669,26 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         return "\n".join(out)
 
     if prefill:
-        out.append("  your orders")
-        out.append(_pairs(list(prefill.items())))
-        out.append("")
+        orders = dict(prefill)
+        # A panelist's criteria is the one question it was sent to answer.
+        # It opens the room, ahead of the orders it is answered against: as
+        # one more row among them it sat some 470 lines down a reviewer's
+        # room, below the whole call-tree.
+        criteria = str(orders.pop("criteria", "") or "").strip()
+        if criteria:
+            out.append("  your criteria -- the one question you answer")
+            out.append(_para(criteria, indent="    "))
+            out.append("")
+        rows = []
+        for key, value in orders.items():
+            rows.append((key, value))
+            if (runs_as or {}).get(key):
+                rows.append((f"{key} runs as", runs_as[key]))
+        shown = _pairs(rows)
+        if shown:
+            out.append("  your orders")
+            out.append(shown)
+            out.append("")
 
     out.extend(drift([m for m in st.get("measures", [])
                       if m.get("segment") == (st["current"] or {}).get("segment")]))

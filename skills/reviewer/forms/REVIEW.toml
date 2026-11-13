@@ -1,50 +1,49 @@
-# Verdict: dispatched by a transition's review panel; identical in any
-# assembly. Owned by the reviewer skill. The gate spec, your criteria, and
-# the implement step's outputs (change, deviations, check results) arrive as
-# prefill; your verdict returns to the transition. You arrive with fresh context on purpose:
-# you get no history and should want none.
+# Verdict: dispatched by a gate's review panel. Owned by the reviewer skill.
+# The gate spec, your criteria and the implement step's outputs arrive as
+# prefill; your verdict returns to the gate's route form.
 
 imperative = """
-Judge one question: does the work fill the spec above? The spec is your whole
-criteria — not taste, not the scope you would have chosen. Ground the verdict
-in the diff and in what you exercised; declared deviations are judged against
-the spec like everything else."""
+Answer your criteria, printed first in this room. It is the one question you
+were sent to answer; the other readers on this panel hold the other questions.
+
+The gate spec in your orders -- purpose, scope, proof -- is what the work is
+measured against. The diff is uncommitted in the tree: read it, run it, test
+it. The engine has already run the gate's proof and recorded the result in
+your orders, so run it again only where your criteria needs more than that
+result.
+
+Ground every finding in the diff or in something you ran."""
 
 [[field]]
 id = "verify"
 kind = "evidence"
 note = """
-What you exercised beyond the recorded checks — the input you tried to break
-it with, the path you read line by line. Name what was NOT exercised: a clean
-verdict is scoped to what was."""
+What you did to answer your criteria: each command you ran and what it
+showed, each scenario you tried, each path you read line by line. Then what
+you did NOT exercise. A pass covers only what you checked."""
 
 [[field]]
 id = "findings"
 kind = "evidence"
 note = """
-One per finding: what is wrong, why it matters, grounded in the diff — and
-classed, which decides what happens to it.
+One per finding: what is wrong, why it matters, and the line of the diff or
+the command output that shows it.
 
-  gap      the spec is not filled. Only a gap gates; any gap means revise.
+  gap      the work fails your criteria, or leaves the gate spec unfilled.
+           Any gap means revise.
 
-Work nobody scoped is how a bounded change stops being bounded, so a
-finding that is real but outside this spec is not a gap: say it, ground it,
-and let the gate's conductor call it `rejected: <reason>` at the route form
--- the normal home for "you should also add."
+A finding that is real but outside this gate's spec is not a gap. Write it
+anyway and say it is out of scope; the gate's conductor rules on it.
 
-You do not decide what gets built; you decide whether the spec was filled.
-A finding you cannot ground is not a finding. On a revise verdict the gaps
-prefill the fresh implement step verbatim — write them to be worked from.
-None: waived: clean."""
+A revise hands your gaps to the next implement round word for word, so write
+each one so it can be worked from alone. A finding you cannot ground is not
+a finding. No findings: waived: clean."""
 
 [[field]]
 id = "verdict"
 kind = "decision"
 note = """
-pass | revise. Any blocking finding means revise; your findings are the
-prefill of whatever round follows. There is no third word for "the spec
-itself is wrong" -- write that as a gap finding like any other, under revise.
-Your verdict routes nothing on its own: the gate's own conductor stands on a
-form behind you and says where the round goes, three revises landing on the
-same objection reaching its ruling instead, and that conductor is who takes
-it to the parent from there, never you."""
+pass | revise. `revise` if you found any gap, otherwise `pass`. If the gate
+spec itself is wrong, write that as a gap and answer `revise`. Your verdict
+does not route the round: the gate's conductor reads every finding and
+decides what happens next."""

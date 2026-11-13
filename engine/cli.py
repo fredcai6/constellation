@@ -890,7 +890,7 @@ def _round_artifact(asm, st, seg_id, step_id):
 #   id typed a second time, by the hand that reads the board least; the
 #   board already holds it, and the secretary carries what is already written.
 def _open_obligations(pst, proot):
-    """`{"obligations": "o1 -- <text>; o2 -- <text>"}` for the rows still
+    """`{"obligations": "o1 -- <text>\no2 -- <text>"}`, one row a line, for the rows still
     unsettled on the parent's execution-state board; `{}` where the run
     holds no such board or every row is settled."""
     stored = pst["boards"].get("execution-state", "")
@@ -902,8 +902,9 @@ def _open_obligations(pst, proot):
     rows = [r for r in boards.rows(path) if boards.unsettled(r)]
     if not rows:
         return {}
-    return {"obligations": "; ".join(f"{r.get('id', '')} -- {r.get('obligation', '')}"
-                                     for r in rows)}
+    return {"obligations": "\n".join(
+        f"{r.get('id', '')} -- {' '.join(str(r.get('obligation', '')).split())}"
+        for r in rows)}
 
 
 # [landed-since-cut]
@@ -1976,13 +1977,13 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         for key, fn in (("checks", render.checks), ("proof_trials", render.proof_readings),
                         ("cycles", render.cycles), ("amends", render.amends)):
             if isinstance(returns.get(key), list):
-                returns[key] = "; ".join(fn(returns[key])) or "none"
+                returns[key] = "\n".join(fn(returns[key])) or "none"
         # A child's own plan field returns as a list of blocks too --
         # GATE_CLOSE.toml's `claims` -- and has no renderer of its own, so
         # whatever list survives the four above prints block by block.
         for key, val in list(returns.items()):
             if isinstance(val, list):
-                returns[key] = "; ".join(render.blocks(val)) or "none"
+                returns[key] = "\n".join(render.blocks(val)) or "none"
     # Rendered whenever the segment has a board; `validates` decides only
     # whether submit refuses on it. The ideas board is read at every cycle
     # and refused at none.
@@ -2019,13 +2020,14 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     # lists of blocks (consolidate's `obligations`), and str() on one of
     # those is a Python repr under "your orders" -- the same spelling-out
     # the returns above get.
-    prefill = {k: ("; ".join(render.blocks(v)) or "none") if isinstance(v, list) else v
+    prefill = {k: ("\n".join(render.blocks(v)) or "none") if isinstance(v, list) else v
                for k, v in prefill.items()}
     # One read of the response form: what is still marked `working:` and what
     # already carries an answer are two derivations of the same parse.
     filled = forms.filled_or_empty(dest)
     return {
         "prefill": prefill,
+        "runs_as": _runs_as(prefill, root if root is not None else journal.root_for(wid)),
         "returns": returns,
         "returns_from": child or disposed,
         "proofs": proofs,
@@ -2056,6 +2058,28 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
 #   engine reports, the conductor decides.
 # Rejected: killing the process from `close`. The engine is a secretary, never
 #   a guard, and a pid read from a journal is not one it may signal.
+# [runs-as]
+# Rationale: orders name a proof by its palette entry (`palette:test x`), and
+#   the reader has to run it. Left unresolved, 44 of 55 reviewers on
+#   story_time's 2026-11-06 runs went searching constellation.toml for what
+#   the name meant. The engine already resolves it for its own check, so the
+#   room prints that same resolution.
+def _runs_as(prefill, root):
+    """`{key: command}` for each order that names a palette entry: the exact
+    command the engine's own check runs. A name the palette lacks is left
+    out here -- the submit that runs it is where that is refused."""
+    out = {}
+    for key in ("proof", "gate-proof"):
+        text = str(prefill.get(key) or "")
+        if "palette:" not in text:
+            continue
+        try:
+            out[key] = _resolve_command(text, root)
+        except SystemExit:
+            pass
+    return out
+
+
 def _lingering_children(wid):
     """`[(child_id, pid, log)]` for each dispatched child of `wid` whose own
     run is closed while the process recorded at its latest
