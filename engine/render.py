@@ -484,8 +484,10 @@ def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
     It names no `open` command: the engine mints the child's run itself
     before starting the process (`o-child-never-opens-its-own-run`).
     """
+    skill = runmod.resolve_skill(role)
     lines = [f"  brief -- {child_id}"]
-    lines += _dispatch_lines(role, tier, runner, worktree, branch, written_at=posture(role))
+    lines += _dispatch_lines(role, tier, runner, worktree, branch,
+                             written_at=f"{skill} -- printed in full below" if skill else "")
     # A spawned child's first move: all 76 of story_time's reviewers spent
     # theirs hunting for this command, on the way to 14 mechanical tool calls
     # in 33. What a child needs first rides the brief.
@@ -496,6 +498,17 @@ def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
         lines.append(f"    finishing:   fill {finish_form}, then: {close_cmd}")
     else:
         lines.append(f"    finishing:   {close_cmd}")
+    # The posture rides in the brief itself. As a path to go and read, some
+    # children read it late or never (story_time, 2026-11-06: gate-conductors
+    # at their 62nd call, or not at all), and every one spent a call on it.
+    if skill:
+        try:
+            text = pathlib.Path(skill).read_text(encoding="utf-8").strip()
+        except OSError:
+            text = ""
+        if text:
+            lines += ["", "  your posture", ""]
+            lines += [f"  {line}".rstrip() for line in text.splitlines()]
     return "\n".join(lines)
 
 

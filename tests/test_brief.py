@@ -230,8 +230,7 @@ def _posture_text(line):
     prefix that substring with different labels ("  your posture:" vs the
     room's own column), so comparing whole lines would fail on the label,
     not the posture."""
-    idx = line.index(next(w for w in line.split() if w.endswith("SKILL.md")))
-    return line[idx:]
+    return next(w for w in line.split() if w.endswith("SKILL.md"))
 
 
 def _assert_delivered(line, role):
@@ -243,7 +242,8 @@ def _assert_delivered(line, role):
     assert path.is_absolute(), f"{path} is not absolute"
     assert path == REPO / "skills" / role / "SKILL.md", f"{path} is not under the install root"
     assert path.is_file(), f"{path} does not exist"
-    assert "read it" in line, f"the line names a file but never says to read it: {line}"
+    assert "read it" in line or "printed in full below" in line, \
+        f"the line names a file but never says to read it or where it is printed: {line}"
 
 
 def test_dispatch_brief_names_where_the_dispatched_role_is_written(bare_workdir, capsys):

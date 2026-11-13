@@ -5701,6 +5701,28 @@ def _fold_measures(cst, pwid, pstep_id):
                        field=m.get("field"), path=m.get("path"), words=m.get("words"))
 
 
+# [close-submits-the-last-form]
+# Rationale: a dispatched child's brief ends "fill <form>, then: spine <id>
+#   close", and its room ends "fill it, then: spine <id> submit". Both are
+#   said to the same agent about the same form, and a child that followed
+#   the brief was refused ("not complete") on a form it had filled. For a
+#   dispatched run standing on its last step with that form filled, `close`
+#   hands the form in first. A submit that refuses still refuses, in its
+#   own words. A root run keeps the two apart: its close pushes a branch.
+def _closes_from_its_last_form(st, pending):
+    """True where `close` should hand in the current form before closing: a
+    dispatched run, one step left, a plain form step, its form filled."""
+    if not st.get("parent") or len(pending) != 1:
+        return False
+    step = pending[0]
+    if (not st.get("current") or st["current"]["id"] != step["id"]
+            or step.get("dispatches") or runmod.paused(step)
+            or runmod.panel_outstanding(st, step) or runmod.in_flight(st, step)):
+        return False
+    dest = _response_path(st, step)
+    return dest.exists() and bool(forms.answered(forms.filled_or_empty(dest)))
+
+
 def cmd_close(argv):
     wid = argv[0]
     st = runmod.state(wid)
@@ -5710,6 +5732,10 @@ def cmd_close(argv):
         raise SystemExit(f"{wid} is already closed")
     asm = runmod.load_assembly(st["assembly"])
     pending = [s for s in st["steps"] if s["id"] not in st["done"]]
+    if _closes_from_its_last_form(st, pending):
+        cmd_submit([wid])
+        st = runmod.state(wid)
+        pending = [s for s in st["steps"] if s["id"] not in st["done"]]
     # [close-settles-too]
     # Rationale: `_settle_execution` (`[settle-execution]`) only ever fires
     #   from inside the execute segment's own outcome table -- `advance`'s

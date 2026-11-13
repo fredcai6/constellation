@@ -98,13 +98,19 @@ def test_brief_matches_dispatch_lines_construction_with_tree():
                          "GATE_CLOSE.toml", worktree=worktree, branch=branch)
 
     expected = render._dispatch_lines(role, tier, runner, worktree, branch,
-                                      written_at=render.posture(role))
+                                      written_at=f"{runmod.resolve_skill(role)} -- printed in full below")
     lines = text.splitlines()
     assert lines[0] == "  brief -- d1.g1"
     assert lines[1:1 + len(expected)] == expected
     assert not any("open it:" in l for l in lines)
-    assert lines[-1] == (f"    finishing:   fill GATE_CLOSE.toml, then: "
-                         f"{render.located('spine d1.g1 close')}")
+    finishing = (f"    finishing:   fill GATE_CLOSE.toml, then: "
+                 f"{render.located('spine d1.g1 close')}")
+    assert finishing in lines
+    # the posture itself follows the header, in full
+    posture = lines[lines.index("  your posture"):]
+    assert lines.index(finishing) < lines.index("  your posture")
+    skill = pathlib.Path(runmod.resolve_skill(role)).read_text().strip().splitlines()
+    assert [l.strip() for l in posture[2:]] == [l.strip() for l in skill]
 
 
 def test_brief_matches_dispatch_lines_construction_without_tree():
@@ -112,7 +118,7 @@ def test_brief_matches_dispatch_lines_construction_without_tree():
     text = render.brief("g9.review.p1", role, tier, runner, "REVIEW.toml")
 
     expected = render._dispatch_lines(role, tier, runner, "", "",
-                                      written_at=render.posture(role))
+                                      written_at=f"{runmod.resolve_skill(role)} -- printed in full below")
     lines = text.splitlines()
     assert lines[1:1 + len(expected)] == expected
     assert not any(l.strip().startswith("tree ") for l in lines)
