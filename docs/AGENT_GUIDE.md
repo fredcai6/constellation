@@ -51,10 +51,12 @@ anything else, and a change to a form is real work.
 **The decision procedure for every keep/kill call: structure that shapes an agent's thinking
 stays; structure that audits an agent's behavior goes.** When a change would add a check on
 what an agent did, look first for the field or imperative that would have shaped what it did
-instead. `docs/V2_DESIGN.md` states the thesis in full, along with the corollary that settles
-calls the thesis alone cannot. A second test decides whether a mechanism is ours rather than
-merely legitimate: name which of the five in
-`standards/approach.md` the mechanism serves.
+instead. Where that test alone cannot settle a call, its corollary does: **a check may exist
+only if its escape is one journaled step available to the agent being checked.** `waived:
+<reason>` passes it; a multi-step handshake to get past a check does not. A command check that
+verifies work is audit-shaped by the test, yet it stays, because its escape is one step. A
+second test decides whether a mechanism is ours rather than merely legitimate: name which of
+the five in `standards/approach.md` the mechanism serves.
 
 That test decides what belongs in the system. A second question decides what is worth doing
 now: **does fixing this change what an agent does at a step, or what a human sees when it
@@ -109,7 +111,6 @@ says what goes in it.
 |---|---|
 | `docs/AGENT_GUIDE.md` | this guide — purpose, layout, documentation map |
 | `docs/PURPOSE.md` | what Constellation is for, what measures its machinery, and what good enough means |
-| `docs/V2_DESIGN.md` | the founding design: thesis, rulings, and the reasoning behind them. A starting point, not a target sheet; where it and the tree differ, the tree is right and the passage goes. |
 | `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
 | `docs/DERIVED_IS_CODE.md` | why anything the engine can compute is computed by the engine, not written down as a rule for an agent to apply |
 | `standards/approach.md` | how Tommy builds, in any repository: the five, and the two rules at the human seam |

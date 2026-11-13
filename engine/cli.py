@@ -789,8 +789,8 @@ def _commit_open(wid, worktree):
 # Rejected: a name list (`{"run-an-issue"}`) kept beside this check -- a new
 #   issue-shaped assembly would silently sit outside git until someone
 #   remembered to add its name here.
-# See: docs/V2_DESIGN.md -- "git is the issue tier's, and the
-#   engine's"; an idea or an excursion produces a spec, not a diff.
+# Rationale: git is the issue tier's, and the engine's: an idea or an
+#   excursion produces a spec, not a diff.
 # `_DISPOSE_MINT` and `_BOARD_MINT` are both engine-named mints (#56):
 # both sit in every assembly's `_mintable(asm)` whether or not that
 # assembly's own forms use them, so both are subtracted here -- an
@@ -3180,8 +3180,7 @@ def _check_release_artifacts(form, fields, outcome):
 # [blocking-calls]
 # Rationale: the deciding form's own per-finding `calls` is what makes a
 #   rework round's prefill the *blocking* findings rather than all of them --
-#   docs/V2_DESIGN.md's route row, "rework -> do with the blocking findings
-#   as prefill". A finding the conductor accepted or rejected is a record,
+#   a rework round works the blocking findings and nothing else. A finding the conductor accepted or rejected is a record,
 #   not an order for the next round, and handing it forward verbatim is how
 #   a round gets worked on something already ruled settled. Read off the
 #   submitted fields alone, never off a form or
@@ -3791,8 +3790,8 @@ def _perform(wid, asm, seg, does, fields, step):
             #   fresh replacement, or a drop's clean board, simply carries
             #   on exactly as today.
             #   A `drop <gate-id>` names, in the ruling text, a *different*
-            #   pending gate than the one deciding -- "drop closes a pending
-            #   one" (docs/V2_DESIGN.md), the earlier gate's own adjudication
+            #   pending gate than the one deciding -- a drop closes a pending
+            #   one, the earlier gate's own adjudication
             #   culling a later one it now knows is pointless. The gate this
             #   reason names is that closed target (the same parse `close`
             #   itself just used), never the decider's own id. A `remint`
@@ -3984,7 +3983,7 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
 #   case both surface as one nonzero exit, and neither this verb nor that
 #   one can tell them apart from the exit code alone. Both guards below
 #   land that same journaled no-op rather than a refusal -- the corollary
-#   (docs/V2_DESIGN.md) requires a check's escape be one journaled step
+#   (docs/AGENT_GUIDE.md) requires a check's escape be one journaled step
 #   available to the agent being checked, and neither condition names a
 #   field the agent can fill or a fix within its reach: `issue19`, opened
 #   before the worktree feature existed, carries neither `branch` nor

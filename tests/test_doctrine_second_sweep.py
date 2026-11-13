@@ -79,44 +79,6 @@ def test_assembly_toml_advance_comment_names_all_three_triggers():
     )
 
 
-def test_v2_design_workflow_ascii_block_names_all_three_review_triggers():
-    text = _text("docs/V2_DESIGN.md")
-    _assert_absent(
-        text,
-        "and a coarse horizon of what the cut stops short of",
-        "Only once the queue is empty\n                  does the adjudication "
-        "become the replan beat",
-    )
-
-
-def test_v2_design_ruling_1_horizon_sketch_names_critical_questions():
-    text = _text("docs/V2_DESIGN.md")
-    _assert_absent(
-        text,
-        "up to the whole run — and\nsketches the horizon behind whatever it "
-        "stops short of",
-    )
-
-
-def test_v2_design_issue_tier_table_produces_names_critical_question():
-    text = _text("docs/V2_DESIGN.md")
-    _assert_absent(
-        text,
-        "the **next gate** from the spec and what has landed, plus a coarse "
-        "horizon",
-    )
-
-
-def test_v2_design_ruling_1_drops_replan_beat_conflation():
-    text = _text("docs/V2_DESIGN.md")
-    _assert_absent(
-        text,
-        "until the queue runs dry, a queued gate's own proof reads stale\n"
-        "against the tree, or an obligation stays open with nothing left "
-        "queued. Only then is a gate's\nadjudication the replan beat:",
-    )
-
-
 # The glossary entries themselves are terms, not wording: a term that goes
 # missing is a real loss, so this one check of presence stays.
 def _assert_present(text, *phrases):

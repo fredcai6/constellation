@@ -30,7 +30,6 @@ just with the work package riding along.
 constellation/
   README.md           this page
   docs/PURPOSE.md     what this is for and who it is for
-  docs/V2_DESIGN.md   founding design — thesis and rulings; a starting point, not a target sheet
   engine/             the secretary: the `spine` verbs, forms, rooms, checks, journal
   assemblies/         run templates: run-an-issue, run-a-gate, explore-an-idea, and one per excursion
   skills/<name>/      one posture each: SKILL.md + the forms only that skill fills

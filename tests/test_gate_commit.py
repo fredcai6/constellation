@@ -256,7 +256,7 @@ def test_commit_journals_a_no_op_on_a_non_issue_tier_run_rather_than_touching_gi
     anything real (`branch=wid` unconditionally, `worktree=cwd`). A commit
     verb reached some other way than `execute`'s advance -- an amend, a
     future assembly -- must still never touch git, but the corollary
-    (docs/V2_DESIGN.md) rules out a refusal here too: `commit` names no
+    (docs/AGENT_GUIDE.md) rules out a refusal here too: `commit` names no
     field the agent could fill or waive, so the guard lands a journaled
     no-op instead and the run advances."""
     cli.main(["open", "explore-an-idea", "--id", "idea1", "--title", "t"])

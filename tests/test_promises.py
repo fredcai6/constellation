@@ -697,7 +697,6 @@ def _glossary_entry(text, name):
 
 
 GLOSSARY = (ROOT / "standards" / "glossary.md").read_text()
-V2_DESIGN = (ROOT / "docs" / "V2_DESIGN.md").read_text()
 CONSTELLATION_TOML = (ROOT / "constellation.toml").read_text()
 README = (ROOT / "README.md").read_text()
 
@@ -771,23 +770,6 @@ def test_glossary_worktree_and_archive_paths_match_the_engine():
     assert "<project>" not in archive
 
 
-def test_v2_design_drops_the_false_constellation_toml_archive_claim():
-    """Whether a repo commits the archive is not a call made in
-    `constellation.toml`: it has no archive setting at all, so a claim that
-    it does is false the moment anyone reads the file it points at."""
-    ruling8 = V2_DESIGN.split("**8. Git is the issue tier's")[1].split("\n\n**9.")[0]
-    assert "constellation.toml" not in ruling8
-    assert "archive" not in CONSTELLATION_TOML.lower()
-
-
-def test_v2_design_names_the_top_level_checkout_one_way():
-    """The same tree is not called `<project>` in one sentence and 'the
-    top-level checkout' in the next. One name for one thing, so neither should reappear
-    anywhere `top-level checkout` is also used for the same tree."""
-    assert "<project>" not in V2_DESIGN
-    assert V2_DESIGN.count("top-level checkout") >= 3  # table's open row, table's close row, the ruling's text
-
-
 def test_gitignore_actually_covers_the_paths_the_docs_call_gitignored():
     """`README.md`, the glossary's `archive`, and `docs/AGENT_GUIDE.md` all
     call `.agent-work/` and `.worktrees/` gitignored. `.gitignore` is the only
@@ -815,7 +797,7 @@ def test_every_role_an_assembly_names_has_a_skill_behind_it():
     can fill. A role removed from the tree must not linger in files because
     this suite checks assembly *keys* and never their values.
 
-    The roster is what is on disk, not the design doc's
+    The roster is what is on disk, not any document's
     prose; a role we want
     to exist and have not built belongs in a plan, not in a check.
 
@@ -843,46 +825,15 @@ def test_every_role_an_assembly_names_has_a_skill_behind_it():
                 f"{a.parent.name} names role {role!r}, which has no skills/{role}/")
 
 
-def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc():
-    """Four claims are false now that `run-a-gate`'s `conductor` field
-    is `gate-conductor`, and prose has no proof behind it: two skill
-    files an agent reads live mid-run said the implementer conducts a gate,
-    and `docs/V2_DESIGN.md` said the assembly on disk still names the
-    implementer. Each is pinned the way this file already pins a known-false
-    substring -- the retired phrase, paired with the field that retired it --
-    so an edit reintroducing one fails here rather than misdirecting an agent
-    a run later. This is not a scanner for arbitrary claims about arbitrary
-    roles: it is four named strings and the one field they all depend on."""
-    gate = tomllib.load(open(ROOT / "assemblies" / "run-a-gate" / "ASSEMBLY.toml", "rb"))
-    assert gate["conductor"] == "gate-conductor"
-    implementer = (ROOT / "skills" / "implementer" / "SKILL.md").read_text()
-    assert "you conduct this gate" not in implementer
-    issue_conductor = (ROOT / "skills" / "issue-conductor" / "SKILL.md").read_text()
-    assert "the implementer's to conduct" not in issue_conductor
-    assert "names the implementer as its conductor" not in V2_DESIGN
-    assert "the assembly on disk names the implementer" not in V2_DESIGN
-
-
-def test_v2_design_drops_the_manual_conductor_mode_sentence():
-    """Manual-conductor mode does not exist: `V2_DESIGN.md`'s account of the
-    tier mechanism has no sentence describing a human starting or resuming a
-    dispatched child by hand."""
-    assert "leaves starting the child" not in V2_DESIGN
-    assert "copies the brief's own" not in V2_DESIGN
-    assert "dispatches by hand" not in V2_DESIGN
-
-
 # [up-mints-nothing-property]
 # Rationale: the property is that no text claims a settled `up` adds nothing
 #   to the run, terminates it outright, or advances it straight to its own
 #   last step. It is a claim about the whole repository, not about corpus
 #   (`assemblies/`, `skills/`) versus non-corpus text: a sweep scoped to
 #   chosen directories misses a site such as `engine/cli.py` itself. So it is
-#   rooted at the repository, with two exclusions: `docs/V2_DESIGN.md` (its
-#   own line naming a decision the run's answerer may make after being
-#   asked, not a claim about what ruling `up` itself does) and `.agent-work/`
-#   (this run's own working directory, whose journals and plans are records
-#   of what was thought at the time and are never retroactively corrected).
+#   rooted at the repository, with one exclusion: `.agent-work/` (a run's
+#   own working directory, whose journals and plans are records of what was
+#   thought at the time and are never retroactively corrected).
 #   The four phrases are built from fragments below, joined through a name
 #   rather than literal `+`, so CPython's own constant folding (which
 #   collapses `"a" + "b"` into one string at compile time) does not hand the
@@ -909,8 +860,6 @@ def test_no_text_in_the_repository_claims_up_mints_nothing_or_ends_the_run():
         if not raw:
             continue
         rel = raw.decode()
-        if rel == "docs/V2_DESIGN.md":
-            continue  # a decision the answerer may name, not standing prose
         try:
             text = (ROOT / rel).read_text()
         except (UnicodeDecodeError, OSError):

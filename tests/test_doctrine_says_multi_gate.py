@@ -78,20 +78,3 @@ def test_plan_to_execute_toml_comment_drops_gate_landing_as_fresh_occasion():
     _assert_absent(text, "the re-cut after each gate lands, a replan's, a rewrite's")
 
 
-def test_v2_design_workflow_table_drops_one_gate_at_a_time():
-    text = _text("docs/V2_DESIGN.md")
-    _assert_absent(text, "one gate at a time")
-
-
-def test_v2_design_ascii_diagram_mints_every_gate_in_the_cut():
-    text = _text("docs/V2_DESIGN.md")
-    _assert_absent(text, "pass mints one gate dispatch and its")
-
-
-def test_v2_design_ruling_1_drops_single_gate_claims():
-    text = _text("docs/V2_DESIGN.md")
-    _assert_absent(
-        text,
-        "Plan-to-execute mints one gate.",
-        "cannot outgrow the work it plans because it is one gate long",
-    )
