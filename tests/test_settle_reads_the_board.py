@@ -95,5 +95,5 @@ proof = \'\'\'
 ''')
     with pytest.raises(SystemExit) as e:
         cli.main(["issue17", "submit"])
-    assert "remint needs a new gate spec" in str(e.value)
+    assert "remint needs the replacement gate" in str(e.value)
     assert len(journal.read("issue17")) == before

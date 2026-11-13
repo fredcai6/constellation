@@ -63,6 +63,24 @@ spine <work-id> trace               this run and its children, as one timeline
 spine <work-id> trace --yield       ... plus the review yield: rounds per
     seam, findings per round, how each was called"""
 
+# The amend lines of USAGE: what a refused `amend` prints, so the reader sees
+# the whole syntax where it went wrong.
+AMEND_USAGE = "\n  ".join(line for line in USAGE.splitlines() if " amend " in line)
+
+
+def _plan_escape(field):
+    """How to get past a refused block list. An optional one is left out; a
+    required one with nothing to put in it is a question for whoever
+    dispatched this run."""
+    fid = field["id"]
+    if field.get("optional"):
+        return (f"write one [[{fid}]] block per item, or delete the field "
+                "and its example block where there are none")
+    return (f"write one [[{fid}]] block per item. If there is truly nothing "
+            f"to put in it, do not submit: spine <work-id> note blocked "
+            f"\"<why {fid} is empty>\" and end your turn")
+
+
 GIT_TIMEOUT = 600  # a wedged git or gh reads through as a failed call, not a hang
 
 
@@ -73,8 +91,10 @@ def _check_id(wid):
     parts = str(wid).split(".")
     if (not wid or "/" in wid or "\\" in wid or pathlib.Path(wid).is_absolute()
             or any(p in ("", "..") for p in parts)):
-        raise SystemExit(render.refusal("work id", f"{wid!r} is not a usable name -- "
-                                        "letters, digits, and dots between parts"))
+        raise SystemExit(render.refusal(
+            "work id", f"{wid!r} is not a usable name -- "
+            "letters, digits, and dots between parts",
+            escape="for example: issue7c3f, or issue7c3f.g1 for a child of it"))
     return wid
 
 
@@ -176,7 +196,9 @@ def _check_artifact(wid, form, fields):
         except OSError:
             raise SystemExit(render.refusal(
                 fid, f"{value!r} is not a readable path -- an artifact field's "
-                "value is a file's location, not its content"))
+                "value is a file's location, not its content",
+                escape=f"write the content to a file under {root} and set "
+                       f"{fid} to that file's path, relative to that directory"))
 
 
 # [per-step-name]
@@ -727,7 +749,8 @@ def _open_root_worktree(wid, assembly, title, from_ref=""):
     if made.returncode != 0:
         raise SystemExit(render.refusal(
             "branch", f"could not create {wid}'s worktree -- "
-            f"{(made.stderr or made.stdout).strip()}"))
+            f"{(made.stderr or made.stdout).strip()}",
+            escape="fix what git reports above, then run the same open again"))
     # Run from `top`, not `worktree`: a relative remote URL (`origin
     # ../remote.git`) is resolved against the cwd `git push` runs in, and
     # it was set up relative to `top`, the checkout it was configured in --
@@ -1294,12 +1317,43 @@ def _form_filler_start_counts(wid):
 #   what makes "one predicate, three callers" true rather than "one
 #   predicate plus one more hand-copied filter that happens to agree with
 #   it today."
-def _startable(is_returned, record, count):
+# [blocked-child]
+# Rationale: every form tells a child to raise what it cannot settle as "a
+#   blocked note up". The note landed in the child's own journal and went
+#   nowhere: the dispatcher's room said only "gone without returning", and
+#   `wait` restarted the child into the same wall until its starts were
+#   spent (story_time issue64, 2026-11-06: two planner sessions on one step
+#   that had nothing left to cut). So a child's open blocked note is read
+#   here: it prints in the dispatcher's room with the command that answers
+#   it, and it holds the restart until it is answered.
+def _child_blocks(child_id):
+    """The open blocked notes in `child_id`'s own journal; `[]` for a child
+    never minted."""
+    if not journal.exists(child_id):
+        return []
+    cst = runmod.state(child_id)
+    return runmod.blocks(cst) if cst else []
+
+
+def _child_block_lines(wid, child_id):
+    """The lines a dispatcher's room prints under a blocked child: what it
+    asked, and the two commands that answer it and start it again."""
+    out = []
+    for b in _child_blocks(child_id):
+        out.append(f"    BLOCKED -- {' '.join(str(b.get('text', '')).split())}")
+        out.append(render.located(
+            f"    answer it: spine {child_id} note resumed {b.get('id', '')} "
+            f"\"<your answer>\"   then: spine {wid} wait"))
+    return out
+
+
+def _startable(is_returned, record, count, blocked=False):
     """May this child still be started (a fresh start or a restart)? Never
-    once `is_returned`; otherwise `True` when `record` is `None` (never
-    dispatched at all), or when its pid is dead and `count` has not yet
-    reached `checkrun.MAX_STARTS`."""
-    if is_returned:
+    once `is_returned`, and never while `blocked` -- it stopped on a question
+    and a restart would only stop on it again; otherwise `True` when
+    `record` is `None` (never dispatched at all), or when its pid is dead
+    and `count` has not yet reached `checkrun.MAX_STARTS`."""
+    if is_returned or blocked:
         return False
     if record is None:
         return True
@@ -1373,7 +1427,8 @@ def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, i
     its one caller in `engine/` after this gate, can tell a genuine spawn
     from a no-op without a second pass over the journal, reading it
     straight off the return rather than rescanning."""
-    if not _startable(is_returned, records.get(child_id), counts.get(child_id, 0)):
+    if not _startable(is_returned, records.get(child_id), counts.get(child_id, 0),
+                      blocked=bool(_child_blocks(child_id))):
         return None
     tail = child_id[len(wid) + 1:] if child_id.startswith(wid + ".") else child_id
     log = journal.location(wid) / f"dispatch.{tail}.log"
@@ -1432,6 +1487,8 @@ def _dispatch_child(wid, child_id, records, counts, is_returned):
         return "not dispatched"
     if checkrun.alive(record.get("pid")):
         return "working"
+    if _child_blocks(child_id):
+        return "blocked -- it asked a question and stopped"
     if _startable(is_returned, record, counts.get(child_id, 0)):
         return "gone without returning"
     return "gone without returning -- starts spent"
@@ -1567,7 +1624,8 @@ def _outstanding_state(wid, child_ids, returns_by_child, records, counts):
     would start or restart anything at all."""
     count = len(_wait_outstanding(wid, child_ids, returns_by_child))
     name_wait = count > 0 or any(
-        _startable(cid in returns_by_child, records.get(cid), counts.get(cid, 0))
+        _startable(cid in returns_by_child, records.get(cid), counts.get(cid, 0),
+                   blocked=bool(_child_blocks(cid)))
         for cid in child_ids)
     return count, name_wait
 
@@ -1596,6 +1654,7 @@ def _dispatch_status(wid, st, asm, step, blocked):
     lines.append(render.outstanding_line(wid, count, name_wait, step["id"]))
     lines.append("")
     lines.append(f"  {child_id} ({status})")
+    lines.extend(_child_block_lines(wid, child_id))
     lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
@@ -1636,6 +1695,7 @@ def _panel_status(wid, st, asm, step, blocked):
             wid, child_id, records, counts, child_id in st["returns_by_child"])
         lines.append(f"  panelist {tag} ({status})"
                      f" -- criteria: {panelist.get('criteria', '')}")
+        lines.extend(_child_block_lines(wid, child_id))
         lines.append("")
     lines.append(render.legal_moves(wid))
     return "\n".join(lines)
@@ -2626,8 +2686,10 @@ def cmd_submit(argv):
         if fid not in filled:
             if f.get("optional"):
                 continue
-            raise SystemExit(render.refusal(fid, "no answer",
-                                            escape=render.escape_for(vocab)))
+            raise SystemExit(render.refusal(
+                fid, "no answer",
+                escape=(_plan_escape(f) if f.get("kind") == "plan"
+                        else render.escape_for(vocab))))
         # A field the agent marked as still in hand. Submitting it would
         # record work-in-progress as an answer, and the next reader could not
         # tell the difference -- so say what is still open and let the agent
@@ -2758,7 +2820,8 @@ def complete_submit(wid, step_id, fields, ran):
     if st is None or not st.get("current") or st["current"]["id"] != step_id:
         raise SystemExit(render.refusal(
             step_id, "is no longer this run's current step -- something else "
-            "advanced it while its check ran; nothing was recorded"))
+            "advanced it while its check ran; nothing was recorded",
+            escape=f"see where the run stands now: spine {wid}"))
     asm, step, form = _current_form(st)
     outcome = _outcome(asm, step, fields, st)
     journal.append(wid, "submit", step=step["id"], fields=fields,
@@ -2808,7 +2871,9 @@ def _check_plan(asm, form, fields):
         if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
             raise SystemExit(render.refusal(
                 f["id"], "must be one or more [[" + f["id"] + "]] blocks, not a "
-                "single value -- nothing was recorded"))
+                "single value -- nothing was recorded. A block list does not "
+                "take waived: or unknown:",
+                escape=_plan_escape(f)))
         mintable = _mintable(asm)
         if f.get("mints") and f["mints"] not in mintable:
             raise SystemExit(render.refusal(
@@ -2881,7 +2946,22 @@ def _check_calls(form, fields):
                     raise SystemExit(render.refusal(
                         f'{f["id"]}.{item["id"]}',
                         f"{word or 'empty'!r} is not a call this step can act on",
-                        escape="one of: " + " | ".join(vocab)))
+                        escape="one of: " + " | ".join(forms.declared(item["note"]))))
+                _check_reason(f'{f["id"]}.{item["id"]}', item["note"], row[item["id"]])
+
+
+def _check_reason(field_id, note, value):
+    """A value its note declares as `word: <reason>` refuses without the
+    reason. The form says the call owes one; a bare `rejected` passed anyway,
+    and the record then held a ruling nobody could weigh."""
+    word = forms.leading_word(value)
+    if word not in [w.lower() for w in forms.reasoned(note)]:
+        return
+    rest = str(value).strip()[len(word):].lstrip(" :-\u2014").strip()
+    if not rest:
+        raise SystemExit(render.refusal(
+            field_id, f"{word!r} needs its reason",
+            escape=f"write it as  {word}: <reason>"))
 
 
 def _check_vocabulary(asm, step, form, fields):
@@ -2906,7 +2986,8 @@ def _check_vocabulary(asm, step, form, fields):
         if word not in [alt.split("<")[0].strip().lower() for alt in vocab]:
             raise SystemExit(render.refusal(
                 f["id"], f"{word or 'empty'!r} is not a value this step can act on",
-                escape="one of: " + " | ".join(vocab)))
+                escape="one of: " + " | ".join(forms.declared(f["note"]))))
+        _check_reason(f["id"], f["note"], value)
 
 
 def _mint_transition(wid, seg, prefill=None):
@@ -2967,9 +3048,14 @@ def _outcome(asm, step, fields, st):
         return None
     raw = fields[field]
     value = forms.leading_word(raw)
-    if value.startswith(("waived", "unknown")):
-        return None
     outcomes = spec.get("outcome", [])
+    # A decision the run acts on has no null answer. `waived:` used to select
+    # no outcome and release the step with nothing performed, while the
+    # template beside the field said it was refused.
+    if value.startswith(("waived", "unknown")):
+        raise SystemExit(render.refusal(
+            field, f"{value!r} is not a decision -- the run acts on this field",
+            escape="one of: " + " | ".join(o["value"] for o in outcomes)))
     legal = {o["value"].split("<")[0].strip().lower(): o for o in outcomes}
     if value not in legal:
         raise SystemExit(render.refusal(
@@ -2996,8 +3082,10 @@ def _outcome(asm, step, fields, st):
         word, _, argfield = verb.partition(" ")
         if word == "remint" and not fields.get(argfield):
             raise SystemExit(render.refusal(
-                argfield, "remint needs a new gate spec -- a remint with no "
-                "spec is a drop wearing the wrong name"))
+                argfield, "remint needs the replacement gate -- this form's "
+                f"[[{argfield}]] block is blank",
+                escape=f"fill the [[{argfield}]] block (purpose, scope, proof), or "
+                       f"answer `drop <gate-id>` to close a gate without replacing it"))
     return seg, does
 
 
@@ -3087,7 +3175,9 @@ def _check_release_artifacts(form, fields, outcome):
         if f.get("kind") == "artifact" and f["id"] not in fields:
             raise SystemExit(render.refusal(
                 f["id"], "a release needs it -- blank here and the round "
-                "releases with nothing carried or projected, silently"))
+                "releases with nothing carried or projected, silently",
+                escape=f"set {f['id']} to the artifact's path, or answer a "
+                       "resolution that does not release"))
 
 
 # [blocking-calls]
@@ -4933,6 +5023,11 @@ def cmd_note(argv):
                    text=text, about=about,
                    step=(st["current"] or {}).get("id", ""))
     print(f"noted {kind}" + (f" — cleared {about}" if about else ""))
+    if kind == "blocked" and st.get("parent"):
+        print(render.located(
+            f"  {st['parent']} sees this in its own room and answers it there. "
+            "End your turn now: you are started again once it answers, and "
+            "the answer prints at the top of your room."))
     return 0
 
 
@@ -4942,7 +5037,7 @@ def cmd_amend(argv):
     wid, action = argv[0], argv[1]
     reason = _opt(argv, "--reason")
     if not reason:
-        raise SystemExit(render.refusal("reason", "amend needs --reason"))
+        raise SystemExit(render.refusal("reason", "amend needs --reason", escape=AMEND_USAGE))
     st = runmod.state(wid)
     if st is None:
         _no_run(wid)
@@ -4963,10 +5058,12 @@ def cmd_amend(argv):
 def _amend_add(wid, st, argv, reason):
     seg = _opt(argv, "--segment")
     if not seg:
-        raise SystemExit(render.refusal("segment", "amend add needs --segment"))
+        raise SystemExit(render.refusal("segment", "amend add needs --segment",
+                                        escape=AMEND_USAGE))
     form_ref = _opt(argv, "--form")
     if not form_ref and "--transition" not in argv:
-        raise SystemExit(render.refusal("form", "amend add needs --form, or --transition"))
+        raise SystemExit(render.refusal("form", "amend add needs --form, or --transition",
+                                        escape=AMEND_USAGE))
     asm = runmod.load_assembly(st["assembly"])
     if not any(s["id"] == seg for s in asm["segment"]):
         raise SystemExit(render.refusal(
@@ -5036,7 +5133,8 @@ def _amend_reorder(wid, st, step_id, reason, before):
     if step is None:
         raise SystemExit(render.refusal(step_id, "no such step", _pending(st)))
     if not before:
-        raise SystemExit(render.refusal("before", "amend reorder needs --before"))
+        raise SystemExit(render.refusal("before", "amend reorder needs --before",
+                                        escape=AMEND_USAGE))
     if step_id in st["done"]:
         raise SystemExit(render.refusal(
             step_id, "already complete -- history is not amendable", _pending(st)))
@@ -5848,6 +5946,12 @@ def main(argv=None):
         return cmd_open(argv[1:])
     if argv[0] in ("-h", "--help", "help"):
         print(USAGE)
+        return 0
+    # Help asked for after a work id or a verb (`spine x amend --help`) is
+    # still a request for help: it prints the usage and touches nothing.
+    # Read as a verb or an argument it refused, with advice about fields.
+    if any(a in ("-h", "--help", "help") for a in argv[1:3]):
+        print(AMEND_USAGE if len(argv) > 2 and argv[1] == "amend" else USAGE)
         return 0
     verb = argv[1] if len(argv) > 1 else "status"
     verbs = {"status": cmd_status, "submit": cmd_submit, "note": cmd_note,

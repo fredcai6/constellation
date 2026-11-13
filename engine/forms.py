@@ -76,7 +76,12 @@ def _comment(note: str, optional: bool) -> str:
 # alternative -- a token that swallowed its own trailing space would leave
 # `\s*\|` with nothing to match and stop the enum a term early.
 _TOKEN = r"[^|\n.;,:\u2014]*[^\s|\n.;,:\u2014]"
-_ALTERNATIVES = re.compile(rf"{_TOKEN}(?:\s*\|\s*{_TOKEN})+")
+# A value may declare that it carries a reason -- `rejected: <reason>`. The
+# suffix belongs to its alternative, so it does not end the enum:
+# `satisfied | open: <reason> | deferred: <reason>` declares three values.
+_REASON = r"(?::\s*<[^>|\n]*>)?"
+_ALTERNATIVES = re.compile(rf"{_TOKEN}{_REASON}(?:\s*\|\s*{_TOKEN}{_REASON})+")
+_REASONED = re.compile(r"^(.*?):\s*<[^>]*>$")
 
 
 # [field-vocabulary]
@@ -97,10 +102,22 @@ def vocabulary(note: str) -> list[str]:
     silence that stood before this derivation existed, and the only failure
     mode of it that is not loud.
     """
+    return [_REASONED.sub(r"\1", alt) for alt in declared(note)]
+
+
+def declared(note: str) -> list[str]:
+    """The alternatives exactly as the note writes them, reason suffix
+    included -- `["blocking", "accepted", "rejected: <reason>"]`. This is
+    what a refusal prints, so the reader sees which values owe a reason."""
     if " | " not in note[:80]:
         return []
     found = _ALTERNATIVES.search(note)
     return [alt.strip() for alt in found.group(0).split("|")] if found else []
+
+
+def reasoned(note: str) -> list[str]:
+    """The values a note declares with a reason -- `["rejected"]`."""
+    return [m.group(1).strip() for m in map(_REASONED.match, declared(note)) if m]
 
 
 def leading_word(value) -> str:
@@ -276,7 +293,10 @@ def materialize(form: dict, dest_path, work_id=None, submit=None, drafts=None) -
         if field["kind"] == "plan" and drafts.get(field["id"]):
             lines.extend(_drafted(field, drafts[field["id"]]))
         elif field["kind"] == "plan":
-            lines.append("# Repeat this block per item; delete the example if none apply.")
+            lines.append("# Repeat this block per item. A block list takes blocks only, never"
+                         " waived: or unknown:." + (
+                             " Delete the example if none apply." if field["optional"]
+                             else " It needs at least one block."))
             lines.append(f'[[{field["id"]}]]')
             for item in field.get("item", []):
                 lines.append(_comment(item["note"], item["optional"]))

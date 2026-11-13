@@ -227,6 +227,16 @@ def preamble(st, blocked=(), position=None):
         out.append(f"  BLOCKED — {b.get('text','')}".rstrip())
         out.append(located(f"  resume with: spine {wid} note resumed {b.get('id','')}"))
         out.append("")
+    # An answered block: the question this run raised and what came back.
+    # The answer is orders, so it prints where the run starts reading.
+    asked = {n.get("id"): n for n in st.get("notes") or []
+             if n.get("kind_detail") == "blocked"}
+    for n in st.get("notes") or []:
+        if (n.get("kind_detail") == "resumed" and n.get("about") in asked
+                and str(n.get("text", "")).strip()):
+            out.append(f"  YOU ASKED — {asked[n['about']].get('text', '')}".rstrip())
+            out.append(_para(f"ANSWER — {n['text']}"))
+            out.append("")
     return out
 
 
@@ -853,8 +863,6 @@ def escape_for(vocab, verb="fill"):
             else f"{verb} it, or answer  {NULLS}")
 
 
-FILL_OR_NULL = escape_for(())
-
 
 # [the-escape-is-located-the-why-is-not]
 # Rationale: `located` rewrites the bare word `spine` into an absolute path so
@@ -878,7 +886,7 @@ FILL_OR_NULL = escape_for(())
 #   matching include a bare trailing `spine` with no arguments ("open runs:
 #   spine") -- there is no lexical rule separating that from prose. The
 #   defect is which text is routed through it, not how it matches.
-def refusal(field_id, why, escape=FILL_OR_NULL):
+def refusal(field_id, why, escape=""):
     """A refusal names what failed and how to get past it -- no lecture.
 
     The escape is a parameter because it is not always the same one. A board
@@ -892,6 +900,10 @@ def refusal(field_id, why, escape=FILL_OR_NULL):
     words intact -- see [the-escape-is-located-the-why-is-not]. A `why` that
     wants to print a command belongs in the escape, which is where a reader
     looks for one anyway.
+
+    There is no default escape. `FILL_OR_NULL` was one, and eleven refusals
+    inherited it where it was irrelevant (`amend needs --reason`) or itself
+    refused (a block list): a caller names the escape that works, or none.
     """
     return f"{field_id}: {why}" + (f"\n  {located(escape)}" if escape else "")
 
