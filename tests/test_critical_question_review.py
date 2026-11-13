@@ -224,22 +224,16 @@ def test_a_differing_answer_and_a_stale_next_gate_both_fire_but_mint_one_review(
 #    the same grep-with-a-name shape test_doctrine_says_multi_gate.py uses
 #    for doctrine prose, read here against the forms themselves.
 
-_CALL_TREE_NOTE_PHRASE = (
-    "Once a round cuts more than one gate, a `THIS GATE` node also names "
-    "which gate, by its own position in the round, owns it -- never a "
-    "predicted engine-assigned id.")
-
-
-def _collapsed(text):
-    import re
-    return re.sub(r"\s+", " ", text)
-
-
-def test_the_three_planner_forms_teach_the_per_gate_call_tree_convention():
+def test_the_three_planner_forms_share_one_call_tree_field():
+    """The per-gate naming convention is taught in `call-tree`'s note. The
+    three planner forms take that field from one place, so the note they
+    show is the same note and says which gate owns a THIS GATE node."""
     from pathlib import Path
+    from engine import forms
     root = Path(__file__).resolve().parent.parent
-    for relpath in ("skills/planner/forms/PLAN.toml", "skills/planner/forms/REWORK.toml",
-                    "skills/planner/forms/REVIEW_PLAN.toml"):
-        text = (root / relpath).read_text()
-        assert _collapsed(_CALL_TREE_NOTE_PHRASE) in _collapsed(text), \
-            f"{relpath}: call-tree's own note is missing the per-gate naming convention"
+    notes = set()
+    for name in ("PLAN", "REWORK", "REVIEW_PLAN"):
+        form = forms.load(root / "skills" / "planner" / "forms" / f"{name}.toml")
+        notes.add(next(f["note"] for f in form["fields"] if f["id"] == "call-tree"))
+    assert len(notes) == 1
+    assert "THIS GATE (g2)" in notes.pop()

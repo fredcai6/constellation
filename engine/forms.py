@@ -50,12 +50,45 @@ def _field(raw: dict) -> dict:
     return out
 
 
+# [same-as]
+# Rationale: three planner forms and the gate adjudication each restated the
+#   same fields -- `call-tree` byte for byte, a gate's `proof` in four
+#   wordings that had drifted apart (one form lost the rule that a later
+#   gate's proof names its own tests; one said "the string you ran" where
+#   the others said "to run"). A field worded once cannot drift. A field
+#   that declares `same-as = "<form path>#<field id>"` takes that field
+#   whole -- kind, note, items -- and keeps only what it writes itself.
+# Rejected: "Same as PLAN.toml's `proof`" in the note. The agent filling the
+#   form is not shown PLAN.toml, so the note pointed at text it could not see.
+_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _same_as(raw: dict, seen=()) -> dict:
+    """`raw` with its `same-as` source folded in beneath it; `raw` itself
+    where it declares none. The path is relative to the engine root."""
+    ref = raw.get("same-as")
+    if not ref:
+        return raw
+    path, _, field_id = ref.partition("#")
+    field_id = field_id or raw["id"]
+    if ref in seen:
+        raise ValueError(f"same-as loops back on {ref}")
+    with open(_ROOT / path, "rb") as f:
+        source = tomllib.load(f)
+    found = next((x for x in source.get("field", []) if x["id"] == field_id), None)
+    if found is None:
+        raise ValueError(f"same-as names {ref}, and {path} has no field {field_id!r}")
+    merged = {**_same_as(found, (*seen, ref)), **raw}
+    merged.pop("same-as")
+    return merged
+
+
 def load(form_path) -> dict:
     with open(form_path, "rb") as f:
         raw = tomllib.load(f)
     return {
         "imperative": raw.get("imperative", ""),
-        "fields": [_field(f) for f in raw.get("field", [])],
+        "fields": [_field(_same_as(f)) for f in raw.get("field", [])],
     }
 
 

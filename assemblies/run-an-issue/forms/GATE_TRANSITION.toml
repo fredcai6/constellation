@@ -106,52 +106,9 @@ opened instead where you contest."""
 
 [[field]]
 id = "gate-spec"
-kind = "plan"
+same-as = "skills/planner/forms/PLAN.toml#gates"
 optional = true
 note = """
-Only for remint: the fresh gate replacing the one that just ran, same shape
-as a plan-to-execute gate block. Leave empty for advance, drop, or replan —
-an empty spec on a remint is refused."""
-
-  [[field.item]]
-  id = "purpose"
-  note = """
-What later gates and the run's conclusion will take as true once this gate
-lands -- a claim someone could test, not a summary of what changed. Second,
-which of the five in `standards/approach.md` it serves."""
-
-  [[field.item]]
-  id = "scope"
-  note = "Where the change lives, and what is out of bounds."
-
-  [[field.item]]
-  id = "proof"
-  kind = "proof"
-  note = """
-The exact command to run, never a description of it: the engine runs this
-string through the shell. It must fail now, before the work, and pass only
-once `purpose` is true. A command that passes on an empty diff proves
-nothing, and so does one that covers less than `scope` promised. The engine
-runs it once when you submit and prints what it did; it runs again when the
-gate lands and when the run closes. Name a palette entry
-(`palette:test tests/x.py`) where one applies."""
-
-  [[field.item]]
-  id = "gate-proof"
-  kind = "proof"
-  optional = true
-  note = """
-A file or module this gate must leave untouched, as a command:
-`git diff --quiet "${CONSTELLATION_GATE_BASE:?}" -- <paths>`. Most gates
-have none: answer `waived: none`. Runs when you submit and when the gate
-lands, never at close."""
-
-  [[field.item]]
-  id = "budget"
-  optional = true
-  note = "Same as PLAN.toml's `budget`: declare one only for a proof that is right and may run past the engine's 600 seconds. Whole seconds, a bare integer."
-
-  [[field.item]]
-  id = "model"
-  optional = true
-  note = "Tier override for this gate: light | standard | heavy. Choose one on purpose and say why in `direction`; omit for the assembly default."
+Only for `remint`: the gate that replaces the one that just ran, one block.
+Leave it out for advance, drop or replan. A remint with no block is
+refused."""

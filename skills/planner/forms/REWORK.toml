@@ -1,175 +1,69 @@
 # Step: the planner's one pass over its review. Owned by the planner skill;
 # filled by the planner. The conductor's `incorporate` mints this form in
-# place of PLAN.toml, the panel's findings as prefill (`[one-look]`,
-# engine/cli.py); the cut it returns is released with no second panel.
+# place of PLAN.toml, with the panel's findings as prefill. The cut it
+# returns is released with no second panel. The shared fields are
+# PLAN.toml's (`same-as`).
 
 imperative = """
-The panel has read your cut, and its findings are in your prefill, with any
-orders the conductor wrote ahead of them. They are advice: take each one
-that makes this a better next step, reject each one that does not, and
-record which in `findings-addressed`. Then cut the gates that result -- the
-same bar as the first cut: at least one, and every chunk whose path is
-clear, each a complete proof of one thing, with purpose saying what the run takes as true, proof what verifies it,
-scope where. The how is the implementer's, so a finding about how is one
-you can reject on that bar alone. Delete the restated. No panel reads this
-cut again: the conductor releases it, and each gate's own reviewers read its
-diff.
-The plan document itself carries the approach and the risks that would
-change it; each gate's purpose, scope and proof are its own block in
-`gates` below, not restated there."""
+The panel has read your cut. Its findings are in your orders, after any
+orders the conductor wrote.
+
+1. Decide each finding. The findings are advice: take each one that makes
+   a better next step and reject each one that does not. A finding about
+   how a gate gets built is the implementer's business, and you can reject
+   it for that alone. Record every decision in `findings-addressed`.
+
+2. Cut the gates that result, to the same bar as the first cut: every gate
+   whose path is clear, each one complete proof of one thing, each with a
+   proof that fails now and names the tests that gate adds.
+
+3. Update the plan document. Delete what it restates.
+
+No panel reads this cut again. The conductor releases it, and each gate's
+own reviewers read its diff."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
-The plan document this round edited, in this run's work location
-(.agent-work/<work-id>/): this segment's own, never one an earlier plan
-segment left behind describing a different gate. Point at it, never retype
-it -- the imperative above says what belongs in it. A round that changed only
-the fields below and wrote no document of its own says `waived: fields only`
-rather than naming the last true path another round wrote."""
+The path of the plan document this round edited, in this run's work
+location (.agent-work/<work-id>/). It is this round's own document, never
+one an earlier plan round left behind. Give the path; do not paste the
+document. A round that changed only the fields below answers
+`waived: fields only`."""
 
 [[field]]
 id = "call-tree"
-kind = "evidence"
-note = """
-The call tree of what the spec's done needs, as an outline with one node
-per function or module: what it owns (the state or decision hidden inside
-it), what it receives, what it returns, and who calls it. Mark each node
-`landed` (its name alone), `THIS GATE`, or `ahead`. Once a round cuts more
-than one gate, a `THIS GATE` node also names which gate, by its own
-position in the round, owns it -- never a predicted engine-assigned id.
-Take the tree down far enough that an implementer could build any node
-against a testable contract, and stop there: the math at the leaves is the
-implementer's.
-THIS GATE's nodes carry full signatures and the results the proof checks;
-`ahead` nodes stay coarse and may merge or move as work lands. The slice is
-the THIS GATE nodes, one vertical path or subtree whose proof stands on its
-own. The implementer receives the whole tree, owns its THIS GATE nodes,
-reshapes their interiors as it sees fit, and raises a change to an edge
-another node relies on as a blocked note. The next cut's planner receives
-this as what the run was thinking and rebuilds the landed part from the
-code. Whoever judges the round reads the slice's nodes closely and the
-`ahead` nodes loosely. `waived: none` for a gate that is one function."""
+same-as = "skills/planner/forms/PLAN.toml"
 
 [[field]]
 id = "findings-addressed"
 kind = "evidence"
 record-only = true
 note = """
-Each finding taken, naming the edit, or rejected, with the reason. A
-ledger, not a narrative.
-
-This is for the record and the conductor, never for the next critic — it
-stays out of a panelist's prefill, because a reviewer told what was wrong
-last time is aimed at those spots and steered off everything else."""
+One line per finding: taken, naming the edit, or rejected, with the
+reason. This is for the record and the conductor. It is never shown to a
+later reviewer."""
 
 [[field]]
 id = "deleted"
 kind = "evidence"
 record-only = true
 note = """
-What came out of the plan this pass, and why each cut was safe. Cutting
-meaning to make it smaller is the failure this field exists to catch, not
-the behaviour it asks for.
-For the record and the conductor, never the next critic — it stays out of a
-panelist's prefill."""
+What came out of the plan this pass, and why each removal was safe.
+Removing meaning to make the plan shorter is the failure this field is
+here to catch. For the record and the conductor; never shown to a later
+reviewer. `waived: none` where nothing came out."""
 
 [[field]]
 id = "key-terms"
-kind = "evidence"
-note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+same-as = "skills/planner/forms/PLAN.toml"
 
 [[field]]
 id = "critical-questions"
-kind = "plan"
-optional = true
-note = """
-One block per question this cut cannot yet see past: what the cut cannot
-yet say, which queued gate -- by its own position in this round, e.g. g2,
-never a predicted engine-assigned id -- is expected to answer it, and the
-answer this cut expects. The queue ends at the first gate whose own work
-depends on one of these left open. That gate's own adjudication rules
-whether its actual answer matched or differed; a differing answer reopens
-this plan for one review round, no panel, the same route a stale reading
-already gets. Omit where this cut reaches the whole run and leaves nothing
-open behind it."""
+same-as = "skills/planner/forms/PLAN.toml"
 
-  [[field.item]]
-  id = "question"
-  note = "What the cut cannot yet see past this point in the queue."
-
-  [[field.item]]
-  id = "gate"
-  note = """
-Which queued gate, by its own position in this round (g2, not a predicted
-engine-assigned id), is expected to answer it."""
-
-  [[field.item]]
-  id = "expected-answer"
-  note = "The answer this cut expects that gate to find."
-
-# Written last: `materialize` (engine/forms.py) writes a `kind = "plan"`
-# field as a bare `[[gates]]` array-of-tables header, and TOML nests every
-# scalar line after it into that array's last block rather than reading it
-# as a sibling field -- `test_reachable_briefs.py`'s own general guard
-# holds every form in the repo to this.
+# Written last: see PLAN.toml's own note on why a block list comes last.
 [[field]]
 id = "gates"
-kind = "plan"
-note = """
-One block per gate this round queues, in the order they run: at least one,
-and every chunk whose path is clear. Same shape as PLAN.toml's `gates` --
-purpose, scope, proof, and, when you know them, gate-proof, a model
-override and a direction."""
-
-  [[field.item]]
-  id = "purpose"
-  note = "What this gate accomplishes, and why the plan needs it."
-
-  [[field.item]]
-  id = "scope"
-  note = "Where the change lives, and what is out of bounds."
-
-  [[field.item]]
-  id = "proof"
-  kind = "proof"
-  note = """
-Same as PLAN.toml's `proof`: the exact command to run, never a description,
-referencing the command palette (constellation.toml) -- one that proves
-nothing on an empty diff or a diff short of `scope`. What must be true when
-the issue ends: run at submit, when the gate lands, and again at close."""
-
-  [[field.item]]
-  id = "gate-proof"
-  kind = "proof"
-  optional = true
-  note = """
-Same as PLAN.toml's `gate-proof`: the rare boundary this gate must leave
-intact, named by its own paths, `git diff --quiet
-"${CONSTELLATION_GATE_BASE:?}" -- <paths>`. Run at submit and when the gate
-lands, never at close. `waived: none` for most gates."""
-
-  [[field.item]]
-  id = "budget"
-  optional = true
-  note = """
-Same as PLAN.toml's `budget`: declare one only for a proof that is right and
-may run past the engine's 600 seconds. Whole seconds, a bare integer."""
-
-  [[field.item]]
-  id = "model"
-  optional = true
-  note = "Tier override for this gate: light | standard | heavy. Choose one on purpose and say why in `direction`; omit for the assembly default."
-
-  [[field.item]]
-  id = "direction"
-  optional = true
-  note = """
-A question this gate is expected to answer for the next plan round, when you
-have one. The gate's own close form is asked to answer it in `residue`, so
-write something answerable or leave it out -- `waived: none` is the ordinary
-case for a run's last gate. Not a place for anything else you noticed:
-something outside this gate's own scope is the conductor's to call
-`rejected: <reason>` at the review that follows, and the shape of the gates
-after this one is `call-tree`."""
+same-as = "skills/planner/forms/PLAN.toml"

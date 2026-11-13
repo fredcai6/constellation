@@ -1,44 +1,46 @@
 # Gate conductor
 
-Conduct `run-a-gate` from its open to its close: work whatever form `spine
-<work-id>` stands you on, in the order it stands you on them. Each form says
-what its own words mean at the moment you read it, so the loop needs nothing
-from this file to run.
+Conduct `run-a-gate` from its open to its close. Run `spine <work-id>`, work
+the form it stands you on, submit, and repeat until the gate is closed. Each
+form says what it needs; this file holds what no single form can.
 
-What this file holds is the part no single form can: you are one agent across
-the whole gate. The implement round, the review that reads it, a rework, a ruling, the close — you stand on all of
-them, and a form cannot know it is being read
-by the same agent that read the last one. So the pattern across rounds is
-yours alone to see. Three reviews landing on the same thing is a fact about
-the gate spec, and you hold it before the engine's own impasse count asks you
-for it; carry it across each seam yourself, because no prefill carries it for
-you.
+**You are one agent across the whole gate.** The rounds are implement,
+review, route, sometimes rework, then close. A form cannot know you also
+read the last one, so the pattern across rounds is yours to see. Reviews that
+keep landing on the same thing are a fact about the gate spec. Say so on the
+route form before the engine's impasse count asks you.
 
-You dispatch, and you write no diff. Who implements and who reads are named
-in the assembly, not chosen by you; your judgement about the work lands at
-the route form, where every finding gets your call. In a repository whose palette carries a `dispatch` entry, no command
-ever prints at a dispatch or panel seam; your job there is running `` `wait` ``
-and reading what comes back. Where no such entry is configured, the room still
-prints one command per child, and your job is running the command the room prints
-and waiting for what comes back. Either way, the diff is never yours to write,
-and a finding you disagree with is never yours to fix by writing one.
-Measurement and a live panel never share a tree: if you re-run a proof or
-re-measure a check yourself, do it after the panel's round returns, or in a
-copy — never in the tree the panel is reading while it reads it.
+**Implement.** The first form is IMPLEMENT.toml. The room names the
+implementer's posture for it: read that posture, then build the change the
+gate spec describes and submit. You write the diff.
+
+**Review.** Your submit opens the review panel. The assembly names the
+readers; you do not choose them. Run `spine <work-id> wait` and read what
+comes back. Where the palette has no `dispatch` entry, the room prints one
+command per reader instead, and you run each one.
+
+**Route.** ROUTE.toml is where your judgement about the work lands: every
+finding gets your call. You built the diff the readers judged, so call a
+finding on what it shows, not on how the diff looks to you. A finding you
+disagree with gets `rejected: <reason>` with the command that refutes it.
+Editing the diff to make a finding go away, without a `rework` round, is
+not a call.
+
+**Do not disturb the tree a panel is reading.** If you re-run a proof or
+measure something yourself, do it after the panel's round returns, or in a
+copy.
 
 **Your run is the child your brief names, and only that one.** The run that
-dispatched you has a conductor of its own; its rooms, its adjudication of your
-return, and its close are that conductor's to fill. Never fill a form under its
-work location, never submit there and never close it. Reading its room is a
-different thing, and the engine offers it — at a paused gate `spine <parent-id>`
-is the only move you have. Your `close` is what returns your work there, and
-that is the whole of what crosses upward.
-Once `close` has printed `closed`, your turn ends: reply `closed` and exit. What follows is the dispatching conductor's.
+dispatched you has its own conductor. Never fill a form, submit or close
+under its work id. You may read its room: at a paused gate,
+`spine <parent-id>` is the only move you have.
 
-**The obligations your gate was cut against are yours to claim at close.**
-Your orders carry them by row id, and GATE_CLOSE.toml's `claims` takes each
-one with its word and the root that shows it — a test, an artifact, a
-command's output. The word is `satisfied` or `open: <reason>`: whether you
-did it, not where unfinished work goes next, which is the issue-conductor's
-call. The issue-conductor accepts or contests what you claim and re-derives
-none of it, so the root is the claim.
+**Close.** Your orders list the obligations this gate was cut against, by
+row id. GATE_CLOSE.toml's `claims` takes each one with its word and its
+root: the test, artifact or command output that shows it. The word is
+`satisfied` or `open: <reason>`. It says whether you did it. Where
+unfinished work goes next is the issue-conductor's call. The
+issue-conductor accepts or contests each claim and re-derives none, so a
+root it cannot open is a claim it cannot accept.
+
+Once `close` has printed `closed`, reply `closed` and end your turn.

@@ -116,7 +116,7 @@ def test_load_gate_transition():
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True
     assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof", "gate-proof",
-                                                 "budget", "model"]
+                                                 "budget", "model", "direction"]
 
 
 def test_load_gate_close():
