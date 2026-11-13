@@ -12,12 +12,15 @@ round.
    is not an invitation to argue with the reviewer.
 
 2. Say where the round goes, in `resolution`:
-   - `rework`: back to the implement step. The findings you called
-     `blocking` go with it, and nothing else does.
-   - `close`: the gate goes on to its close form. Use it after a pass, and
-     after a revise where you called no finding blocking.
-   - `up`: you cannot rule from here, usually because the gate spec is
-     wrong. The gate pauses and asks the run that dispatched it.
+   - `close`: every reader passed. The gate goes on to its close form.
+   - `rework`: back to the implement step, with the findings you called
+     `blocking`. The next round's reader also sees the findings you set
+     aside, and says whether any of them is a gap that still stands.
+   - `up`: you disagree with a reader's `revise`, or the gate spec is
+     wrong. The gate pauses and the run that dispatched it rules.
+
+You built this diff, so a reader's `revise` binds you: while one stands,
+`close` is refused. Fix it with `rework`, or contest it with `up`.
 
 A deviation the implementer declared is already on the record. Call one
 only where you contest it."""
@@ -31,9 +34,11 @@ pass | revise | rework | close | up.
 `pass` and `revise` are the panel's words. Typed here, both release the
 round exactly as `close` does; `revise` sends nothing back.
 `rework`: another implement round, carrying the findings you call
-`blocking` and nothing else. One reviewer reads that round. After the
-allowed number of reworks the impasse form comes instead.
-`close`: release this round and go to the gate's close form.
+`blocking`. One reviewer reads that round, and is also shown the findings
+you did not call blocking. After the allowed number of reworks the impasse
+form comes instead.
+`close`: release this round and go to the gate's close form. Refused while
+any reader of this round answered `revise`.
 `up`: pause this gate and ask the run that dispatched it. Its answer comes
 back as this gate's next round. Say what you are asking in `calls`, on the
 finding it belongs to."""

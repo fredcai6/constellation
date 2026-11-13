@@ -12,6 +12,9 @@ Make the change the gate spec in your orders describes.
   in a file this gate already touches, it needs no proof of its own, and
   reverting it alone would leave the gate's diff complete. Declare it in
   `deviations`.
+- On a rework round your orders hold `findings`: fix each one. They may
+  also hold `set-aside`: findings the conductor chose not to act on. Do
+  not work on those.
 - Do not commit. Your deliverable is the working tree as you leave it. The
   engine makes this gate's commit when the gate is accepted.
 - The engine runs the gate's proof when you submit, so run it yourself

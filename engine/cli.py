@@ -2731,6 +2731,7 @@ def cmd_submit(argv):
     _check_release_artifacts(form, fields, outcome)
     _check_projection(asm, step, st, fields)
     _check_one_look(asm, st, outcome, fields)
+    _check_panel_binds(asm, step, st, outcome, fields)
 
     # `validates = "board"` only gates a release (`_releases`): a rework or
     # an up leaves this segment unfinished, and the board it validates is
@@ -3405,6 +3406,9 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     # at all never reaches the outlet, as before.
     after = seg.get("impasse-after")
     looped = after is not None and runmod.rework_rounds(st, asm, seg["id"]) >= after
+    aside = _set_aside(fields) if _panel_binds(asm, step) else ""
+    if aside:
+        carried["set-aside"] = aside
     return {"findings": findings, **carried}, (seg.get("impasse-form", "") if looped else "")
 
 
@@ -3439,6 +3443,83 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 # Rejected: keeping `rework` and tuning `impasse-after`. The word means
 #   "another pass with the findings", which is incorporate's half and not
 #   rewrite's, and a count cannot tell a writer's pass from a fresh start.
+# [panel-binds]
+# Rationale: on a gate the agent that built the diff also rules on the
+#   review of it. Left free to call a reader's gap `accepted` and close, the
+#   author decides which criticisms of its own work count. A transition
+#   that declares `panel-binds = true` takes that one decision away: while
+#   a reader of the last round answered `revise`, the round goes back for
+#   rework, or the disagreement goes up to the run that dispatched this one
+#   (Tommy, 2026-11-13: must-fix, the dilemma settled by the conductor
+#   above). Every other call stays the builder's.
+# Rejected: enforcing it per finding. A call quotes its finding as free
+#   text, so the engine cannot tie a call to the reader that raised it; the
+#   reader's verdict is the one word it can read.
+def _binding_word(asm, step):
+    """The panel verdict that binds at `step`'s seam, as its assembly
+    declares it (`panel-binds = "revise"`); `""` where none does. The word
+    is the assembly's: the engine names no verdict of its own."""
+    seg = next((s for s in asm.get("segment", []) if s["id"] == step["segment"]), {})
+    return str((seg.get("transition") or {}).get("panel-binds") or "")
+
+
+def _panel_binds(asm, step):
+    return bool(_binding_word(asm, step))
+
+
+def _binding_voices(st, asm, step):
+    """The returns of the last full panel round at `step`'s seam whose
+    reader answered the binding word: the round this route step disposes
+    of."""
+    word = _binding_word(asm, step)
+    for s in reversed(st["steps"]):
+        if s["segment"] != step["segment"] or not s.get("panel"):
+            continue
+        rs = st["returns"].get(s["id"]) or []
+        if rs and not runmod.panel_outstanding(st, s):
+            return [r for r in rs
+                    if forms.leading_word((r.get("fields") or {}).get("verdict", "")) in (word,)]
+    return []
+
+
+def _check_panel_binds(asm, step, st, outcome, fields):
+    """Refuse a release over a reader's live binding verdict. The impasse
+    ruling is not held to this: its `advance` is the loop's declared way
+    out, and it returns to the dispatching run with the verdict on it."""
+    if outcome is None or outcome[1] != "release" or not _panel_binds(asm, step):
+        return
+    _, spec = runmod.deciding_spec(asm, step)
+    # A route form minted alone, with no panel of its own, is the one an
+    # impasse `advance` stands the conductor on: it disposes of a revise the
+    # impasse already ruled on, and is not held a second time.
+    if not spec.get("panel-binds") or not step.get("panel"):
+        return
+    voices = _binding_voices(st, asm, step)
+    if not voices:
+        return
+    field = spec.get("decides", "resolution")
+    word = _binding_word(asm, step)
+    who = ", ".join(r["child"].rsplit(".", 1)[-1] for r in voices)
+    raise SystemExit(render.refusal(
+        field, f"a reader answered `{word}` ({who}), and that binds the agent "
+        "that built the diff",
+        escape=f"fix it: {field} = \"rework\"   or contest it one tier up: "
+               f"{field} = \"up\", with your reason in `calls`"))
+
+
+def _set_aside(fields):
+    """The findings a route submit did not call blocking, each with its
+    call: what the next round's reader checks was fairly set aside."""
+    rows = (fields or {}).get("calls")
+    if not isinstance(rows, list):
+        return ""
+    return "\n\n".join(
+        f"[{' '.join(str(r.get('call', '')).split())}] {str(r.get('finding', '')).strip()}"
+        for r in rows
+        if isinstance(r, dict) and forms.leading_word(r.get("call", "")) != "blocking"
+        and str(r.get("finding", "")).strip())
+
+
 def _check_one_look(asm, st, outcome, fields):
     """Refuse, before the submit lands, the send-back the ruling above does
     not allow: a second incorporation of the same artifact. A `rewrite`

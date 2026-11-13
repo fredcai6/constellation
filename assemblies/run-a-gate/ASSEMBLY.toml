@@ -61,6 +61,13 @@ anchor = true
 # is no third verdict word -- a root objection is a revise finding -- and
 # `rework` is what carries one back into another implement round.
 decides = "resolution"
+# The conductor that rules here built the diff the panel read. So a reader's
+# `revise` binds: while one stands, this form's answer is `rework`, or `up`
+# to contest it at the run that dispatched the gate. A rework also hands its
+# reader `set-aside`, the findings the conductor did not call blocking, so a
+# reader and not the builder has the last look at them (`[panel-binds]`,
+# engine/cli.py; ruling, 2026-11-13).
+panel-binds = "revise"
 
   [[segment.transition.outcome]]
   value = "pass"
@@ -84,11 +91,13 @@ decides = "resolution"
 
   # One criterion per panelist, the same rule as run-an-issue's panels: three
   # fresh-context readers disagreeing is a panel; one reader holding three
-  # criteria is a reviewer with a checklist. Spec-fit is not a lens here: the
-  # gate's own proof is that check, run at submit and again at close, and on
-  # tennis_elo's first fourteen runs a spec-fit reader sent a round back 2
-  # times in 29. `claims` is the lens every hand-picked fourth reader kept
-  # re-inventing there, and 8 blocking findings no other reader raised.
+  # criteria is a reviewer with a checklist. A separate spec-fit reader was
+  # dropped on tennis_elo's first fourteen runs, where it sent a round back 2
+  # times in 29 and the panel was growing. The question came back: both
+  # remints on story_time's 2026-11-06 runs were a delivered artifact that
+  # did not show what the spec asked, found by the conductor after all four
+  # readers passed. So `claims` holds it, as the reader that already opens
+  # what the gate writes for a person (ruling, 2026-11-13): no fifth reader.
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
@@ -109,7 +118,7 @@ decides = "resolution"
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "claims: is every statement the diff writes -- in docs, reports, comments, printed conclusions, its own change note -- backed by something it ran? Name each claim that says more than the numbers establish, a number carried from somewhere and not reproduced, or a cause stated as fact that nothing tested"
+  criteria = "claims: does what the gate delivers say what was asked, and is every statement in it backed? First open what the gate produces for a person -- a trace, a report, a doc, printed output, a checked-in expectation -- and read it against the words of each obligation in your orders: name each obligation the delivered thing does not show. Then name each statement the diff writes -- in docs, reports, comments, its own change note -- that says more than what it ran establishes: a number carried from somewhere and not reproduced, or a cause stated as fact that nothing tested"
 
   # All eight of story_time's remints came from a conductor running the code
   # after a gate had been through review. A blind standard-tier reader on this
@@ -130,7 +139,7 @@ decides = "resolution"
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "rework: is each blocking finding in your orders answered by this round's diff, and does anything the rework wrote -- a comment, a rationale, a test predicate -- say something the diff itself made false? Read for those two things only"
+  criteria = "rework: three things only. Is each finding under `findings` in your orders answered by this round's diff? Does anything the rework wrote -- a comment, a rationale, a test predicate -- say something the diff itself made false? And is any finding under `set-aside`, which the builder chose not to fix, a gap that still stands in this diff? Name each one that does"
 
 [[segment]]
 id = "close"

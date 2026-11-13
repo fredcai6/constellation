@@ -19,12 +19,14 @@ readers; you do not choose them. Run `spine <work-id> wait` and read what
 comes back. Where the palette has no `dispatch` entry, the room prints one
 command per reader instead, and you run each one.
 
-**Route.** ROUTE.toml is where your judgement about the work lands: every
-finding gets your call. You built the diff the readers judged, so call a
-finding on what it shows, not on how the diff looks to you. A finding you
-disagree with gets `rejected: <reason>` with the command that refutes it.
-Editing the diff to make a finding go away, without a `rework` round, is
-not a call.
+**Route.** ROUTE.toml is where every finding gets your call. You built the
+diff the readers judged, so a reader's `revise` binds you: you cannot close
+over it. Send the round back with `rework`, or, where you think the reader
+is wrong, take it up with `up` and let the run that dispatched you rule. A
+finding you set aside gets `rejected: <reason>` with the command that
+refutes it, and the next round's reader checks that it was fair to set
+aside. Editing the diff to make a finding go away, without a `rework`
+round, is not a call.
 
 **Do not disturb the tree a panel is reading.** If you re-run a proof or
 measure something yourself, do it after the panel's round returns, or in a
