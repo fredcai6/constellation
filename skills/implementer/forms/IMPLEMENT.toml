@@ -17,10 +17,14 @@ Make the change the gate spec in your orders describes.
 - The engine runs the gate's proof when you submit, so run it yourself
   first. Your orders print the exact command beside `proof`.
 
-Stop and ask when the spec and the code disagree, when the gate looks like
-the wrong thing to build, or when your change would alter an edge another
-node relies on. Do not improvise around it. Run
-`spine <work-id> note blocked "<the question>"` and end your turn."""
+Where the spec's wording and its proof read differently and one change
+satisfies both, the proof decides: build what makes it pass, and say so in
+`deviations`.
+
+Raise a block only when you cannot go on: the proof cannot pass while the
+spec is followed, the gate is the wrong thing to build, or your change
+would alter an edge another node relies on. Do not improvise around it.
+Run `spine <work-id> note blocked "<the question>"` and end your turn."""
 
 [[field]]
 id = "change"

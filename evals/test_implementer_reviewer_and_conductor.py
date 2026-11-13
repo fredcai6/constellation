@@ -69,10 +69,9 @@ def _mint_gate_pair(workdir, wid, gid, purpose, scope, proof, model=""):
 
 
 def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
-    """The loop closes from what the room prints: submit, name the lenses
-    that read the diff, dispatch the panel that mints, act on its verdict,
-    close. Six beats now, not five -- `select` sits between implement and
-    review -- and no engine or skill knowledge in the prompt, only the work
+    """The loop closes from what the room prints: submit, wait for the
+    panel the assembly declares, rule on its round, close. No engine or
+    skill knowledge in the prompt, only the work
     id and the outcome to reach, so the same agent walks from the
     implementer's form to the gate-conductor's without ever being told
     either name."""
@@ -92,15 +91,13 @@ def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
     st = harness.state(workdir, "g1")
     assert st["closed"], (
         f"the gate never closed on its own orders.{harness.evidence(workdir, 'g1', r)}")
-    assert {"work-1", "select", "close"} <= st["done"].keys(), (
+    assert {"work-1", "review", "close"} <= st["done"].keys(), (
         f"a step along the way was skipped: {sorted(st['done'])}"
         f"{harness.evidence(workdir, 'g1', r)}")
-    # the review the agent selected: minted at `select`, so its id is not a
-    # name this assertion can spell -- what is checked is that a panel it
-    # chose actually read the diff and returned
-    reviews = [s for s in st["steps"] if s["segment"] == "review" and s.get("panel")]
+    # the declared panel actually read the diff and returned
+    reviews = [s for s in st["steps"] if s.get("panel")]
     assert reviews and all(s["id"] in st["done"] for s in reviews), (
-        f"no review round was selected, fired and disposed of: "
+        f"no review round was fired and disposed of: "
         f"{[(s['id'], s.get('form')) for s in st['steps']]}"
         f"{harness.evidence(workdir, 'g1', r)}")
     assert st["returns"].get(reviews[-1]["id"]), (
