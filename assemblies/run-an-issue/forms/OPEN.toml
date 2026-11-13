@@ -16,11 +16,15 @@ note = "The issue this run solves, per standards/issue.md — a file in the work
 id = "authority"
 kind = "decision"
 note = """
-Who your principal is, what you own, your latitude, where gaps go — the
-principal's recorded answer. Say too whether you may answer a rewrite-cap
-ask yourself: a spec or a cut gets one rewrite, and a second becomes an ask
-at the principal, yours to answer only where this latitude grants it. Derived automatically when this run has a parent;
-recorded from the human when it does not."""
+The principal's recorded answer: who the principal is, what the conductor
+owns, its latitude, and where gaps go. Say whether the conductor may answer
+a rewrite-cap ask itself: a spec or a cut gets one rewrite, and a second
+becomes an ask at the principal.
+
+Write it in the third person, naming roles ("the issue-conductor may
+merge", never "I may merge"). Every child of this run reads this text in
+its own orders, and "I" there would mean the child. Taken from the parent
+when this run has one; recorded from the human when it does not."""
 
 [[field]]
 id = "questions"
@@ -28,12 +32,9 @@ kind = "plan"
 mints = "board rows"
 board = "understand"
 note = """
-One block per seed question, minted as rows on the understand board
-(UNDERSTAND.toml). A seed may carry any board column (move, cluster, after);
-only question and type carry an answer here. `board` names which of this
-assembly's two board segments these rows seed -- the moment a second one
-(execution-state) exists, the engine can no longer pick by being the only
-one there."""
+One block per seed question. Each becomes a row on the understand board
+(UNDERSTAND.toml). A seed may carry any board column (move, cluster,
+after); only `question` and `type` need an answer here."""
 
   [[field.item]]
   id = "question"

@@ -1,133 +1,73 @@
-# Transition: plan → execute. Owned by run-an-issue; filled by whoever
-# conducts the issue. Ruling 3 (2026-09-02): mirrors run-a-gate's own
-# review/ROUTE.toml shape. Two voices on every fresh cut -- the run's
-# opening one, a replan's, a rewrite's -- never merely because a gate
-# landed (2026-09-26): the critic panel reads the plan and rules first -- both of
-# its words release, so nothing mints on the panel's say alone -- and this
-# form is where its round is disposed of. An incorporation and a resumed
-# round stand this form alone (one look, 2026-09-25): the conductor reads
-# the planner's pass, and the engine's run of its proofs, in the room above.
+# Transition: plan -> execute. Owned by run-an-issue; filled by the conductor.
+# The critic panel reads every fresh cut: the run's opening one, a replan's,
+# a rewrite's. This form is where the conductor rules on what the panel
+# found. An incorporation, and a cut re-made after a gate landed, stand here
+# with no panel. `resolution`, `orders` and `calls` are CONSOLIDATE.toml's
+# (`same-as`): the two seams rule a panel's round the same way.
 
 imperative = """
-The cut is in the room above, with what its `proof` did when the engine ran
-it once against the tree as it stands: a real check fails there, before the
-work; one that passes on an empty diff proves nothing; a string the shell
-could not run will fail the gate after the work is done. A plan gets one
-look, and you stand between the panel and the planner: the panel finds,
-you judge what it found against the plan as a whole. Call every finding --
-`writer` where it holds at the plan's grain, `rejected` where it does not
-hold, is not this plan's, or reaches below the grain into how the gate
-gets built, which is the implementer's. A panel's `revise` is its word on
-its own findings, not a ruling on the cut. Then rule the round. Where the
-findings you kept leave the chunk standing, `incorporate`: the planner
-takes or rejects them, and what comes back is released here, not read by
-another panel. Where they change which problem the run is solving, or the
-thing this gate would code -- one finding, or several read together --
-`rewrite`, and write in `orders` the chunk the next cut must be, forward:
-the fresh cut starts from your orders alone, never the last cut or its
-findings, and gets its own look. Where you are standing on a returned cut,
-or on a re-cut after a gate landed, release it. The round
-that just landed already cut every gate whole -- purpose, scope, proof, and
-any model or direction override, one block per gate -- so a release needs
-nothing retyped, only the plan artifact pointed at."""
+The cut is in the room above, with what each gate's `proof` did when the
+engine ran it against the tree as it stands. Rule on the round.
+
+1. Read the proof readings. A real proof fails here, before the work. One
+   that passes proves nothing. One the shell could not run will fail the
+   gate after the work is done. Either of those two is a finding for the
+   planner.
+
+2. Call every finding, in `calls`. You stand between the panel and the
+   planner, and you judge each finding against the plan as a whole:
+   `writer` where it holds at the plan's grain, `rejected: <reason>` where
+   it does not hold, is not this plan's to answer, or is about how a gate
+   gets built, which is the implementer's. The panel's `revise` is its
+   word on its own findings. It is not a ruling on the cut.
+
+3. Rule the round, in `resolution`:
+   - `incorporate` (the default when you kept any finding): the planner
+     takes or rejects the findings you called `writer`. What comes back is
+     released here with no second panel.
+   - `rewrite`: the findings you kept, one or several together, change
+     which problem the run is solving or what the next gate would build.
+     Write in `orders` the chunk the next cut must be. The fresh cut
+     starts from your orders alone and gets its own panel.
+   - release: you kept no finding, or you are standing on a cut that came
+     back from the planner. Fill `plan` with the plan document's path.
+     Nothing is retyped: every gate block the planner wrote is queued as
+     it stands.
+   - `up`: you cannot rule from here. The run pauses and asks one tier up."""
 
 [[field]]
 id = "resolution"
-kind = "decision"
-note = """
-pass | revise | incorporate | rewrite | up. The first two are the panel's
-own words, resolved onto this same table when its verdict returned -- both
-release the round exactly as leaving the plan field filled and submitting
-does. `incorporate` is the planner's one pass over the findings you called
-`writer`, taken or rejected on its own judgement; the cut it returns stands
-here with no panel, and your next word on it is a release, or a `rewrite`
-if the pass itself broke the chunk -- a second incorporate refuses.
-`rewrite` is a fresh cut, written from your `orders` alone, with its own
-panel: the call for a round whose findings, one or several read together,
-change which problem is solved or what this gate codes. A cut gets one rewrite;
-a second, before this seam releases, becomes an ask at the run's principal
-instead. `up` is the round you
-cannot rule on from here, the spec being wrong the usual reason: it pauses
-this segment rather than releasing it, your reason standing as an ask one
-tier up, with whatever it answers carried back as the next round's
-orders."""
+same-as = "assemblies/run-an-issue/forms/CONSOLIDATE.toml"
 
 [[field]]
 id = "orders"
-kind = "evidence"
-optional = true
-note = """
-Your own words for the next round. On a `rewrite` they are all the fresh
-planner holds: the next chunk the run needs and why, stated forward --
-what the findings established, as ground the cut stands on, never as
-faults in the cut they were about. On an
-`incorporate` they ride ahead of the findings, as yours. `waived: none`
-where the findings say it all. Never write an order into `calls` as if the
-panel had returned it."""
+same-as = "assemblies/run-an-issue/forms/CONSOLIDATE.toml"
 
 [[field]]
 id = "approach"
 kind = "evidence"
 optional = true
 note = """
-A ruling on how every later chunk is cut, not on this one: the proof
+A ruling on how every later gate is cut, not on this one: the proof
 standard, a convention the code holds to, a way of working this run has
 settled. It joins the run's standing orders on this submit, whatever the
-resolution, so every later cut and gate reads it. A value replaces what
-stands, so write the whole standing text. `waived: none` leaves it as it
-is."""
+resolution, and every later cut and gate reads it. A value replaces what
+stands, so write the whole text. `waived: none` leaves it as it is."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 optional = true
 note = """
-The plan artifact that passed critique, in this run's work location
-(.agent-work/<work-id>/) -- filled when this round releases (a `pass`, or a
-`revise` you are not sending back) and left blank on any other word, since
-none has anything intact to project. Filling it projects every gate the round ahead cut, in its own order, into
-its own dispatch -- a projection of the planner's own form, never a copy
-typed here: each gate's purpose, scope, proof and any model or direction
-override cross into its own child's prefill, and so does the tree, which
-shows every gate what calls its nodes and what they call. Each gate owns
-only the nodes the tree marks THIS GATE for it."""
+The path of the plan document, in this run's work location
+(.agent-work/<work-id>/). Fill it only on a release; leave it blank on
+`incorporate`, `rewrite` or `up`. Filling it queues every gate the planner
+cut, in order, each with its own purpose, scope and proofs, and hands
+every gate the call-tree."""
 
-# `calls` is written last, after the scalar `resolution` and `plan`, because
-# a plan field renders as a bare `[[calls]]` header and every scalar declared
-# after it would nest inside that array's last block instead of standing as
-# its own field (tests/test_reachable_briefs.py holds the whole tree to
-# this). The reading order is the other one: rule the findings, then say
-# where the round goes.
+# `calls` is written last: a `kind = "plan"` field renders as a bare
+# `[[calls]]` header, and TOML nests every scalar written after it into that
+# array's last block. tests/test_reachable_briefs.py holds every form to this.
 [[field]]
 id = "calls"
-kind = "plan"
-optional = true
-note = """
-One block per finding the panel returned -- every one of them gets a
-call, and the call is where the finding goes.
-
-`writer` -- it holds, at the plan's grain: the next chunk, its purpose,
-its scope, or whether its proof could tell it landed. On an `incorporate`
-it is the planner's to take or reject; on a `rewrite` it is ground your
-`orders` state. A finding that the cut itself carries detail below its
-grain is a `writer` finding that deletes.
-`rejected: <reason>` -- it does not hold against the plan as a whole; or
-it is real but not this plan's to answer; or it is detail below the
-plan's grain -- how the gate gets built, which the implementer chooses
-reading the same code. Fold the reason in after the colon; it never
-becomes work here, and the record is that you called it.
-
-An `up` carries the whole table, every call beside its finding, to the
-tier the ask stands at. Quote each finding as it was written rather than
-numbering it: on an `incorporate` the `writer` blocks are literally what
-the planner arrives holding. Leave the field out only where no panel
-returned findings -- every cut after a release has none."""
-
-  [[field.item]]
-  id = "finding"
-  note = "The panel's finding as it was written -- quoted, never summarised."
-
-  [[field.item]]
-  id = "call"
-  kind = "decision"
-  note = "writer | rejected: <reason>"
+same-as = "assemblies/run-an-issue/forms/CONSOLIDATE.toml"

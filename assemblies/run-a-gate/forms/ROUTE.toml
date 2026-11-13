@@ -1,104 +1,87 @@
-# Transition: work → close, as `work`'s own `review`. Owned by run-a-gate;
-# filled by whoever conducts the gate. Two voices:
-# the review panel reads the diff and returns first, and this form is where
-# its round is disposed of -- on a revise as much as on a pass, since a round
-# with findings in it is exactly the round somebody has to rule on. The
-# panel's verdict is above in the room; this is the answer to it.
+# Transition: work -> close, as `work`'s own `review`. Owned by run-a-gate;
+# filled by whoever conducts the gate. The review panel reads the diff and
+# returns first; this form is where the conductor rules on its round, after
+# a pass as much as after a revise.
 
 imperative = """
-The review has returned. Read its findings as written -- a revise is not an
-invitation to argue the verdict you were given -- and say where this round
-goes: back into the diff, or out to close. Then call every finding it
-returned, one by one; a `rework` carries the ones you call blocking and
-nothing else. A deviation the implementer declared is already on the record
-in its own form: call one only where you contest it, never to accept it --
-forty-eight of sixty-nine calls across five runs were deviations re-quoted
-and accepted."""
+The review has returned. Its findings are in the room above. Rule on the
+round.
+
+1. Call every finding, in `calls`: `blocking`, `accepted`, or
+   `rejected: <reason>`. Read each finding as written. A `revise` verdict
+   is not an invitation to argue with the reviewer.
+
+2. Say where the round goes, in `resolution`:
+   - `rework`: back to the implement step. The findings you called
+     `blocking` go with it, and nothing else does.
+   - `close`: the gate goes on to its close form. Use it after a pass, and
+     after a revise where you called no finding blocking.
+   - `up`: you cannot rule from here, usually because the gate spec is
+     wrong. The gate pauses and asks the run that dispatched it.
+
+A deviation the implementer declared is already on the record. Call one
+only where you contest it."""
 
 [[field]]
 id = "resolution"
 kind = "decision"
 note = """
-pass | revise | rework | close | up. The first two are the panel's own words,
-resolved onto this same table when its verdicts returned -- record one if you
-want the record explicit, but both release the round exactly as `close` does,
-so `revise` typed here does not send anything back. Your own three are the
-last three: `rework` is another implement round back in `work`, carrying the
-findings you call `blocking` below and nothing else, and one reviewer reads
-that round for them; after `impasse-after` of them the ruling form comes
-instead. `close` releases this round and walks the gate to its close,
-which is the answer after a pass and the answer after a revise you have
-decided not to run. `up` is the round you cannot rule on from here, the spec
-being wrong the usual reason: it pauses this gate rather than closing it, an
-ask standing at the run that dispatched you until it answers -- with what it
-answers carried back as this gate's own next round. Say the ask in `calls`
-below where it belongs to a finding, since that call is what the ask itself
-carries up."""
+pass | revise | rework | close | up.
+
+`pass` and `revise` are the panel's words. Typed here, both release the
+round exactly as `close` does; `revise` sends nothing back.
+`rework`: another implement round, carrying the findings you call
+`blocking` and nothing else. One reviewer reads that round. After the
+allowed number of reworks the impasse form comes instead.
+`close`: release this round and go to the gate's close form.
+`up`: pause this gate and ask the run that dispatched it. Its answer comes
+back as this gate's next round. Say what you are asking in `calls`, on the
+finding it belongs to."""
 
 [[field]]
 id = "orders"
 kind = "evidence"
 optional = true
 note = """
-Your own words for the next round, where you are sending one back: a ruling
-the rework must hold that no finding says, a boundary you are drawing. It
-rides into the rework's prefill ahead of the blocking findings, as yours.
-`waived: none` where the findings say it all. Never write an order into
-`calls` as if the panel had returned it."""
+Your own words for a rework round: a ruling the rework must hold that no
+finding states, or a boundary you are drawing. It goes to the implementer
+ahead of the blocking findings. `waived: none` where the findings say it
+all. Never put an order in `calls` as if the panel had written it."""
 
-# `calls` is written last, after the scalar `resolution`, because a plan
-# field renders as a bare `[[calls]]` header and every scalar declared after
-# it would nest inside that array's last block instead of standing as its own
-# field (tests/test_reachable_briefs.py holds the whole tree to this). The
-# reading order is the other one: rule the findings, then say where the round
-# goes.
+# `calls` is written last: a `kind = "plan"` field renders as a bare
+# `[[calls]]` header, and TOML nests every scalar written after it into that
+# array's last block. tests/test_reachable_briefs.py holds every form to this.
 [[field]]
 id = "calls"
 kind = "plan"
 optional = true
 note = """
-One block per finding the review returned -- every one of them gets a
-call, and this form is the only place any of them is ruled on -- and per
-declared deviation only where you contest it. A deviation you are
-keeping is the ordinary case and takes `accepted` like any other row.
+One block per finding the review returned. Every finding gets a call.
 
-`blocking` -- the spec is not filled while this stands. `accepted` --
-you are not acting on it, and you owe no reason why. The rubber stamp,
-and the call most findings should take: the round stands, nothing
-carries, and the record is that you called it. A finding that proposes
-deleting something -- an obligation, a gate, a field, a file -- takes
-`blocking` or `rejected: <reason>` and never `accepted`: three runs
-running, an accepted call on a deletion was read by the next round as
-consent to it, and a deletion the round stands anyway on is a deletion
-nobody made. Keeping the thing is the call that owes the argument.
+`blocking`: the gate spec is not filled while this stands. On a `rework`
+the blocking findings are the next round's orders.
 
-`rejected` -- not true of this diff, real but not this gate's to answer, or
-real and outside what this gate set out to do, and the one call that owes a
-reason: fold it in after a colon, the way `rejected: the path it names is
-covered at line 40` or `rejected: outside this gate's own scope` reads. A
-`rejected` call on a finding that claims something about what the code does
-names the command that refuted it, the way an issue's `measured` type
-carries its command.
+`accepted`: true, and you are not acting on it. You owe no reason. Most
+findings that do not block take this call. Exception: a finding that
+proposes deleting something (an obligation, a gate, a field, a file) is
+never `accepted`. Call it `blocking` or `rejected: <reason>`, because an
+accepted deletion reads to the next round as consent to delete.
 
-Where each call goes is the whole vocabulary. A `rework` carries the
-blocking ones and nothing else, so a blocking call is that round's
-orders. An `up` carries the whole table -- every call beside its finding
--- to the tier the ask stands at. `accepted` and `rejected` go nowhere by
-design: the record is that you called them, and the archived journal
-carries a `rejected` finding forward for a later gate's own route room to
-weigh against its diff.
+`rejected: <reason>`: not true of this diff, or real but not this gate's
+to answer. The reason is required. Where the finding claims something
+about what the code does, the reason names the command that refuted it.
 
-Quote what you are calling as it was written rather than numbering it:
-on a `rework` the blocking blocks are literally what the next round
-arrives holding, so a call naming `F1` hands that round the string `F1`.
-Leave the field out only where the review returned no findings and you
-contest no deviation."""
+Quote each finding as it was written; do not number or summarise it. On a
+`rework` the blocking blocks are exactly what the implementer receives,
+so a call naming `F1` hands it the string `F1`. Add a block for a declared
+deviation only where you contest it. Leave the field out only where the
+review returned no findings and you contest no deviation."""
 
   [[field.item]]
   id = "finding"
   note = """
 The review finding as the reviewer wrote it, or the deviation as the
-implementer declared it -- quoted, never summarised."""
+implementer declared it. Quote it; do not summarise."""
 
   [[field.item]]
   id = "call"

@@ -2075,7 +2075,13 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         top = _toplevel_checkout(cut_root) or cut_root
         touched = _changed_paths_since_cut(wid, cut_root)
         drops = dropsmod.touching(dropsmod.rejected_calls(top), touched)
-    prefill = {**(st.get("prefill") or {}), **(step.get("prefill") or {})}
+    # A run-level order that was answered `waived: none` upstream carries no
+    # value: it is a field somebody declined, riding in every later room
+    # (`settle`, on all 107 of story_time's 2026-11-06 child rooms). The
+    # step's own orders print as given, where `waived: none` is an answer.
+    carried = {k: v for k, v in (st.get("prefill") or {}).items()
+               if not (isinstance(v, str) and " ".join(v.split()).lower() == "waived: none")}
+    prefill = {**carried, **(step.get("prefill") or {})}
     # A `carries` transition folds its plan fields into the run's prefill as
     # lists of blocks (consolidate's `obligations`), and str() on one of
     # those is a Python repr under "your orders" -- the same spelling-out
