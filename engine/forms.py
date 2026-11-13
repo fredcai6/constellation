@@ -27,13 +27,12 @@ def _field(raw: dict) -> dict:
     }
     if "mints" in raw:
         out["mints"] = raw["mints"]
-    # Rationale: a `mints = "board rows"` field used to reach the only board
-    #   segment an assembly ever had, found by being the one whose `interior`
-    #   is `"board"` -- unambiguous while true. `board` names which of
-    #   several a field seeds, the moment run-an-issue holds two
-    #   (`engine/cli.py`'s `_board_segment`); carried through `_field` here
-    #   the same way `mints` itself already is, so it survives from the raw
-    #   TOML into what `_mint` reads at submit.
+    # Rationale: a `mints = "board rows"` field reaching a board segment by
+    #   being the one whose `interior` is `"board"` is unambiguous only while
+    #   an assembly has one. `board` names which of several a field seeds
+    #   (`engine/cli.py`'s `_board_segment`); carried through `_field` the same
+    #   way `mints` itself is, so it survives from the raw TOML into what
+    #   `_mint` reads at submit.
     if "board" in raw:
         out["board"] = raw["board"]
     if raw.get("record-only"):  # the producer's ledger -- the prefill guard reads this
@@ -132,8 +131,8 @@ def vocabulary(note: str) -> list[str]:
 
     The enum has to open the note to count. A note reworded so its ` | ` falls
     past the first 80 characters yields `[]` and validates nothing: the same
-    silence that stood before this derivation existed, and the only failure
-    mode of it that is not loud.
+    silence of a note with no derived vocabulary, and the only failure mode
+    of the derivation that is not loud.
     """
     return [_REASONED.sub(r"\1", alt) for alt in declared(note)]
 
@@ -157,9 +156,9 @@ def leading_word(value) -> str:
     """The word a submitted value selects -- `"converge -- Tommy: yes, go"`
     selects `converge`.
 
-    One rule, because there were two. The declared-outcomes path matched the
-    first word while the gate path matched the whole string, so the same
-    answer was legal at one transition and refused at another, and a form
+    One rule for every path. Two rules (the first word at one transition,
+    the whole string at another) would make the same answer legal at one and
+    refused at another, and a form
     asking for a value *and* a sentence (`logic | ui | measurement -- and the
     one line that put it there`) could not be answered as written. The word
     carries the decision; the rest carries the reason, and a reason should
@@ -171,9 +170,9 @@ def leading_word(value) -> str:
 
 # [null-answers-do-not-travel]
 # Rationale: `waived: <reason>` and `unknown: <reason>` are how a form says a
-#   field has no value, and they were being stored as the value. Every later
-#   reader then had to know the vocabulary to avoid acting on a non-answer,
-#   and three of them did not: `_tier` read `waived: none` as a model tier
+#   field has no value, and stored as the value, every later reader would
+#   have to know the vocabulary to avoid acting on a non-answer,
+#   and three readers did not: `_tier` read `waived: none` as a model tier
 #   and dispatched `claude --model ""` until the start cap spent (three dead
 #   children in one real run), `checks.budget_for` refused a proof whose
 #   budget was waived instead of using the default, and `_gate_subject` wrote
@@ -194,8 +193,8 @@ def leading_word(value) -> str:
 #   reviewer told `deviations = "waived: none"` knows the implementer
 #   declared none; hand it an absent key instead and it cannot tell that
 #   from a field nobody filled. `tests/test_verdict_panels.py` and
-#   `tests/test_planner_prefill.py` both pin that, and both went red when
-#   this was applied broadly. So it belongs only where a spec becomes
+#   `tests/test_planner_prefill.py` both pin that, and both go red when
+#   this is applied broadly. So it belongs only where a spec becomes
 #   orders the engine itself acts on -- `_mint_gates` -- and nowhere that
 #   merely carries one agent's answer to the next.
 NULL_WORDS = ("waived", "unknown")
@@ -253,15 +252,16 @@ def _is_short(field: dict) -> bool:
 
 
 # [command-slot-is-literal]
-# Rationale: #182 -- a planner wrote an awk clause, `RS="\n## "`, into a
-#   `"""` slot, and TOML read the two characters as a newline: the value was
+# Rationale: a planner who writes an awk clause, `RS="\n## "`, into a
+#   `"""` slot has TOML read the two characters as a newline: the value is
 #   exactly what TOML meant and not what the planner typed, and the gate's
-#   own check died on it after the work was built. A command is text for a
+#   own check dies on it after the work is built. A command is text for a
 #   shell, and a basic string puts a second escape language in front of it.
 #   A literal string has none, so a command slot is minted as one and what is
 #   typed into it is what runs.
 # Rejected: a note asking planners to double their backslashes. It is one
 #   more thing to read on every cut, and the slot still decodes what it holds.
+# See: #182
 COMMAND_KINDS = ("proof", "check")
 
 
@@ -345,8 +345,8 @@ def materialize(form: dict, dest_path, work_id=None, submit=None, drafts=None) -
 def _clean(v):
     """Strip a string's leading/trailing blank lines; recurse into lists/dicts.
     A repeated block with every field blank is the form's own example left
-    standing, so it is no block: story_time issue57 reminted from one, and
-    the `remint` refusal that names a missing spec never saw it missing."""
+    standing, so it is no block: a remint from one (story_time issue57) would
+    never see the `remint` refusal that names a missing spec."""
     if isinstance(v, str):
         rows = v.split("\n")
         while rows and rows[0].strip() == "":
@@ -394,8 +394,10 @@ def answered(filled):
     next, which is deliberate (`_response_path`, engine/cli.py: a filler
     restarted on the same step picks up its own in-progress form). The room
     said nothing about it, so an agent that inherited a stopped agent's work
-    read a complete answer as its own blank form (#26). This is what the room
+    read a complete answer as its own blank form. This is what the room
     reports instead of guessing who wrote what, which it cannot know.
+
+    See: #26
     """
     return [k for k, v in filled.items()
             if not str(v).strip().startswith("working:")]

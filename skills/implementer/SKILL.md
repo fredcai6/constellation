@@ -32,11 +32,18 @@ anchor reaches `map/ids.jsonl`, so a decision worth naming takes both.
 Every comment and docstring states its purpose in the code's own terms, and
 reads true once this run's paperwork is gone. The gate ids, obligation keys
 and plan names in your orders are the run's, and stay in the run's own forms.
+Say what the code does and why, never the story of how it got this way:
+what it used to do, and which gate or run changed it, belong in the commit
+message. A test's docstring says what behaviour it holds the code to.
 
 Write them on the change you are making, while you make it — the reason is in
 your head exactly once, and this is the moment. What earns a pair is what a
 later reader would otherwise reconstruct from scratch: a threshold, a chosen
-approach, an alternative you weighed and dropped.
+approach, an alternative you weighed and dropped. A `Rejected:` tag names
+the alternative and why it fails, as a design reason, not who tried it or
+when. Where the why was learned from an issue or a run, add a `See:` line
+pointing at it -- `See: #122`, `See: story_time issue64` -- so a later reader
+can read more.
 
 A near-miss is silent. `# [Bad_Slug]`, a slug with trailing text, and a slug
 above a function-local assignment each extract to nothing and report nothing,

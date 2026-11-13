@@ -1,17 +1,15 @@
-"""Obligation 5's third bullet: a `drop <gate-id>` or a `remint` while later
-gates of the same cut are still queued closes the rest of the queue and
-sends the open plan back for one review round, no panel -- the same
-no-panel route `tests/test_stale_gate_review.py` already pins for a stale
-reading -- rather than today's unconditional, full-panel replan. Where
-nothing else is left queued, both outcomes carry on exactly as before: a
-remint's own fresh replacement simply dispatches (pinning the fix for the
-panel's own finding that a fresh read, rather than the pre-verb queue
-snapshot, would review on every remint -- including one landing the cut's
-own last gate, which obligation 5 does not ask for).
+"""A `drop <gate-id>` or a `remint` while later gates of the same cut are
+still queued closes the rest of the queue and sends the open plan back for
+one review round, no panel -- the same no-panel route
+`tests/test_stale_gate_review.py` pins for a stale reading -- rather than an
+unconditional, full-panel replan. Where nothing else is left queued, both
+outcomes carry on exactly as before: a remint's own fresh replacement simply
+dispatches (a fresh read, rather than the pre-verb queue snapshot, would
+review on every remint -- including one landing the cut's own last gate).
 
 A `replan` with several gates queued still closes every one of them, not
 only the gate the conductor named, and still stands alone with its own
-fresh panel (obligation 8, re-verified here against a real multi-gate cut).
+fresh panel (checked here against a real multi-gate cut).
 
 Every drop or remint below is ruled at `g1`'s own adjudication -- the same
 seam `tests/test_nesting.py`'s own `test_drop_closes_a_remint_minted_pair_
@@ -29,8 +27,7 @@ consistent with `test_stale_gate_review.py`'s own fixtures.
 This drives a real multi-gate cut through one real `PLAN.toml` fill --
 every gate named in its own `gates` field, the `tests/test_stale_gate_review.
 py`-style `_mint_a_cut` shape, not `test_multi_gate_cut.py`'s own
-seeded-journal one, since the authoring side of naming several gates in one
-submit already landed (g1)."""
+seeded-journal one, since several gates can be named in one submit."""
 
 import pathlib
 
@@ -106,10 +103,13 @@ def test_remint_with_a_later_gate_still_queued_reviews_the_open_plan(workdir, ca
     with a fresh gate-spec rather than advancing it -- while `g2` and `g3`
     are still queued behind it: plan reopens for one review round, no
     panel, closing `g2` and `g3`. The fresh gate-spec mints nothing; it
-    reaches the planner at the head of the closed queue (#237: issue64
-    minted it and the review closed it in the same instant). The naming --
+    reaches the planner at the head of the closed queue (issue64: the
+    fresh gate was minted and the review closed it in the same instant). The naming --
     which gate was re-minted -- reads off the deciding step's own id
-    (`g1`), the pre-verb snapshot's own ground."""
+    (`g1`), the pre-verb snapshot's own ground.
+
+    See: #237
+    """
     wid = "issue66"
     _mint_a_cut(wid, [
         {"purpose": "gate 1 purpose", "scope": "gate 1 scope", "proof": "true"},
@@ -161,7 +161,7 @@ def test_remint_of_the_cuts_own_last_gate_with_nothing_else_queued_dispatches_wi
     behind it, before or after the remint runs. A fresh read taken after
     the remint's own replacement already minted would find that
     replacement pending and review on every remint, including this one
-    landing the cut's own last gate; obligation 5 does not ask for that.
+    landing the cut's own last gate.
     Grounded in the pre-verb snapshot instead -- empty here, since nothing
     but `g1` itself was ever queued -- no review fires: the replacement
     simply dispatches."""
@@ -195,7 +195,7 @@ def test_remint_of_the_cuts_own_last_gate_with_nothing_else_queued_dispatches_wi
 
 def test_replan_with_several_gates_queued_closes_every_one_and_stands_alone_with_a_fresh_panel(
         workdir, capsys):
-    """Obligation 8, re-verified against a real multi-gate cut: a `replan`
+    """A `replan`
     ruled at `g1`'s own adjudication, with `g2` and `g3` still queued
     behind it, closes both of them -- not only the gate the conductor
     named -- and re-enters plan with its own fresh round, a fresh panel,

@@ -1,20 +1,21 @@
 """The ceilings on a seam's send-backs, and the ask each one mints.
 
-`run-a-gate`'s review keeps issue113's `round-cap`: once it has sent back
+`run-a-gate`'s review keeps its `round-cap`: once it has sent back
 `round-cap` rounds in a row with none released, the next send-back pauses
 to an ask naming the seam, the count, and the findings of every round
 counted. run-an-issue's spec and plan seams use `rewrite-cap` instead
-(ruling, 2026-09-25): one look, the writer's one pass, one major rewrite --
+: one look, the writer's one pass, one major rewrite --
 and a second rewrite before the seam releases goes up as the same ask.
 
 Both count since the seam last released, never over its whole history: a
-rolling-horizon run re-enters the plan seam once per gate by design, and
-issue811's first run (2026-09-06) was stopped by a cap counting every round
-since open. A round a pause's answer opened starts the count over too
-(#177).
+rolling-horizon run re-enters the plan seam once per gate by design, and a
+cap counting every round since open stopped issue811's first run. A round a
+pause's answer opened starts the count over too.
 
 Reuses `test_nesting.py`'s plan-seam fixtures and `test_pause_gate.py`'s
 gate-review fixtures rather than hand-rolling a journal.
+
+See: issue113, issue811, #177
 """
 
 import pathlib
@@ -169,7 +170,7 @@ def test_a_second_rewrite_pauses_the_plan_seam_to_an_ask(workdir, capsys):
 
 def test_round_cap_never_fires_on_a_plan_seam_released_once_per_gate(workdir, capsys):
     """issue811's shape: six gates, each cut once and released, is six plan
-    rounds landed -- past the old count's cap -- with nothing sent back.
+    rounds landed -- past the cap -- with nothing sent back.
     The seventh gate's cut, the run's first send-back, is an `incorporate`
     (a spec or a cut still gets its one pass), which mints a writer round
     and no ask. The yield still reads every round (`seam_rounds`); only the
@@ -203,7 +204,7 @@ def test_round_cap_never_fires_on_a_plan_seam_released_once_per_gate(workdir, ca
 
 
 def test_an_answer_buys_the_seam_one_more_rewrite(workdir, capsys):
-    """#177: the principal's answer is the ruling the cap stopped to get, so
+    """The principal's answer is the ruling the cap stopped to get, so
     the round it opens starts the count over -- the seam gets one more
     rewrite, and only a second one after the answer asks again."""
     wid = _drive_plan_seam_to_its_cap()
@@ -253,16 +254,16 @@ def test_round_cap_pauses_a_gates_review_seam_at_five_send_backs(workdir, capsys
     `impasse-after` is spent (`work`) are two different segments -- proof
     that the cap counts against the seam's own segment, never the rework's
     target, and outranks the per-artifact outlet where both would otherwise
-    fire on the same round (spec.md's "The ordering, corrected"). Five
+    fire on the same round (spec.md's ordering section). Five
     reviews, five `rework`s, nothing released: the count is the gate's whole
     history here because nothing ever cut it. The ask lands in the parent
     under the `conductor` filler: a gate's ask is its parent's conductor's
     to answer, and only an ask with no parent run to reach is the
     principal's.
 
-    Unchanged by one look (2026-09-25): run-a-gate's own `work` segment and
-    its `review`/ROUTE.toml still keep `impasse-after` and `rework` -- only
-    run-an-issue's `understand` and `plan` seams lost them."""
+    Under one look, run-a-gate's own `work` segment and its
+    `review`/ROUTE.toml keep `impasse-after` and `rework`; run-an-issue's
+    `understand` and `plan` seams do not have them."""
     _seed_two_gates("issue113c2")
     child = _drive_to_impasse("issue113c2", "g1", rounds=5)
     capsys.readouterr()

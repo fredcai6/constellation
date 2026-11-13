@@ -1,9 +1,10 @@
-"""`tools/code_map/build.py`'s parents summary (epic #138, finding 1's missing
-call site): `parents.orphan_report`/`dangling_report` existed with nothing at
-any seam calling them, which is exactly the failure mode
-`docs/DERIVED_IS_CODE.md` names -- "unwired derivation is a missing call
-site, not dead weight." `build()` is `constellation.toml`'s "closeout call"
-seam, so this is where the counts get printed.
+"""`tools/code_map/build.py`'s parents summary: `parents.orphan_report`/
+`dangling_report` need a call site at a seam, since `docs/DERIVED_IS_CODE.md`
+names unwired derivation as "a missing call site, not dead weight."
+`build()` is `constellation.toml`'s "closeout call" seam, so this is where
+the counts get printed.
+
+See: #138
 
 Same altitude as `tests/test_code_map_map_lines.py`'s `_build` helper: drive
 `extract.run` + the function under test through a real tiny checkout, not
@@ -110,10 +111,13 @@ def test_build_still_prints_the_summary_when_render_fails_on_a_duplicate_id(tmp_
 
 
 def test_check_narrows_the_store_the_way_the_tree_it_reads_was_rendered(tmp_path):
-    """#160: `check` compared the whole store against a tree the palette had
-    rendered with `--render-only`, and failed by hundreds. The tree records
-    its own narrowing, and `check` -- given no narrowing of its own -- reads
-    the store the same way."""
+    """`check` against a tree rendered with `--render-only` must not compare
+    the whole store against it and fail by hundreds. The tree records its own
+    narrowing, and `check` -- given no narrowing of its own -- reads the
+    store the same way.
+
+    See: #160
+    """
     from tools.code_map import checks, render
     _git_repo(tmp_path, {"pkg/__init__.py": "", "pkg/mod.py": _MOD_PY,
                          "other/__init__.py": "",

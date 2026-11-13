@@ -27,10 +27,10 @@ validate-gate-loop = "python3 -m pytest -q && python3 -m pytest 'evals/test_impl
 # `check` then holds the tree to its own invariants, reading the narrowing the
 # tree records rather than being told it again.
 map = "python3 -m tools.code_map build --root . --artifacts .code-map --out map --render-only engine && python3 -m tools.code_map check --root . --artifacts .code-map --out map"
-# `dispatch` is the real harness `wait` actually starts a dispatch or panel
+# `dispatch` is the real harness `wait` starts a dispatch or panel
 # room's outstanding child through -- `evals/harness.py`'s own `cmd` in
 # full (around evals/harness.py:128-129), so the one process every eval
-# already drives by hand is the same one `wait` now starts itself.
+# already drives by hand is the same one `wait` starts itself.
 # `--append-system-prompt` carries the one fact about this harness a brief cannot: a
 # headless process is never woken. Twelve children across three runs died by starting a
 # check in the background and ending their turn to "wait for the notification".
@@ -52,10 +52,10 @@ excursion = "standard"
 reviewer = "standard"
 spec-writer = "standard"
 
-# Epic #138 finding 10: the documents a purpose chain is allowed to
-# terminate at, rather than climb past. A claim counts as a root when its
-# anchor lives in one of these files -- Part 1 of the same finding is what
-# lets a chain name a claim instead of a whole document. This belongs here,
+# The documents a purpose chain is allowed to terminate at, rather than
+# climb past. A claim counts as a root when its anchor lives in one of these
+# files, which lets a chain name a claim instead of a whole document. This
+# belongs here,
 # not in a check's own source, for the same reason the command palette
 # above does: `standards/approach.md` travels to any repository this
 # system runs in and its five are a root wherever it lands, but
@@ -63,5 +63,6 @@ spec-writer = "standard"
 # a root set baked into code cannot tell a portable root from a local one,
 # and would either follow `approach.md` to a repo with no `PURPOSE.md` or
 # hardcode this repo's path into a mechanism meant to travel.
+# See: #138
 [roots]
 documents = ["docs/PURPOSE.md", "standards/approach.md"]

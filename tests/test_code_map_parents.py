@@ -1,8 +1,8 @@
-"""`map/parents.jsonl` -- the map's authored, defined portion (epic #138,
-finding 1). `tools/code_map/parents.py` is a reader plus two reports over
+"""`map/parents.jsonl` -- the map's authored, defined portion.
+`tools/code_map/parents.py` is a reader plus two reports over
 it: orphans (an anchor with no entry) and dangling (an entry naming an id
 that is neither an anchor in the tree nor a configured root claim --
-`root_claim_ids`, epic #138 finding 10). Neither report refuses anything --
+`root_claim_ids`). Neither report refuses anything --
 `report()`/`main()` always return 0 -- so these tests check what the reports
 NAME, never that they exit nonzero.
 
@@ -14,6 +14,8 @@ the way the rest of this suite does; `root_claim_ids` reads `constellation.toml`
 and the documents it names straight off disk, no git required. The last group
 runs the whole thing against THIS repository's own committed `map/parents.jsonl`
 and `constellation.toml`, which is the actual deliverable.
+
+See: #138
 """
 import json
 import pathlib
@@ -216,8 +218,7 @@ def test_root_claim_ids_ignores_a_python_anchor_sharing_a_slug_shape(tmp_path):
 def test_this_repos_root_claims_resolve_from_its_own_constellation_toml():
     """The real deliverable: `constellation.toml`'s `[roots] documents`
     against this repository's own `docs/PURPOSE.md` and
-    `standards/approach.md` names the eleven root claims epic #138 finding
-    10 put there."""
+    `standards/approach.md` names the eleven root claims."""
     got = parents.root_claim_ids(ROOT)
     assert "purpose-keeps-the-why-attached" in got
     assert "explore-and-play" in got
@@ -252,7 +253,7 @@ def test_report_with_a_full_defined_portion_orphans_nothing(tmp_path):
 
 
 def test_report_dangling_resolves_a_parents_entry_naming_a_root_claim(tmp_path):
-    """The defect this closes: every purpose chain terminates at a root
+    """Every purpose chain terminates at a root
     claim, and all eleven of those are markdown -- `anchor_ids` alone never
     sees them, so a correct row naming one as a parent must not read as
     dangling."""
@@ -302,7 +303,7 @@ def test_report_orphans_never_include_a_root_claim(tmp_path):
 
 
 def test_main_never_refuses_even_with_dangling_and_orphaned_entries(tmp_path, capsys):
-    """Neither report is a gate (epic #138): `main` always returns 0, whether
+    """Neither report is a gate: `main` always returns 0, whether
     the defined portion is empty, complete, or naming ids that rotted away."""
     _write(tmp_path, "mod.py", [("a1", "f")])
     init_checkout(tmp_path)
@@ -323,11 +324,11 @@ def test_main_never_refuses_even_with_dangling_and_orphaned_entries(tmp_path, ca
 
 
 def test_this_repos_committed_parents_file_is_tracked_not_ignored():
-    """The trap named in epic #138: `.gitignore`'s `map/` line plus a bare
+    """`.gitignore`'s `map/` line plus a bare
     negation does nothing at all, because git will not re-include a path
     inside an ignored directory. `map/*` + `!map/parents.jsonl` is the shape
     that actually works -- this is the same check `git add` proves by hand,
-    run here so a later edit to `.gitignore` cannot silently regress it."""
+    run here so a later edit to `.gitignore` cannot silently break it."""
     proc = subprocess.run(["git", "check-ignore", "map/parents.jsonl"],
                           cwd=str(ROOT), capture_output=True, text=True)
     assert proc.returncode == 1, "map/parents.jsonl is gitignored and should not be"
@@ -348,9 +349,9 @@ def test_this_repos_derived_map_directory_stays_gitignored():
 def test_orphan_count_on_this_repos_clean_tree_equals_the_total_anchor_count():
     """The relationships that hold no matter how many rows `map/parents.jsonl`
     carries: every anchor with no entry is an orphan, and nothing dangles.
-    Regressing this means the reader and `extract.anchors_in` stopped
-    agreeing on the anchor set, or a row went dangling -- not that the file
-    stopped being empty, which finding 1 never promised to stay true."""
+    A failure means the reader and `extract.anchors_in` disagree on the
+    anchor set, or a row went dangling -- not that the file stopped being
+    empty, which is never promised."""
     parents_path = ROOT / "map" / "parents.jsonl"
     anchors = parents.anchor_ids(ROOT)
     have = parents.read_parents(parents_path)
@@ -369,7 +370,7 @@ def test_orphans_and_dangling_tolerate_a_declared_root_row(tmp_path):
     satisfy an orphan and can never gain an entry of its own from the orphan
     report's point of view -- but it must not read as dangling either, and
     it must not disturb the ordinary anchor's own orphan/dangling status.
-    Pins the same two relationships
+    Holds the same two relationships
     `test_orphan_count_on_this_repos_clean_tree_equals_the_total_anchor_count`
     asserts against this repository's own tree, against a small tree that
     carries one ordinary anchor row and one declared-root row."""
@@ -401,12 +402,14 @@ def test_no_anchor_id_is_claimed_at_more_than_one_site():
     THAT defect, only hide it -- this walks the same corpus and grammar but
     keeps every occurrence, so a shared slug fails here instead of nowhere.
 
-    Epic #138 finding 10 found exactly one collision in the tree:
-    `response-path-by-step`, claimed by both `engine/cli.py`'s own
-    `_response_path` and `evals/harness.py`'s `response_path`. `render.py`'s
-    own build-time duplicate check (`ids` grouped by slug) catches the same
-    thing at a different altitude; this is the corpus-level version, cheap
-    enough to run without a full build."""
+    The classic collision is `response-path-by-step`, claimed by both
+    `engine/cli.py`'s own `_response_path` and `evals/harness.py`'s
+    `response_path`. `render.py`'s own build-time duplicate check (`ids`
+    grouped by slug) catches the same thing at a different altitude; this
+    is the corpus-level version, cheap enough to run without a full build.
+
+    See: #138
+    """
     sites = {}
     for rel in discovery.discover_corpus(ROOT):
         src = (ROOT / rel).read_text(encoding="utf-8")

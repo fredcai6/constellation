@@ -1,9 +1,9 @@
-"""`_role_tier`'s own contract, proven with no caller yet in the tree.
+"""`_role_tier`'s own contract.
 
-A later gate wires `render.brief` to call this to fill in a form step's
-tier; wiring a real spawn is later still. Until then this is the only place
-the function's promises are checked at all, so each bullet in issue100.g2's
-own scope gets its own test rather than one sweep.
+`render.brief` calls this to fill in a form step's tier. Each of the
+function's promises gets its own test rather than one sweep.
+
+See: #100
 """
 
 import pathlib
@@ -50,7 +50,7 @@ def test_an_unmapped_role_refuses_and_names_the_missing_role(bare_workdir):
     """A `filler` that is neither the bare `"conductor"` indirection nor
     present in `[roles]` is a refusal naming the missing role -- never a
     spawn under an empty or default runner. No real caller supplies a role
-    like this yet, so a synthetic name is enough to prove the refusal
+    like this, so a synthetic name is enough to prove the refusal
     shape."""
     pathlib.Path("constellation.toml").write_text(
         '[roles]\nplanner = "standard"\nimplementer = "standard"\n')

@@ -63,7 +63,7 @@ def test_a_torn_journal_reads_as_the_work_before_the_tear(bare_workdir, capsys):
 
 
 def test_a_malformed_plan_field_refuses_before_anything_is_recorded(bare_workdir, capsys):
-    """A plan field of the wrong shape used to journal the submit and then die
+    """A plan field of the wrong shape must not journal the submit and then die
     minting, leaving a run that looked advanced with no work in it."""
     _open()
     _response("issue17").write_text(
@@ -120,9 +120,9 @@ def _fill_critic(wid, verdict):
 
 
 def test_a_value_outside_a_fields_vocabulary_refuses_and_names_it(bare_workdir, capsys):
-    """A decision field used to take anything its note did not list: the
-    submit landed, the step was released, and the act downstream matched no
-    branch and performed nothing. The refusal names the field and quotes the
+    """A decision field must not take anything its note does not list: else the
+    submit lands, the step is released, and the act downstream matches no
+    branch and performs nothing. The refusal names the field and quotes the
     alternatives the note already taught."""
     _critic_step()
     _fill_critic("c1", "looks good to me")
@@ -236,13 +236,12 @@ def test_a_work_id_cannot_escape_the_work_tree(bare_workdir):
 
 
 def test_a_hanging_check_refuses_instead_of_wedging_the_turn(bare_workdir, monkeypatch):
-    """A check command that never returns used to block forever, burning the
+    """A check command that never returns must not block forever, burning the
     agent's turn with no way out.
 
-    The number it hangs against is now the budget rather than the one
-    `CHECK_TIMEOUT` held: past the handback the check is handed back and the
-    step stays open, and only the budget says the command is broken. So this
-    is the same test against the number that still refuses."""
+    The number it hangs against is the budget: past the handback the check
+    is handed back and the step stays open, and only the budget says the
+    command is broken. So this tests the number that refuses."""
     monkeypatch.setattr(checks, "BUDGET", 1)
     pathlib.Path("constellation.toml").write_text('[models]\nstandard = "x"\n')
     cli.main(["open", "run-a-gate", "--id", "g1"])
@@ -258,7 +257,7 @@ def test_a_hanging_check_refuses_instead_of_wedging_the_turn(bare_workdir, monke
 
 
 def test_closing_to_a_missing_parent_does_not_fabricate_one(bare_workdir, capsys):
-    """The return used to create the parent's journal from nothing: a run with
+    """The return must not create the parent's journal from nothing: a run with
     no opening, no title, no assembly, sitting in the ledger."""
     _open("issue17")
     journal.append("issue17", "step", id="g1", segment="execute",
@@ -325,7 +324,7 @@ def test_status_names_the_board_it_will_validate(bare_workdir, capsys):
 
 
 def test_every_refusal_states_an_escape_that_works(bare_workdir):
-    """A refusal used to append one hardcoded suffix -- correct for a form
+    """A refusal must not append one hardcoded suffix -- correct for a form
     field, wrong for a board row (which takes deferred:, not waived:), and
     nonsensical for a lookup. Printing an escape that does not work is worse
     than printing none."""
@@ -356,8 +355,8 @@ def test_a_refusal_on_a_vocabulary_field_offers_its_values_not_an_escape_it_refu
     `unknown:` are refused on a decision field whose note declares values -- a
     waived verdict is no word that field declares, so `verdict_fold` resolves
     it to a refusal naming the voice rather than to a ruling -- but the
-    refusal surface went on offering them, so an agent that took the advice on
-    an empty or in-hand field was refused on its very next submit.
+    refusal surface must not offer them, or an agent that took the advice on
+    an empty or in-hand field is refused on its very next submit.
 
     Driven, not read: the escape the engine prints is parsed back out of the
     refusal and submitted as the answer. A test that asserted on the constant
@@ -444,9 +443,8 @@ def test_a_field_in_hand_is_not_mistaken_for_an_answer(bare_workdir, capsys):
 def test_a_pipe_in_ordinary_prose_does_not_become_an_enum_the_engine_enforces(bare_workdir):
     """Enforcement follows `kind = "decision"`, never the punctuation alone.
 
-    The first cut of this derived the enum from the note and nothing else, so
-    any field whose note happened to carry ` | ` in its opening sentence
-    silently became an enum -- `Name the risk | the mitigation | who owns it`
+    Deriving the enum from the note alone would make any field whose note
+    happens to carry ` | ` in its opening sentence silently an enum -- `Name the risk | the mitigation | who owns it`
     would have refused every answer but those three. The values still come from
     the note, because that is the sentence the agent reads and a second copy
     would drift from it; what the note cannot do is decide *whether* the engine
@@ -533,7 +531,7 @@ def test_a_form_field_carrying_an_escape_sequence_folds(bare_workdir, capsys):
 def test_a_read_that_discards_an_entry_says_so(bare_workdir, capsys):
     """The recovery above is right to keep the work, and wrong to keep it
     quietly. A dropped entry is lost state; the agent that wrote it is the
-    one person who can put it back, and it is told nothing today."""
+    one person who can put it back, and it must be told."""
     _open()
     capsys.readouterr()
     with open(".agent-work/issue17/journal.toml", "a") as f:
@@ -651,8 +649,7 @@ def test_a_journal_the_ledger_cannot_fold_is_named(bare_workdir, capsys):
 def test_an_unknown_palette_entry_refuses_and_names_the_entries(bare_workdir):
     """`tests/test_robustness` already requires that every refusal states an
     escape that works; this one raised a bare SystemExit through neither
-    `refusal` nor `located`, so it named no way forward. The whole
-    `palette:` branch had no coverage, which is how it stayed that way."""
+    `refusal` nor `located`, so it named no way forward."""
     pathlib.Path("constellation.toml").write_text(
         '[commands]\ntest = "python3 -m pytest -q"\n')
 
@@ -699,7 +696,7 @@ def test_the_field_id_a_refusal_names_is_not_rewritten_either(bare_workdir):
 
 def test_located_still_rewrites_a_command_the_engine_prints():
     """The rewrite is correct everywhere it applies to engine-authored text,
-    which is the reason the fix is at the call site rather than in the
+    which is why the escape is handled at the call site rather than in the
     regex. Guard that half so a narrowing does not creep in later."""
     assert render.located("spine issue17 submit").startswith(
         str(pathlib.Path(__file__).resolve().parent.parent))
@@ -707,10 +704,13 @@ def test_located_still_rewrites_a_command_the_engine_prints():
 
 
 def test_no_refusal_in_the_engine_rewrites_what_the_agent_typed(bare_workdir, capsys):
-    """#33 was fixed at the site it was measured at, and the class went
-    unswept -- five refusals still interpolated agent text into `why`. These
-    are those five, driven rather than grepped, because a grep-shaped test
-    rots the moment someone writes the sixth."""
+    """Every refusal that interpolates agent text into `why` keeps it unlocated,
+    not only the site #33 was measured at. Five such refusals are driven
+    here rather than grepped, because a grep-shaped test rots the moment
+    someone writes the sixth.
+
+    See: #33
+    """
     _open()
     capsys.readouterr()
 
@@ -734,7 +734,7 @@ def test_no_refusal_in_the_engine_rewrites_what_the_agent_typed(bare_workdir, ca
 def test_an_undeclared_outcome_quotes_the_agents_word_unrewritten(bare_workdir, capsys):
     """`_outcome`'s two refusals -- an undeclared value, and a placeholder
     whose argument names no pending step -- both quote back what the agent
-    wrote. Neither went through the #33 fix."""
+    wrote, so neither may locate it."""
     _critic_step()
     _fill_critic("c1", "spine forward")
     capsys.readouterr()
@@ -760,10 +760,9 @@ def test_a_value_the_step_cannot_act_on_still_names_what_was_rejected(bare_workd
 
 # --- #34: the error paths an agent meets most often ------------------------
 #
-# The suite covered the check that passes and the check that times out, and
-# skipped the one in between -- the failing check is the case an implementer
-# meets daily. `trace` is the verb reached when a run has already gone wrong,
-# and three of its branches had never been executed.
+# The failing check, between the check that passes and the check that times
+# out, is the case an implementer meets daily. `trace` is the verb reached
+# when a run has already gone wrong.
 
 
 def _gate_with_proof(proof, wid="g1"):
@@ -798,8 +797,8 @@ def test_a_failing_check_refuses_and_records_what_it_ran(bare_workdir, capsys):
 def test_trace_renders_a_run_that_had_a_failed_check_a_note_and_an_amend(
         bare_workdir, capsys):
     """`trace` is the debugging verb: its output on a run that went wrong is
-    the case it exists for, and the three branches that render exactly that
-    had never been run. A standalone `check` entry is written only on
+    the case it exists for, and the three branches that render exactly that.
+    A standalone `check` entry is written only on
     failure, which is why the passing-check test could not reach this."""
     _gate_with_proof("exit 1")
     with pytest.raises(SystemExit):
@@ -819,8 +818,8 @@ def test_trace_renders_a_run_that_had_a_failed_check_a_note_and_an_amend(
 
 def test_a_journal_torn_in_two_places_reads_as_the_work_that_survives(
         bare_workdir, capsys):
-    """Recovery was tested past exactly one tear. The loop back past a second
-    bad block is the arm that had never run -- and a file torn twice is what
+    """Recovery past a second tear: the loop back past a second
+    bad block is a distinct arm -- and a file torn twice is what
     a second submit after a first failure actually produces."""
     _open()
     capsys.readouterr()
@@ -839,11 +838,12 @@ def test_a_journal_destroyed_entirely_reads_as_no_history(bare_workdir, capsys):
     recover. It must read as empty rather than raise -- a raising read bricks
     the verbs that would repair the run.
 
-    Note what this is *not*. #34 recorded the `return []` after the recovery
-    loop as an uncovered line; it was uncovered because it was unreachable.
-    `split` yields at least one block and the empty join parses, so the loop
-    always returns and total loss arrives through it. The dead line is gone
-    and this test pins the behaviour, which is the part that was ever real."""
+    The `return []` after the recovery loop is unreachable: `split` yields at
+    least one block and the empty join parses, so the loop always returns and
+    total loss arrives through it. This test pins the behaviour.
+
+    See: #34
+    """
     _open()
     capsys.readouterr()
     pathlib.Path(".agent-work/issue17/journal.toml").write_text(

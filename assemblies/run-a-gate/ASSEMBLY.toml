@@ -6,8 +6,8 @@
 # transition, a two-voices step the same shape as run-an-issue's plan seam:
 # a panel the assembly declares reads the diff, and the conductor disposes of
 # the round on ROUTE.toml. Nobody chooses the readers -- they are written
-# here, so the engine mints them with the round (ruling, 2026-09-25: an
-# agent copying three fixed blocks into a form is work the engine owns).
+# here, so the engine mints them with the round (an agent copying three
+# fixed blocks into a form is work the engine owns).
 
 assembly = "run-a-gate"
 conductor = "gate-conductor"
@@ -19,15 +19,15 @@ step-form = "skills/implementer/forms/IMPLEMENT.toml"
 # This segment has no rework-form, so every refill is another pass at the same
 # diff. Two reworks succeed -- the first and second reviews each send the
 # diff back for another pass -- and the third review's own revise reaches
-# the impasse form instead of minting a fourth round (ruling, 2026-09-02: at
-# most three critic dispatches per artifact).
+# the impasse form instead of minting a fourth round (at most three critic
+# dispatches per artifact).
 impasse-after = 2
 impasse-form = "forms/IMPASSE.toml"
 worker = "implementer"
 model = "standard"
 decides = "ruling"     # IMPASSE.toml's; IMPLEMENT.toml has no such field
 # A ceiling on the rounds this seam sends back in a row within this gate's
-# own run (issue113): counted as the rounds landed since the review last
+# own run (see issue113): counted as the rounds landed since the review last
 # released one -- a `pass` or `close` -- so the count is the loop itself,
 # never the gate's whole history. Outranks `impasse-after` where both
 # would fire on the same send-back.
@@ -66,7 +66,7 @@ decides = "resolution"
 # to contest it at the run that dispatched the gate. A rework also hands its
 # reader `set-aside`, the findings the conductor did not call blocking, so a
 # reader and not the builder has the last look at them (`[panel-binds]`,
-# engine/cli.py; ruling, 2026-11-13).
+# engine/cli.py).
 panel-binds = "revise"
 
   [[segment.transition.outcome]]
@@ -91,13 +91,12 @@ panel-binds = "revise"
 
   # One criterion per panelist, the same rule as run-an-issue's panels: three
   # fresh-context readers disagreeing is a panel; one reader holding three
-  # criteria is a reviewer with a checklist. A separate spec-fit reader was
-  # dropped on tennis_elo's first fourteen runs, where it sent a round back 2
-  # times in 29 and the panel was growing. The question came back: both
-  # remints on story_time's 2026-11-06 runs were a delivered artifact that
-  # did not show what the spec asked, found by the conductor after all four
-  # readers passed. So `claims` holds it, as the reader that already opens
-  # what the gate writes for a person (ruling, 2026-11-13): no fifth reader.
+  # criteria is a reviewer with a checklist. A separate spec-fit reader sent
+  # a round back 2 times in 29 on tennis_elo's runs, and the panel was
+  # growing. But both remints on story_time's runs were a delivered artifact
+  # that did not show what the spec asked, found by the conductor after all
+  # four readers passed. So `claims` holds it, as the reader that already
+  # opens what the gate writes for a person: no fifth reader.
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
@@ -105,9 +104,8 @@ panel-binds = "revise"
   criteria = "tests: are these the right tests, or could the work be substantially wrong while they pass -- and does anything watch the important thing pass through the whole project rather than only its pieces"
 
   # `shape` is one question at two scales: placement against the existing
-  # code (the old `simplicity`) and against the plan's call-tree, which the
-  # gate's prefill carries. A separate reader for the call-tree was tried and
-  # folded back -- it was the same judgment (Tommy, 2026-10-23).
+  # code and against the plan's call-tree, which the gate's prefill carries.
+  # A separate reader for the call-tree would make the same judgment twice.
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
@@ -122,8 +120,7 @@ panel-binds = "revise"
 
   # All eight of story_time's remints came from a conductor running the code
   # after a gate had been through review. A blind standard-tier reader on this
-  # lens found a defect the conductor reminted for in four of five such gates
-  # (2026-11-05 replay);
+  # lens found a defect the conductor reminted for in four of five such gates;
   # on four clean gates its noise was setups no run could reach, hence "reach".
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"

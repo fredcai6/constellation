@@ -38,7 +38,7 @@ def test_open_mints_the_skeleton(bare_workdir, capsys):
 
 
 def test_run_a_gate_skeleton_mints_review_with_its_declared_panel(bare_workdir, capsys):
-    # `work`'s own transition is `review` (ruling, 2026-09-25): a two-voices
+    # `work`'s own transition is `review`: a two-voices
     # step the same shape as run-an-issue's plan seam, declared with its own
     # three reviewers rather than chosen by a conductor at a separate
     # `select` beat.
@@ -158,11 +158,11 @@ def test_note_blocked_surfaces_first(bare_workdir, capsys):
 
 
 def test_ledger_lists_open_runs(bare_workdir, capsys, monkeypatch):
-    """Each root run works inside its own worktree (ruling 8): opening
+    """Each root run works inside its own worktree: opening
     issue18 moves the process into `.worktrees/issue18`, a directory that
     does not nest under issue17's own -- top-level resolution (see
     test_worktree_reach.py) lands it beside issue17 instead. `cmd_ledger`
-    now scans both roots -- this checkout's own `.agent-work` and every
+    scans both roots -- this checkout's own `.agent-work` and every
     sibling worktree's -- so bare `spine` from the top level lists both runs
     together, not just each from inside its own tree."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser eof"])
@@ -208,9 +208,8 @@ def _board(path, **repl):
 
 def test_consolidate_refuses_an_unworked_board(bare_workdir, capsys):
     """The assembly declares validates = "board" and CONSOLIDATE.toml tells the
-    agent the engine checks it. This proves the engine actually does -- the
-    wiring was missing once, and a form that lies about the engine is the
-    worst failure available to a system whose doctrine lives in forms."""
+    agent the engine checks it. This proves the engine actually does: a form that
+    lies about the engine is the worst failure available to a system whose doctrine lives in forms."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(_response("issue17"))
     cli.main(["issue17", "submit"])

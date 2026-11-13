@@ -39,21 +39,19 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 #   verbatim, and that file's `[commands]` carries a real `dispatch` entry
 #   (a real `claude` invocation) -- so every fast-suite test that renders
 #   or drives a dispatch or panel room through this fixture must never
-#   reach that real entry. `o-fast-suite-safety-by-substitution` retires
-#   "no dispatch entry at all" as a state worth modelling for that: every
-#   way a start can fail now raises and is caught the same way
-#   (`o-absent-dispatch-raises`), so an absent entry is no longer a second
-#   world to render differently, only one more logged failure -- and a
-#   present, harmless entry serves the safety purpose at least as well as
-#   an absent one, which is the substitution `test_wait.py`'s own
-#   `_throwaway_dispatch` already uses. This entry is a real,
+#   reach that real entry. "No dispatch entry at all" is not a state worth
+#   modelling for that: every way a start can fail raises and is caught the
+#   same way, so an absent entry is not a second world to render
+#   differently, only one more logged failure -- and a present, harmless
+#   entry serves the safety purpose at least as well as an absent one,
+#   which is the substitution `test_wait.py`'s own `_throwaway_dispatch`
+#   uses. This entry is a real,
 #   near-instant `sys.executable` invocation -- never `claude` -- so a
 #   test that drives `wait` or `drive` through it spawns a real, harmless
 #   process rather than nothing at all; `test_dispatch_wiring.py`'s own
 #   `test_the_fast_suites_workdir_never_touches_a_real_process` is the
 #   proof that this never reaches `claude`, not that no process starts.
-#   The substitution is airtight the same way the removal it replaces was:
-#   `_dispatch_is_harmless` parses the result as TOML and confirms the
+#   The substitution is airtight: `_dispatch_is_harmless` parses the result as TOML and confirms the
 #   `[commands]` entry equals this constant -- never at the text -- so no
 #   formatting of the entry (one line, several, reordered) can produce a
 #   false pass.
@@ -119,8 +117,8 @@ def bare_workdir(tmp_path, monkeypatch):
 #   is what keeps a run's record whole when an agent's process dies
 #   mid-run. Tests need the write, never the durability, and they write
 #   dozens of entries apiece: the whole suite runs 180s with the sync and
-#   96s without it, so roughly half this suite's wall clock was buying a
-#   guarantee no test has ever read. Relocating pytest's temp root onto
+#   96s without it, so roughly half this suite's wall clock would buy a
+#   guarantee no test reads. Relocating pytest's temp root onto
 #   tmpfs makes the sync a no-op where it is worthless and changes nothing
 #   about where it is not -- no engine code moves, and `fsync` still means
 #   what it means everywhere a real run happens.
@@ -152,7 +150,7 @@ def _tmpfs_temproot():
 
 
 def pytest_configure(config):
-    # #226: a gate session's dispatch binds its own run in the environment;
+    # See: #226. A gate session's dispatch binds its own run in the environment;
     # tests that spawn the engine would inherit that binding and misread it.
     for name in ("CONSTELLATION_BOUND", "CONSTELLATION_FILLS", "CONSTELLATION_GATE_BASE"):
         os.environ.pop(name, None)

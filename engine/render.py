@@ -93,17 +93,18 @@ def checks(entries):
 #   own note already names: a proof that passes on an empty diff proves
 #   nothing. And a proof that never became a command -- the shell could not
 #   find it (127, 126), could not parse it (a syntax error, issue116's
-#   apostrophe), or the palette had no such entry -- is #122's defect, read
+#   apostrophe), or the palette had no such entry -- is the unrun-proof defect, read
 #   where it can still be sent back. A proof past its bound is the fourth,
 #   said as what happened rather than guessed at. The first two are
 #   readings of a tree with no work in it, and a proof field is trialled
 #   wherever a form carries one -- at a rework cut, at a gate's
 #   adjudication -- so each trial carries the tree it ran against, measured
 #   (`[trial-measures-its-tree]`, engine/cli.py), and a tree carrying work
-#   reads as its exit and that count (#181).
+#   reads as its exit and that count.
 # Rejected: a fifth reading for "failed for the right reason". Whether exit
 #   1 was the test the planner meant or a typo in a path is the conductor's
 #   to read off the output, not a classification a shell exit can carry.
+# See: #122, #181
 # What bash says when it cannot parse a proof: `syntax error` for a stray
 # token, `unexpected EOF` for an unterminated quote.
 _UNPARSED = ("syntax error", "unexpected eof")
@@ -292,11 +293,11 @@ NOTE_KINDS = ("blocked", "resumed", "observation", "decision")
 
 # [legal-moves-names-the-kinds]
 # Rationale: `note` takes its kind as a required first argument, and the line
-#   offering the verb used to render `spine <wid> note ...` -- so the one
-#   room that offers the move named none of the five words that make it
-#   legal, and the refusal naming them arrived only after the whole note had
-#   been typed and parsed, echoing a paragraph back inside an error. Every
-#   other command this file renders is typeable as printed; this one was not.
+#   offering the verb rendering `spine <wid> note ...` would leave the one
+#   room that offers the move naming none of the five words that make it
+#   legal, and the refusal naming them would arrive only after the whole note
+#   had been typed and parsed, echoing a paragraph back inside an error. Every
+#   other command this file renders is typeable as printed; this one must be too.
 # Rejected: a `<kind>` placeholder. A placeholder in argument position is the
 #   guess `_off_the_board` already refuses to make a reader perform.
 # Rejected: defaulting the kind when it is omitted. Only `blocked` and
@@ -374,13 +375,13 @@ def outstanding_line(wid, count, name_wait, step_id=None, two_voices=False):
     that is already gone has nothing left for `wait` to poll -- and a
     dispatch or panel room does not when every unresolved child in it is
     already gone and spent -- a configured room's gone-but-not-spent child
-    carries no respawn command of its own any more (that is `wait`'s to run
-    now, not a row's own brief). `step_id` is given only by a dispatch or
+    carries no respawn command of its own (that is `wait`'s to run, not a
+    row's own brief). `step_id` is given only by a dispatch or
     panel room, never by the in-flight room (whose own step has no board
     row to drop); when it
     is given and nothing is live or startable, the bare count is replaced
     by the ruling escape instead -- once a child is spent there is still
-    one thing left for a reader to do about it. The same rule now decides
+    one thing left for a reader to do about it. The same rule decides
     which escape that is: a dispatch step, or a panel step with no form of
     its own to lose, still names dropping the step, since `amend close`
     costs it nothing more. A `two_voices` panel step is also its
@@ -448,7 +449,7 @@ def posture(role):
 # Rationale: `render.brief` and `render.status`'s own standalone-brief branch
 #   say the identical four things about a child -- who it is, what posture
 #   it reads, what tier and runner it runs under, which tree it inherits --
-#   and a wording change to any of those lines used to have to land twice,
+#   and a wording change to any of those lines would have to land twice,
 #   by hand, in step. One function, two callers, so it lands once or not at
 #   all. `written_at` is taken as a parameter rather than computed here
 #   (`posture(role)`) because `render.status` already prints its own,
@@ -505,7 +506,7 @@ def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
     else:
         lines.append(f"    finishing:   {close_cmd}")
     # The posture rides in the brief itself. As a path to go and read, some
-    # children read it late or never (story_time, 2026-11-06: gate-conductors
+    # children read it late or never (observed in story_time: gate-conductors
     # at their 62nd call, or not at all), and every one spent a call on it.
     if skill:
         try:
@@ -701,8 +702,8 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     out = preamble(st, blocked, position)
 
     if st.get("awaiting_close"):
-        # A root run has no dispatcher, so the old unconditional "returns to
-        # whoever dispatched this run" was untrue exactly half the time.
+        # A root run has no dispatcher, so an unconditional "returns to
+        # whoever dispatched this run" would be untrue exactly half the time.
         does = (f"closing is what stamps your returns to {destination(onward_to)}"
                 if onward_to else "closing is what writes the record")
         out.append(_para(f"Every step is done. The run is not finished until it "
@@ -715,7 +716,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("  This run is closed. Its record is in "
                    f".agent-work/{wid.replace('.', '/')}/journal.toml")
         if onward_to:
-            # Deliberately not "its step is now complete": a panel step takes
+            # Deliberately not "its step is complete": a panel step takes
             # one return per panelist, so that is false for every panelist but
             # the last. Name the destination, hand over one command, and let
             # the room at the other end describe itself.
@@ -930,17 +931,18 @@ def escape_for(vocab, verb="fill"):
 #   So the split is by role and is structural: the escape is the engine's own
 #   command and is always located; `field_id` and `why` are where the agent's
 #   own text lands and are never located.
-# Rejected: an opt-in for callers with agent text to protect (this was a
-#   `quoting=` parameter, briefly). It fixed the site it was written for and
-#   left four more that nobody remembered to convert -- `_check_id`'s work id,
-#   `_amend_add`'s segment, and `_outcome`'s two -- which is #81, and is the
-#   same fix-the-site-not-the-class failure the defect itself came from. An
-#   opt-in a caller can forget is not a guarantee.
+# Rejected: an opt-in for callers with agent text to protect (a `quoting=`
+#   parameter). It fixes the site it is written for and leaves others that
+#   nobody remembers to convert -- `_check_id`'s work id, `_amend_add`'s
+#   segment, and `_outcome`'s two -- the same fix-the-site-not-the-class
+#   failure the defect itself comes from. An opt-in a caller can forget is
+#   not a guarantee.
 # Rejected: narrowing the regex instead. The rewrite is correct everywhere it
 #   is applied to engine-authored strings, and the shapes it must keep
 #   matching include a bare trailing `spine` with no arguments ("open runs:
 #   spine") -- there is no lexical rule separating that from prose. The
 #   defect is which text is routed through it, not how it matches.
+# See: #81
 def refusal(field_id, why, escape=""):
     """A refusal names what failed and how to get past it -- no lecture.
 

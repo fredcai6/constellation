@@ -22,7 +22,7 @@ _RETRY_WINERRORS = (32, 33)  # sharing violation, lock violation
 # [worktree-reach]
 # Rationale: a work id addresses the same run whether the caller stands in
 #   the top-level checkout or inside the issue worktree that run's work
-#   location actually lives in -- ruling 8 put git at the issue tier, which
+#   location actually lives in -- git sits at the issue tier, which
 #   means every id below the root physically nests inside one of these.
 #   `.worktrees` is a sibling of the top-level checkout's own tracked tree
 #   (never nested inside a worktree itself), so this is reachable only from
@@ -30,8 +30,8 @@ _RETRY_WINERRORS = (32, 33)  # sharing violation, lock violation
 #   second, unrelated worktree, which cannot see a sibling it did not make.
 # Rejected: threading a project-root parameter through every call site that
 #   addresses a run. The id is the address; a second parameter carrying the
-#   same information by another route is the thing ruling 8's "never
-#   inferred from cwd" was already refusing, aimed at a different word.
+#   same information by another route is what the rule "never inferred from
+#   cwd" already refuses, aimed at a different word.
 _WORKTREES_DIR = ".worktrees"  # mirrors engine/cli.py's own -- both name the
                                 # one convention a worktree is made under
 
@@ -58,10 +58,10 @@ def searched_roots() -> str:
     one line -- `agent_work_roots`'s own list, since a refusal that named
     different roots than the search actually walked would point a caller
     somewhere the lookup never went. `"none here"` when this cwd carries
-    neither a `.agent-work` of its own nor a `.worktrees` holding one --
-    ruling 8's own case, and #67's second finding: a subagent's cwd resets
-    between bash calls, so a bare `spine <id> note ...` run from the wrong
-    directory must say where it looked rather than read as lost work."""
+    neither a `.agent-work` of its own nor a `.worktrees` holding one.
+    A subagent's cwd resets between bash calls, so a bare
+    `spine <id> note ...` run from the wrong directory must say where it
+    looked rather than read as lost work (#67)."""
     roots = agent_work_roots()
     return ", ".join(str(r) for r in roots) if roots else "none here"
 
@@ -156,8 +156,9 @@ def _in_scope(work_id: str) -> bool:
 # Rejected: a second `_in_scope` clause admitting "the bound id's own
 #   recorded parent". That is indistinguishable, from inside `_in_scope`
 #   itself, from a bound child naming its parent directly on the command
-#   line -- both resolve the identical id -- so it would undo obligation
-#   o2 for every verb, not just the three structural ones that need it.
+#   line -- both resolve the identical id -- so it would undo
+#   the narrowing for every verb, not just the three structural ones that
+#   need it.
 @contextlib.contextmanager
 def unbound():
     """Lift this process's own `CONSTELLATION_BOUND` narrowing for the
@@ -235,9 +236,8 @@ def read(work_id: str) -> list[dict]:
 
     The loop always returns: `split` yields at least one block, and once the
     last has been popped the join is the empty string, which parses as no
-    entries. Total loss is that case, not a separate arm -- there was a
-    `return []` after this loop for years and no test could reach it, which
-    is what #34 measured as an uncovered line and what it actually was.
+    entries. Total loss is that case, not a separate arm: a `return []`
+    after this loop would be unreachable, an uncovered line (#34).
     """
     if not _in_scope(work_id):
         return []

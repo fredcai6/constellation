@@ -12,8 +12,7 @@ built the engine to remove and then didn't.
 ## The failure this prevents
 
 An artifact — a form, an assembly, a status line, a refusal — makes a claim
-about what the engine does, and the engine doesn't do it. A dozen instances in
-one day. Five mechanisms:
+about what the engine does, and the engine doesn't do it. Five mechanisms:
 
 | kind | example |
 |---|---|
@@ -59,9 +58,9 @@ Two live examples of getting this wrong, both ours:
   is open and nothing has mooted it"* — a rule the agent applies by hand on
   every pass. The engine holds every row and can say which are askable now,
   which are waiting and on what, and what the board's progress is.
-- `boards.summary()` counted rows by status and type. A deletion audit found it
-  had no caller and removed it. The right fix was to give it one: unwired
-  derivation is a missing call site, not dead weight.
+- `boards.summary()` counted rows by status and type and had no caller.
+  Removing it is the wrong fix; give it one: unwired derivation is a missing
+  call site, not dead weight.
 
 Deletion can look cheaper than wiring. It is not, when the thing deleted is
 work an agent would otherwise do by hand. **Lines spent removing mechanical
@@ -74,8 +73,7 @@ are greppable, and `tests/test_promises.py` greps them. The behavioural kinds �
 asserted-and-untrue, offered-and-broken — are not: every one was found by
 driving the system by hand and typing the commands it printed.
 
-`test_promises` has twice been extended by a defect it could not see:
-`gate-executor` (it checked keys; that was a value) and panel forms (it checked
-the key name, and `form` *is* read, just elsewhere). Both blind spots were the
-same shape — **checking the shape of artifacts rather than the meaning of their
+`test_promises` has two blind spots: `gate-executor` (it checked keys; that
+was a value) and panel forms (it checked the key name, and `form` *is* read,
+just elsewhere). Both are the same shape — **checking the shape of artifacts rather than the meaning of their
 values.**

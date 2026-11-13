@@ -1,13 +1,14 @@
-"""Pins the doctrine sweep issue223.g6 makes, now that g2/g4/g5 have landed
-the mechanism itself: a queued gate's own staleness, a critical question's
+"""The doctrine keeps apart three things: a queued gate's own staleness, a critical question's
 answer ruled as differing, and a drop or remint while later gates of the
-same cut are still queued are three things -- never conflated with each
-other, and never conflated with a full replan -- that each send the open
-plan back for one no-panel review. Reads the files g6's own scope names as
-plain prose -- a grep with a name, never a journal-driven run -- and checks
-that the stale, conflated or incomplete phrasing is gone. It does not pin
-the wording that replaced it: a pinned sentence cannot be simplified, and
-pinning these did not catch PLAN.toml contradicting the planner skill.
+same cut are still queued -- never conflated with each other, and never
+conflated with a full replan -- each of which sends the open plan back for
+one no-panel review. Reads the doctrine files as plain prose -- a grep with
+a name, never a journal-driven run -- and checks that no conflated or
+incomplete phrasing remains. It does not pin the positive wording: a pinned
+sentence cannot be simplified, and pinning sentences does not catch
+PLAN.toml contradicting the planner skill.
+
+See: issue223
 """
 
 import re

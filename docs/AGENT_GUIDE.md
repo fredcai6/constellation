@@ -140,8 +140,12 @@ them is a choice: `palette:validate`, or `pytest evals`. They drive a real model
   writes itself. A note that says "same as PLAN.toml's" points its reader at a form it is
   never shown.
 - Writing a refusal? Give it the escape that works: `render.refusal` has no default one.
-- Wording a form or a skill? Numbered steps, one rule a sentence, no run history. The reason a
-  rule exists goes in the commit or a code comment; the agent reads the rule.
+- Wording a form or a skill? Numbered steps, one rule a sentence.
+- Writing anything that stays in the tree (code, comment, docstring, test, form, skill, doc)?
+  Carry the why, not the story: a definition's header holds `Rationale:`, `Rejected:` and a
+  `See: #NNN` line pointing at the issue or run the why came from. What changed, in which run
+  or commit, and a ruling's date go in the commit message. `standards/prose.md` rules 14
+  and 15.
 - `standards/issue.md` — an observation is a claim about a rev, so run its command against HEAD
   before planning against it. A defect that is real, cheap, and harmless is the easiest work to
   justify and the least worth doing.

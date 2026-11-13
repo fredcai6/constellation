@@ -1,14 +1,15 @@
-"""Prior drops surface at the gate's own route room (#127).
+"""Prior drops surface at the gate's own route room.
 
-A finding has two destinations, never a third (ruling, 2026-09-25,
-docs/PURPOSE.md): done, or dropped with its reason recorded where a later
-run can find it. The record already exists -- a `rejected` call on the
+A finding has two destinations, never a third (docs/PURPOSE.md): done, or dropped with its
+reason recorded where a later run can find it. The record already exists -- a `rejected` call on the
 `calls` table of the submit that ruled it, in that run's own journal,
 archived under `<top>/.agent-work/archive/` once the run closes
 (`engine/drops.py`). This file proves the two halves: the reader finds one
 and extracts its files, and the gate's own ROUTE room shows it only when
 this gate's own diff touches one of those files -- recurrence is the
 conductor's own call to make, this only puts the prior ones in front of it.
+
+See: #127
 """
 
 import pathlib

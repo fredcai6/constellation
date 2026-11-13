@@ -1,5 +1,4 @@
-"""run-a-gate's review is `work`'s own declared transition now (ruling,
-2026-09-25): a two-voices step the same shape as run-an-issue's plan seam,
+"""run-a-gate's review is `work`'s own declared transition: a two-voices step the same shape as run-an-issue's plan seam,
 with its panel written in `assemblies/run-a-gate/ASSEMBLY.toml` rather than
 chosen by a conductor at a separate `select` beat. Five things that
 declaration promises, each driven through the real assembly and forms

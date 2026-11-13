@@ -1,14 +1,11 @@
-"""A plan round may queue more than one gate at a time (obligation 1,
-ahead of this gate): a cut naming several gates mints every one of them,
-and once the first is accepted (`advance`) the next queued gate dispatches
-on its own -- no new plan round, no panel -- until the queue runs dry
-(obligation 4). That trust belongs to the one outcome that actually
+"""A plan round may queue more than one gate at a time: a cut naming
+several gates mints every one of them, and once the first is accepted
+(`advance`) the next queued gate dispatches on its own -- no new plan round,
+no panel -- until the queue runs dry. That trust belongs to the one outcome that actually
 committed a gate, and to no other: a `drop <gate-id>` while later gates of
-the same cut are still queued still reopens plan exactly as it does today
-(obligation 5), because nothing yet exists to give it anything lighter.
+the same cut are still queued reopens plan for one review round.
 
-No form here cuts more than one gate yet (obligation 1's authoring side is
-ahead of this gate too), so the several-gates-pending shape is seeded
+The several-gates-pending shape is seeded
 directly as journal entries, in the exact shape `_mint_gates` itself
 produces -- the same move `test_nesting._mint_n_gates` already makes for
 its own drop/remint/replan tests, extended with a real, undisposed
@@ -38,10 +35,9 @@ def _mint_n_gates_with_obligation(n, wid="issue17",
     (`_fill_consolidate_with_obligation`), exactly like
     `test_execution_state._mint_first_gate_with_obligation` -- plus
     `g2..gN`, seeded directly as journal entries in the shape `_mint_gates`
-    itself produces, `test_nesting._mint_n_gates`'s own move. One plan
-    round still cuts one gate (obligation 1's authoring side is ahead of
-    this gate), so getting several pending at once for a queue test is not
-    something one submit can do yet."""
+    itself produces, `test_nesting._mint_n_gates`'s own move. Seeding
+    the queue directly keeps these tests on the queue itself, not on the
+    authoring of a multi-gate cut."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(wid)
     cli.main([wid, "submit"])
@@ -57,7 +53,7 @@ def _mint_n_gates_with_obligation(n, wid="issue17",
         journal.append(wid, "step", id=gid, segment="execute", dispatches="run-a-gate",
                        prefill={"purpose": "gate %d purpose" % i, "scope": "gate %d scope" % i,
                                 # `false` -- a real check, failing before any work
-                                # -- not `true`: a queued gate's own proof is now
+                                # -- not `true`: a queued gate's own proof is
                                 # read against the tree before it dispatches
                                 # (`_proof_is_stale`, engine/cli.py), and `true`
                                 # already passes on an untouched tree, the stale
@@ -74,7 +70,7 @@ def test_queue_dispatches_without_a_plan_round_between_gates(workdir, capsys):
     obligation still open on the execution-state board, still walks
     straight on to the next queued gate -- no fresh plan round, no panel --
     because `advance`'s own "commit; settle" is the one outcome the queue
-    has earned trust from (obligation 4). Without the queue-pending guard
+    has earned trust from. Without the queue-pending guard
     this would recut the plan instead, the same way a single-gate cut's
     own `advance` does in
     `test_execution_state.test_an_undisposed_obligation_refills_plan_
@@ -103,18 +99,17 @@ def test_queue_dispatches_without_a_plan_round_between_gates(workdir, capsys):
 
 def test_drop_of_an_early_gate_with_a_later_gate_queued_reviews_the_open_plan_no_panel(
         workdir, capsys):
-    """Obligation 5's third bullet: a `drop <gate-id>` while later gates of
-    the same cut are still queued now reopens plan for one review round, no
-    panel -- the same no-panel route a stale gate already gets
-    (`tests/test_stale_gate_review.py`) -- rather than the unconditional,
-    full-panel replan this test used to pin as the gap. The review closes
+    """A `drop <gate-id>` while later gates of
+    the same cut are still queued reopens plan for one review round, no
+    panel -- the same no-panel route a stale gate gets
+    (`tests/test_stale_gate_review.py`) -- rather than an unconditional,
+    full-panel replan. The review closes
     the rest of the queue too (`g3`, not only the gate named): a plan round
     that got one gate wrong against the tree is not one the rest of the
     queue should still be trusted from either. The execution-state board's
-    own open obligation (`_mint_n_gates_with_obligation`'s seed) would,
-    before this gate, have forced the unconditional board-unsettled replan
-    regardless of what else was queued -- the mid-queue reading now wins
-    before that check is ever reached."""
+    own open obligation (`_mint_n_gates_with_obligation`'s seed) would
+    force the unconditional board-unsettled replan regardless of what else
+    is queued -- the mid-queue reading wins before that check is reached."""
     _mint_n_gates_with_obligation(3)
     capsys.readouterr()
 
@@ -140,7 +135,7 @@ def test_drop_of_an_early_gate_with_a_later_gate_queued_reviews_the_open_plan_no
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint"
                       and s["id"] not in st["done"] and s.get("dispatches"))
-    assert fresh_plan["dispatches"] == "cut-a-gate"   # a real round, ruling 6 intact
+    assert fresh_plan["dispatches"] == "cut-a-gate"   # a real round, dispatched to a fresh planner
     assert fresh_plan["form"] == "skills/planner/forms/REVIEW_PLAN.toml"  # the review route
 
     transition_entries = [e for e in new_entries if e.get("kind") == "step"

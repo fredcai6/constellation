@@ -99,19 +99,20 @@ def _check_id(wid):
 
 
 # [named-search]
-# Rationale: a subagent's cwd resets between bash calls (#67's second
-#   finding), so a bare `spine <id> note ...` run from the wrong directory
-#   used to read "no run named", which looks exactly like a typo'd id and
-#   nothing like a lost note. Naming the roots the lookup actually walked
+# Rationale: a subagent's cwd resets between bash calls, so a bare
+#   `spine <id> note ...` run from the wrong directory would read "no run
+#   named", which looks exactly like a typo'd id and nothing like a lost
+#   note. Naming the roots the lookup actually walked
 #   (`journal.searched_roots`) tells the two apart without widening the
-#   search itself -- ruling 8 fixes the id as the address, never inferred
-#   from cwd, and that holds in this direction too: the fix is a refusal
-#   that says where it looked, not a wider look.
+#   search itself -- the id is the address, never inferred from cwd, and
+#   that holds in this direction too: the answer is a refusal that says
+#   where it looked, not a wider look.
 # Rejected: searching beyond the cwd's own roots (climbing to a parent
-#   directory, say, or scanning `$HOME`). That is the inference ruling 8
-#   refuses, aimed at a different word for the same reason -- an id found by
-#   guessing the caller's real location is not addressed by the id any
-#   more.
+#   directory, say, or scanning `$HOME`). That is the inference the rule
+#   "never inferred from cwd" refuses, aimed at a different word for the same
+#   reason -- an id found by guessing the caller's real location is not
+#   addressed by the id.
+# See: #67
 def _no_run(wid):
     """The refusal every verb raises when `runmod.state`/`journal.exists`
     finds no such work id: where the search looked, so a caller reads a
@@ -150,7 +151,7 @@ def _prose_words(path):
     """Words of prose in an artifact: fenced blocks, tables and indented code
     do not count.
 
-    A plan that grows because its gates now carry their proofs inline has not
+    A plan that grows because its gates carry their proofs inline has not
     accreted; a plan that grows because a settled alternative got re-argued
     has. Counting everything cannot tell those apart, and the count an agent
     is shown decides what it thinks it should cut."""
@@ -204,18 +205,18 @@ def _check_artifact(wid, form, fields):
 # [per-step-name]
 # Rationale: two files in a work location belong to a round rather than to a
 #   run -- the response form the round is answered on, and the artifact the
-#   round produces -- and both used to be named for the run alone, so every
-#   round of a seam wrote over the one before it. #118 was that defect on the
-#   form half. The artifact half never had an issue number because agents
-#   worked around it by hand: issue80 and issue99 both have findings citing a
-#   `spec-r2.md` a conductor invented, which leaves a stale `spec.md` beside
-#   it and no convention saying which is current.
+#   round produces -- and naming either for the run alone makes every round of
+#   a seam write over the one before it (#118, on the form half). On the
+#   artifact half agents work around it by hand: issue80 and issue99 both
+#   have findings citing a `spec-r2.md` a conductor invented, which leaves a
+#   stale `spec.md` beside it and no convention saying which is current.
 #   One rule, used by both, so a work location reads the same way whichever
 #   file you are looking at and neither can drift from the other.
 # Rejected: an incrementing suffix (`spec.2.md`). The step id is already the
 #   round's own name, it is what the journal indexes by, and it makes the
 #   copy answerable to a step rather than to a position in a sequence
 #   nothing else counts.
+# See: #118
 def _per_step_name(path, step_id):
     """`<stem>.<step-id><suffix>` -- the one name a file a round owns takes.
     `SPEC.toml` at step `understand-a4d19` is `SPEC.understand-a4d19.toml`,
@@ -286,7 +287,7 @@ def _resolve_command(text, root=None):
     `.strip()` on each `&&` piece removed the newline but kept the backslash,
     and the rejoin produced backslash-space: an escaped literal space glued
     onto the previous word, so a proof that exits 0 typed into a shell exited
-    2 when the engine ran it (sports-market-manager issue156, 2026-09-23)."""
+    2 when the engine ran it (sports-market-manager issue156)."""
     folded = _CONTINUATION.sub(" ", text)
     return " && ".join(_resolve_one(part.strip(), root) for part in folded.split("&&"))
 
@@ -312,11 +313,10 @@ def _resolve_one(text, root=None):
 
 
 # [trial-proofs]
-# Rationale: #122 -- a plan's `proof` reached a gate having been read by
-#   three critics and run by nobody; issue116's read `constellation.toml's
-#   `test` entry: ...`, died on its apostrophe at the gate's first submit,
-#   after the whole diff was built, and no verb on either run could then
-#   edit it. So the engine runs each `kind = "proof"` field once, where it is
+# Rationale: a plan's `proof` can reach a gate read by three critics and run
+#   by nobody; issue116's read `constellation.toml's `test` entry: ...`, died
+#   on its apostrophe at the gate's first submit, after the whole diff was
+#   built, and no verb on the run could then edit it. So the engine runs each `kind = "proof"` field once, where it is
 #   written, through the same resolution the gate's own check will use
 #   (`_resolve_command`, palette entries, the shell) against the run's tree
 #   as it stands, and journals a `check` entry -- the kind the gate's own
@@ -329,7 +329,7 @@ def _resolve_one(text, root=None):
 #   not a wall the planner meets. A palette miss is journaled as exit 127 --
 #   the shell's own word for a command it cannot find, which is the same
 #   fact one layer up -- with the refusal's text as the output.
-# Rationale: #163 -- a string that never becomes a command is resolved and
+# Rationale: a string that never becomes a command is resolved and
 #   journaled right here, synchronously, since there is no process worth
 #   spawning for it; every field that does resolve is handed to
 #   `checkrun.hand_in_trial` as one batch, detached at the cut exactly the
@@ -339,8 +339,8 @@ def _resolve_one(text, root=None):
 #   rather than being killed and misread as a fourth, useless reading. Run
 #   once, here: PLAN_TO_EXECUTE's own submit does not run it again, and the
 #   gate's runner is what runs it to its full budget. A `budget` that is not
-#   whole seconds is read as none -- the gate's own submit refuses that as
-#   it always has; a trial refuses nothing.
+#   whole seconds is read as none -- the gate's own submit refuses that; a
+#   trial refuses nothing.
 # Rationale: a cut's `gates` field (PLAN.toml, REWORK.toml, REVIEW_PLAN.toml)
 #   nests one `proof`/`gate-proof` pair per gate inside a `kind = "plan"`
 #   row rather than carrying them as this form's own top-level fields, so
@@ -351,8 +351,9 @@ def _resolve_one(text, root=None):
 #   each row's own `budget` (falling back to the one shared default) rather
 #   than one call per row: the common case -- no gate overrides it -- still
 #   reaches `hand_in_trial` once, the same single batch a one-gate cut
-#   always handed it, and only cuts whose gates disagree about budget pay
+#   hands it, and only cuts whose gates disagree about budget pay
 #   for a second detached run.
+# See: #122, #163
 def _trial_proofs(wid, step, form, fields, root):
     """Run every `proof`-kind field this submit carries -- a form's own
     top-level ones, and any nested inside a `kind = "plan"` row's own
@@ -401,16 +402,17 @@ def _trial_proofs(wid, step, form, fields, root):
 
 
 # [trial-measures-its-tree]
-# Rationale: #181 -- a trial's exit 0 was read as "passes on an empty diff"
-#   wherever it ran, and a proof field is trialled at a gate's adjudication
-#   and at a rework cut too, both against a tree already carrying work. The
-#   reading asserted a fact nobody measured. So the trial measures it: the
+# Rationale: a trial's exit 0 read as "passes on an empty diff" wherever it
+#   ran would assert a fact nobody measured: a proof field is trialled at a
+#   gate's adjudication and at a rework cut too, both against a tree already
+#   carrying work. So the trial measures it: the
 #   paths the tree differs from its root run's cut point by, tracked or not,
 #   the engine's own `.agent-work/` record aside. The reading then says what
 #   was measured, and "proves nothing" belongs to a count of zero alone. The
 #   cut point is read off the run's own opening entry: a child opens carrying
 #   its parent's, since a dispatched child bound to its own id cannot read
 #   the root journal it would otherwise come from.
+# See: #181
 def _changed_paths_since_cut(wid, root):
     """The paths the tree at `root` differs from its run's cut point by, or
     None where the run records no cut point or git cannot say -- the same
@@ -448,11 +450,10 @@ def _runner(tier):
 
 # [role-tier]
 # Rationale: anything an engine spawns runs on a tier the repository's owner
-#   chose, and heavy needs the owner's authorization (Tommy, 2026-11-05).
-#   `conductor` used to resolve to heavy before `[roles]` was read, so every
-#   gate's route form spawned an opus filler nobody had asked for: 19 in
-#   story_time's six runs. It now reads `[roles]` like any other filler, and
-#   a repository that wants a heavy filler says `conductor = "heavy"` there.
+#   chose, and heavy needs the owner's authorization. `conductor` resolving
+#   to heavy ahead of `[roles]` would spawn an opus filler nobody asked for
+#   at every gate's route form (19 in story_time's six runs), so it reads
+#   `[roles]` like any other filler, and a repository that wants a heavy filler says `conductor = "heavy"` there.
 #   The bare word stays the key: a role table entry holds for `issue-conductor`
 #   and `gate-conductor` alike, since this function takes no assembly.
 # Rejected: standard for every filler with no table. An unknown role is still
@@ -476,14 +477,13 @@ def _role_tier(filler):
 
 
 # [dispatch-configured]
-# Rationale: every reader of "is this repository's palette configured" is
-#   retired except one: `cmd_drive`'s own pre-loop refusal, which has to answer
-#   that question before it starts spinning, not after a start already
-#   failed. Every other caller this predicate used to feed -- the
-#   dispatch/panel rooms, `cmd_submit`'s and `cmd_close`'s refusals -- now
-#   renders or refuses the same way whether or not a `dispatch` entry
-#   exists, so this predicate has exactly one reason left to be a named
-#   function rather than inlined at its one remaining call site: a bare
+# Rationale: `cmd_drive`'s own pre-loop refusal is the one reader of "is this
+#   repository's palette configured": it has to answer that question before
+#   it starts spinning, not after a start already failed. The dispatch/panel
+#   rooms and `cmd_submit`'s and `cmd_close`'s refusals render or refuse the
+#   same way whether or not a `dispatch` entry exists, so this predicate has
+#   one reason to be a named function rather than inlined at its one call
+#   site: a bare
 #   `"dispatch" in _palette(tree).get("commands", {})` read twice would be
 #   the drift this predicate exists to prevent, even at one caller.
 def _dispatch_configured(tree):
@@ -496,14 +496,13 @@ def _current_form(st):
     asm = runmod.load_assembly(st["assembly"])
     step = st["current"]
     # [panel-before-dispatch]
-    # Rationale: design-it-twice's round-one panel (ruling 10, shelved #96)
-    #   was the first step in the tree to carry both `dispatches` and
-    #   `panel` -- checking `dispatches` first silently rendered it as a
-    #   single-child brief, discoverable only once and then stuck, since a
-    #   second open at the same untagged address refuses. The order stays
-    #   correct for any future step that carries both, so it is left as is;
-    #   `cmd_close`'s own pending-step guidance already checks panel first
-    #   for the identical reason.
+    # Rationale: a step that carries both `dispatches` and `panel` (as
+    #   design-it-twice's round-one panel did) rendered by checking
+    #   `dispatches` first would silently show as a single-child brief,
+    #   discoverable only once and then stuck, since a second open at the
+    #   same untagged address refuses. `cmd_close`'s own pending-step
+    #   guidance checks panel first for the identical reason.
+    # See: #96
     if runmod.panel_outstanding(st, step):
         return asm, step, None  # rendered as N commands; the outcome is mechanical
     if runmod.paused(step):
@@ -517,9 +516,10 @@ def _current_form(st):
 # Rationale: a journal is append-only and its `step` entries name form paths,
 #   so renaming or moving a form strands every run already standing on it --
 #   an ordinary, correct change, not a corrupt file, which is what separates
-#   this from a torn journal. `forms.load` opening the path bare meant the
-#   run could not be advanced, closed, or even looked at: `spine issue57.g4`
-#   died with a FileNotFoundError after that gate renamed REVIEW_ROUND.toml.
+#   this from a torn journal. `forms.load` opening the path bare would leave
+#   the run unable to be advanced, closed, or even looked at: `spine
+#   issue57.g4` died with a FileNotFoundError after that gate renamed
+#   REVIEW_ROUND.toml.
 #   The engine is a secretary; it refuses and names the way out.
 # Rejected: falling back to a form of the same stem elsewhere in the tree. A
 #   run would then quietly stand on a form nobody chose for it, which is the
@@ -536,14 +536,13 @@ def _load_form(asm, ref, wid, step_id):
 
 
 # [response-path-by-step]
-# Rationale: the live response path was named for the step's *form*
-#   (`pathlib.Path(step["form"]).stem`), and `cmd_status` materialized one
-#   only `if not dest.exists()`. Those two are right together only while a
-#   form is filled once per run. At a seam they are not: round two opened
-#   round one's *filled* form, and a conductor that edited the fields it
-#   thought of carried the rest forward as this round's record (#118 -- six
-#   occurrences on the issue96 run, twice landing a decision the round had
-#   not made).
+# Rationale: a live response path named for the step's *form*
+#   (`pathlib.Path(step["form"]).stem`), with `cmd_status` materializing one
+#   only `if not dest.exists()`, is right only while a form is filled once
+#   per run. At a seam it is not: round two would open round one's *filled*
+#   form, and a conductor that edited the fields it thought of would carry
+#   the rest forward as this round's record (six occurrences on the issue96
+#   run, twice landing a decision the round had not made).
 # Worse, two live processes could be handed the same path. `drive` spawns a
 #   form-filler per step and never ends one; a filler that outlived its own
 #   round would write the live form and submit, landing a stale ruling on
@@ -560,11 +559,12 @@ def _load_form(asm, ref, wid, step_id):
 #   declaration.
 # Rejected: refusing a submit from a process whose step is no longer current
 #   (via an env var stamped at spawn). It fixes the same defect with a new
-#   refusal, and the engine defending its own checklist is what drove CLI
-#   failure rates up before. Prefer mechanism over a guard.
-# Rejected: archiving the file on submit (`1587ce5`). It clears the path
-#   between rounds but leaves the two fillers sharing it, so it fixes the
-#   record and not the collision.
+#   refusal, and the engine defending its own checklist is what drives CLI
+#   failure rates up. Prefer mechanism over a guard.
+# Rejected: archiving the file on submit. It clears the path between rounds
+#   but leaves the two fillers sharing it, so it fixes the record and not
+#   the collision.
+# See: #118
 def _response_path(st, step, *, root=None):
     """Where this step's own response form lands -- named for the step as
     well as the form by `_per_step_name`, the same rule the artifact copy
@@ -677,21 +677,22 @@ def _toplevel_checkout(cwd):
 
 # [cut-point]
 # Rationale: a worktree cut from whatever branch the top-level checkout
-#   happened to be on (#67) is cut from a commit that predates the run and
+#   happened to be on is cut from a commit that predates the run and
 #   can never see work still in flight on some other local branch. The
 #   remote's default branch is what a fresh clone would stand on, so it is
 #   the one point every collaborator's next checkout actually agrees on --
 #   fetched fresh (never trusted from a stale local `refs/remotes/origin/
 #   HEAD`) so the sha it names is both current and one this checkout
 #   actually holds the objects for, ready for `worktree add` to build on.
-#   `--from` overrides it outright for the case #67 names: a root run
+#   `--from` overrides it outright for the case that needs it: a root run
 #   opened on purpose to exercise work still in flight on some other
 #   branch, which is not a mistake for this to second-guess.
 # Rejected: `refs/remotes/origin/HEAD` read locally with no fetch. It is
 #   only ever written by `git clone` (or a deliberate `git remote set-head`)
 #   -- absent here, and stale the moment the remote's own default branch
-#   moves on -- so trusting it silently reintroduces the exact staleness
-#   this exists to fix.
+#   moves on -- so trusting it silently brings back the exact staleness
+#   this exists to avoid.
+# See: #67
 def _resolve_cut_point(top, from_ref):
     """What to cut the new worktree's branch from, as `(ref, sha)`: `--from`
     wins outright; otherwise the remote's default branch, fetched fresh;
@@ -788,9 +789,9 @@ def _commit_open(wid, worktree):
 # Rejected: a name list (`{"run-an-issue"}`) kept beside this check -- a new
 #   issue-shaped assembly would silently sit outside git until someone
 #   remembered to add its name here.
-# See: ruling 8, docs/V2_DESIGN.md -- "git is the issue tier's, and the
+# See: docs/V2_DESIGN.md -- "git is the issue tier's, and the
 #   engine's"; an idea or an excursion produces a spec, not a diff.
-# `_DISPOSE_MINT` joined `_BOARD_MINT` as a second engine-named mint (#56):
+# `_DISPOSE_MINT` and `_BOARD_MINT` are both engine-named mints (#56):
 # both sit in every assembly's `_mintable(asm)` whether or not that
 # assembly's own forms use them, so both are subtracted here -- an
 # assembly is issue tier on a real
@@ -817,20 +818,19 @@ def cmd_open(argv):
     wid = _check_id(_opt(argv, "--id") or mint_id(issue=issue, kind=assembly.rsplit("-", 1)[-1]))
     # [write-guard-is-not-scope]
     # Rationale: this guard asks "is this name already taken", never "can I
-    #   resolve this id from here" -- `journal.exists`, since #112 gate 2,
-    #   answers the second question, narrowed to a bound process's own
+    #   resolve this id from here" -- `journal.exists` answers the second
+    #   question, narrowed to a bound process's own
     #   subtree, and swapping it in here would hand a `--id` typed inside a
     #   bound process a name already taken by a run outside that subtree,
     #   its own parent included, the moment this line wrote through it.
     #   `journal_path(wid).exists()` reads no caller identity and no
-    #   session -- the same plain on-disk check `exists` itself used before
-    #   that gate -- so a bound caller gets the identical "already exists"
-    #   refusal an unbound one always got, never a new, differently-worded
-    #   one, keeping o3's no-predicate shape intact for the write side too.
+    #   session, so a bound caller gets the identical "already exists"
+    #   refusal an unbound one gets, never a differently-worded one, keeping
+    #   the no-predicate shape intact for the write side too.
     # Rejected: leaving `journal.exists` here and adding a second predicate
     #   to widen it back for a write guard. That is a second mode on the
-    #   one function every resolver bottoms out on, which is exactly the
-    #   shape #112 gate 2 exists to avoid needing anywhere.
+    #   one function every resolver bottoms out on.
+    # See: #112
     if journal.journal_path(wid).exists():
         raise SystemExit(render.located(f"{wid} already exists\n  where it stands: spine {wid}"))
     asm = runmod.load_assembly(assembly)
@@ -930,11 +930,11 @@ def _open_obligations(pst, proot):
 
 
 # [landed-since-cut]
-# Rationale: 2026-09-26 -- a re-cut after a gate lands was promised "what
-#   has landed" as prefill and received none, so each planner went looking:
-#   issue191's fifth planner read the third gate's PLAN.md, the route forms
-#   and the fourth adjudication, and wrote its cut as an amendment to them
-#   ("earlier plans' facts still hold and are not repeated"). What has
+# Rationale: a re-cut after a gate lands that is given no "what has landed"
+#   prefill sends each planner looking: issue191's fifth planner read the
+#   third gate's PLAN.md, the route forms and the fourth adjudication, and
+#   wrote its cut as an amendment to them ("earlier plans' facts still hold
+#   and are not repeated"). What has
 #   landed is a fact the tree and the board already hold -- the commits
 #   past the run's cut point, each gate's own subject, and the rows its
 #   adjudications settled -- so the engine hands it over the way
@@ -944,6 +944,7 @@ def _open_obligations(pst, proot):
 #   amendment chain itself; the gate ahead answers to the code and spec now,
 #   not to what an earlier cut expected them to be. Its `call-tree` is a
 #   different thing and does carry -- see `[call-tree-carries]`.
+# See: issue191
 def _landed(pst, proot):
     """`{"landed": ...}`: the commits the run's tree holds past its cut
     point, oldest first, then the execution-state rows already settled with
@@ -993,8 +994,8 @@ def _open_child(assembly, parent, pstep_id, row_id=""):
 # Rationale: the run this anchor names (spec.md's Chain of purpose) is that
 #   a dispatched child is never left holding its own `open` -- the engine
 #   has already computed it and can run it itself. This is the mechanism
-#   that makes that true: the whole of `_open_child`'s old body, minus its
-#   trailing print and `cmd_status` tail, pulled out so `_spawn_outstanding`
+#   that makes that true: `_open_child`'s body minus its trailing print and
+#   `cmd_status` tail, kept apart so `_spawn_outstanding`
 #   can mint an engine-spawned child's run directly, before that child's
 #   process ever starts, without also inheriting the wrapper's stdout.
 def _mint_child(assembly, parent, pstep_id):
@@ -1009,7 +1010,7 @@ def _mint_child(assembly, parent, pstep_id):
     A child's work location nests inside its parent's actual location, never
     cwd -- the two never agree unless the caller happened to be standing in
     the parent's own worktree, and a child minted elsewhere would strand
-    itself outside the tree the archive move (g4) physically walks. The
+    itself outside the tree the archive move physically walks. The
     child does not exist in either root yet, so two-root resolution cannot
     find it either; `proot`, read off the parent (which does exist), is
     handed to the child's first journal entry instead.
@@ -1053,11 +1054,11 @@ def _mint_child(assembly, parent, pstep_id):
     else:
         tier = _tier(pstep, pasm)
         # The run's own prefill (`carries`, e.g. consolidate's spec) is what
-        # every later dispatch was promised -- ASSEMBLY.toml says so in
-        # place. Before this a non-panelist child saw only its own step's
-        # prefill, so a first-round dispatch minted with none (the plan
-        # segment's `plan-1`, which carries nothing of its own) opened blind
-        # to the spec it exists to plan from. The step's own keys still win
+        # every later dispatch is promised -- ASSEMBLY.toml says so in
+        # place. A non-panelist child seeing only its own step's prefill
+        # would leave a first-round dispatch minted with none (the plan
+        # segment's `plan-1`, which carries nothing of its own) blind to
+        # the spec it exists to plan from. The step's own keys still win
         # on collision, so a gate child's spec -- which duplicates nothing
         # the run-level prefill holds -- is unaffected.
         prefill = {**(pst.get("prefill") or {}), **(pstep.get("prefill") or {}),
@@ -1140,24 +1141,25 @@ def _finishing(asm, form_override=""):
 
 
 # [tree-info]
-# Rationale: a dispatched child inherits its parent's tree (ruling 8), so the
+# Rationale: a dispatched child inherits its parent's tree, so the
 #   worktree to name is simply where this run's own journal physically
 #   lives -- `journal.root_for`, correct at any nesting depth without
 #   climbing, since a gate or panelist nests inside its issue's own.
-#   `_mint_child` now stamps `branch` on every dispatch/panel child's own
+#   `_mint_child` stamps `branch` on every dispatch/panel child's own
 #   "run" entry, read off its parent's already-resolved state at mint
 #   time -- knowable there without crossing any run's own boundary, which
 #   is what lets a bound process's own review-panel or nested-gate render
-#   (issue112 g2) name a branch without climbing across the boundary that
-#   binding puts around it. This climb stays as the fallback for what that
-#   stamp does not cover: a run minted before this change, or one opened
+#   name a branch without climbing across the boundary that binding puts
+#   around it. This climb is the fallback for what that stamp does not
+#   cover: a run minted before the stamp existed, or one opened
 #   through a path that is not `_mint_child` (an excursion's own "run"
 #   entry, `_open_excursion`, carries no `branch` either).
-# Rejected: rewriting this climb away now that most runs carry the field
+# Rejected: rewriting this climb away because most runs carry the field
 #   directly. A legacy run's own entry never gains `branch` retroactively,
-#   so the climb is still the only way to answer for one -- deleting it
+#   so the climb is the only way to answer for one -- deleting it
 #   would blank that answer immediately rather than let it narrow over
 #   time as older runs close.
+# See: #112
 def _tree_info(wid, st):
     """Where a dispatched child actually lands: this run's own worktree, and
     the branch stamped on the nearest issue-tier ancestor -- climbed to
@@ -1184,8 +1186,8 @@ def _tree_info(wid, st):
 #   loop, rather than once per child) since nothing a render does can move
 #   a record that only a completed spawn appends -- and no
 #   render ever folds a freshly-spawned record into this dict at all,
-#   because no render spawns anything any more (`_dispatch_child` is a pure
-#   read; `cmd_wait`'s own pre-loop spawn is the only caller left that
+#   because no render spawns anything (`_dispatch_child` is a pure
+#   read; `cmd_wait`'s own pre-loop spawn is the only caller that
 #   starts a child). Whatever that pre-loop needs from a single scan across
 #   its own per-child loop is `cmd_wait`'s own call, not restated here.
 #   `_dispatch_start_counts` sits directly beside this function, over the
@@ -1210,13 +1212,15 @@ def _dispatch_records(wid):
 #   is, so a caller that needs both facts scans the journal for each of
 #   them once, not once per downstream function.
 # [starts-count-since-the-last-answer]
-# Rationale: #180 -- the cap stops a child that keeps dying with nothing new
-#   to go on, and it counted every start the child ever had. issue156.g1
-#   spent two starts on an engine defect and one on a session limit, and
-#   once its ask was answered with the fix no verb could start it again: the
-#   cap read three deaths that had already been explained as three reasons
-#   not to try. An answered ask that resumes a child is the new input the
-#   cap is waiting for, so a child's count starts over at that submit.
+# Rationale: the cap stops a child that keeps dying with nothing new to go
+#   on; counting every start the child ever had would hold it past an
+#   answer. issue156.g1 spent two starts on an engine defect and one on a
+#   session limit, and once its ask was answered with the fix no verb could
+#   start it again: the cap read three deaths that had already been
+#   explained as three reasons not to try. An answered ask that resumes a
+#   child is the new input the cap is waiting for, so a child's count starts
+#   over at that submit.
+# See: #180
 def _dispatch_start_counts(wid):
     """`{child_id: count}` -- how many `dispatch-started` records `wid`'s
     own journal carries for each child since the last answer that resumed
@@ -1291,11 +1295,10 @@ def _form_filler_start_counts(wid):
 
 
 # [startable]
-# Rationale: `IMPASSE.toml`'s own ruling on an earlier round names
-#   the shape every prior round's gap shared -- "a guard whose halves live
-#   in two places, written as though it lived in one" -- and binds the
-#   fourth round: a fourth instance of a clause missing from one copy of a
-#   distributed guard means the cut, not the plan, is the defect. So the
+# Rationale: the shape of every gap here is "a guard whose halves live in
+#   two places, written as though it lived in one": a clause missing from one
+#   copy of a distributed guard means the cut, not the plan, is the defect
+#   (`IMPASSE.toml`'s ruling on a repeated round). So the
 #   whole rule -- never once returned; and, among the rest, either never
 #   dispatched at all or dead and not yet spent -- is stated once, here,
 #   and every site that asks "may this child still be started" reads this
@@ -1320,8 +1323,8 @@ def _form_filler_start_counts(wid):
 #   blocked note up". The note landed in the child's own journal and went
 #   nowhere: the dispatcher's room said only "gone without returning", and
 #   `wait` restarted the child into the same wall until its starts were
-#   spent (story_time issue64, 2026-11-06: two planner sessions on one step
-#   that had nothing left to cut). So a child's open blocked note is read
+#   spent (story_time issue64: two planner sessions on one step that had
+#   nothing left to cut). So a child's open blocked note is read
 #   here: it prints in the dispatcher's room with the command that answers
 #   it, and it holds the restart until it is answered.
 def _child_blocks(child_id):
@@ -1383,22 +1386,21 @@ def _startable(is_returned, record, count, blocked=False):
 # [mint-follows-start]
 # Rationale: whether this child can be started at
 #   all is decided once, by attempting the start itself through
-#   `checkrun.spawn_dispatch`, which now raises for every one of the four
+#   `checkrun.spawn_dispatch`, which raises for every one of the four
 #   ways that attempt can fail (no `dispatch` entry, a malformed one, an
 #   unfilled placeholder, or the process failing to start) rather than
 #   letting only the first of them be screened in advance. `_mint_child`
 #   moves to after that call succeeds -- never ahead of it, and never for a
 #   child whose start just failed -- so a tree that cannot actually run what
 #   it would mint leaves no run/prefill/step behind for a start that never
-#   happened. `journal.exists(child_id)` still guards the mint itself, the
-#   same restart guard as before: a child whose harness died after minting
+#   happened. `journal.exists(child_id)` guards the mint itself, the
+#   restart guard: a child whose harness died after minting
 #   successfully once does not mint a second time.
 # Rejected: validating the palette's `dispatch` entry ahead of the mint (the
 #   three causes that need no live process to detect) and minting before
 #   attempting the fourth (the process itself failing to start). That would
 #   still leave a mint standing for a start that goes on to fail at the one
-#   cause left uncovered -- exactly the gap this obligation closes -- for no
-#   benefit: `spawn_dispatch`'s own Popen call is not slow enough that
+#   cause left uncovered, for no benefit: `spawn_dispatch`'s own Popen call is not slow enough that
 #   deferring the mint past it costs anything worth trading that gap for.
 def _spawn_outstanding(wid, child_id, brief_text, tier, tree, records, counts, is_returned,
                        assembly, pstep_id):
@@ -1669,7 +1671,7 @@ def _panel_status(wid, st, asm, step, blocked):
     naming the ruling escape instead: dropping the step, unless the step is
     also its conductor's own route form, in which case dropping it would
     drop that form too, and the escape waives the panel instead
-    (issue811's ruling)."""
+    (issue811)."""
     records = _dispatch_records(wid)
     counts = _dispatch_start_counts(wid)
     descriptors = _panel_descriptors(wid, asm, step)
@@ -1731,44 +1733,41 @@ def _paused_status(wid, st, asm, blocked):
 #   has to be told apart here rather than rendered as a proof that will never
 #   land: a check whose process is gone and whose result never arrived is
 #   work to redo, not work to wait for. Its own outstanding line is
-#   unconditional, the same as the dispatch/panel line now is --
+#   unconditional, the same as the dispatch/panel line --
 #   because a step's proof is spawned through
 #   the check-runner/`HANDBACK` mechanism, a path with nothing to do with
 #   whether `commands.dispatch` is configured: a repository with no
 #   `dispatch` entry at all can still have a proof genuinely in flight. The
-#   two halves name `wait` differently now, and both are true: the orphan
-#   half still never names it -- a dead process has nothing left to poll,
+#   two halves name `wait` differently, and both are true: the orphan
+#   half never names it -- a dead process has nothing left to poll,
 #   so claiming `wait` is the move would promise a block that never comes
-#   -- while the running half now does, because `cmd_wait`'s own final
+#   -- while the running half does, because `cmd_wait`'s own final
 #   branch blocks on exactly this case (`runmod.in_flight`, polled the
 #   same shape as its spawn branches, minus the spawn -- there is nothing
-#   to start, the detached runner is already going). That running half
-#   used to carry its own cadence paragraph, spelled out by hand because
-#   there was no verb to carry it instead: three headless gate-conductors
-#   in this run read the old text ("see where it landed: spine <wid>") as
-#   a destination rather than an act, concluded a background process would
-#   tell them when the room changed, and stopped acting; nothing was
-#   coming. The fix was never a softer destination, it was an act with a
-#   cadence -- and a blocking verb IS that act: the cadence that used to
-#   live in a reader's own discipline (render this room again, by hand,
-#   every minute or two, until it says something else) now lives in the
-#   engine's own poll loop instead, which is why the paragraph that used to
-#   spell it out by hand is gone from the running branch -- the discipline
-#   moved, it was not dropped. A later reader must not "tidy" this room
-#   back into a bare pointer with no verb and no loop behind it: that is
-#   the exact shape that already killed three runs.
-# Rejected: leaving `wait` refusing to block here on the strength of
-#   issue99's own spec -- whose stated reason was "`wait` blocks only on children
-#   it can see as processes, so the block is empty whenever there is no
-#   process to watch." That premise is false for a proof: `check-started`
-#   journals a pid, this same function calls `checkrun.alive()` on it two
-#   lines up, and `cmd_drive`'s own in-flight branch already polls that
-#   pid (`if runmod.in_flight(st, step): time.sleep(checkrun.WAIT_POLL);
-#   continue`) rather than refusing to -- `drive` already does the
-#   blocking thing `wait` used to refuse to do, on the same pid. Giving
-#   `wait` the same loop is not overturning that ruling, it is applying
-#   the ruling's own stated reason to a case -- a proof's pid -- the
-#   ruling's own text did not consider even though it already satisfies it.
+#   to start, the detached runner is already going). The running half
+#   carries no cadence paragraph spelled out by hand, because the verb
+#   carries it: a room that said "see where it landed: spine <wid>" was
+#   read as a destination rather than an act, and three headless
+#   gate-conductors concluded a background process would tell them when the
+#   room changed, and stopped acting; nothing was coming. The answer is not
+#   a softer destination, it is an act with a cadence -- and a blocking
+#   verb IS that act: the cadence (render this room again, by hand, every
+#   minute or two, until it says something else) lives in the engine's own
+#   poll loop instead of a reader's own discipline. A later reader must not
+#   "tidy" this room back into a bare pointer with no verb and no loop
+#   behind it: that is the exact shape that killed three runs.
+# Rejected: `wait` refusing to block here on the strength of issue99's own
+#   spec, whose stated reason was "`wait` blocks only on children it can see
+#   as processes, so the block is empty whenever there is no process to
+#   watch." That premise is false for a proof: `check-started` journals a
+#   pid, this same function calls `checkrun.alive()` on it two lines up,
+#   and `cmd_drive`'s own in-flight branch polls that pid (`if
+#   runmod.in_flight(st, step): time.sleep(checkrun.WAIT_POLL); continue`)
+#   rather than refusing to -- `drive` does the blocking thing on the same
+#   pid. Giving `wait` the same loop applies the spec's own stated reason to
+#   a case -- a proof's pid -- its text did not consider even though it
+#   satisfies it.
+# See: issue99
 def _in_flight_status(wid, st, asm, entry, blocked):
     """What a run whose proof is still running says about itself."""
     running = checkrun.alive(entry.get("pid"))
@@ -1843,7 +1842,7 @@ def _board_state(path):
 # Rejected: naming every returned panel, the quiet word included. A quiet
 #   verdict is the room arriving normally; saying so is noise on every step
 #   after it. Rejected also: a bare equality check against the literal word
-#   `pass` left in place, #46's whole complaint -- rename the reviewer's
+#   `pass` left in place -- rename the reviewer's
 #   passing value in its forms and that check would silently stop
 #   suppressing it. `declared_does` is the same reader `_holds_for_its_form`
 #   and `_act_on_verdicts` already use: `release` (or an undeclared word --
@@ -1878,12 +1877,12 @@ def _returned_verdict(st, asm):
 
 
 # [drafts]
-# Rationale: a return used to reach the parent's form only as text in the
-#   room, and the conductor retyped what it accepted -- so an adjudication
-#   asked for `dispositions` and the conductor derived them afresh, the
+# Rationale: a return that reaches the parent's form only as text in the
+#   room has the conductor retype what it accepted -- so an adjudication
+#   asks for `dispositions` and the conductor derives them afresh, the
 #   gate's own question answered a second time with a bigger model, while
-#   the gate's purpose went unasked. A plan field that declares
-#   `drafted-by` now opens holding the returned field's own blocks, and the
+#   the gate's purpose goes unasked. A plan field that declares
+#   `drafted-by` opens holding the returned field's own blocks, and the
 #   parent's whole move on it is to accept or contest each. This reads the
 #   same `returns_by_child` entry `_room_kwargs` already renders; the
 #   template is written once, at the first `status`, so the draft lands
@@ -1910,9 +1909,9 @@ def _drafts(st, step, form):
 
 # [a-gate-claims-done-or-not]
 # Rationale: a gate knows whether it did the work, not where unfinished
-#   work goes. issue165's g3 claimed `handed-off: ... is gate 4's` and
-#   sports-market-manager #219's g3 claimed `deferred: ... their own gate
-#   (G4)`, with no such gate planned; each conductor accepted the drafted
+#   work goes. A gate claimed `handed-off: ... is gate 4's` (issue165) and
+#   another `deferred: ... their own gate (G4)` (sports-market-manager
+#   #219), with no such gate planned; each conductor accepted the drafted
 #   claim, and each run reached close with a deliverable unbuilt. So the
 #   draft opens any gate word but `satisfied` or `open` as `open`, the
 #   gate's own text kept after the colon: accepting it keeps the work in
@@ -1921,6 +1920,7 @@ def _drafts(st, step, form):
 # Rejected: refusing a gate's close that claims another word, or a
 #   `deferred` that cites no ruling. A refusal stops a finished gate over
 #   a word the parent can simply read as not done.
+# See: #165, sports-market-manager #219
 def _gate_claim(row):
     said = str(row.get("disposition", "")).strip()
     if not said or said.partition(":")[0].strip() in ("satisfied", "open"):
@@ -1931,7 +1931,7 @@ def _gate_claim(row):
 # [room-kwargs]
 # Rationale: `cmd_status`'s own derivation of everything `render.status`
 #   needs beyond `st`/`form`/`response_path` themselves -- the returned
-#   child's fields folded flat, the board (now via `_board_path`, re-derived
+#   child's fields folded flat, the board (via `_board_path`, re-derived
 #   fresh rather than trusted from whatever cwd minted it), prefill, in-hand
 #   fields, the returned verdict, blocks, position, prior drops, the role,
 #   row returns -- lifted out here so `_form_filler_brief` can build the
@@ -1968,10 +1968,10 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     else:
         filler_status = ""
     # [route-room-reads-the-cut]
-    # Rationale: a route step has no child of its own, so its room used to
+    # Rationale: a route step has no child of its own, so its room would
     #   show the panel's verdict and nothing of the round it was ruling on;
-    #   the critics saw the cut (`_round_artifact` fills their prefill) and
-    #   the conductor did not. Now that the plan seam's panel reads fresh
+    #   the critics see the cut (`_round_artifact` fills their prefill) and
+    #   the conductor would not. Since the plan seam's panel reads fresh
     #   cuts only (`[panel-rounds]`), an incorporated round is routed by the
     #   conductor alone, and the cut has to be in the room it is routed
     #   from. So a step with no child reads the segment's most recent round
@@ -1981,7 +1981,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     #   (`[trial-proofs]`) rides in that return's `checks` and renders as
     #   readings rather than exit codes. A step whose segment holds no such
     #   round (consolidate: the spec-writer fills in place; run-a-gate's
-    #   route: panelists carry no `child` key) reads nothing, as before.
+    #   route: panelists carry no `child` key) reads nothing.
     child = step.get("child", "")
     disposed = ""
     if not child:
@@ -2047,7 +2047,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     #   it. The record already exists: a `rejected` call is a row on the
     #   submit entry that ruled it, in the run's own journal, archived under
     #   `<top>/.agent-work/archive/` once that run closes. Reading it back
-    #   here is the "where a later run can find it" half of the ruling --
+    #   here is the "where a later run can find it" half --
     #   nothing new is written, `engine/drops.py` only reads what already
     #   landed. Whether a `rejected` finding recurring here is worth acting
     #   on is the conductor's own call to make, at the seam calls are made;
@@ -2070,7 +2070,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
         drops = dropsmod.touching(dropsmod.rejected_calls(top), touched)
     # A run-level order that was answered `waived: none` upstream carries no
     # value: it is a field somebody declined, riding in every later room
-    # (`settle`, on all 107 of story_time's 2026-11-06 child rooms). The
+    # (`settle`, on all 107 of one story_time batch's child rooms). The
     # step's own orders print as given, where `waived: none` is an answer.
     carried = {k: v for k, v in (st.get("prefill") or {}).items()
                if not (isinstance(v, str) and " ".join(v.split()).lower() == "waived: none")}
@@ -2130,8 +2130,8 @@ def _briefed_role(wid, st):
 # [runs-as]
 # Rationale: orders name a proof by its palette entry (`palette:test x`), and
 #   the reader has to run it. Left unresolved, 44 of 55 reviewers on
-#   story_time's 2026-11-06 runs went searching constellation.toml for what
-#   the name meant. The engine already resolves it for its own check, so the
+#   story_time's runs went searching constellation.toml for what the name
+#   meant. The engine already resolves it for its own check, so the
 #   room prints that same resolution.
 def _runs_as(prefill, root):
     """`{key: command}` for each order that names a palette entry: the exact
@@ -2216,10 +2216,10 @@ def cmd_status(argv):
 # Rationale: the process-only definition -- a live-pid
 #   `dispatch-started` record with no `return` yet -- is read straight off
 #   the journal via `_dispatch_records` rather than through
-#   `_dispatch_child`, because `_dispatch_child` is a pure read now and only
-#   `_spawn_outstanding` still spawns -- called once, before this predicate
-#   is ever asked anything, by `cmd_wait`'s own pre-loop spawn (commitments
-#   13-15 make `wait` the sole spawner). This predicate itself starts
+#   `_dispatch_child`, because `_dispatch_child` is a pure read and only
+#   `_spawn_outstanding` spawns -- called once, before this predicate
+#   is ever asked anything, by `cmd_wait`'s own pre-loop spawn (`wait` is
+#   the sole spawner). This predicate itself starts
 #   nothing: by the time it first runs, `cmd_wait` has already made its one
 #   spawn attempt per child, so what it reads here is always the record
 #   that attempt left behind (or found already there). A child with no
@@ -2255,20 +2255,19 @@ def _wait_bound(argv):
 
 
 # [wait-spawn]
-# Rationale: `IMPASSE.toml`'s own ruling on an earlier round names a
-#   guard whose halves live in two places, written as though it lived in
-#   one, as the shape every prior round's gap shared -- and a second,
-#   partial copy of `_startable` sitting here, beside this call, guessing
-#   which of its clauses are worth pre-checking, is exactly that shape.
-#   So `_wait_spawn` carries no guard of its own at all, not even the
-#   `returns_by_child` half a prior round kept: it offers every descriptor
+# Rationale: a guard whose halves live in two places, written as though it
+#   lived in one, is the shape of every gap here (`IMPASSE.toml`'s ruling on
+#   a repeated round) -- and a second, partial copy of `_startable` sitting
+#   here, beside this call, guessing which of its clauses are worth
+#   pre-checking, is exactly that shape. So `_wait_spawn` carries no guard
+#   of its own at all, not even a `returns_by_child` half: it offers every descriptor
 #   to `_spawn_outstanding` unconditionally, and `_spawn_outstanding`'s own
 #   `_startable` guard is the one and only place that decides. The small
 #   cost is `render.brief` (pure string formatting, no journal or process
 #   I/O) getting built for a handful of children `_spawn_outstanding` will
 #   no-op on -- cheap, and the price of never having a second copy of the
 #   rule to fall out of sync with the first. `records` and `counts` are
-#   still computed once, before the loop, and threaded through rather than
+#   computed once, before the loop, and threaded through rather than
 #   re-scanned per child.
 # Rationale: an engine-spawned
 #   process's own brief never names an `open` command at all, on a fresh
@@ -2299,24 +2298,22 @@ def _wait_spawn(wid, st, descriptors):
 
 
 # [wait-verb]
-# Rationale: reproduces `cmd_status`'s own branch order (911-933) by hand
-#   rather than asking `_current_form` which branch matched -- today it
+# Rationale: reproduces `cmd_status`'s own branch order by hand
+#   rather than asking `_current_form` which branch matched -- it
 #   only ever returns `None` for a panel, paused or dispatch step and a
-#   loaded form for the rest, so a caller still has to re-run the same
+#   loaded form for the rest, so a caller has to re-run the same
 #   checks to tell those apart. Whether that is worth
-#   pulling into a shared helper first is left open; written by
-#   hand a fourth time here, it was no harder to keep correct than the
+#   pulling into a shared helper is left open; written by
+#   hand a fourth time here, it is no harder to keep correct than the
 #   three copies already standing (`cmd_status`, `cmd_submit`,
-#   `cmd_close`), which itself answers the question for now -- left as a
-#   note for whichever later gate needs the branch a second time.
+#   `cmd_close`).
 # Rejected: leaving a dispatch or panel step whose child has never been
-#   dispatched at all to render immediately with nothing outstanding, the
-#   way gate 1 left it (`GATE_TRANSITION.toml`, finding 1: a prior render
-#   already in `wait`'s own trailing `cmd_status` call started such a
-#   child, not `wait` itself). `cmd_wait`'s own
-#   pre-loop spawn closes that gap: it starts such a child itself, before
-#   the poll loop begins, so `wait` no longer depends on some render already
-#   in its own call chain to have started it first.
+#   dispatched at all to render immediately with nothing outstanding
+#   (`GATE_TRANSITION.toml`): only a render already in `wait`'s own trailing
+#   `cmd_status` call would start such a child, not `wait` itself.
+#   `cmd_wait`'s own pre-loop spawn starts such a child itself, before the
+#   poll loop begins, so `wait` does not depend on some render already in
+#   its own call chain to have started it first.
 def cmd_wait(argv):
     wid = argv[0]
     bound = _wait_bound(argv[1:])
@@ -2372,9 +2369,8 @@ def cmd_wait(argv):
         # `check-started` means), so there is nothing to spawn here, only
         # to hold for. Same loop shape as the spawn branches above with no
         # `_wait_spawn` call, because there is nothing to start. See
-        # `[in-flight-room]` above `_in_flight_status` for why this is not
-        # the same room refusing to block that an earlier ruling left in
-        # place, and for the cadence this loop now carries instead.
+        # `[in-flight-room]` above `_in_flight_status` for why this room
+        # blocks, and for the cadence this loop carries.
         # `runmod.in_flight` alone is not the loop condition: it stays
         # populated for an orphan too (nothing but a `submit` or `check`
         # entry ever clears it, and a dead proof writes neither), so
@@ -2395,9 +2391,9 @@ def cmd_wait(argv):
         # Rationale: a childless form step whose own filler is a live
         #   process is outstanding work, exactly as a child or a proof is,
         #   and the room already names `wait` as the move beside it. Left
-        #   rendering at once, `wait` spun: issue71's select filler called it
-        #   197 times in 30 minutes, every call a full turn on a heavy runner.
-        #   Held on the same terms `drive` already holds a live filler --
+        #   rendering at once, `wait` would spin: issue71's select filler
+        #   called it 197 times in 30 minutes, every call a full turn on a
+        #   heavy runner. Held on the same terms `drive` holds a live filler --
         #   sleep, re-derive, never spawn a second filler on top of it. The
         #   hold ends when the step is no longer current, its filler is gone,
         #   or the bound runs out.
@@ -2526,10 +2522,9 @@ def _drive_form_filler(wid, st, asm, step, form):
 #   dispatch` entry at all: without a `dispatch` entry `wait`'s own
 #   mechanism starts nothing for any step, so `drive` would only ever spin
 #   to its own bound doing nothing, and refusing outright says so instead
-#   of spinning quietly. `_dispatch_configured` survives `o-single-dispatch-
-#   room` for exactly this one call-ending check -- every other room and
-#   refusal that used to read it now computes its own outstanding state
-#   unconditionally instead.
+#   of spinning quietly. `_dispatch_configured` serves exactly this one
+#   call-ending check -- every other room and refusal computes its own
+#   outstanding state unconditionally instead.
 #
 #   A fourth condition -- the current step's own segment sitting earlier
 #   than `plan` in the run's own assembly (`open`, `understand`;
@@ -2775,22 +2770,23 @@ def cmd_submit(argv):
 
 
 # [ruled-proof-read-live]
-# Rationale: #214 -- issue299's g3 asked up on a proof that could never pass,
-#   the conductor amended it at the parent, and the resumed round's hand-in
-#   re-ran the old text: the child's prefill is a copy taken at dispatch, and
-#   the amend writes the parent's gate step only. The child had no move of
-#   its own (`amend proof` inside it finds no gate step). So the child's
-#   check reads `proof` off its parent's gate step as it stands when the
-#   check runs, the way close's recheck already does. The copy in the
+# Rationale: when a child asks up on a proof that could never pass and the
+#   conductor amends it at the parent (issue299's g3), the resumed round's
+#   hand-in would re-run the old text: the child's prefill is a copy taken at
+#   dispatch, and the amend writes the parent's gate step only. The child has
+#   no move of its own (`amend proof` inside it finds no gate step). So the
+#   child's check reads `proof` off its parent's gate step as it stands when
+#   the check runs, the way close's recheck does. The copy in the
 #   child's prefill stays what the child was handed; the parent's step is
 #   what binds it.
 # Rejected: journaling the amend into the open child as well. Two places
 #   would then hold the ruling, and a child opened elsewhere, or reopened
 #   after the amend, would have to be found and patched. Reading the one
 #   place that holds it has nothing to keep in sync.
+# See: #214
 def _ruled_proof(st):
     """`proof` and `gate-proof` off the parent's gate step for the child that
-    step dispatched, as the parent's journal stands now -- each only where
+    step dispatched, as the parent's journal stands -- each only where
     the step carries it; `{}` for a run with no parent."""
     parent, pstep = st.get("parent"), st.get("parent_step")
     pst = None
@@ -2898,7 +2894,7 @@ def _check_plan(asm, form, fields):
 #   load-bearing: punctuation alone would enum an ordinary prose note.
 # Rejected: a table of field ids and their legal values kept here. It is the
 #   same list written twice, and the copy that matters is the one in the form:
-#   the engine would go on enforcing the old list against a reworded note.
+#   the engine would enforce a stale list against a reworded note.
 def _decided_here(asm, step):
     """The field this step's assembly already declares outcomes for, if any.
 
@@ -2914,20 +2910,19 @@ def _decided_here(asm, step):
 # [call-vocabulary]
 # Rationale: `_check_vocabulary` reaches a form's own `[[field]]` entries and
 #   stops there, so the one value in the tree the engine acts on from inside a
-#   `kind = "plan"` row -- a per-finding `call` -- was never checked against
-#   anything. `_blocking_calls` compares `leading_word(...) == "blocking"`, so
-#   a call the vocabulary does not contain (a typo, `accept`, `blocking-ish`)
-#   read as not-blocking and the finding it belonged to was silently dropped
-#   from the round's orders, while `review_yield` tallied the bogus word into
-#   the yield table without comment. That is the silent-default class the
-#   verdict fold was made to refuse rather than guess at, and the lesson was
-#   applied there and not here.
+#   `kind = "plan"` row -- a per-finding `call` -- would go unchecked.
+#   `_blocking_calls` compares `leading_word(...) == "blocking"`, so a call
+#   the vocabulary does not contain (a typo, `accept`, `blocking-ish`) reads
+#   as not-blocking and the finding it belongs to is silently dropped from
+#   the round's orders, while `review_yield` tallies the bogus word into the
+#   yield table without comment. That is the silent-default class the
+#   verdict fold refuses rather than guesses at.
 # Rejected: enforcing every plan item whose note happens to contain ` | `.
 #   That is exactly the mistake `[field-vocabulary]` names -- deriving an enum
 #   from punctuation alone turns an ordinary prose note into an enum nothing
 #   declared and no one can see. An item earns enforcement the same way a
 #   field does, by declaring `kind = "decision"`, which is why the three route
-#   forms' `call` items now do.
+#   forms' `call` items do.
 def _check_calls(form, fields):
     """A per-finding call the engine cannot act on refuses instead of
     releasing the step -- the same rule `_check_vocabulary` holds a decision
@@ -2959,8 +2954,8 @@ def _check_calls(form, fields):
 
 def _check_reason(field_id, note, value):
     """A value its note declares as `word: <reason>` refuses without the
-    reason. The form says the call owes one; a bare `rejected` passed anyway,
-    and the record then held a ruling nobody could weigh."""
+    reason. The form says the call owes one; a bare `rejected` would pass
+    otherwise, and the record would hold a ruling nobody could weigh."""
     word = forms.leading_word(value)
     if word not in [w.lower() for w in forms.reasoned(note)]:
         return
@@ -3026,10 +3021,10 @@ def _mint_transition(wid, seg, prefill=None):
 #   remint <field>; close; several joined by ";". The engine matches the field's
 #   first word, refuses one nothing declares naming those it can act on, and
 #   performs the verbs. No assembly's words appear here. `transition` and
-#   `rework` are the impasse's two moves, absorbed alongside the rest (#32)
-#   -- an offered `ruling` is now a `decides` field like any other, and
-#   `remint`/`close` are gate adjudication's, absorbed the same way.
-# See: #32 -- gate adjudication still carries its own interpreter.
+#   `rework` are the impasse's two moves, declared like the rest -- an
+#   offered `ruling` is a `decides` field like any other, and
+#   `remint`/`close` are gate adjudication's, declared the same way.
+# See: #32 (gate adjudication still carries its own interpreter)
 def _outcome(asm, step, fields, st):
     """(segment, does) for the outcome this submit selects; None when the
     step declares none or the field is nulled. Checked before the submit
@@ -3037,7 +3032,7 @@ def _outcome(asm, step, fields, st):
     does not resolve -- never advances the run.
 
     A declared value may carry a placeholder (`name <x>`): matched on the
-    word before the `<`, the same rule `_check_vocabulary` already used for
+    word before the `<`, the same rule `_check_vocabulary` uses for
     it. Where a value does carry one, the rest of the field's own text is
     the argument, and its legal values are this step's own segment's
     not-done, non-terminal steps that do not share this step's `child` --
@@ -3056,9 +3051,9 @@ def _outcome(asm, step, fields, st):
     raw = fields[field]
     value = forms.leading_word(raw)
     outcomes = spec.get("outcome", [])
-    # A decision the run acts on has no null answer. `waived:` used to select
+    # A decision the run acts on has no null answer. `waived:` would select
     # no outcome and release the step with nothing performed, while the
-    # template beside the field said it was refused.
+    # template beside the field says it is refused.
     if value.startswith(("waived", "unknown")):
         raise SystemExit(render.refusal(
             field, f"{value!r} is not a decision -- the run acts on this field",
@@ -3098,14 +3093,9 @@ def _outcome(asm, step, fields, st):
 
 # [releases]
 # Rationale: `validates = "board"` and `carries = true` are both declared on
-#   consolidate's own transition, and both used to be safe to fire on every
-#   submit of that step because there was only ever one -- the panel's own
-#   `pass` was the only verdict that ever reached a submitted form at all,
-#   a bare `revise` refilling the spec-writer round directly with no
-#   conductor submit in between. Ruling 3's 2026-09-03 follow-up gave
-#   consolidate the plan seam's own shape: the step now also reaches an
-#   ordinary submit on a `rework` or an `up`, neither of which finishes this
-#   segment -- the board is not done until the spec passes, and there is no
+#   consolidate's own transition. Consolidate has the plan seam's own shape:
+#   the step reaches an ordinary submit on a `rework` or an `up`, neither of
+#   which finishes this segment -- the board is not done until the spec passes, and there is no
 #   spec yet to carry. Both checks gate on this so a rework or an up submit
 #   is refused on its own merits alone, never because the board it does not
 #   need yet is still open, and never carries a blank field over whatever
@@ -3161,8 +3151,8 @@ def _releases(outcome):
 #   recorded `revise`, leave the same field blank and release anyway:
 #   `carries` and `_mint_projected_gate` (both gated on `_releases`) found
 #   nothing to carry or project and silently did nothing, so a round the
-#   record calls released produced no evidence it had -- #87's class, the
-#   silent kind epic wave 5 is closing one instance of at a time. Generic
+#   record calls released produced no evidence it had (#87's class, the
+#   silent kind). Generic
 #   off `kind = "artifact"` and `_releases`, never a form name: the next
 #   route form to grow an optional artifact field inherits this for free.
 # Rejected: refusing on any blank artifact field regardless of `_releases`.
@@ -3225,9 +3215,8 @@ def _blocking_calls(fields, word="blocking"):
 
 
 # [seam-findings-history]
-# Rationale: issue113's run-level round-cap owes its ask the findings of
-#   every round it counted, not only the round that tripped it (C1-findings)
-#   -- the same "blocking calls narrowed where the round's own done-entry
+# Rationale: the run-level round-cap owes its ask the findings of every
+#   round it counted, not only the round that tripped it -- the same "blocking calls narrowed where the round's own done-entry
 #   carried a `calls` table, else every panelist's own non-empty `findings`
 #   joined and attributed" rule `_panel_judged_rework` already applies to
 #   the live round, walked here over the steps the cap's own count
@@ -3258,7 +3247,7 @@ def _round_findings(st, step, fields, carry="blocking"):
     the panel's returns, each attributed to the voice that raised it -- or,
     where the deciding submit carried a per-finding `calls` table, its
     blocking-called blocks alone (`_blocking_calls`) -- with the conductor's
-    own `orders` (the route forms' 2026-09-05 field) ahead of either, marked
+    own `orders` (the route forms' field) ahead of either, marked
     as the conductor's. A status word there (`waived: none`) is no order and
     carries nothing. A round with no panel and no orders reads as `""`.
     One writer for `_panel_judged_rework`'s live round and
@@ -3277,31 +3266,31 @@ def _round_findings(st, step, fields, carry="blocking"):
 
 
 # [impasse-ruling-carries]
-# Rationale: #107 -- the impasse form is the one form in the assembly written
+# Rationale: the impasse form is the one form in the assembly written
 #   for a conductor to rule on a *pattern* rather than a round ("Rule on the
 #   loop, not on the findings"), and its `ruling` note makes a `rework`
 #   legitimate only where the conductor "can name what that round changes
 #   that the last three did not". `why` is where that naming goes, and
-#   nothing read it: the impasse step is minted with no panel, deliberately
-#   (a fourth fresh-context reader is the loop, not the way out), so
-#   `_panel_judged_rework`'s guard returned nothing and `_perform` fell back
-#   to the impasse step's *own* prefill -- the findings it was minted with.
-#   The round the ruling created therefore arrived holding exactly what the
-#   round before it held. From the reworking planner's seat an impasse rework
-#   and an ordinary one were indistinguishable, which is close to engineering
-#   a fourth identical round out of the mechanism whose whole purpose is
-#   escaping the third.
-#   The sibling path already did this right and is what makes it a defect
-#   rather than intent: an impasse `up` hands the same submit's fields to
+#   nothing would read it: the impasse step is minted with no panel,
+#   deliberately (a fourth fresh-context reader is the loop, not the way
+#   out), so `_panel_judged_rework`'s guard returns nothing and `_perform`
+#   would fall back to the impasse step's *own* prefill -- the findings it
+#   was minted with. The round the ruling created would arrive holding
+#   exactly what the round before it held. From the reworking planner's seat
+#   an impasse rework and an ordinary one would be indistinguishable, which
+#   is close to engineering a fourth identical round out of the mechanism
+#   whose whole purpose is escaping the third.
+#   The sibling path does this right: an impasse `up` hands the same submit's fields to
 #   `_pause_gate`, so the conductor's reasoning reaches the tier above. Same
-#   form, same submit, one plumbed and one not.
+#   form, same submit, so both are plumbed.
 # Rejected: changing the `panel` guard itself. Carrying the ruling is a
 #   different question from re-deriving the panel's findings -- the guard is
 #   right about the second -- so the branch returns the ruling rather than
-#   the guard learning a second job (#107's own breadcrumb says the same).
+#   the guard learning a second job.
 # Rejected: reading the ruling out of the journal at the next round's mint.
 #   The fields are in hand here, and a second reader of the same submit is a
 #   second thing to keep in step with the form.
+# See: #107
 def _impasse_ruled_rework(step, fields):
     """The prefill an impasse ruling's own `rework` mints its round with: the
     findings that caused the impasse, with the conductor's `why` ahead of
@@ -3309,8 +3298,7 @@ def _impasse_ruled_rework(step, fields):
     `orders` idiom, applied to the one deciding step that carries no panel.
 
     `None` where the ruling wrote no `why` the next round can act on, which
-    leaves the carry-what-caused-it behaviour this had before exactly as it
-    was."""
+    leaves the carry-what-caused-it behaviour untouched."""
     carried = step.get("prefill") or {}
     why = str((fields or {}).get("why", "") or "").strip()
     if not why or forms.leading_word(why) in ("waived", "unknown", "working"):
@@ -3329,16 +3317,16 @@ def _impasse_ruled_rework(step, fields):
 #   Both owe the fresh round whatever the round was judged on as prefill,
 #   and both spend the segment's `impasse-after` count. So both live here,
 #   on the verb, rather than at either caller: run-a-gate's review resolves
-#   `revise` to `release` now, so the panel-return path never reaches
-#   `rework` for it again and an outlet checked only there would silently
-#   stop firing.
+#   `revise` to `release`, so the panel-return path never reaches `rework`
+#   for it and an outlet checked only there would silently never fire.
 # Rationale: the guard reads the step, not only its panel. A route step with
-#   no panel is real now -- run-an-issue's plan seam mints its critic panel
+#   no panel is real -- run-an-issue's plan seam mints its critic panel
 #   on fresh cuts only (`panel-rounds`, ASSEMBLY.toml), so an incorporated
 #   PLAN_TO_EXECUTE round is the conductor's form alone -- and a
 #   conductor sending such a round back owes the next round its `orders`
 #   and spends the count exactly as a panel-judged one does. Keying on
-#   `panel` alone read that step as the impasse ruling and carried nothing.
+#   `panel` alone would read that step as the impasse ruling and carry
+#   nothing.
 # Rejected: duplicating the check on the ordinary submit path. Two counts
 #   that happen to agree is the shape that drifts, and the round past the
 #   allowance is exactly the round nobody re-tests by hand.
@@ -3393,7 +3381,7 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
     # `impasse-after = 0` is a declaration, not an absence: the opening round
     # was never sent back (`rework_rounds` reads 0 there), so 0 >= 0 makes
     # the first send-back the ruling. A segment declaring no `impasse-after`
-    # at all never reaches the outlet, as before.
+    # at all never reaches the outlet.
     after = seg.get("impasse-after")
     looped = after is not None and runmod.rework_rounds(st, asm, seg["id"]) >= after
     aside = _set_aside(fields) if _panel_binds(asm, step) else ""
@@ -3403,7 +3391,7 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 
 
 # [one-look]
-# Rationale: ruling, 2026-09-25 -- a spec or a plan gets one round of
+# Rationale: the owner's decision -- a spec or a plan gets one round of
 #   reviewers. After it, the writer incorporates what the panel said by its
 #   own judgement, free to reject any of it, and the run moves on; only a
 #   severe deficiency -- one that changes which problem is being solved, or
@@ -3411,18 +3399,17 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 #   and then it is rewritten from scratch, holding forward-looking orders
 #   and never the last draft or its findings.
 #   Severity is the conductor's reading of the round, not a finding's label
-#   (Tommy, 2026-09-30): the panel finds, the conductor judges each finding
+#   (the owner's decision): the panel finds, the conductor judges each finding
 #   against the whole artifact, and a rewrite can be several kept findings
 #   read together. So the calls say only whether a finding holds (`writer`
 #   or `rejected`), and a rewrite carries the conductor's `orders` alone --
-#   the synthesis is theirs to state. Measured before: issue219 (sonnet
-#   conductor) called 36 plan findings `severe` one by one, 9 of them ones
-#   the critic had itself marked "not a gap", and all 5 rewrites opened
-#   "Same next chunk".
-#   Measured before the
-#   ruling: `rework` carried each round's blocking findings into the next
-#   draft and a cold panel read every draft, so the spec grew every round
-#   (issue120: 13KB to 32KB over ten rounds on a 5KB issue) and each
+#   the synthesis is theirs to state. Observed: issue219 (sonnet conductor)
+#   called 36 plan findings `severe` one by one, 9 of them ones the critic
+#   had itself marked "not a gap", and all 5 rewrites opened "Same next
+#   chunk".
+#   Observed with a `rework` that carries each round's blocking findings into
+#   the next draft and a cold panel reading every draft: the spec grew every
+#   round (issue120: 13KB to 32KB over ten rounds on a 5KB issue) and each
 #   rework's own additions were the next panel's findings. Spec review went
 #   from 10% of a run's tokens to 29%.
 #   `incorporate` is the default word after a review: one pass by the
@@ -3433,6 +3420,7 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 # Rejected: keeping `rework` and tuning `impasse-after`. The word means
 #   "another pass with the findings", which is incorporate's half and not
 #   rewrite's, and a count cannot tell a writer's pass from a fresh start.
+# See: issue120, issue219
 # [panel-binds]
 # Rationale: on a gate the agent that built the diff also rules on the
 #   review of it. Left free to call a reader's gap `accepted` and close, the
@@ -3440,8 +3428,7 @@ def _panel_judged_rework(wid, asm, seg, step, fields=None):
 #   that declares `panel-binds = true` takes that one decision away: while
 #   a reader of the last round answered `revise`, the round goes back for
 #   rework, or the disagreement goes up to the run that dispatched this one
-#   (Tommy, 2026-11-13: must-fix, the dilemma settled by the conductor
-#   above). Every other call stays the builder's.
+#   (must-fix: the dilemma is settled by the conductor above). Every other call stays the builder's.
 # Rejected: enforcing it per finding. A call quotes its finding as free
 #   text, so the engine cannot tie a call to the reader that raised it; the
 #   reader's verdict is the one word it can read.
@@ -3551,9 +3538,8 @@ def _round_capped(wid, asm, seg, tseg):
 
 
 # [rewrite-cap]
-# Rationale: ruling, 2026-09-25 (after one look landed): a spec or a plan
-#   gets one major rewrite, then the question goes up. Counting rounds could
-#   not say that -- an incorporation and a rewrite's own look are rounds too
+# Rationale: the owner's decision -- a spec or a plan gets one major rewrite,
+#   then the question goes up. Counting rounds cannot say that -- an incorporation and a rewrite's own look are rounds too
 #   -- so these seams count rewrites instead, since the seam last released
 #   or since a pause's answer opened a round (the answer is the ruling).
 #   Incorporation needs no cap of its own: it is refused a second time on
@@ -3649,10 +3635,9 @@ def _later_gate_still_queued(pre_order, pre_pending, target_id):
 
 
 # [impasse-verbs]
-# Rationale: `advance` and `rework` used to be handled by a stand-alone
-#   impasse actor, a reader outside the outcome mechanism. Absorbing the
-#   ruling as an ordinary `decides` field meant `_perform` needed two verbs
-#   nothing else spells:
+# Rationale: `advance` and `rework` are handled as an ordinary `decides`
+#   field, not by a stand-alone impasse actor outside the outcome mechanism,
+#   so `_perform` needs two verbs nothing else spells:
 #   `transition` mints the segment's own transition alone (what `advance`
 #   does, over a live revise -- the panel's findings stay the record that
 #   says so), and `rework` refills through the segment's rework-form -- or
@@ -3667,8 +3652,8 @@ def _later_gate_still_queued(pre_order, pre_pending, target_id):
 #   and `plan`'s own impasse in `run-an-issue`) spells it `pause` (or
 #   `pause <target>`), the same case below the bare `up` CLI verb
 #   (`cmd_up`) also reaches -- see `[pause-gate]` for why both
-#   spellings are kept, ruled rather than left to accumulate (issue84.g2).
-#   Gate adjudication added two more the same way: `remint` mints a fresh
+#   spellings are kept, decided rather than left to accumulate (issue84).
+#   Gate adjudication has two more the same way: `remint` mints a fresh
 #   dispatch/adjudication pair from the plan
 #   field the deciding step's own form carries, and `close` closes the
 #   not-done step this step's segment holds whose id matches the decided
@@ -3677,7 +3662,7 @@ def _later_gate_still_queued(pre_order, pre_pending, target_id):
 #   Verbs and values are already separate vocabularies elsewhere (`cycle`'s
 #   value is `cycle`, its verb is `refill`); reusing the impasse's words here
 #   would read that coincidence as a rule.
-# See: #32 -- gate adjudication still carries its own interpreter.
+# See: #32 (gate adjudication still carries its own interpreter)
 def _perform(wid, asm, seg, does, fields, step):
     """The outcome's verbs, in order, against freshly folded state -- the
     deciding submit is already journaled, so `skip` and `close` never touch
@@ -3790,7 +3775,7 @@ def _perform(wid, asm, seg, does, fields, step):
             #   settle followed the outcome that just committed a gate,
             #   never a predicted outcome name -- a third verb sequence
             #   that also commits inherits the trust for free, and one
-            #   that does not stays on today's unconditional replan.
+            #   that does not stays on the unconditional replan.
             #   A remint commits the gate that ran too, but its queue has
             #   earned nothing: the conductor just ruled the gate short.
             committed = "commit" in verbs and "remint" not in verbs
@@ -3831,81 +3816,75 @@ def _perform(wid, asm, seg, does, fields, step):
 
 
 # [pause-gate]
-# Rationale: `up` used to `release` -- mint nothing, so the run walked past
-#   whatever decided it straight to its own terminal step. The gate spec is
-#   what's wrong here, not the diff, and the only hand that can fix a spec is
-#   whoever wrote it: the parent that dispatched this run. Pausing carries
-#   the ask up as a step the parent's own `state()` already stands on --
-#   `_ordered`'s existing grouping-by-segment does the placing, once the
-#   reorder below moves it before the pair the parent already holds live --
-#   rather than a return the parent would have to go open this child to
+# Rationale: `up` mints something, rather than releasing and letting the run
+#   walk past whatever decided it straight to its own terminal step. The gate
+#   spec is what's wrong here, not the diff, and the only hand that can fix a
+#   spec is whoever wrote it: the parent that dispatched this run. Pausing
+#   carries the ask up as a step the parent's own `state()` already stands
+#   on -- `_ordered`'s existing grouping-by-segment does the placing, once
+#   the reorder below moves it before the pair the parent already holds live
+#   -- rather than a return the parent would have to go open this child to
 #   read. Nothing here touches `state()`'s own fold: the ask is an ordinary
 #   step, the marker is an ordinary step, and both are recognized by the
 #   plain keys they carry.
 #
-#   issue84.g1 folded three once-separate silent-return branches -- no
-#   parent at all, the parent's journal gone, the parent no longer holding
-#   the dispatching step -- into one fact from the asker's own side: is
-#   there anywhere else to stand this ask. A single `pstep` lookup below is
-#   `None` for any of the three reasons, and that one value drives both
-#   downstream decisions -- where the ask is minted, and whether the parent
-#   also needs a reorder -- rather than three branches each repeating the
-#   same two consequences. When nothing is reachable the ask mints into
-#   `wid`'s own journal instead, in `tseg`'s segment: `resumes=wid` already
-#   names the run the answer resumes, and when nothing is reachable that
-#   run is this one -- the amend-close the caller already did (see
-#   `cmd_up`) retired whatever this ruling was made at, though not
-#   necessarily every sibling already sitting in the same segment (see
-#   issue84.g2's own addition below).
+#   Three cases (no parent at all, the parent's journal gone, the parent no
+#   longer holding the dispatching step) are one fact from the asker's own
+#   side: is there anywhere else to stand this ask. A single `pstep` lookup
+#   below is `None` for any of the three reasons, and that one value drives
+#   both downstream decisions -- where the ask is minted, and whether the
+#   parent also needs a reorder -- rather than three branches each repeating
+#   the same two consequences. When nothing is reachable the ask mints into
+#   `wid`'s own journal instead, in `tseg`'s segment: `resumes=wid` names the
+#   run the answer resumes, and when nothing is reachable that run is this
+#   one -- the amend-close the caller does (see `cmd_up`) retires whatever
+#   this ruling was made at, though not necessarily every sibling already
+#   sitting in the same segment (see the sibling ordering below).
+#
+#   The ask's own prefill keys the paused unit under `"paused"`, naming it
+#   generically whatever tier it runs at (an issue run itself, not only a
+#   gate under it, can self-mint the same ask), and `attempted` falls back
+#   through the dispatched orders' own `scope`/`purpose`, then the run's own
+#   `title`, then `wid` itself, so a root run opened with none of the three
+#   still renders something a principal can read rather than an empty string.
+#
+#   Sibling ordering applies to both shapes, not only self-mint: a step-form
+#   segment's own transition (`review`, `understand`'s own consolidate) mints
+#   untouched, at `open`, alongside that segment's round-one interior step
+#   (`skeleton()`), and ruling `up` before that round ever submits leaves the
+#   transition sitting there not-done -- in `wid`'s own journal, in `tseg`'s
+#   segment, regardless of whether the ask above landed there too or went to
+#   a reachable parent instead, because the marker below always lands in
+#   `wid`'s own journal. At plain append order the untouched sibling would
+#   precede the marker (and, self-minted, the ask) in `_ordered`'s own
+#   within-segment order, so `wid`'s own `state()["current"]` would resolve to
+#   the stale sibling: the parent would correctly stand on the ask, but the
+#   child's own `cmd_status` would show `review`, not `paused`. Reordering the
+#   marker (and, self-minted, the ask) ahead of the sibling is the one fix both
+#   shapes need.
+#
+#   That reorder holds only through the pause moment: `_resume_paused_
+#   child`'s own `_mint_segment_round` call is sibling-blind, plain-appending
+#   the fresh round behind whatever already stands in the segment -- so once
+#   the marker closes, the sibling it only ever leapfrogged (never itself
+#   reordered) resurfaces ahead of the fresh round the same way. The marker
+#   carries the sibling's id forward (`sibling`, `""` when none was found) so
+#   `_resume_paused_child` can reorder the fresh round ahead of it too, once
+#   it knows one exists.
 # Rejected: closing this run and returning through the ordinary `cmd_close`
 #   path the way an advance does. That return only reaches the parent once
 #   this run itself closes, and a run closed on `up` is a run gone quiet --
 #   not one standing on a live ask the parent can see without opening it.
-# Rejected: keeping the three silent notes (issue84.g1) and minting an ask
+# Rejected: silent notes for the unreachable cases, with an ask minted
 #   alongside them. A note and an ask about the same event is one fact told
 #   twice, and the second telling is the only one anybody standing at the
-#   run can act on -- the note would be dead weight from the moment this
-#   landed.
-#
-# issue84.g2 added three more fixes here, all because they live in this
-# same function. First, the ask's own prefill used to key the paused unit
-# under `"gate"` and describe it in prose as one -- true only of the
-# reachable-parent path above, and wrong once an issue run itself, not only
-# a gate under it, could self-mint the same ask. `"paused"` names the unit
-# generically, whatever tier it runs at, and `attempted` falls back through
-# the dispatched orders' own `scope`/`purpose`, then the run's own `title`,
-# then `wid` itself, so a root run opened with none of the three still
-# renders something a principal can read rather than an empty string.
-#
-# Second, a sibling-ordering defect that turns out not to be self-mint-only
-# at all: a step-form segment's own transition (`review`, `understand`'s
-# own consolidate) mints untouched, at `open`, alongside that segment's
-# round-one interior step (`skeleton()`), and ruling `up` before that round
-# ever submits leaves the transition sitting there not-done -- in `wid`'s
-# own journal, in `tseg`'s segment, regardless of whether the ask above
-# landed there too or went to a reachable parent instead, because the
-# marker below always lands in `wid`'s own journal. At plain append order
-# the untouched sibling would still precede the marker (and, self-minted,
-# the ask) in `_ordered`'s own within-segment order, so `wid`'s own
-# `state()["current"]` would resolve to the stale sibling -- driven live
-# against a *reachable-parent* gate ruled `up` from its own first round:
-# the parent correctly stood on the ask, but the child's own `cmd_status`
-# showed `review`, not `paused`. Reordering the marker (and, self-minted,
-# the ask) ahead of the sibling is the one fix both shapes need.
-#
-# Third, that reorder held only through the pause moment: `_resume_paused_
-# child`'s own `_mint_segment_round` call is sibling-blind, plain-appending
-# the fresh round behind whatever already stood in the segment -- so once
-# the marker closes, the sibling it only ever leapfrogged (never itself
-# reordered) resurfaces ahead of the fresh round the same way. The marker
-# now carries the sibling's id forward (`sibling`, `""` when none was
-# found) so `_resume_paused_child` can reorder the fresh round ahead of it
-# too, once it knows one exists.
+#   run can act on -- the note would be dead weight.
 # Rejected: closing the untouched sibling outright, the way `cmd_up`
-#   already closes whatever `current` stood on. It is not what was ruled
+#   closes whatever `current` stood on. It is not what was ruled
 #   on -- ruling `up` from `work-1` says nothing about `review` -- and
 #   closing it would strand the ordinary round `review` exists to receive
 #   once the paused segment resumes and completes.
+# See: issue84
 def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     """`up`'s own verb: an ask minted where whoever answers it can see it --
     the parent standing on the step that dispatched this run, reordered
@@ -3947,11 +3926,11 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     # Rationale: an ask landing in the parent's journal is the parent's
     #   conductor's to answer; one landing in this run's own journal -- the
     #   issue tier, or a parent nothing here can reach -- is its principal's,
-    #   outside the engine. It read `conductor` either way, and `drive` took
-    #   that literally: issue811's first run (2026-09-06) spawned the run's
-    #   own conductor into the round-cap's ask and it ruled CONTINUE on
-    #   itself twice before the human saw the question. Who holds the pen is
-    #   the whole fix; nothing reads the answer.
+    #   outside the engine. A filler of `conductor` either way is taken
+    #   literally by `drive`: issue811's first run spawned the run's own
+    #   conductor into the round-cap's ask and it ruled CONTINUE on itself
+    #   twice before the human saw the question. Who holds the pen is the
+    #   whole point; nothing reads the answer.
     # Rejected: checking the answer's content. Structure that audits an
     #   agent's behaviour goes (docs/AGENT_GUIDE.md); the filler is structure
     #   that decides who answers.
@@ -3981,9 +3960,8 @@ def _pause_gate(wid, tseg, reason, fields, resume_form="", resume_filler=""):
     #   reads to find its way back, and what a panelist's own step was
     #   overridden to at open (`_open_child`'s panel branch) is otherwise
     #   nowhere else durable to read it back from. Empty on the impasse's
-    #   own `does = "pause"` rows (`_perform`), reproducing today's
-    #   behaviour there exactly -- only `cmd_up`'s same-segment case ever
-    #   supplies either.
+    #   own `does = "pause"` rows (`_perform`) -- only `cmd_up`'s
+    #   same-segment case supplies either.
     marker_id = _fresh_step_id(wid, tseg['id'])
     journal.append(wid, "step", id=marker_id, segment=tseg["id"], paused=tseg["id"],
                    sibling=sibling or "", filler="conductor", anchor=False,
@@ -4044,10 +4022,10 @@ def _gate_subject(gate_id, purpose):
 
 
 # [rungs-are-transcribed-not-authored-early]
-# Rationale: issue166 -- SPEC.toml used to write `map/parents.jsonl`'s row
-#   at spec time, before any code carried the anchor, which dangled that row
-#   for the whole run and turned the fast suite red for anyone who followed
-#   the instruction. The spec still names the id, as structured data
+# Rationale: a SPEC.toml that writes `map/parents.jsonl`'s row at spec time,
+#   before any code carries the anchor, dangles that row for the whole run
+#   and turns the fast suite red for anyone who follows the instruction
+#   (issue166). The spec names the id, as structured data
 #   (`rungs`), so the implementer transcribes rather than mints one; the
 #   engine writes the row itself, mechanically, the moment the anchor
 #   actually lands -- here, immediately before the gate that landed it is
@@ -4113,7 +4091,7 @@ def _parents_jsonl_ids(path):
     object per line, read directly rather than through
     `tools.code_map.parents.read_parents` (see the rationale above). A
     missing file reads as no rows, the ordinary state of a fresh worktree
-    before this ever writes to it."""
+    before this writes to it."""
     path = pathlib.Path(path)
     if not path.exists():
         return set()
@@ -4182,7 +4160,7 @@ def _commit_gate(wid, asm, step):
     #   hand, or it was dropped -- but `state()["steps"]` folds a closed
     #   step out of the worklist entirely, the same gap `_minted_step_ids`
     #   documents for ids. Reading the raw journal instead means a gate
-    #   closed before this commit runs still hands over the purpose its
+    #   closed before this commit runs hands over the purpose its
     #   own mint recorded, rather than falling back to a bare child id.
     # Rejected: `st["steps"]`, the folded worklist -- right for what runs
     #   next, wrong for what a closed child still named.
@@ -4207,33 +4185,33 @@ def _commit_gate(wid, asm, step):
 
 
 # [settle-execution]
-# Rationale: ruling 1 -- the engine decides the run is done, not the
-#   conductor watching its own worklist run dry. `execute`'s advance used to
-#   `commit` alone, so a run closed the moment its last gate's
-#   dispatch/adjudication pair completed, whether or not anything the spec
-#   committed to was ever satisfied -- "the run never closes because the
-#   gate list ran out" is exactly the shape ruling 1 forbids. This is the one
-#   new move: read the execution-state board every gate's advance already
-#   passes through, and either refill the plan segment for another round
-#   (`_mint_segment_round`, unchanged) or mint nothing, letting the run walk
-#   on to its own terminal step. The engine reads dispositions and refuses
+# Rationale: the engine decides the run is done, not the conductor watching
+#   its own worklist run dry. An `execute` advance that only `commit`s would
+#   close the run the moment its last gate's dispatch/adjudication pair
+#   completed, whether or not anything the spec committed to was ever
+#   satisfied -- "the run never closes because the gate list ran out" is the
+#   shape this rule forbids. So: read the execution-state board every gate's
+#   advance passes through, and either refill the plan segment for another
+#   round (`_mint_segment_round`) or mint nothing, letting the run walk on
+#   to its own terminal step. The engine reads dispositions and refuses
 #   nothing here: `satisfied` and `deferred` count as settled, whatever
 #   reason they carry, and a run that never seeded the board at all --
 #   consolidate's `obligations` field is optional -- settles trivially. Any
 #   other row holds the
 #   run open: the plan recuts and the run cannot reach its terminal step
-#   while one stands, on purpose (#112 measured what silence used to cost
-#   -- a run that drained to CLOSE.toml with two of its three obligations
-#   unbuilt because every claimable word settled the row).
+#   while one stands, on purpose (observed: a run drained to CLOSE.toml with
+#   two of its three obligations unbuilt because every claimable word settled
+#   the row).
 # Rejected: validating dispositions the way `validates = "board"` does for
-#   the understand board. The principal's own ruling: execution state is
+#   the understand board. The principal's own decision: execution state is
 #   mechanical-lane fields, not a second gate the engine adjudicates.
+# See: #112
 # [satisfied-is-rechecked]
-# Rationale: #74 -- a row read `satisfied` for the rest of the run on the
-#   word of the gate that settled it, and rolling horizon means later gates
-#   change the code earlier ones proved: issue57's o10 was satisfied at g2
-#   and g4's first cut would have made it false, caught by a critic and by
-#   nothing in the engine. So `satisfied` is not a word that stays true on
+# Rationale: a row that reads `satisfied` for the rest of the run on the
+#   word of the gate that settled it goes stale, because rolling horizon
+#   means later gates change the code earlier ones proved (an issue57 row was
+#   satisfied at g2 and g4's first cut would have made it false, caught by a
+#   critic and by nothing in the engine). So `satisfied` is not a word that stays true on
 #   its own. At close each satisfied row's gate proof runs again against the
 #   finished tree -- each distinct command once -- and a row whose proof no
 #   longer passes becomes `open:` with the command and its exit, which
@@ -4241,6 +4219,7 @@ def _commit_gate(wid, asm, step):
 # Rejected: a close report listing dispositions whose code later gates
 #   touched, for a human to judge. It would say "maybe" about every row a
 #   later gate came near; the proof says which ones broke.
+# See: #74
 def _recheck_satisfied(wid, asm):
     st = runmod.state(wid)
     path = pathlib.Path(st["boards"].get("execution-state", ""))
@@ -4282,13 +4261,14 @@ def _recheck_satisfied(wid, asm):
 
 
 # [reopened-says-the-move]
-# Rationale: issue87's close reopened a row whose gate proof carried a
-#   clause about what that gate left alone (`git diff --exit-code <cut> --
-#   <paths>`), which a later gate's planned work made false. The conductor
-#   re-ran the substance, found it held, and marked the row satisfied by
-#   hand in EXECUTION_STATE.toml -- the one write that skips this recheck.
-#   Such a clause is a `gate-proof` now, which close never replays; close
+# Rationale: close can reopen a row whose gate proof carries a clause about
+#   what that gate left alone (`git diff --exit-code <cut> -- <paths>`),
+#   which a later gate's planned work makes false. The conductor re-runs the
+#   substance, finds it holds, and marks the row satisfied by hand in
+#   EXECUTION_STATE.toml -- the one write that skips this recheck (issue87).
+#   Such a clause belongs in a `gate-proof`, which close never replays; close
 #   still names the move for a `proof` that holds a clause of that kind.
+# See: #87
 _REOPENED = (
     "a satisfied obligation reopened at close -- its gate's proof no longer passes.\n"
     "  if the obligation broke: work the plan round it has minted.\n"
@@ -4298,9 +4278,9 @@ _REOPENED = (
 
 
 # [call-tree-carries]
-# Rationale: Tommy, 2026-10-21 -- with nothing carried, each re-cut planned
-#   from a cold start, saw only "small next chunk", and cut the smallest
-#   thing that moved the run. issue274's first cut wrote that its third
+# Rationale: with nothing carried, each re-cut plans from a cold start, sees
+#   only "small next chunk", and cuts the smallest thing that moves the run.
+#   issue274's first cut wrote that its third
 #   chunk "may fold into (2) if the composition is clean", the merge its
 #   conductor wished for afterwards, and no later cut ever saw it; across
 #   243 gates a gate cost ~23 min before its size counted at all. So the
@@ -4323,11 +4303,11 @@ def _call_tree_ahead(st, seg_id):
 
 
 # [proof-is-stale]
-# Rationale: o6 -- a queued gate whose own proof already reads true, or
+# Rationale: a queued gate whose own proof already reads true, or
 #   cannot run as a command, against the tree as it stands is never
 #   trusted into dispatch on the strength of a plan round that ran before
 #   the tree looked like this. The same resolution and exit-code reading a
-#   plan round's own submit-time trial already applies (`_resolve_command`,
+#   plan round's own submit-time trial applies (`_resolve_command`,
 #   `checkrun.hand_in_trial`) answers it here too -- never a second
 #   proof-runner -- journaled the same way, `trial=True`, so a reading this
 #   leaves behind reads no differently from any other trial.
@@ -4365,7 +4345,7 @@ def _proof_is_stale(wid, step, root):
 #   steps, mirroring `_call_tree_ahead`'s own -- shared by
 #   `_last_adjudication_findings` (the conductor's `findings`, carried
 #   forward into a stale-gate review and a replan's first round alike) and
-#   `_critical_question_differs` (g5, below), so a second caller reading a
+#   `_critical_question_differs` (below), so a second caller reading a
 #   different field off the same most-recently-landed gate is one walk, not
 #   two hand-copies of it.
 def _most_recent_adjudication(st, seg_id):
@@ -4424,21 +4404,20 @@ def _critical_question_differs(st, seg_id):
 
 
 # [review-the-open-plan]
-# Rationale: o6's stale-gate review already closed the whole still-queued
-#   execute worklist and reopened plan on its review form, no panel,
-#   carrying the closed queue's own gate fields and the most recently
-#   landed gate's own findings. Obligation 5's third bullet asks the same
-#   move for a mid-queue drop or remint, and g5 (ahead) for an answer that
-#   differs from what the plan expected -- so this is factored into one
+# Rationale: the stale-gate review closes the whole still-queued execute
+#   worklist and reopens plan on its review form, no panel, carrying the
+#   closed queue's own gate fields and the most recently landed gate's own
+#   findings. A mid-queue drop or remint asks the same move, and so does an
+#   answer that differs from what the plan expected -- so this is one
 #   helper every caller shares, parameterized by a list of reasons rather
 #   than one: however many reasons fire on a single settle, this still
 #   mints the review exactly once, carrying all of them.
 # Rationale: `taught` is the adjudication's `purpose-holds`, the conductor's
-#   whole account of what the gate showed. `findings` alone gave a planner
+#   whole account of what the gate showed. `findings` alone gives a planner
 #   16-65 words against the closed queue's thousands of characters, and all
 #   five of story_time's re-cuts handed the queue back. Replayed blind, the
 #   real re-cuts planned for none of the 7 defects that followed; with
-#   `taught` and the review form's question, 4 of 7 (2026-11-05).
+#   `taught` and the review form's question, 4 of 7.
 def _review_the_open_plan(wid, asm, execute, st, reasons, held=()):
     """Close every still-pending dispatch/adjudication pair in `execute`'s
     own worklist and reopen the plan segment on its review form (no
@@ -4480,8 +4459,9 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, held=())
     #   settled a gate still queued serves nothing. story_time issue57, 62
     #   and 64 each landed a gate that settled the last row with another
     #   still queued: it dispatched, or read stale and sent a planner a
-    #   review with nothing to cut, and the conductor dropped it by hand
-    #   (#237). A remint's `held` gate is the ruling itself, so it mints.
+    #   review with nothing to cut, and the conductor dropped it by hand.
+    #   A remint's `held` gate is the ruling itself, so it mints.
+    # See: #237
     if path and not unsettled:
         for s in queued:
             _close_step_and_pair(wid, s["id"], "every obligation on the "
@@ -4491,7 +4471,7 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, held=())
     # [settle-trusts-only-advance]
     # Rationale: an `advance` ("commit; settle") earns the queue trust, as
     #   long as the gate it dispatches next still answers a question the
-    #   tree has not already answered (o6), and the gate that just landed
+    #   tree has not already answered, and the gate that just landed
     #   answered the cut's critical question the way the plan expected. A
     #   drop or a remint that left a later gate of this cut queued
     #   (`_perform`'s pre-verb snapshot) is reviewed the same
@@ -4510,7 +4490,7 @@ def _settle_execution(wid, asm, committed=False, mid_queue_reason=None, held=())
                             f"as it stands: {reading}")
     # A remint whose cut still queues later gates mints nothing: the review
     #   closes the queue, and the planner reads the remint's spec in it.
-    #   issue64 minted the fresh gate and the review closed it at once.
+    #   (issue64 minted the fresh gate and the review closed it at once.)
     if reasons:
         _review_the_open_plan(wid, asm, execute, st, reasons, held)
         return
@@ -4551,13 +4531,13 @@ _BOARD_MINT = "board rows"
 #   reseeding from only the obligations the conductor named would drop
 #   every column `_seed_board` never received and silently vanish every
 #   obligation left unnamed. `_DISPOSE_MINT` reads the board's current rows
-#   through `boards.rows` -- the same read `_settle_execution` (g5) already
-#   trusts -- and writes back through `_seed_board` unchanged: only the
-#   merge in `_mint` below is new, the row-writer is not.
+#   through `boards.rows` -- the same read `_settle_execution` trusts -- and
+#   writes back through `_seed_board` unchanged: only the merge in `_mint`
+#   below is specific to dispositions, the row-writer is shared.
 # Rejected: a second row-writer that patches the TOML file's disposed rows
-#   directly. The gate that added this field was scoped to reuse the mint
-#   path rather than grow a second one, and `_seed_board` already renders a
-#   board's own guidance and columns faithfully.
+#   directly. The mint path is reused rather than grown a second one, and
+#   `_seed_board` already renders a board's own guidance and columns
+#   faithfully.
 _DISPOSE_MINT = "dispositions"
 
 
@@ -4572,14 +4552,14 @@ def _mintable(asm):
 
 
 # [board-segment]
-# Rationale: picking the first `interior == "board"` segment was correct
-#   while an assembly held at most one -- run-an-issue now holds two (its
-#   understand board, and the execution-state board), so
-#   position alone would resolve a `mints = "board rows"` field to whichever
-#   board happens to sort first, silently wrong for the other. A field names
-#   its target explicitly (`board = "understand"`) the moment it could mean
-#   either; the sole board still resolves with no name at all, so every
-#   field that seeds one (explore-an-idea's own) is unchanged.
+# Rationale: picking the first `interior == "board"` segment is correct only
+#   while an assembly holds at most one -- run-an-issue holds two (its
+#   understand board, and the execution-state board), so position alone
+#   would resolve a `mints = "board rows"` field to whichever board happens
+#   to sort first, silently wrong for the other. A field names its target
+#   explicitly (`board = "understand"`) the moment it could mean either; the
+#   sole board resolves with no name at all, so every field that seeds one
+#   (explore-an-idea's own) needs none.
 def _board_segment(asm, target):
     found = [s for s in asm["segment"] if s.get("interior") == "board"]
     if target:
@@ -4593,8 +4573,7 @@ def _board_segment(asm, target):
 #   itself carries as `child`. The dispatch step paired with that child (the
 #   one with `dispatches` set) is minted with its own id as the gate's name;
 #   where no such pairing is found the child id is the closest thing to a
-#   name and stands in, same as `_commit_gate` always did before this was
-#   pulled out.
+#   name and stands in, as `_commit_gate` does.
 def _gate_id_for(st, child):
     gate = next((s for s in st["steps"] if s.get("child") == child and s.get("dispatches")), None)
     return gate["id"] if gate else child
@@ -4639,13 +4618,14 @@ def _mint(wid, asm, step, form, fields):
 #   right for what runs next, wrong for what an id may still name. A gate
 #   closed by amend still named a real gate with a real spec; minting a
 #   second gate under that id makes `trace`, `drop <gate-id>` and a later
-#   `amend close` name two different gates with one string (#56). The raw
+#   `amend close` name two different gates with one string. The raw
 #   journal never drops a "step" entry, closed or not, so reading ids from
 #   it rather than from the folded state is what keeps a closed id taken.
 # Rejected: keeping the folded `state()["steps"]` and unioning in the ids
 #   named by `amend close` entries. That re-derives, at the call site,
 #   exactly what "every step this journal ever named" already is -- two
 #   places to keep in sync instead of one source read directly.
+# See: #56
 def _minted_step_ids(wid):
     """Every step id this journal has ever named, live or closed by amend."""
     return {e["id"] for e in journal.read(wid) if e.get("kind") == "step"}
@@ -4655,12 +4635,13 @@ def _minted_step_ids(wid):
 # Rationale: every minted step id is `<segment>-a<4 hex>`, 16 bits drawn
 #   fresh each time. A long run's busiest segment holds dozens of ids, so a
 #   draw landing on one is a matter of time, not luck: sports-market-manager
-#   issue312 (2026-10-29) minted its release step as `plan-a4cac`, the id of
+#   issue312 minted its release step as `plan-a4cac`, the id of
 #   a planner step complete for an hour, so the release read as done and the
 #   run fell through to close with no gate. Drawing against every id the
 #   journal has ever named makes the collision impossible rather than rare.
 # Rejected: a wider tag alone. It makes the collision rarer and every id
 #   longer, and an id is something a conductor types.
+# See: sports-market-manager issue312
 def _fresh_step_id(wid, seg_id):
     """A `<seg_id>-a<tag>` id no step in `wid`'s journal has ever carried."""
     spent = _minted_step_ids(wid)
@@ -4675,11 +4656,11 @@ def _mint_gates(wid, seg, gates, start=1):
     adjudication step that will hold its returns -- the pair the execute
     segment's worklist is made of. The adjudication form is the dispatching
     segment's own declared `adjudication-form`, read the way `step-form` and
-    `rework-form` already are -- not an engine constant, so which form a
+    `rework-form` are -- not an engine constant, so which form a
     gate is adjudicated against is the assembly's to say.
 
-    Ids are journal-aware: numbering by position was safe only while closing
-    a gate freed its id. A remint no longer closes, so a derived id still
+    Ids are journal-aware: numbering by position is safe only while closing
+    a gate frees its id. A remint does not close, so a derived id still
     live in the journal (its gate ran and stands) collides -- `done` is
     keyed by step id, and a duplicate would silently complete both. `start`
     is a caller's choice, not derived here: a remint wants position 1 again
@@ -4703,42 +4684,38 @@ def _mint_gates(wid, seg, gates, start=1):
 
 
 # [gate-projection]
-# Rationale: #27 -- a gate spec used to be authored at plan-to-execute, after
-#   the critic panel had already released, so no critic had ever read the
-#   spec it judged; #7's four unrunnable specs are what that produced. The
-#   plan round the panel just passed already carries the gate whole --
+# Rationale: a gate spec authored at plan-to-execute, after the critic panel
+#   has already released, is a spec no critic has read (#7's four unrunnable
+#   specs came of that). The plan round the panel just passed already
+#   carries the gate whole --
 #   `_GATE_FIELDS` below -- so the transition projects it forward rather
 #   than asking the conductor to retype what the panel already read. `plan`
 #   and `key-terms` stay behind: the child executing one gate has no use
 #   for the round's own account of itself. The `call-tree` crosses: the child
 #   builds its own nodes knowing what calls them and what they call, which
-#   the gate's scope alone cannot say (Tommy, 2026-10-23).
+#   the gate's scope alone cannot say (the owner's decision).
 # Rejected: a `kind = "plan"` field on the transition's own form, the
-#   conductor filling it by hand the way `gates` used to. That reproduces
-#   the transcription bug one step later -- a second typing is a second
-#   chance to drift from what the panel actually judged.
-# `fields` -- ruling 3: the plan seam's route form now also reaches this
-#   step's own submit on a `rework` or an `up`, where nothing has passed
-#   critique and there is nothing to project. Before ROUTE.toml's shape
-#   reached this transition, the step could only ever be submitted after a
-#   pass -- a revise folded straight to a fresh round with no conductor
-#   submit in between -- so this had nothing to gate on and gated on
-#   nothing. Now it does: `_releases` is what a `pass` (or a recorded
-#   `revise` the conductor chose not to send back) looks like next to a
-#   `rework`/`up`, generic off the outcome rather than off any one form's
-#   own artifact field name.
+#   conductor filling it by hand. That reproduces the transcription bug one
+#   step later -- a second typing is a second chance to drift from what the
+#   panel actually judged.
+# The plan seam's route form also reaches this step's own submit on a
+#   `rework` or an `up`, where nothing has passed critique and there is
+#   nothing to project, so the projection gates on `_releases`: what a
+#   `pass` (or a recorded `revise` the conductor chose not to send back)
+#   looks like next to a `rework`/`up`, generic off the outcome rather than
+#   off any one form's own artifact field name.
+# See: #27, #7
 _GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "direction")
 
 
 # [projected-source]
-# Rationale: #87 -- an impasse `advance` mints this same transition, and the
-#   step immediately behind it is then the ruling form, which carries only
-#   `ruling` and `why`, never a gate field. The single-step read
-#   `_mint_projected_gate` used to make found nothing there and returned
-#   quietly: no gate minted, no refusal, the run walking on to a terminal
-#   step with the ruling's own ok never having reached a child. Walking the
-#   segment's own prior steps backward instead of reading only the one
-#   immediately behind the transition finds the round the ruling actually
+# Rationale: an impasse `advance` mints this same transition, and the step
+#   immediately behind it is then the ruling form, which carries only
+#   `ruling` and `why`, never a gate field. A single-step read of that step
+#   would find nothing and return quietly: no gate minted, no refusal, the
+#   run walking on to a terminal step with the ruling's own ok never having
+#   reached a child. Walking the segment's own prior steps backward instead
+#   of reading only the one immediately behind the transition finds the round the ruling actually
 #   approved -- the most recent one that ever carried a gate field --
 #   whichever form happens to sit between it and the transition.
 #   `cmd_submit`'s pre-journal `_check_projection` calls this exact
@@ -4754,6 +4731,7 @@ _GATE_FIELDS = ("purpose", "scope", "proof", "gate-proof", "budget", "model", "d
 #   silently inherit nothing. `_releases(_outcome(...))` asks the same
 #   question -- did this submit's own outcome finish the segment, not send
 #   it back or up -- without naming any field at all.
+# See: #87
 def _projected_source(step, st, asm, fields):
     """`None` when this submit is not a projecting transition's own release
     -- the wrong step, a segment with no `projects`, or a `rework`/`up`
@@ -4797,7 +4775,7 @@ def _check_projection(asm, step, st, fields):
     to project -- checked here, before `journal.append` makes the submit
     durable, so the true dead end (a segment with no round to project at
     all) refuses loudly and says what it could not project, in place of
-    the silent nothing-minted `_mint_projected_gate` used to leave behind.
+    the silent nothing-minted `_mint_projected_gate` would leave behind.
     Not applicable (`None`) and found something (a non-empty `gates` list)
     both pass through untouched."""
     found = _projected_source(step, st, asm, fields)
@@ -4818,7 +4796,7 @@ def _mint_projected_gate(wid, asm, step, st, fields):
     anything typed on the transition's own form. A no-op off that step,
     where the segment it names is not one this assembly's own `_mint_gates`
     can reach, or where the walk finds no round to project --
-    `_check_projection` is what refuses that last case before this ever
+    `_check_projection` is what refuses that last case before this
     runs; here it is simply nothing to mint."""
     found = _projected_source(step, st, asm, fields)
     if found is None:
@@ -4851,18 +4829,18 @@ def _mint_projected_gate(wid, asm, step, st, fields):
 #   exist_ok=True)`, which is why this checks `journal.exists` before writing
 #   anywhere in the child rather than after.
 #
-# issue84.g2's own review found the fix above only held through the pause
-# moment: `_mint_segment_round` below is sibling-blind, plain-appending the
-# fresh interior step and its fresh transition, so once the marker closes
-# the untouched sibling `_pause_gate` only ever leapfrogged -- never itself
+# The reorder in `_pause_gate` holds only through the pause moment:
+# `_mint_segment_round` below is sibling-blind, plain-appending the fresh
+# interior step and its fresh transition, so once the marker closes the
+# untouched sibling `_pause_gate` only ever leapfrogged -- never itself
 # reordered -- resurfaces ahead of the fresh round in `_ordered`'s own
-# within-segment order. Driven live: a conductor answering the ask was
-# handed `review`'s or `understand`'s own stale prompt instead of the fresh
-# round's. Fixed by carrying the sibling forward on the marker itself
-# (`_pause_gate`'s own `sibling` key, `""` when none was found) and
-# reordering every step this mint just appended to the segment ahead of it,
-# in mint order, mirroring the same move against the newly-live pair
-# instead of the ask.
+# within-segment order, and a conductor answering the ask is handed
+# `review`'s or `understand`'s own stale prompt instead of the fresh
+# round's. So the sibling is carried forward on the marker itself
+# (`_pause_gate`'s own `sibling` key, `""` when none was found) and every
+# step this mint just appended to the segment is reordered ahead of it, in
+# mint order, mirroring the same move against the newly-live pair instead of
+# the ask.
 # Rejected: reordering only the fresh interior step. `_mint_segment_round`
 #   also mints a fresh transition (`review`, or the two-voices panel step a
 #   board segment's understand re-mints) whenever the segment declares one,
@@ -4899,7 +4877,7 @@ def _resume_paused_child(pwid, step, fields):
     # CRITIC.toml, not give-a-verdict's bare default. `_pause_gate` stashed
     # that override on the marker as `resume_form`/`resume_filler`, since
     # nothing else durable carries it back to here; empty on every ordinary
-    # (non-panelist, or cross-segment) resume, reproducing today's behaviour.
+    # (non-panelist, or cross-segment) resume.
     _mint_segment_round(child, casm, tseg_id, prefill=fields,
                         form=marker.get("resume_form", ""),
                         filler=marker.get("resume_filler", ""), resumed=True)
@@ -4908,14 +4886,15 @@ def _resume_paused_child(pwid, step, fields):
         fresh = [s for s in steps if s["segment"] == tseg_id and s["id"] not in before_ids]
         old = next((s for s in steps if s["id"] == sibling), None)
         # [resume-supersedes-the-sibling]
-        # Rationale: #123 -- the fresh round carries its own transition, so a
-        # sibling of the same kind left open was a second copy of it: once the
-        # fresh round's review landed, `current` fell through to the stale one
-        # and a second review round was minted on the same diff. The sibling
-        # was untouched when the pause captured it, and its replacement now
-        # stands, so it is closed. A sibling the fresh round did not replace
-        # -- an ask left owed by `up` (`[an-ask-outlives-its-up]`) -- stays,
+        # Rationale: the fresh round carries its own transition, so a sibling
+        # of the same kind left open is a second copy of it: once the fresh
+        # round's review lands, `current` falls through to the stale one and
+        # a second review round is minted on the same diff. The sibling was
+        # untouched when the pause captured it, and its replacement stands,
+        # so it is closed. A sibling the fresh round did not replace -- an
+        # ask left owed by `up` (`[an-ask-outlives-its-up]`) -- stays,
         # behind the fresh round.
+        # See: #123
         if old and any(_same_kind(f, old) for f in fresh):
             journal.append(child, "amend", action="close", segment=tseg_id, step=sibling,
                            reason="superseded by the resumed round",
@@ -5045,12 +5024,13 @@ def cmd_up(argv):
             "-- there is no round for an answer to resume",
             escape=f"drop it instead: spine {wid} amend close {cur['id']} --reason ..."))
     # [an-ask-outlives-its-up]
-    # Rationale: #180 -- a conductor standing on an ask that resumes a paused
-    #   child, and ruling it up, closed that ask here; the ask was the only
-    #   thing carrying the child's resume, so the answer from above reached
-    #   this run and never the child. An ask a conductor cannot answer yet is
-    #   still owed: it stays, the new ask stands in front of it, and once
+    # Rationale: a conductor standing on an ask that resumes a paused child,
+    #   and ruling it up, would close that ask here; the ask is the only
+    #   thing carrying the child's resume, so the answer from above would
+    #   reach this run and never the child. An ask a conductor cannot answer
+    #   yet is still owed: it stays, the new ask stands in front of it, and once
     #   that answer comes back the ask is where the conductor lands next.
+    # See: #180
     if not cur.get("resumes"):
         journal.append(wid, "amend", action="close", segment=cur["segment"], step=cur["id"],
                        reason=reason, anchor=cur.get("anchor", False))
@@ -5078,7 +5058,7 @@ def cmd_note(argv):
         raise SystemExit(f"spine <work-id> note <{'|'.join(render.NOTE_KINDS)}> <text>")
     wid, kind, text = argv[0], argv[1], " ".join(argv[2:])
     if kind not in render.NOTE_KINDS:
-        # `note block ...` used to print success and do nothing at all: only
+        # `note block ...` would print success and do nothing at all: only
         # the exact word is acted on, so a near-miss must not look like a hit.
         raise SystemExit(f"no note kind {kind!r} -- one of: {', '.join(render.NOTE_KINDS)}")
     st = runmod.state(wid)
@@ -5216,26 +5196,26 @@ def _amend_reorder(wid, st, step_id, reason, before):
 
 
 # [amend-proof]
-# Rationale: a minted gate's `proof` had no way to change. issue126's was
+# Rationale: a minted gate's `proof` needs a way to change. issue126's was
 #   written for bash and ran in dash (#191); issue164's named a test a
 #   principal's ruling deleted; issue165's asserted `>= 6` where the ruling
 #   said `>= 5`. Each time close re-ran the stored text and reopened the
 #   obligation, and the only way on was note, up, a fresh plan round and a
 #   gate that restated the work. `amend close` on the child's check step
-#   did not help: close reads the gate's spec, not that step. So the ruling
-#   becomes one journaled amend that the fold writes into the gate's spec,
+#   does not help: close reads the gate's spec, not that step. So the ruling
+#   is one journaled amend that the fold writes into the gate's spec,
 #   and every re-read the engine makes of it -- close's recheck, and the
 #   dispatch of a gate not yet started -- reads the new text. Done gates
 #   are allowed: the proof is read again after its gate has run, so that is
 #   where an erratum is found. `--gate-proof` replaces the landing-time
 #   boundary the same way: issue223's g2 was released with a boundary
 #   that a principal's ruling, made at the release, widened (a shared test
-#   helper had to move), and the gate had not yet dispatched. A gate-proof
+#   helper had to move), before the gate had dispatched. A gate-proof
 #   is never read once its gate has landed, so amending a done gate's is
 #   journaled and inert.
 #   A gate child already running reads the ruling too: its check takes
 #   `proof` from the parent's gate step at check time
-#   (`[ruled-proof-read-live]`), issue299's g3 being the run that needed it.
+#   (`[ruled-proof-read-live]`; issue299's g3 needed it).
 def _amend_proof(wid, st, step_id, reason, proof, field="proof"):
     gates = [s for s in st["steps"]
              if s.get("dispatches") and "proof" in (s.get("prefill") or {})]
@@ -5258,13 +5238,13 @@ def _amend_proof(wid, st, step_id, reason, proof, field="proof"):
 
 # [waive-leaves-the-step-standing]
 # Rationale: a principal's ruling that a round goes unreviewed -- "hand
-#   this gate off to be built rather than review it again", issue811 on
-#   f1Brainz, 2026-09-07 -- had no verb. The conductor `amend close`d the
-#   two-voices step, the only step the panel hangs on, which took the route
-#   form behind it too: the run walked to its close form with the gate
-#   never projected, and the conductor re-added `forms/PLAN_TO_EXECUTE.toml`
-#   by hand three times over three gates, once under a wrong form reference.
-#   This verb is the ruling as one journaled amend: the panelists still
+#   this gate off to be built rather than review it again" (issue811 on
+#   f1Brainz) -- needs its own verb. `amend close` on the two-voices step,
+#   the only step the panel hangs on, takes the route form behind it too:
+#   the run reaches its close form with the gate never projected (the
+#   conductor re-added `forms/PLAN_TO_EXECUTE.toml` by hand three times over
+#   three gates, once under a wrong form reference). This verb is the ruling
+#   as one journaled amend: the panelists still
 #   outstanding are named waived with the reason, the step stops waiting for
 #   them (`panel_expected`, engine/run.py), and its own form stays the
 #   conductor's to fill. Nothing already running is touched -- a live
@@ -5304,9 +5284,9 @@ def _amend_waive(wid, st, step_id, reason):
 
 # [rework-round-is-a-dispatch]
 # Rationale: a segment that declares `dispatches` (the plan segment)
-#   dispatches every round, not only the one `skeleton()` seeds -- ruling 6
-#   bars the conductor from drafting what it judges on a rework round exactly
-#   as it does on the first. The mint mirrors `skeleton()`'s own branch:
+#   dispatches every round, not only the one `skeleton()` seeds -- the
+#   conductor does not draft what it judges, on a rework round exactly as on
+#   the first. The mint mirrors `skeleton()`'s own branch:
 #   `dispatches` in place of `form`, with the caller's `form` (the
 #   rework-form) carried as an override for `_open_child` to apply, since the
 #   dispatched assembly's own transition still names its step-form by
@@ -5361,9 +5341,9 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     # Rationale: mirrors `skeleton()`'s own gate (in engine/run.py) exactly
     #   -- a segment with no real interior (give-a-verdict's `verdict`) is
     #   already one `open` never mints an interior step for, so a resume
-    #   must not mint one either. Before this, a resumed panelist got TWO
-    #   fresh steps (an interior round nothing declared plus the transition
-    #   round) instead of one, driven live and confirmed against the proof.
+    #   must not mint one either: a resumed panelist would get TWO fresh
+    #   steps (an interior round nothing declared plus the transition round)
+    #   instead of one.
     # Rejected: gating on `form` the way `skeleton()`'s local variable does.
     #   Every caller into this function already guarantees a step-form or a
     #   form override, so `interior` alone is the live half of that test
@@ -5392,17 +5372,15 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     # two-voices step. Neither key is assumed: a board segment's refill
     # declares a form and no panel, explore-an-idea's spec a panel and no form.
     # `anchor`/`terminal` are read off the transition itself rather than
-    # hardcoded False: no existing step-form segment's transition declares
-    # `terminal = true`, so this is a pure extension for every one of them,
-    # and it is what lets `verdict`'s own resumed round keep being the
-    # segment's one terminal step -- without it `cmd_close` found no
-    # terminal step and the panelist's actual ruling never reached its
+    # hardcoded False: it is what lets `verdict`'s own resumed round keep
+    # being the segment's one terminal step -- without it `cmd_close` finds
+    # no terminal step and the panelist's actual ruling never reaches its
     # parent.
     # `validates` and `carries` are read off the transition for the same
     # reason `anchor`/`terminal` are: `skeleton()` (engine/run.py) gives round
     # one both keys, every reader of them is a bare `step.get(...)`, and a
-    # fresh round that omitted them skipped the guards its assembly declares
-    # with no refusal and no journal trace (#110).
+    # fresh round that omitted them would skip the guards its assembly
+    # declares with no refusal and no journal trace (#110).
     fresh = {"id": _fresh_step_id(wid, seg_id), "segment": seg_id,
              "filler": t.get("filler", "conductor"),
              "anchor": t.get("anchor", False), "terminal": t.get("terminal", False),
@@ -5417,10 +5395,9 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     #   re-cut after a gate lands -- and never on a pass over findings (an
     #   incorporate) or a resumed round, which stand the conductor's form
     #   alone (`[one-look]`). run-an-issue's two seams declare `fresh`
-    #   (ruling, 2026-09-26: each gate's cut answers to the code and spec
-    #   as they stand, so each gets its own cold read). It replaces
-    #   `opening`, which panelled the run's first cut alone: later gates'
-    #   cuts went unread and were written as amendments to the first.
+    #   (each gate's cut answers to the code and spec as they stand, so each
+    #   gets its own cold read). A panel on the run's first cut alone would
+    #   leave later gates' cuts unread, written as amendments to the first.
     # Rejected: a mint-time rule keyed on the segment or its `dispatches`.
     #   Which rounds a panel reads is the assembly's call about its own
     #   seam, and an engine rule would have to name the seam to make it.
@@ -5436,10 +5413,10 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     #   its orders there. A fresh artifact (`restarts`) keeps the full
     #   panel, and so does a round no panel has read yet: a hand-back during
     #   the opening round resumes here with the whole diff unread and no
-    #   findings for that one reader to check. 17 of 348 gates went that
-    #   way, the yield printing `review r1 pass` over them.
-    # Rejected: an agent choosing each round's readers on a form (run-a-gate's
-    #   old `select`). Its fills copied the same blocks nearly every time, on
+    #   findings for that one reader to check (observed: 17 of 348 gates, the
+    #   yield printing `review r1 pass` over them).
+    # Rejected: an agent choosing each round's readers on a form (a
+    #   `select` field). Its fills copied the same blocks nearly every time, on
     #   a heavy runner; what is fixed belongs to the assembly.
     if (fresh.get("panel") and t.get("rework-panel") and not restarts
             and _panel_has_read(wid, seg_id)):
@@ -5460,9 +5437,9 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
     #   exist. A segment WITH a real interior is completely unaffected: it
     #   keeps spending `form` on the interior round above (the existing
     #   rework-form-override path), and `filler`/`prefill` are never read
-    #   here for it. Confirmed against the proof: without `prefill` landing
-    #   here too, a resumed panelist's answer to its own `up` never reached
-    #   the round it was answering for.
+    #   here for it. Without `prefill` landing here too, a resumed
+    #   panelist's answer to its own `up` never reaches the round it was
+    #   answering for.
     if not has_interior:
         if form:
             fresh["form"] = form
@@ -5479,26 +5456,26 @@ def _mint_segment_round(wid, asm, seg_id, prefill=None, form="", filler="",
 #   field is -- looked up against the deciding spec's own declared `outcome`
 #   rows and handed to `_perform`, for every transition alike. `resolution`
 #   and `outcome` are the two-voices shape's own doing (PLAN.toml family);
-#   `_decided_here` picks it out the same way it already does for a real
+#   `_decided_here` picks it out the same way it does for a real
 #   submit, by matching the step's form against the transition's -- true
 #   even for a panel-only step submitting no form of its own (run-a-gate's
 #   review, explore-an-idea's spec), since both sides of that match are then
 #   simply absent. A panel submits no fields, so `{field: verdict}`
 #   synthesises the pair the merged verdict itself answers. `pass`'s
 #   declared verb is `release`, which `_perform` matches nothing for -- the
-#   same deliberate no-op `up` already spells at a segment's own outlet --
+#   same deliberate no-op `up` spells at a segment's own outlet --
 #   so a clean verdict still mints nothing and the run advances by its own
 #   step order, never by an act here.
-# Rejected: keeping the old fallback -- a bare equality check against the
-#   literal word `revise` -- in front of this. It did two jobs at once:
-#   short-circuiting a pass (now `release`'s job) and keeping the
-#   three-rounds impasse check from firing on anything but a revise (now
-#   `_perform`'s own `rework` verb owns that, so both voices that can decide
-#   a rework spend the same count) -- and a transition that declares no
-#   outcome at all now simply does nothing, the same inertness `release`
-#   spells for one that does. Comparing the merged word against a literal anywhere in this
-#   function would leave one more place dispatching on the vocabulary the
-#   outcome table now owns end to end.
+# Rejected: a fallback in front of this, a bare equality check against the
+#   literal word `revise`. It would do two jobs at once: short-circuiting a
+#   pass (`release`'s job) and keeping the three-rounds impasse check from
+#   firing on anything but a revise (`_perform`'s own `rework` verb owns
+#   that, so both voices that can decide a rework spend the same count) --
+#   and a transition that declares no outcome at all simply does nothing,
+#   the same inertness `release` spells for one that does. Comparing the
+#   merged word against a literal anywhere in this function would leave one
+#   more place dispatching on the vocabulary the outcome table owns end to
+#   end.
 # See: assemblies/run-an-issue/forms/PLAN_TO_EXECUTE.toml
 def _act_on_verdicts(pwid, step_id):
     """Once every panelist named by `step_id` has returned, the transition
@@ -5511,9 +5488,9 @@ def _act_on_verdicts(pwid, step_id):
     to whoever adjudicates next; for a two-voices step, `state()` has
     already left it open instead, so this is inert twice over and the form
     is what releases it -- run-a-gate's review, run-an-issue's consolidate
-    and plan-to-execute all declare both of their verdicts that way now, so
+    and plan-to-execute all declare both of their verdicts that way, so
     every one of their rounds is disposed of by a conductor. A verb that
-    acts -- `rework`, which explore-an-idea's spec still declares for
+    acts -- `rework`, which explore-an-idea's spec declares for
     `revise`, having no route form of its own -- is `_perform`'s from here,
     findings and the segment's own outlet included, since a conductor form
     deciding the same rework reaches that verb by the ordinary submit and
@@ -5544,10 +5521,10 @@ def _act_on_verdicts(pwid, step_id):
     #   falling back to `_decided_here`'s segment table: that fallback exists
     #   for a conductor's direct submit on a segment-grain form (an impasse
     #   ruling), not for a panel's synthesised verdict.
-    # Rejected: calling `_decided_here` here as before. Its fallback made a
+    # Rejected: calling `_decided_here` here. Its fallback would have a
     #   panel step minted apart from its transition have its merged verdict
     #   checked against the segment's own outcome table -- a value that
-    #   table never declares, so closing the panel's own step refused.
+    #   table never declares, so closing the panel's own step would refuse.
     field = t.get("decides") if step.get("form") == t.get("form") else ""
     outcome = _outcome(asm, step, {field: verdict}, pst) if field else None
     if not outcome:
@@ -5574,13 +5551,13 @@ def _summary(st):
             cycles[s["segment"]] = cycles.get(s["segment"], 0) + 1
     # A panel is a panel whether or not its step also carries a form: the
     # two-voices transition's critics rule on the plan exactly as a
-    # panel-only review rules on a diff, and skipping them wrote the empty
-    # string into the close summary of every run three critics had judged.
-    # The last panel-bearing step in journal order wins, and this loop --
-    # unlike the review yield's -- would also reach a panel whose voices are
-    # dispatched under a form declaring no verdict at all, design-it-twice's
-    # rival-planner panel (ruling 10, shelved #96) having been the tree's one
-    # worked example. Such a round settles nothing about a verdict, so it
+    # panel-only review rules on a diff, and skipping them would write the
+    # empty string into the close summary of every run three critics had
+    # judged. The last panel-bearing step in journal order wins, and this
+    # loop -- unlike the review yield's -- would also reach a panel whose
+    # voices are dispatched under a form declaring no verdict at all
+    # (design-it-twice's rival-planner panel was the tree's one worked
+    # example). Such a round settles nothing about a verdict, so it
     # reports `""`: neither the tuple the fold hands back nor a clean word
     # carried forward from some earlier panel this one has superseded.
     verdict = ""
@@ -5635,11 +5612,11 @@ def _summary(st):
 #   nothing on its own terminal form -- run-a-gate's GATE_CLOSE has no
 #   `decides` field -- while an earlier step (its own impasse ruling) did;
 #   the terminal step is the wrong place to stop looking.
-# Rejected: walking `st["steps"]` backwards, which is what this did while a
-#   run's beats and its segment list ran in the same order. run-a-gate's
+# Rejected: walking `st["steps"]` backwards, which is right only while a
+#   run's beats and its segment list run in the same order. run-a-gate's
 #   loop crosses back -- work, review, work again -- so the last *step* is
 #   an earlier *answer* than a decision made in the segment above it, and a
-#   gate that ruled `up` at its impasse returned the previous round's
+#   gate that ruled `up` at its impasse would return the previous round's
 #   `rework` instead. `st["done"]` is built in journal order, which is when
 #   each answer actually landed.
 def _last_decision(st, asm):
@@ -5670,23 +5647,25 @@ def _last_decision(st, asm):
 #   does not work, which the corollary rules out.
 #
 # [close-publishes-what-the-branch-holds]
-# Rationale: #176 -- close assumed it was the only thing that ever opened a
-#   PR and that a run always had a diff. A conductor who had already opened
-#   the PR met `gh pr create` refusing a second one, and a run ruled "not
-#   needed" met it refusing a branch with no commits; either way the refusal
-#   named a retry that could never succeed. So close reads the branch rather
-#   than assuming it: no commits past the cut is a run with nothing to
+# Rationale: close cannot assume it is the only thing that opens a PR or that
+#   a run always has a diff. A conductor who has already opened the PR meets
+#   `gh pr create` refusing a second one, and a run ruled "not needed" meets
+#   it refusing a branch with no commits; either way the refusal names a
+#   retry that could never succeed. So close reads the branch rather than
+#   assuming it: no commits past the cut is a run with nothing to
 #   publish, and an open PR on the branch is the run's PR. A PR close does
 #   open is a draft carrying the run's own disposition -- merging is the
 #   owner's act, and the body is what the run concluded, not a bare id.
+# See: #176
 #
 # [a-merged-pr-is-the-runs-pr]
-# Rationale: tennis_elo issue163 -- the principal merged the run's PR before
-#   close ran. Only an open PR was looked for, so close asked `gh pr create`
-#   for a branch main already held, and the refusal's retry could never
-#   succeed. A PR merged from the branch is the run's PR as much as an open
-#   one is. A PR closed unmerged is not: it was set aside, and the run's
-#   work still needs one.
+# Rationale: when the principal merges the run's PR before close runs
+#   (tennis_elo issue163), looking only for an open PR makes close ask
+#   `gh pr create` for a branch main already holds, and the refusal's retry
+#   could never succeed. A PR merged from the branch is the run's PR as much
+#   as an open one is. A PR closed unmerged is not: it was set aside, and the
+#   run's work still needs one.
+# See: tennis_elo issue163
 def _publish(wid, top, st, body):
     """The run's PR URL once the branch is pushed and a PR exists for it, or
     "" when the branch holds no commits past the run's cut point."""
@@ -5705,8 +5684,8 @@ def _publish(wid, top, st, body):
         live = [p["url"] for p in prs if p.get("state") in ("OPEN", "MERGED")]
         if live:
             return live[0]
-    # The issue the run was opened on, so merging the PR closes it: story_time
-    #   #49 and #53 stayed open after their merges for want of the keyword.
+    # The issue the run was opened on, so merging the PR closes it (story_time
+    #   #49 and #53 stayed open after their merges for want of the keyword).
     closes = f"\n\nCloses #{st['issue']}" if st.get("issue") else ""
     pr = _gh(top, "pr", "create", "--draft", "--head", branch,
              "--title", st.get("title") or wid,
@@ -5810,22 +5789,22 @@ def cmd_close(argv):
     # [close-settles-too]
     # Rationale: `_settle_execution` (`[settle-execution]`) only ever fires
     #   from inside the execute segment's own outcome table -- `advance`'s
-    #   `commit; settle` and `drop <gate-id>`'s `close; settle` (#95) -- so
+    #   `commit; settle` and `drop <gate-id>`'s `close; settle` -- so
     #   it never runs at all when execute's worklist empties by some other
-    #   route: a projecting transition whose mint lands nothing (#141 was
-    #   one cause of that), or a step closed directly by `amend close` --
-    #   this same function's own escape for a stuck step, below. A run can
-    #   then reach CLOSE.toml with an obligation still `open` on the
-    #   execution-state board and no live step left to close it, and
-    #   nothing has ever read the board to notice (#143). `cmd_close` is
-    #   where every route to the terminal step converges -- the terminal
-    #   form is already submitted and nothing else is pending -- so the
-    #   read belongs here too, once, before the run is allowed to finalize.
-    #   `_settle_execution` still refuses nothing on the board's own
-    #   content: an open row mints a fresh plan round exactly as it already
-    #   does mid-run, and the `pending` recheck below reports it through
-    #   the ordinary "not complete" refusal below -- no new refusal text,
-    #   no second escape to maintain.
+    #   route: a projecting transition whose mint lands nothing, or a step
+    #   closed directly by `amend close` -- this same function's own escape
+    #   for a stuck step, below. A run can then reach CLOSE.toml with an
+    #   obligation still `open` on the execution-state board and no live step
+    #   left to close it, and nothing reads the board to notice.
+    #   `cmd_close` is where every route to the terminal step converges --
+    #   the terminal form is already submitted and nothing else is pending --
+    #   so the read belongs here too, once, before the run is allowed to
+    #   finalize. `_settle_execution` refuses nothing on the board's own
+    #   content: an open row mints a fresh plan round exactly as it does
+    #   mid-run, and the `pending` recheck below reports it through the
+    #   ordinary "not complete" refusal below -- no second refusal text, no
+    #   second escape to maintain.
+    # See: #95, #141, #143
     # Rejected: refusing here with bespoke wording naming the open row.
     #   The refusal below already says a pending step by name and how to
     #   work it; a second, differently-worded refusal for the same fact --
@@ -5844,7 +5823,7 @@ def cmd_close(argv):
         # is `drop_it` by default, and stays that for every kind below
         # except a two-voices panel step: `amend close` there would drop
         # the conductor's own route form along with the panel it is
-        # escaping, exactly the move issue811's ruling cost three hand
+        # escaping, exactly the move that cost issue811 three hand
         # repairs, so its always-exists escape waives the panel instead
         # (`outstanding_line`'s own rule, engine/render.py).
         escape = drop_it
@@ -5883,12 +5862,12 @@ def cmd_close(argv):
     # Structural, like `_commit_gate`'s own guard: `_issue_tier` alone is not
     # enough, since `cmd_open` stamps `branch`/`worktree` onto every root
     # run's opening entry, issue-tier or not. Both together name exactly the
-    # runs g1 actually gave a pushed worktree to.
+    # runs that were actually given a pushed worktree.
     archiving = _issue_tier(asm) and bool(st.get("worktree")) and bool(st.get("branch"))
     top = dest = worktree = pr_url = None
     if archiving:
         worktree = pathlib.Path(st["worktree"])
-        top = worktree.parent.parent  # <top>/.worktrees/<wid> -- g1's own fixed layout
+        top = worktree.parent.parent  # <top>/.worktrees/<wid>, the fixed layout
         dest = top / ".agent-work" / "archive" / pathlib.Path(*wid.split("."))
         if dest.exists():
             raise SystemExit(render.refusal(
@@ -5975,9 +5954,9 @@ def cmd_ledger():
             #   asked about, so it is the only one where a journal nobody
             #   named can decide what happens. `.agent-work` is where
             #   hand-written debris accumulates, and one stub with no
-            #   `segment` on a step entry used to raise out of `_ordered` and
-            #   take the ledger down for every run -- hit by three agents
-            #   independently during #43. The ledger is how an agent finds
+            #   `segment` on a step entry would raise out of `_ordered` and
+            #   take the ledger down for every run (hit by three agents
+            #   independently, #43). The ledger is how an agent finds
             #   its own run; losing all of them to one file it did not write
             #   is the worst trade this verb can make.
             # Rejected: skipping quietly. An agent would then look for a run
@@ -6046,7 +6025,8 @@ def main(argv=None):
         return 0
     # Help asked for after a work id or a verb (`spine x amend --help`) is
     # still a request for help: it prints the usage and touches nothing.
-    # Read as a verb or an argument it refused, with advice about fields.
+    # Read as a verb or an argument it would be refused, with advice about
+    # fields.
     if any(a in ("-h", "--help", "help") for a in argv[1:3]):
         print(AMEND_USAGE if len(argv) > 2 and argv[1] == "amend" else USAGE)
         return 0
@@ -6055,8 +6035,8 @@ def main(argv=None):
              "amend": cmd_amend, "close": cmd_close, "trace": cmd_trace, "up": cmd_up,
              "wait": cmd_wait, "drive": cmd_drive}
     if verb not in verbs:
-        # `spine <id> sumbit` used to render the room and exit 0: only the exact
-        # word is acted on, so a near-miss must not look like a hit.
+        # `spine <id> sumbit` must not render the room and exit 0: only the
+        # exact word is acted on, so a near-miss must not look like a hit.
         raise SystemExit(f"no verb {verb!r} -- one of: {', '.join(verbs)}\n\n{USAGE}")
     return verbs[verb]([argv[0]] + argv[2:])
 

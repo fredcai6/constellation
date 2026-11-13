@@ -1,9 +1,8 @@
 """A gate spec a conductor cannot act on is not shipped, even if every test
 passes.
 
-Two defects the live proof run found by driving the system, neither caught
-by the suite: (1) the plan segment's design-it-twice panel (ruling 10, since
-shelved -- #96) declared no `model` of its own and sat on a segment that
+Two defects found by driving the live system, neither caught by the suite:
+(1) the plan segment's design-it-twice panel (since shelved) declared no `model` of its own and sat on a segment that
 declared none either, so `_panel_status`'s `panelist.get("model") or
 seg.get("model", "")` resolved to `""` -- the brief printed `tier (unset)`
 and `runner (unresolved)`, and nothing could dispatch the round. (2) CONSOLIDATE.toml
@@ -14,11 +13,12 @@ bare `key = value` under the last table opened, so a correct top-to-bottom
 fill silently wrote `resolution` inside the last obligation instead of
 beside it.
 
-Both tests below pin desired behaviour: they failed before the fixes in
-`assemblies/run-an-issue/ASSEMBLY.toml` (the plan segment's `model`) and
-`assemblies/run-an-issue/forms/CONSOLIDATE.toml` (the field order), and they
-are written to keep failing if either regresses -- or if a new form or
-panel entry reintroduces either shape.
+Both tests below pin desired behaviour: they fail if
+`assemblies/run-an-issue/ASSEMBLY.toml` (the plan segment's `model`) or
+`assemblies/run-an-issue/forms/CONSOLIDATE.toml` (the field order) regresses,
+or if a new form or panel entry reintroduces either shape.
+
+See: #96
 """
 
 import pathlib
@@ -35,8 +35,8 @@ MODELS = tomllib.loads((ROOT / "constellation.toml").read_text()).get("models", 
 def _panel_entries(asm):
     """Every panelist, paired with the top-level segment that owns it -- the
     same segment `_panel_status` looks up by the step's own `segment` id, for
-    both a segment's own panel (design-it-twice's own, before it was shelved
-    -- #96, was the tree's one example) and its transition's."""
+    both a segment's own panel (design-it-twice's own, shelved, was the
+    tree's one example) and its transition's."""
     for seg in asm.get("segment", []):
         for panelist in seg.get("panel", []):
             yield seg, panelist

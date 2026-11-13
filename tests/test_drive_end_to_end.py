@@ -1,5 +1,5 @@
-"""End-to-end proof of the childless-form-step filler mechanism
-(commitment 13): one call to `drive`, over a real `run-a-gate` open, walks
+"""End-to-end proof of the childless-form-step filler mechanism:
+one call to `drive`, over a real `run-a-gate` open, walks
 the run through a genuine childless form step -- `work-1` (filler
 `implementer`, `skeleton()`'s own pre-minted interior step,
 `assemblies/run-a-gate/ASSEMBLY.toml`) -- resolved by a real spawned process
@@ -12,8 +12,7 @@ the materialized template left (the same slots a human would fill by hand
 -- generic, not one script per form), and runs `spine <wid> submit` for
 real.
 
-`work`'s own transition (`review`) is not a second childless form step any
-more (ruling, 2026-09-25): it is minted with its own declared panel --
+`work`'s own transition (`review`) is not a second childless form step: it is minted with its own declared panel --
 three reviewers on this, the run's opening round -- at `open` time, the
 same moment `work-1` is, so submitting `work-1` walks straight onto a
 panel-outstanding step and `drive` never reaches a second form-filler
@@ -22,12 +21,14 @@ meant to resolve: this test's one dispatch entry does nothing for a
 dispatch child's own brief (which never carries a "your response form:"
 line -- that wording is `_form_filler_brief`'s alone), so each spawned
 stand-in exits almost at once. `checkrun.alive` reads that exit as gone (a
-zombie answers "exited", #101), so `drive` restarts each panelist up to
+zombie answers "exited"), so `drive` restarts each panelist up to
 `checkrun.MAX_STARTS` and then stops on its own with the panel spent --
 before its `--for` bound, which is why the elapsed time is asserted short
 rather than long. The panel never resolving is proven directly, with a
 real dead pid, in `test_drive.py`'s own cases; here it is only what ends
 the drive.
+
+See: #101
 """
 
 import json

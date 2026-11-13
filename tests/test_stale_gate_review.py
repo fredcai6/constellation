@@ -1,4 +1,4 @@
-"""o6: a queued gate's own proof is checked against the tree as it stands
+"""A queued gate's own proof is checked against the tree as it stands
 before it is started. A reading of "already true" or "cannot run as a
 command" is never trusted into dispatch -- the whole open queue closes
 instead, and the plan segment reopens for one review round, no panel, with
@@ -9,8 +9,7 @@ failed is the healthy one, and dispatch carries on exactly as
 
 This drives a real multi-gate cut through one real `PLAN.toml` fill --
 every gate named in its own `gates` field, never seeded directly into the
-journal the way `test_multi_gate_cut.py`'s own fixture is (that gate's own
-authoring side was still ahead of it; this one is not).
+journal the way `test_multi_gate_cut.py`'s own fixture is.
 """
 
 from engine import journal, run as runmod
@@ -64,7 +63,7 @@ def _fresh_plan_round(wid):
 def test_a_gate_whose_proof_already_passes_closes_the_whole_queue_and_reopens_plan_with_no_panel(
         workdir, capsys):
     """`g2`'s own proof (`true`) already passes against the untouched
-    tree -- the stale reading obligation 6 names first. Advancing `g1`
+    tree -- the stale reading of an already-true proof. Advancing `g1`
     closes `g2` and `g3` both, not only the one checked, and reopens plan
     on `REVIEW_PLAN.toml` -- the review route, minted with no panel
     (`panel-rounds = "fresh"`, and this round is not a `restarts` one)."""
@@ -187,10 +186,11 @@ def test_the_review_rounds_response_mints_the_whole_fresh_queue_in_one_release(
 
     st = runmod.state(wid)
     gates = [s for s in st["steps"] if s.get("dispatches") == "run-a-gate"]
-    # a closed id is never reused (#312), so the fresh pair need not be
+    # a closed id is never reused, so the fresh pair need not be
     # named "g2"/"g3" again -- what matters is there are exactly two of
     # them, fresh, in the planner's own order, and nothing of the closed
     # queue (a `true` proof, long gone) rides along beside them
+    # See: #312
     assert len(gates) == 3
     assert gates[0]["id"] == "g1"
     fresh_two = gates[1:]

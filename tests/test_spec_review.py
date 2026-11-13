@@ -8,8 +8,7 @@ mint order, the panel's prefill, and the transition's three routes (back to
 the board, back to the writer, or forward) are all real engine behavior,
 not something a hand-built journal could stand in for without also proving
 the assembly wires it the way it claims to. test_two_voices.py is the check
-that plan-to-execute's own shape is unchanged by any of this; this file is
-understand's own.
+on plan-to-execute's own shape; this file is understand's own.
 """
 
 import pathlib
@@ -104,9 +103,8 @@ def _open_to_spec_writer(wid="issue17"):
 
 def test_the_understand_segment_mints_its_board_seed_and_its_step_form_in_order(
         workdir, capsys):
-    """`skeleton()` used to mint an interior step only for `interior ==
-    "steps"`; a board segment got its transition alone, no matter what
-    `step-form` it declared. `open`'s own plan field seeds the board
+    """`skeleton()` mints an interior step for a board segment that declares a
+    `step-form`, not only for `interior == "steps"`. `open`'s own plan field seeds the board
     separately (`_mint`, engine/cli.py) -- this proves the two together:
     the board exists once open is submitted, and the spec-writer's own
     step sits ahead of the transition, never after it."""
@@ -171,9 +169,8 @@ def test_the_spec_writers_returns_reach_the_critic_panel(workdir, capsys):
 
 def test_a_revise_holds_the_form_for_the_conductor_rather_than_refiring_the_round(
         workdir, capsys):
-    """Follow-up to ruling 3, 2026-09-03: consolidate holds this same shape
-    now -- a bare revise no longer refires the spec-writer round on its own,
-    it holds the step open on CONSOLIDATE.toml, the conductor's own route
+    """Consolidate holds this same shape: a bare revise does not refire the
+    spec-writer round on its own, it holds the step open on CONSOLIDATE.toml, the conductor's own route
     form, the same as run-a-gate's review/ROUTE.toml and plan-to-execute's
     own PLAN_TO_EXECUTE.toml already do."""
     wid = _open_to_spec_writer()
@@ -197,7 +194,7 @@ def test_the_conductors_incorporate_sends_only_the_writer_calls_carrying_no_spec
     """Only the conductor's own `incorporate` -- ruled finding by finding on
     CONSOLIDATE.toml's `calls` table -- sends the round back, narrowed to
     what it called `writer`, the same as PLAN_TO_EXECUTE.toml's own
-    `incorporate` does at the plan seam (one look, ruling 2026-09-25). An
+    `incorporate` does at the plan seam (one look). An
     incorporate carries no spec (there is nothing intact to carry) and
     seeds no execution-state board row (there is no spec settled yet to
     seed one from). No panel reads what the writer's own pass returns --
@@ -284,15 +281,18 @@ def test_an_unresolved_board_routes_back_to_the_board_even_after_the_spec_passes
 
 
 def test_a_release_with_a_blank_spec_is_refused(workdir, capsys):
-    """#87's silent class, consolidate's own copy of it: `spec` went
-    optional so a `rework`/`up` -- neither releasing anything -- could
-    leave it blank. The same optional flag let a `pass` leave it blank too
-    and release anyway, `carries` finding nothing to fold into the run's
+    """The silent class, consolidate's own copy of it: `spec` is
+    optional so a `rework`/`up` -- neither releasing anything -- can
+    leave it blank. The same optional flag would let a `pass` leave it blank
+    too and release anyway, `carries` finding nothing to fold into the run's
     prefill and silently doing nothing -- a round the record calls released
     with no understanding behind it. `_check_release_artifacts`
     (engine/cli.py) refuses this before anything is journaled, generic off
     `kind = "artifact"` and `_releases` -- the same check pinned at the plan
-    seam (test_gate_projection.py)."""
+    seam (test_gate_projection.py).
+
+    See: #87
+    """
     wid = _open_to_spec_writer()
     _fill_spec(wid)
     cli.main([wid, "submit"])

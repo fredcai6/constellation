@@ -1,11 +1,12 @@
-"""Pins the doctrine sweep issue223.g3 makes, now that g1 and g2 have
-landed the mechanism itself: a plan round may queue one gate or several,
-and a queued gate dispatches without a new plan round or panel in
-between. Reads the seven files g3's own scope names as plain prose -- a
-grep with a name, never a journal-driven run -- and checks that the stale
-single-gate-per-round phrasing is gone. It does not pin the wording that
-replaced it: a pinned sentence cannot be simplified, and pinning these did
-not catch PLAN.toml contradicting the planner skill.
+"""The doctrine says a plan round may queue one gate or several, and a
+queued gate dispatches without a new plan round or panel in between. Reads
+the seven doctrine files as plain prose -- a grep with a name, never a
+journal-driven run -- and checks that no single-gate-per-round phrasing
+remains. It does not pin the positive wording: a pinned sentence cannot be
+simplified, and pinning sentences does not catch PLAN.toml contradicting the
+planner skill.
+
+See: issue223
 """
 
 import re

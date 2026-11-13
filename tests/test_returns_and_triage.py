@@ -1,14 +1,13 @@
-"""The record hands back what it recorded, and never crashes on what it used
-to record.
+"""The record hands back what it recorded, and never crashes on a record
+kind it no longer defines.
 
-A finding now has two destinations, never a third (ruling, 2026-09-25,
-docs/PURPOSE.md): done, or dropped with its reason recorded where a later
-run can find it. `triage` is gone as a note kind, as a CLOSE.toml field, and
-as the plumbing (`_beyond_calls`) that once carried a `beyond` call there --
-`cmd_note` refuses the word outright now, the same way any other undeclared
+A finding has two destinations, never a third (docs/PURPOSE.md): done, or
+dropped with its reason recorded where a later run can find it. `triage` is
+not a note kind or a CLOSE.toml field, and nothing carries a `beyond` call --
+`cmd_note` refuses the word outright, the same way any other undeclared
 word refuses. But an *old* journal that already holds a `triage` note or a
 `beyond` call is data, not a submission: nothing here re-submits it, so
-nothing refuses it, and this file pins that a room, a summary, and the new
+nothing refuses it, and this file pins that a room, a summary, and the
 prior-drops reader (`engine/drops.py`) all read straight past it rather than
 raising.
 
@@ -80,8 +79,8 @@ def test_note_triage_refuses_the_word_is_no_longer_a_kind(workdir, capsys):
 
 
 def test_a_journal_carrying_an_old_triage_note_still_summarizes_and_renders(workdir, capsys):
-    """A run whose journal already holds a `triage` note -- written before
-    this ruling -- is data, not a submission: `_summary` and the room built
+    """A run whose journal already holds a `triage` note -- written under an
+    earlier record shape -- is data, not a submission: `_summary` and the room built
     off it must read straight past a kind_detail the record no longer
     defines, never raise on it."""
     cli.main(["open", "run-a-gate", "--id", "g1"])
@@ -98,8 +97,8 @@ def test_a_journal_carrying_an_old_triage_note_still_summarizes_and_renders(work
 
 
 def test_the_drops_reader_skips_an_old_beyond_call_in_an_archived_journal(workdir):
-    """A `calls` table journaled before this ruling may still hold a
-    `beyond` row -- the word this ruling retired. `dropsmod.rejected_calls`
+    """An older `calls` table may still hold a
+    `beyond` row -- a word the record no longer defines. `dropsmod.rejected_calls`
     reads every archived `submit` entry's `calls` table looking only for
     `rejected`; an old `beyond` row is simply not one, never a parse
     failure -- it is data, not something this reader is asked to act on."""

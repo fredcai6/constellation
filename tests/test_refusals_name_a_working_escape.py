@@ -1,6 +1,6 @@
 """A refusal's second line is the move that gets past it. There is no
-default: eleven refusals once inherited "fill it, or answer waived:" where
-that was irrelevant or itself refused."""
+default: an inherited "fill it, or answer waived:" is irrelevant to some
+refusals, or is itself refused."""
 import pytest
 
 from engine import cli, forms, render

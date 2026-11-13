@@ -1,4 +1,4 @@
-"""Obligation 3 and obligation 5's second bullet: a cut that stops short of
+"""A cut that stops short of
 the whole run names its critical questions -- for each, which queued gate
 (by its own position in the round) is expected to answer it, and the answer
 the cut expects. When that gate's own adjudication rules the actual answer
@@ -6,9 +6,9 @@ as differing from the expected one (GATE_TRANSITION.toml's own
 `critical-question` field), the open plan gets the same no-panel review a
 stale reading already gets, contributing its own reason to the shared list;
 an answer ruled as matching reopens nothing, and the queue dispatches on
-exactly as it does today when nothing was learned.
+exactly as it does when nothing was learned.
 
-`_settle_execution`'s committed branch reads this beside its own existing
+`_settle_execution`'s committed branch reads this beside its own
 staleness check -- either, neither, or both can hold for one `advance`, and
 both are read before anything mints so one settle calls the shared
 review-mint helper exactly once, carrying every reason that fired.
@@ -32,8 +32,8 @@ from test_stale_gate_review import _fresh_plan_round
 def _fill_plan_with_critical_questions(wid, gates, critical_questions):
     """PLAN.toml's `gates` field, plus a `critical-questions` block naming
     which queued gate (by its own position in this round) is expected to
-    answer each question, and the answer this cut expects -- the shape
-    obligation 3 asks for, filled once per round alongside `gates`."""
+    answer each question, and the answer this cut expects -- filled once
+    per round alongside `gates`."""
     loc = journal.location(wid)
     _write_plan_artifact(loc / "plan.md")
     cq_blocks = "".join(
@@ -88,7 +88,7 @@ def _transition_entry(new_entries):
 # (`_advance_g1_then_dispatch_g2`), so its own proof cannot be a fixed
 # `"true"` or `"false"` the way a never-dispatched queued gate's can
 # elsewhere, and it cannot be a simple once-fails-then-passes toggle
-# either: `_trial_proofs` (engine/cli.py) already runs every gate's own
+# either: `_trial_proofs` (engine/cli.py) runs every gate's own
 # `proof` once, as a trial, at the cut's own `PLAN.toml` submit, before
 # `g1` even dispatches -- so the identical command actually runs three
 # times before g2's own close: that first trial, `_proof_is_stale`'s own
@@ -219,8 +219,8 @@ def test_a_differing_answer_and_a_stale_next_gate_both_fire_but_mint_one_review(
     assert "gate 3 purpose" in prefill.get("closed-queue", "")
 
 
-# -- obligation 9: the three planner forms teach the per-gate call-tree
-#    naming convention standards/glossary.md's own entry already states --
+# -- the three planner forms teach the per-gate call-tree
+#    naming convention standards/glossary.md's own entry states --
 #    the same grep-with-a-name shape test_doctrine_says_multi_gate.py uses
 #    for doctrine prose, read here against the forms themselves.
 

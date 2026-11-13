@@ -1,6 +1,7 @@
-"""A child's blocked note reaches the run that dispatched it. The note used
-to stay in the child's own journal: the dispatcher's room said only "gone
-without returning" and `wait` restarted the child into the same wall."""
+"""A child's blocked note reaches the run that dispatched it. The note must
+not stay in the child's own journal: the dispatcher's room would say only
+"gone without returning" and `wait` would restart the child into the same
+wall."""
 import re
 
 from engine import cli, journal

@@ -1,6 +1,6 @@
 # Engine notes
 
-Decisions made while building wave 2 that the spec does not state, kept here
+Decisions the spec does not state, kept here
 because they are load-bearing and cheap to forget. Not doctrine — mechanics.
 
 ## A return completes a step
@@ -78,9 +78,8 @@ resolves from that path rather than the child's own cwd.
 the moment an issue-tier run's worktree exists, an edit to the engine lands
 in whichever tree an agent is standing in, and a command run from that tree
 executes whichever copy it resolved from. A run is driven through the
-top-level binary; that is correct, and the principal's own ruling that a run
-does not convert itself mid-flight, holding by construction rather than by
-discipline (#67).
+top-level binary; that is correct, so a run does not convert itself
+mid-flight, holding by construction rather than by discipline (see #67).
 
 A root run's worktree branch is cut from the remote's default branch, not
 whatever the top-level checkout's current branch happens to be — resolved
@@ -116,8 +115,8 @@ the proof in the caller and detaching it at the handback would put a result
 in two processes at once, and choosing which of them journals would need an
 atomic claim between them; one writer needs none.
 
-`start_new_session=True` is insurance rather than the mechanism. #72 measured
-a plain child outliving a dispatched agent's turn by 25 seconds and finishing
+`start_new_session=True` is insurance rather than the mechanism. A plain child was measured
+(see #72) outliving a dispatched agent's turn by 25 seconds and finishing
 its work; what was lost was the caller, not the check. The session flag is
 what survives a harness that kills the caller's whole process group, which
 this one does not do and a stricter one would.
@@ -138,18 +137,15 @@ refused until it is not.
 
 ## A trial detaches at the cut, its reading collected at the route form
 
-#163: this repository's own fast suite takes 168 seconds, and every one of
+This repository's own fast suite takes 168 seconds, and every one of
 `constellation.toml`'s `[commands]` entries a gate's `proof` might name
 (`test`, `validate`, `validate-gate-loop`) includes it — well past the 90
-second handback. The trial used to run in the planner's own submit,
-foreground, killed at the smaller of the gate's `budget` and the handback,
-so a proof that was right but slow was killed before it could answer and
-misread as a fourth reading nobody could act on: "no result after 90s".
-
-Now `checkrun.hand_in_trial` spawns it exactly the way `hand_in` spawns a
+second handback. A trial run in the planner's own submit, foreground, killed at the smaller
+of the gate's `budget` and the handback, would kill a proof that was right
+but slow before it could answer, and misread it as a fourth reading nobody
+could act on: "no result after 90s". So `checkrun.hand_in_trial` spawns it exactly the way `hand_in` spawns a
 gate's own checks — detached, the caller waiting no longer than the
-handback — with the one deliberate difference `[trial-proofs]` has always
-held: it never refuses. A batch that lands inside the handback journals its
+handback — with the one deliberate difference `[trial-proofs]` holds: it never refuses. A batch that lands inside the handback journals its
 `check` entries and the planner's submit reports them immediately, same as
 before. A batch that does not journals `check-started` (`trial=True`) and
 keeps running after the caller is handed back; `engine/run.py`'s fold keeps
@@ -170,11 +166,13 @@ whatever has not, saying so plainly and naming `spine <child> wait` —
 shortcut, for the identical reason the fold keeps `trials` apart from
 `in_flight`, so the move the room names actually blocks.
 
+See: #163
+
 ## Renaming a form while runs are open
 
 A journal is append-only and its `step` entries name form paths, so a form's
 path is part of the record of every run standing on it. Move or rename the
-form and those runs cite something that is no longer there — including the
+form and those runs cite something that is not there — including the
 run doing the renaming, which is the usual way this is discovered.
 
 The engine refuses rather than crashes: a step whose form is not in the tree
@@ -194,10 +192,9 @@ The rule, in order of preference:
 3. **Never repoint a live run by editing its journal.** The journal is the
    record; a rewrite makes it a story about what should have happened.
 
-`issue57.g4` renamed `REVIEW_ROUND.toml` to `ROUTE.toml` and stranded its own
-run — `spine issue57.g4` died and the gate could not be routed or closed. The
-refusal above is what that would meet today; rule 2 is what would have avoided
-it.
+A gate that renamed `REVIEW_ROUND.toml` to `ROUTE.toml` stranded its own
+run (issue57.g4): `spine issue57.g4` died and the gate could not be routed or
+closed. The refusal above is what that meets; rule 2 avoids it.
 
 ## Bundles reach a host's skill discovery through a flat symlink
 
@@ -221,9 +218,7 @@ elsewhere is replaced, and a real directory found at that name is reported
 and skipped rather than clobbered.
 
 The test is the handoff's: repo shape and installed shape must not diverge,
-because that divergence is what grew v1's installer to 3,219 lines — v1 is
-deleted, so that figure is archival record, not a line count this tree
-carries. A symlink keeps that test true by construction: the flat name is
+because that divergence is what makes an installer grow. A symlink keeps that test true by construction: the flat name is
 never anything but a pointer to the one tree that exists.
 
 ## Rendering is a read; `wait` starts and restarts
@@ -234,17 +229,16 @@ wait` is the one thing that starts a dispatch or panel step's child that has
 never been dispatched at all, and the one thing that restarts a capped child
 gone without returning, up to `checkrun.MAX_STARTS` attempts.
 
-One asymmetry this run leaves on purpose: a board row's own excursion is
+One asymmetry, kept on purpose: a board row's own excursion is
 still opened by hand, by whoever reads the row and runs the `open` command
 it prints, while a dispatch or panel step's child is not — that one starts
 itself the moment `wait` is run against it.
 
-The one added cost is a command a conductor now runs at every dispatch or
-panel seam that did not need one before: `wait`, once per such seam, to see
-the room move past whatever its child owes it, where the room used to start
-that child on its own.
+The one added cost is a command a conductor runs at every dispatch or
+panel seam: `wait`, once per such seam, to see the room move past whatever
+its child owes it, since the room does not start that child on its own.
 
 A child already dead and at its start cap will not be started again. The
-ruling escape for that case has its own name now, the words the conductor
+ruling escape for that case is the words the conductor
 actually rules with: `drop it` — the conductor closes the step on what
 stands, rather than holding out for a child nothing will start again.

@@ -21,8 +21,7 @@ come from a memory of this corpus, or from the map itself?
 
 What these checks read
 ----------------------
-The store DIRECTLY, never through `render.load_stores`, and -- since `g3` --
-the SOURCE. A check whose expected value is computed by the code under test can
+The store DIRECTLY, never through `render.load_stores`, and the SOURCE. A check whose expected value is computed by the code under test can
 only ever agree with it, which is not a check. So the store scan below is
 written a second time on purpose, the source scan beside it derives definition
 names without borrowing a line of the extractor, and both are compared against
@@ -199,8 +198,7 @@ class StoreScan:
     - `defined_at`  (file, 1-based SOURCE line) -> store symbol, from `contains`.
       The store declares the base its lines are written in, one
       `extraction-window` statement per file, and this converts through that
-      declaration rather than compensating with an unexplained `+1` (defect D1,
-      closed at g3).
+      declaration rather than compensating with an unexplained `+1`.
     - `inbound`     target symbol -> {caller module: sites}, from every `calls`
       and `reads` statement that did not resolve locally.
 
@@ -242,13 +240,12 @@ class SourceScan:
     """Every definition in the corpus and its QUALIFIED NAME, derived from the
     source text and sharing no code path with the extractor.
 
-    This exists because gate `g3` deleted the map's second AST pass. That pass
-    was one of two independent derivations `entity_symbol_join` compared; left
-    on one derivation the check would have compared a symbol against itself and
-    become incapable of failing -- the exact defect this gate exists to stamp
-    out, arriving through a legitimate refactor.
+    The map has no second AST pass of its own. `entity_symbol_join` needs two
+    independent derivations; on one it would compare a symbol against itself
+    and become incapable of failing, a defect a legitimate refactor can
+    introduce.
 
-    So the second derivation moved HERE, where a second derivation belongs: a
+    So the second derivation lives HERE, where a second derivation belongs: a
     check is the right home for one, a pipeline stage was not. Nothing is
     imported from `extract`; the module name comes from the file path, the
     qualified name from this recursion, and the two are compared only on the
@@ -307,12 +304,12 @@ class SourceScan:
 # ------------------------------------------------------- the rendered line
 # The ONE place that knows how a page spells its inbound references. Every
 # check below works in terms of what the line MEANS -- sites, distinct caller
-# modules, and which of them are named -- so a later gate that respells it
-# updates this and nothing else.
+# modules, and which of them are named -- so a change of spelling updates this
+# and nothing else.
 
-#: Two prefixes, not one -- `referenced by: none found` used to answer three
-#: different questions with one sentence (nothing calls this / only tests call
-#: this / this itself IS a test). Declared here, not imported from the
+#: Two prefixes, not one -- a single `referenced by: none found` sentence
+#: would answer three different questions (nothing calls this / only tests
+#: call this / this itself IS a test). Declared here, not imported from the
 #: renderer, for the same reason as always: a check that reads its expected
 #: text out of the code under test can only ever agree with it. The renderer
 #: spells these sentences too, and the two must match byte for byte.
@@ -523,12 +520,10 @@ def anchor_accounting(m):
 
     A bracket with nothing bindable to bind to -- the last thing in a file,
     or a target line `_anchorable_lines` does not recognise -- authors an id
-    the store never receives, with nothing at exit 0 to say so. (Two
-    brackets stacked above ONE bindable line used to be this same silence
-    for a different reason -- `anchors_in` overwrote the earlier slug in its
-    own dict -- and that cause is fixed at the source now: every stacked
-    bracket binds. This check is what still catches a bracket that finds no
-    line to bind to at all.)
+    the store never receives, with nothing at exit 0 to say so. (Brackets
+    stacked above ONE bindable line all bind, so that case is not this
+    silence; this check catches a bracket that finds no line to bind to at
+    all.)
 
     The left side reuses `extract.anchors_in`'s own forward scan (which line
     a bracket binds to is one fact, not two derivations to keep in sync) but
@@ -556,10 +551,10 @@ def anchor_accounting(m):
 
 
 # --------------------------------------------------------- See: tag targets
-# The target grammar itself (`see_targets`) now lives in `extract.py`, beside
-# `anchors_in`/`tags_in` -- epic #138 finding 2 needed `render.py` to read the
-# same `See:` tags backward (who points at this anchor), and a target parser
-# is grammar, not a check. What stays here is CHECK-only: resolving a target
+# The target grammar itself (`see_targets`) lives in `extract.py`, beside
+# `anchors_in`/`tags_in` -- `render.py` reads the same `See:` tags backward
+# (who points at this anchor), and a target parser is grammar, not a check.
+# See: #138 What stays here is CHECK-only: resolving a target
 # against the filesystem and the store, which nothing else in the package needs.
 
 
@@ -633,7 +628,7 @@ def _see_tag_failures(root, rel_file, text, bound_slugs):
     only that one) is checked STRICTLY: its definition must SPAN the given
     line, not merely exist in the file -- `journal.py:119` next to
     `` `journal.append` `` is the tag this rule exists to catch, since line
-    119 is `stamp()`'s own line now, not `append`'s. A `symbol` with no line
+    119 is `stamp()`'s own line, not `append`'s. A `symbol` with no line
     to pin it to is checked LOOSELY: the name must appear somewhere in the
     file, which tolerates a parameter or a local the strict check has no
     span to check against."""
@@ -742,10 +737,10 @@ def refs_line_self_consistent(m):
       pages whose title names a known entity. A page that lost its title, or
       that the store no longer knows about, is invisible to the store check and
       visible here.
-    - it survives the store: a later gate that changes the schema breaks the
+    - it survives the store: a change to the schema breaks the
       second derivation, and this rule still holds.
 
-    Split into PRODUCTION and TEST buckets (gate g5): a page carrying an
+    Split into PRODUCTION and TEST buckets: a page carrying an
     inbound line must carry EXACTLY TWO, one per bucket, each named exactly
     once. The arithmetic within each bucket is the rule the single line always
     satisfied: you cannot name a module twice, you cannot name more modules
@@ -758,8 +753,8 @@ def refs_line_self_consistent(m):
 
     The two inbound lines must be followed by `REFS_LEGEND` (what the count
     counted) then `SPLIT_LEGEND` (what the split was based on) -- a number a
-    reader cannot interpret is the defect `g2` closed, and a split whose basis
-    is not stated is the defect `g5` exists to close the same way.
+    reader cannot interpret is a defect, and so is a split whose basis is not
+    stated.
 
     An entity's own module classification (page-local: derived from the
     TITLE's dotted name, the same string this function already reads, so no
@@ -843,18 +838,13 @@ def refs_line_self_consistent(m):
 def entity_symbol_join(m):
     """A page's title must be what the SOURCE says is defined at its position.
 
-    RE-BASED AT `g3`, and the reason is worth stating. This check used to
-    compare two independent AST passes -- the extractor's symbol against a
-    second pass's qualified key -- welded on (file, line). `g3` deleted that
-    second pass. Left standing on one derivation the check would have compared
-    the store symbol against a page title RENDERED FROM THAT SAME SYMBOL: a
-    tautology that cannot fail, which is the exact defect this run exists to
-    stamp out and would have arrived through a legitimate refactor.
+    Against one derivation this check would compare the store symbol with a
+    page title RENDERED FROM THAT SAME SYMBOL: a tautology that cannot fail.
 
     So the second derivation is `SourceScan`, here in the checks, deriving every
     definition's qualified name from the source text with no code path in common
-    with `extract.py`. The comparison is now a stronger one than the old pair
-    made: it is the map against the SOURCE, not one pass against another.
+    with `extract.py`. The comparison is the map against the SOURCE, not one
+    pass against another.
 
     Two arms, and they fail in opposite directions.
 
@@ -906,7 +896,7 @@ def page_location_matches_content(m):
     file contents, or move one into a sibling module's directory, and every
     title the store expects is still present somewhere -- COVERAGE holds,
     COUNT holds, naming and inbound arithmetic both hold, because all four are
-    blind to location. `g4` adds a routing tier ON TOP of that same layout, so
+    blind to location. The routing tier sits ON TOP of that same layout, so
     this is where the gap closes rather than doubling.
 
     The expected location comes out of each page's OWN title, never out of

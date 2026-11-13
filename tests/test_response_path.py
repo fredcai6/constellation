@@ -1,13 +1,14 @@
-"""A response form is named for the step that fills it, not for the form
-(#118).
+"""A response form is named for the step that fills it, not for the form.
 
-`_response_path` used to be `pathlib.Path(step["form"]).stem + ".toml"` --
-right exactly while a form is filled once per run. At a seam it is not:
-round two used to open round one's own filled form, and two live fillers
-could be handed the same path. Naming by step as well as by form makes both
-impossible by construction: this file proves the property, not the
-mechanism `engine/cli.py`'s own `[response-path-by-step]` rationale block
-already argues for.
+Naming by form alone (`pathlib.Path(step["form"]).stem + ".toml"`) is right
+exactly while a form is filled once per run. At a seam it is not: round two
+would open round one's own filled form, and two live fillers could be handed
+the same path. Naming by step as well as by form makes both impossible by
+construction: this file proves the property, not the mechanism
+`engine/cli.py`'s own `[response-path-by-step]` rationale block already
+argues for.
+
+See: #118
 """
 
 from engine import cli, run as runmod
@@ -45,7 +46,7 @@ def test_two_rounds_at_one_seam_resolve_to_different_paths(workdir, capsys):
 
 
 def test_round_two_at_a_seam_renders_a_blank_route_form(workdir, capsys):
-    """#118's own measurement, as a test: round one disposed of its round
+    """The measured case, as a test: round one disposed of its round
     with `resolution = "incorporate"`; the room round two materializes must
     not still be holding that word."""
     wid = _drive_to_revise()

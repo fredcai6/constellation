@@ -50,7 +50,7 @@ def init_checkout(tmp_path):
 
 # [stub-gh]
 # Rationale: intercept `gh` on argv, the way `tests/test_eval_harness.py`
-#   already intercepts `claude` -- so `cmd_close`'s push-and-open-a-PR step
+#   intercepts `claude` -- so `cmd_close`'s push-and-open-a-PR step
 #   never reaches the real GitHub API. A test that let this fall through to
 #   a real `gh` binary could open a real pull request against whatever
 #   `origin` happens to point at, which is not acceptable at any cost even

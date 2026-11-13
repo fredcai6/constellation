@@ -1,15 +1,13 @@
 """`checks.spawn_form_filler`, exercised directly -- the same way
 `tests/test_spawn_dispatch.py` proves `spawn_dispatch` itself, never through
-a rendered room (that is `tests/test_drive.py`'s own job, once `cmd_drive`
-calls this).
+a rendered room (that is `tests/test_drive.py`'s own job).
 
 `spawn_form_filler` substitutes `{brief}`/`{runner}`/`{tree}` into the
 identical `[commands] dispatch` entry `spawn_dispatch` reads -- there is no
 second palette entry for a form filler -- and shares that substitution and
 launch logic with it through a private helper (`checks._dispatch_launch`),
 proven indirectly here through every case that mirrors one of
-`test_spawn_dispatch.py`'s own. What is actually new, and what this file
-exists to prove directly, is the journal record itself: kind
+`test_spawn_dispatch.py`'s own. What this file exists to prove directly is the journal record itself: kind
 `form-filler-started`, keyed by `step` rather than `child`, carrying no
 `tree` field at all -- a filler inherits the run's own tree, so there is no
 second tree fact to journal about it.
@@ -45,7 +43,7 @@ def _log(wid, name):
 #   call happening to run `subprocess._cleanup` and reap this pid before
 #   its own deadline -- the same gotcha `test_drive_end_to_end.py`'s
 #   module docstring names. In this file that other call is not guaranteed
-#   to happen in time, which is the 1-in-8 flake the gate spec reports.
+#   to happen in time, which is a 1-in-8 flake.
 #   Reaping the child directly with `os.waitpid(pid, os.WNOHANG)` removes
 #   the dependency on some unrelated call ever happening at all: a
 #   still-running process reports `(0, 0)` and the loop keeps polling; an
@@ -140,7 +138,7 @@ def test_a_nonzero_exit_is_still_a_successful_spawn(bare_workdir):
 
 
 def test_no_dispatch_key_fails_distinguishably_and_journals_nothing(bare_workdir):
-    """`o-absent-dispatch-raises`: an absent `dispatch` key raises here too,
+    """An absent `dispatch` key raises here too,
     the identical discipline the other three failure inputs already hold --
     no journal entry, whatever the reason."""
     wid = "v1"
@@ -154,7 +152,7 @@ def test_no_dispatch_key_fails_distinguishably_and_journals_nothing(bare_workdir
 
 def test_a_malformed_entry_fails_distinguishably_and_journals_nothing(bare_workdir):
     wid = "v1"
-    commands = {"dispatch": "claude -p {brief}"}  # today's single-string shape, by mistake
+    commands = {"dispatch": "claude -p {brief}"}  # a single-string shape, by mistake
 
     with pytest.raises(checks.DispatchFailure) as exc:
         checks.spawn_form_filler(commands, "brief", "runner", "/tmp", wid, "g1",
@@ -189,7 +187,7 @@ def test_a_process_that_fails_to_start_fails_distinguishably_and_journals_nothin
     assert _form_filler_entries(wid) == []
 
 
-# -- the new cap, apart from MAX_STARTS ---------------------------------------
+# -- the cap, apart from MAX_STARTS ---------------------------------------
 
 
 def test_form_filler_max_starts_is_its_own_positive_constant(bare_workdir):

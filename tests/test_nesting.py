@@ -24,22 +24,27 @@ def _fill(path, text):
 def _response(wid):
     """Where the step now current at `wid` takes its answer -- asked of the
     engine rather than spelled, since the name is the engine's to choose.
-    `_response_path` folded the step id into the live filename (#118) so
-    that spelling it here would have been wrong exactly when it mattered:
-    the fixtures that hardcoded it never saw a second round at the same
-    seam land on top of the first."""
+    `_response_path` folds the step id into the live filename, so
+    spelling it here would be wrong exactly when it matters: a hardcoded
+    name never sees a second round at the same seam land on top of the first.
+
+    See: #118
+    """
     st = runmod.state(wid)
     return cli._response_path(st, st["current"])
 
 
 def _write_plan_artifact(path, text="1. approach: adjust the loop bound.\n"
                                     "2. risk: none identified once tested.\n"):
-    """The real file an artifact-kind `plan` field must point at (#45):
-    `_check_artifact` (engine/cli.py) now refuses a submit whose value does
+    """The real file an artifact-kind `plan` field must point at:
+    `_check_artifact` (engine/cli.py) refuses a submit whose value does
     not resolve to a readable path, so every fixture that answers one has to
     back it with content -- never overwriting a path a caller already
     seeded with content of its own, since some tests plant an exact word
-    count there before filling the form."""
+    count there before filling the form.
+
+    See: #45
+    """
     path = pathlib.Path(path)
     if not path.exists():
         path.write_text(text)
@@ -64,11 +69,10 @@ type = "fact"
 
 def _work_the_board(wid):
     """Resolve the seeded board, then take the spec-writer's own round
-    through its cold panel -- both now stand between the board and
+    through its cold panel -- both stand between the board and
     consolidate, which validates the board (the engine refuses to leave
-    understand with an unresolved row) but no longer drafts from it. A
-    caller that used to reach consolidate straight off the board reaches it
-    here instead, the spec already passed critique."""
+    understand with an unresolved row) but does not draft from it. A
+    caller reaches consolidate here, the spec already passed critique."""
     b = pathlib.Path(f".agent-work/{wid}/UNDERSTAND.toml")
     b.write_text(b.read_text().replace(
         'status = "open"',
@@ -86,9 +90,8 @@ def _fill_spec(wid):
 
 
 def _fill_consolidate(wid, resolution="pass", calls=""):
-    """The conductor's own route form at the understand seam (ruling 3's
-    2026-09-03 follow-up, and one look, 2026-09-25): `resolution` is now the
-    conductor's own typed decision, and the release-only fields -- `spec`,
+    """The conductor's own route form at the understand seam (one look):
+    `resolution` is the conductor's own typed decision, and the release-only fields -- `spec`,
     `key-terms`, `settle` -- are filled only where the round releases with
     something to record. `calls` (default none) is either one or more
     `[[calls]]` blocks, verbatim, for a caller narrowing an `incorporate` to
@@ -116,8 +119,8 @@ def _gate_blocks(gates):
     """One `[[gates]]` block per gate dict in `gates` -- the shared helper
     `_fill_plan`, `_fill_plan_rework` and `_fill_review_plan` all fill
     PLAN.toml/REWORK.toml/REVIEW_PLAN.toml's own `gates` field through
-    (Principal ruling, 2026-10-29: a cut's gates are one uniform list, the
-    first included, and there is no second path for a one-gate cut).
+    (a cut's gates are one uniform list, the first included, with no second
+    path for a one-gate cut -- the principal's decision).
     Written last in the template: a plan field renders as a bare
     `[[gates]]` header, and a scalar declared after it would nest inside
     the array's last block instead of standing as its own field."""
@@ -145,7 +148,7 @@ def _fill_plan(wid, purpose="fix the parser to handle EOF without a trailing new
     dot in a directory name. Also what a `replan` mints locally, since that
     round takes the same step-form the first round does. The gate spec
     (purpose/scope/proof, optional model/direction) is the round's own
-    artifact now -- plan-to-execute projects it, it does not retype it.
+    artifact -- plan-to-execute projects it, it does not retype it.
 
     `gates`, when given, is a list of gate dicts (same keys as this
     function's own kwargs) cutting more than one gate in this round;
@@ -190,9 +193,8 @@ def _dispatch_and_close_plan(parent_wid, step_id="plan-1", fill_fn=None):
 
 
 def _fill_plan_to_execute(wid, resolution="pass", calls=""):
-    """The conductor's own route form at the plan seam (ruling 3, and one
-    look, 2026-09-25): `resolution` is now the conductor's own typed
-    decision, and `plan` -- the pointer that projects the gate -- is filled
+    """The conductor's own route form at the plan seam (one look):
+    `resolution` is the conductor's own typed decision, and `plan` -- the pointer that projects the gate -- is filled
     only where the round releases with something to project. `calls`
     (default none) is either one or more `[[calls]]` blocks, verbatim, for a
     caller narrowing an `incorporate` to the `writer` findings alone -- see
@@ -317,9 +319,7 @@ def _mint_n_gates(n, wid="issue17"):
     `n` > 1) seeded directly as journal entries in the shape `_mint_gates`
     itself produces -- the same move
     `test_drop_pairs_by_shared_child_not_by_id_suffix` already makes for its
-    own "odd-one" pair. The plan segment mints one gate per round now, so
-    getting several pending at once for a drop/remint/replan test is no
-    longer something one submit can do; those tests are about what happens
+    own "odd-one" pair. Those tests are about what happens
     to gates once they exist, not about how they got there."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(wid)
@@ -395,8 +395,8 @@ key-terms = "waived: none"
 
 
 def _drive_plan_to_pause(wid, findings="gap: wrong artifact entirely"):
-    """`rewrite-cap = 1` is the only outlet left on this seam (ruling,
-    2026-09-25): one major rewrite, then the question goes up. The opening
+    """`rewrite-cap = 1` is the only outlet on this seam:
+    one major rewrite, then the question goes up. The opening
     cut's own revise is an `incorporate`, spent once per artifact and
     minting no panel; the conductor rewrites what comes back -- the one
     rewrite -- and that fresh cut's own panel finds the same gap, so the
@@ -423,9 +423,9 @@ def _drive_plan_to_pause(wid, findings="gap: wrong artifact entirely"):
 
 def _rule_impasse(wid, ruling="rework", why="the next round replaces the proof in kind"):
     """Rule on the impasse form the run is standing on -- run-a-gate's
-    `work` segment, unchanged by the one-look ruling (2026-09-25): only
-    run-an-issue's `understand` and `plan` seams lost their impasse outlet,
-    since a spec or a cut gets one round of review now, not a loop of them."""
+    `work` segment. Run-an-issue's `understand` and `plan` seams have no
+    impasse outlet (one look): a spec or a cut gets one round of review, not
+    a loop of them."""
     st = runmod.state(wid)
     assert st["current"].get("form") == "forms/IMPASSE.toml", (
         f"not standing on the impasse form: {st['current']}")
@@ -437,17 +437,17 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
                           resolution=None):
     """Open every panelist the current transition's own panel declares --
     plan-to-execute's or consolidate's, whichever is `current` -- fill and
-    close each. Both of a two-voices transition's own words release (ruling
-    3, and its 2026-09-03 follow-up at consolidate), so the step holds open
+    close each. Both of a two-voices transition's own words release,
+    so the step holds open
     for its own form either way, the same shape run-a-gate's review/ROUTE.toml
-    already has: where the panel just returned is still `current` after this.
+    has: where the panel just returned is still `current` after this.
     A `verdict="revise"` also disposes of the round on that form, defaulting
     to `resolution` (`"incorporate"` unless the caller names another).
 
     A round with no panel -- an incorporated plan-seam round
     (`panel-rounds = "fresh"`, `[one-look]`) -- dispatches nothing; a `revise` there is the
-    conductor's own send-back, `findings` riding as its `orders`. One look
-    (2026-09-25): a spec or a cut gets no impasse outlet any more -- the
+    conductor's own send-back, `findings` riding as its `orders`. Under one
+    look a spec or a cut gets no impasse outlet -- the
     first revise is `incorporate` by default here, and a caller wanting a
     `rewrite` instead names `resolution="rewrite"`, which always carries
     `findings` forward as `orders` (a rewrite starts from orders alone,
@@ -489,7 +489,7 @@ def _dispatch_plan_critic(wid, verdict="pass", findings="none: waived: clean",
 def _mint_first_gate(wid="issue17"):
     """Open a run-an-issue and drive it, through one real plan round and a
     real critic pass, to the freshly projected g1 dispatch step. One gate
-    per plan round now (#27) -- a second real gate takes a second round, via
+    per plan round (#27) -- a second real gate takes a second round, via
     `_replan_to_next_gate`."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "parser drops last record"])
     _fill_open(wid)
@@ -507,8 +507,8 @@ def _replan_to_next_gate(wid, step_id, purpose="a second gate", scope="scope 2",
                                proof="true", model=""):
     """Adjudicate `step_id` as `replan` (accepted, and there is more to do)
     and drive the fresh plan round it opens through to its own projected
-    gate -- the real route to a second gate now that one plan round cuts
-    exactly one."""
+    gate -- the real route to a second gate when one plan round cuts
+    one."""
     _fill(_response(wid), PURPOSE_HOLDS + '''
 findings = "landed clean; more of the issue remains"
 plan-holds = "replan"
@@ -552,11 +552,14 @@ def _dispatch_and_close_child(parent_wid, step_id, cycles=0):
 
 
 def test_gate_projection_mints_one_dispatch_and_adjudicate_pair_in_order(workdir, capsys):
-    """The plan-to-execute projection (#27, `tests/test_gate_projection.py`
-    covers it end to end) still lands through `_mint_gates`, so the pairing
+    """The plan-to-execute projection (`tests/test_gate_projection.py`
+    covers it end to end) lands through `_mint_gates`, so the pairing
     shape it produces -- ids in order, the dispatch/adjudicate pair, `id`
     stripped from the prefill -- is pinned here on the one gate a round
-    actually cuts."""
+    actually cuts.
+
+    See: #27
+    """
     _mint_first_gate()
     capsys.readouterr()
 
@@ -580,7 +583,7 @@ def test_gate_projection_mints_one_dispatch_and_adjudicate_pair_in_order(workdir
 
 def test_a_second_real_gate_carries_its_own_model_override(workdir, capsys):
     """A gate's `model` override still rides the projected prefill -- proven
-    on a genuine second round now that one round cuts one gate. Its default
+    on a genuine second round. Its default
     id collides with "g1" (still done, still on record) the same way a
     remint's does, so it takes a suffix rather than landing on "g2"."""
     _mint_first_gate()
@@ -628,6 +631,7 @@ def test_consolidate_carries_only_the_spec_seam_fields_into_prefill(workdir, cap
     plan seam's identically-named fields -- measured on issue112, where a
     stale `resolution`/`orders` from this seam's `rework` round read to the
     next planner as the ruling on a gate, and the wrong gate was cut.
+    See: issue112.
 
     Driven for real: a genuine run-an-issue through the board and a real
     consolidate release, then asserted on the run's own `prefill` journal
@@ -655,10 +659,9 @@ def test_consolidate_carries_only_the_spec_seam_fields_into_prefill(workdir, cap
 
 def test_dispatch_status_resolves_runner_and_open_command(workdir, capsys):
     """The room itself never prints a dispatch step's runner or open
-    command any more (`o-single-dispatch-room`) -- `_dispatch_descriptor`
-    is what still resolves both, for whatever process `wait` goes on to
-    start, so this drives that resolution directly rather than scanning a
-    room that no longer carries either."""
+    command -- `_dispatch_descriptor` is what resolves both, for whatever
+    process `wait` goes on to start, so this drives that resolution directly
+    rather than scanning a room that does not carry either."""
     _mint_first_gate()
     capsys.readouterr()
     st = runmod.state("issue17")
@@ -799,7 +802,7 @@ def test_amend_on_anchor_is_allowed_and_flagged(workdir, capsys):
 
 # -- amend waive: the panel waived, the step standing for its own form -------
 #
-# issue811 on f1Brainz (2026-09-07): a principal ruled "hand this gate off to
+# issue811 on f1Brainz: a principal ruled "hand this gate off to
 # be built rather than review it again", and the only verb was `amend close`
 # on the two-voices step -- which took the route form with the panel, walked
 # the run to its close form with the gate never projected, and cost three
@@ -987,7 +990,7 @@ def test_advance_performs_no_amends(workdir, capsys):
     cli.main(["issue17", "submit"])
     capsys.readouterr()
 
-    # advance now commits the gate (issue19.g3) -- here the implement round
+    # advance commits the gate -- here the implement round
     # only touched `.agent-work`, gitignored, so the engine's own commit
     # attempt stages nothing and journals its no-op note rather than an
     # amend; either way, advance itself never amends anything, and it mints
@@ -1027,15 +1030,12 @@ def test_drop_closes_only_the_named_gate_and_never_the_deciding_step(workdir, ca
 
 def test_an_undeclared_outcome_refuses_and_a_declared_one_carries_its_reason(
         workdir, capsys):
-    """`plan-holds` used to be matched whole, so a word with a reason after it
-    performed nothing and released the step anyway. Now the leading word is the
-    decision and the rest is the reason -- so an undeclared word is refused
+    """The leading word of `plan-holds` is the decision and the rest is the
+    reason -- matching it whole would let a word with a reason after it
+    perform nothing and release the step anyway. So an undeclared word is refused
     against the four its note lists, and a declared one is performed with its
     prose intact. A bare `drop` is a known move missing its argument, and is
     refused one check later, where the pending gates are named.
-
-    Renamed from `test_a_prose_outcome_refuses_instead_of_advancing_the_run`,
-    which is what it asserted while the two matching rules disagreed.
     """
     _mint_n_gates(3)
     capsys.readouterr()
@@ -1191,7 +1191,7 @@ def test_reminting_twice_derives_distinct_ids_from_the_same_default(workdir, cap
     remint's own replacement -- this is what the suffix mechanism must
     actually resolve, not merely tolerate once. Both land on the cut's own
     only gate, in turn, so neither ever leaves a later gate queued behind
-    it (obligation 5, g4 -- that would review instead of simply minting the
+    it (that would review instead of simply minting the
     replacement); this test is about id collision, not the review."""
     _mint_n_gates(1)
     capsys.readouterr()
@@ -1356,15 +1356,16 @@ def test_incorporate_still_goes_through_the_shared_primitive_unchanged(workdir, 
 
 
 def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeypatch):
-    """The summary's verdict was read off panel-only steps, so a run whose
-    critics had ruled on the plan closed carrying the empty string where the
-    panel's word belongs -- and a run that reached round-cap this way, which
-    is exactly the one a principal reads the summary of, said nothing at all.
+    """The summary's verdict is read off two-voices steps too: reading only
+    panel-only steps closes a run whose critics ruled on the plan carrying
+    the empty string where the panel's word belongs -- and a run that
+    reached round-cap this way, which is exactly the one a principal reads
+    the summary of, would say nothing at all.
 
-    An issue-tier close now pushes and opens a PR before it archives, so
+    An issue-tier close pushes and opens a PR before it archives, so
     `gh` is stubbed here (never a real remote) and the closed entry is read
-    off the archive rather than through `journal.read`, which no longer
-    resolves an id once `close` has swept it there."""
+    off the archive rather than through `journal.read`, which does not
+    resolve an id once `close` has swept it there."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -1377,8 +1378,7 @@ def test_the_close_summary_carries_a_two_voices_verdict(workdir, capsys, monkeyp
     capsys.readouterr()
 
     # round-cap paused the seam rather than releasing it to close (plan and
-    # understand declare no impasse of their own any more, ruling
-    # 2026-09-25), and this test's own subject is the close summary once the
+    # understand declare no impasse of their own), and this test's own subject is the close summary once the
     # run *does* reach `forms/CLOSE.toml`, not the pause itself -- so the ask
     # it minted is amend-closed directly rather than routed through a resume
     # this test does not exist to drive.

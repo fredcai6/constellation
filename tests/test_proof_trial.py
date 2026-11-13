@@ -1,8 +1,8 @@
-"""#122: the engine runs a plan's `proof` once, where it is written.
+"""The engine runs a plan's `proof` once, where it is written.
 
 Three critics passed issue116's plan; none ran its `proof`, which was prose
-naming a palette entry, and the gate had built its whole diff before the
-first submit died on an apostrophe. Now the planner's own submit runs each
+naming a palette entry, and the gate built its whole diff before the
+first submit died on an apostrophe. The planner's own submit runs each
 `kind = "proof"` field once, through the same resolution the gate's check
 will use (`_resolve_command`, the palette, the shell), against the run's
 tree as it stands, bounded by the smaller of the gate's `budget` and the
@@ -14,16 +14,19 @@ exit the command itself produced is the healthy one. Exit 0 is the reading
 PLAN.toml's own note already names -- a proof that passes on an empty diff
 proves nothing. And a string that never became a command -- the shell could
 not parse it, could not find it, or the palette has no such entry -- is
-#122's defect, read where the cut can still be sent back.
+the defect this trial exists to catch, read where the cut can still be sent
+back.
 
-#163: the trial used to run in the caller's own foreground, killed at
-`min(budget, HANDBACK)` -- so a proof that was right but slow (this repo's
-own fast suite, 168s against a 90s handback) never got a real reading, only
-a fourth, useless one: "no result after 90s". Now it starts detached at the
-cut (`checkrun.hand_in_trial`) and the caller waits no longer than the
-handback; a proof that lands within it journals its reading exactly as
-before, and one that does not keeps running, its check-started already
-left behind for the route form to find once it does.
+The trial starts detached at the cut (`checkrun.hand_in_trial`), not in the
+caller's own foreground killed at `min(budget, HANDBACK)`: a proof that is
+right but slow (this repo's own fast suite, 168s against a 90s handback)
+would otherwise never get a real reading, only a fourth, useless one: "no
+result after 90s". The caller waits no longer than the handback; a proof that
+lands within it journals its reading at once, and one that does not keeps
+running, its check-started already left behind for the route form to find
+once it does.
+
+See: #122, #163
 """
 
 import time
@@ -147,10 +150,13 @@ def test_a_proof_that_passes_on_an_empty_diff_reads_as_proving_nothing(workdir, 
 
 
 def test_a_proof_that_passes_on_a_tree_carrying_work_reads_as_its_measure(workdir, capsys):
-    """#181: a proof field is trialled wherever a form carries one -- at a
+    """A proof field is trialled wherever a form carries one -- at a
     gate's adjudication, at a rework cut -- and there the tree already holds
     work. The reading says what the trial measured, and "proves nothing"
-    belongs to a tree with no work in it."""
+    belongs to a tree with no work in it.
+
+    See: #181
+    """
     child = _to_the_first_cut()
     (journal.root_for(child) / "landed.txt").write_text("work\n")
     _cut(child, "true")
@@ -178,9 +184,12 @@ def test_a_prose_proof_reads_as_not_resolving(workdir, capsys):
 
 
 def test_a_bash_proof_runs_as_written(workdir, capsys):
-    """#191: tennis_elo issue126's gate proof compared two outputs with
-    process substitution, which is bash's. It is run in bash, so it reads as
-    a command, not as a parse error."""
+    """A gate proof that compares two outputs with process substitution
+    (tennis_elo issue126), which is bash's, is run in bash, so it reads as
+    a command, not as a parse error.
+
+    See: #191
+    """
     child = _to_the_first_cut()
     _cut(child, "! echo a | diff -q - <(echo b) > /dev/null")
     cli.main([child, "submit"])
@@ -260,14 +269,17 @@ def test_a_proof_that_printed_before_it_was_killed_is_reported_not_raised(workdi
 
 def test_a_proof_that_outlives_the_handback_does_not_block_the_submit(
         workdir, capsys, monkeypatch):
-    """#163: this repo's own fast suite takes 168s against a 90s handback,
+    """This repo's own fast suite takes 168s against a 90s handback,
     and every one of its `[commands]` entries includes it -- so a proof
     that is right but slow must not be killed and misread as a fourth
     reading. The trial starts detached at the cut (`checkrun.hand_in_trial`)
     -- the submit returns inside the handback, refusing nothing and
     blocking on nothing -- and the real reading is not lost: it lands once
     the detached trial actually finishes, and reaches the conductor's route
-    form from there, not from the planner's own submit."""
+    form from there, not from the planner's own submit.
+
+    See: #163
+    """
     monkeypatch.setattr(checks, "HANDBACK", 1)
     child = _to_the_first_cut()
     _cut(child, "sleep 2 && exit 5", budget="600")
@@ -300,7 +312,7 @@ def test_a_proof_that_outlives_the_handback_does_not_block_the_submit(
 
 def test_a_proof_that_fails_fast_refuses_nothing_and_reaches_the_route_form(
         workdir, capsys, monkeypatch):
-    """Every proof goes through the same detached trial now, not only a
+    """Every proof goes through the same detached trial, not only a
     slow one -- a fast, failing proof must land exactly as promptly and as
     unrefused as it always did (`[trial-proofs]`: nothing here is ever a
     wall the planner meets)."""
@@ -358,7 +370,10 @@ def test_the_route_forms_own_submit_does_not_run_the_proof_again(workdir, capsys
 def test_the_reading_reaches_the_close_summary_apart_from_the_gates_own_checks(workdir, capsys):
     """The child's close summary carries its trial up under `proof_trials`,
     and `checks` -- the gate's own runs, read as exit codes -- holds none of
-    it (#181: a gate's real pass read as "passes on an empty diff")."""
+    it (a gate's real pass must not read as "passes on an empty diff").
+
+    See: #181
+    """
     child = _to_the_first_cut()
     _cut(child, "exit 1")
     cli.main([child, "submit"])

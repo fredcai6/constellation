@@ -1,17 +1,19 @@
 """The send-back count is a journaled fact, not a guess from which form minted.
 
-`rework_rounds` used to derive "another pass at the same artifact" from form
-identity: a step-form mint restarted the count, a rework-form mint spent it.
-That only works where a segment declares two forms, so it did nothing at the
-two that declare one. At `run-a-gate`'s `work` the answer was right anyway --
-every refill there really is another pass at the same diff. At
-`run-an-issue`'s `understand` it was wrong, and issue96's run is where it
-showed: round one was withdrawn whole by a principal's ruling, twice in an
-hour, and the count read those replacements as repeats, so the outlet fired
-having seen no second attempt at anything.
+Deriving "another pass at the same artifact" from form identity (a
+step-form mint restarts the count, a rework-form mint spends it) only works
+where a segment declares two forms, and does nothing at the two that declare
+one. At `run-a-gate`'s `work` the answer is right anyway -- every refill there
+really is another pass at the same diff. At `run-an-issue`'s `understand` it
+is wrong, and issue96's run is where it showed: round one was withdrawn whole
+by a principal's ruling, twice in an hour, and the count read those
+replacements as repeats, so the outlet fired having seen no second attempt at
+anything.
 
 The verb already knows -- `rework` is another pass, `refill` is a fresh
 artifact -- so the mint journals `sent_back` and the count reads it.
+
+See: issue96
 """
 
 from engine import cli, run as runmod
@@ -45,18 +47,17 @@ def test_the_opening_round_is_round_zero(workdir, capsys):
         "read one off it")
 
 
-# -- 2. the segment that declares one form now counts correctly -------------
+# -- 2. the segment that declares one form counts correctly -------------
 
 
 def test_a_send_back_at_a_one_form_segment_counts(workdir, capsys):
-    """`understand` declares a step-form and no rework-form. The old
-    derivation counted every step-form mint alike here, which happened to be
-    right for a rework and wrong for a replacement. One look (2026-09-25)
-    removed the impasse form this test used to drive the send-back through
-    (`understand` no longer declares `impasse-after` at all, and an
-    `incorporate` there refills the step-form directly, ASSEMBLY.toml) --
-    `_mint_segment_round` is where `sent_back` is actually stamped, so this
-    drives it there directly rather than through a submit."""
+    """`understand` declares a step-form and no rework-form. Deriving
+    from form identity would count every step-form mint alike here, right
+    for a rework and wrong for a replacement. `understand` declares no
+    `impasse-after`, and an `incorporate` there refills the step-form
+    directly (ASSEMBLY.toml) -- `_mint_segment_round` is where `sent_back`
+    is actually stamped, so this drives it there directly rather than
+    through a submit."""
     wid = _open_to_the_spec_seam()
     _work_the_board(wid)
     capsys.readouterr()
@@ -72,14 +73,15 @@ def test_a_send_back_at_a_one_form_segment_counts(workdir, capsys):
 
 
 def test_a_restart_is_expressible_where_the_segment_declares_one_form(workdir, capsys):
-    """The thing the old derivation could not say. It read a restart off a
+    """What form-identity derivation cannot say. It would read a restart off a
     step-form mint, and at a one-form segment every mint is a step-form mint,
-    so "start over" and "another pass" were the same journal entry.
-    `understand` is such a segment, and issue96's run is where that cost
-    something: a spec withdrawn whole by a ruling counted as a repeat. One
-    look (2026-09-25) removed the impasse form this test used to drive the
-    first send-back through; `restarts` on `_mint_segment_round` is the
-    mechanism under test, driven directly."""
+    so "start over" and "another pass" would be the same journal entry.
+    `understand` is such a segment: a spec withdrawn whole by a ruling must
+    not count as a repeat. `restarts` on `_mint_segment_round` is the
+    mechanism under test, driven directly.
+
+    See: issue96
+    """
     wid = _open_to_the_spec_seam()
     _work_the_board(wid)
     capsys.readouterr()

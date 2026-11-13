@@ -1,11 +1,11 @@
 """A dispatched child's process ends with its run.
 
 A gate child (`claude -p`, started through the palette `dispatch` command)
-used to stay alive 10-50 minutes after its run closed, busy-polling the
-parent's room, and a conductor tidying them killed a live rework round
-because nothing told a finished child from a running one. Two halves: the
-closed room tells the child its turn ends, and the parent's status names any
-child whose process outlives its run.
+must not stay alive after its run closes: left busy-polling the parent's
+room for 10-50 minutes, it is indistinguishable from a running one, and a
+conductor tidying them killed a live rework round. Two halves: the closed
+room tells the child its turn ends, and the parent's status names any child
+whose process outlives its run.
 """
 
 from engine import cli, journal
@@ -40,8 +40,8 @@ def test_parent_status_names_a_child_process_alive_after_its_run_closed(workdir,
 
 
 def test_parent_status_is_silent_for_a_live_child_whose_run_is_open(workdir, capsys):
-    """The live rework round a conductor once killed: its run is open, so
-    its process is working, not lingering."""
+    """A live rework round: its run is open, so its process is working, not
+    lingering."""
     child = _gate_ready_to_close()
     proc = _sleeper(30)
     _record("issue17", child, proc.pid)

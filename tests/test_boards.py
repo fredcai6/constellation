@@ -510,11 +510,10 @@ move = "read"
 
 
 # [test-open-command-on-a-row]
-# Rationale: the commitment is discoverability, so the assertion is the whole
+# Rationale: the requirement is discoverability, so the assertion is the whole
 #   command as an agent would copy it -- id, `--parent`, `--row`, and an
 #   assembly that exists. Asserting on the heading alone would pass on a
-#   block that printed the word "excursion" and no way to open one, which is
-#   the state this gate was opened to end.
+#   block that printed the word "excursion" and no way to open one.
 def test_board_render_prints_the_open_command(tmp_path, monkeypatch, capsys):
     """An askable row carries the command that takes it off the board.
 
@@ -566,7 +565,7 @@ move = "read"
     assert "the board:" in out and "UNDERSTAND.toml" in out
 
 
-# -- the template states what a column IS, not a rule the engine now owns --
+# -- the template states what a column IS, not a rule the engine owns --
 
 
 def test_understand_template_drops_the_two_engine_owned_rules():
@@ -580,5 +579,5 @@ def test_understand_template_drops_the_two_engine_owned_rules():
             "has mooted it.") not in text
     assert "add rows, resolve, moot with reasons, cluster." not in text
     assert "add rows, resolve, moot with reasons." in text
-    # the column still says what it IS -- that part is not the deleted rule
+    # the column says what it IS -- that part is not a rule the engine owns
     assert 'cluster = "" # optional — rows taken to the principal in one sitting' in text

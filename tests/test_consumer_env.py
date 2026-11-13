@@ -1,6 +1,9 @@
 """A consumer repository's commands and agents never see the engine's own
 root on `PYTHONPATH`: there it shadows the repository's packages and breaks
-its virtualenv's interpreter (story_time, 2026-11-06: 17 of 55 reviewers)."""
+its virtualenv's interpreter (17 of 55 reviewers in one story_time run).
+
+See: story_time
+"""
 import os
 
 from engine import checks

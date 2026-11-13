@@ -1,11 +1,11 @@
 """Do the artifacts tell the truth about the engine?
 
 Layer 2 puts the doctrine in forms, which only works if a form is true at the
-moment it is read. Five times in one session an artifact promised something
-the engine did not do -- a declared check nothing ran, a summary field nothing
-produced, a status line asserting work that was still open, a menu of outcomes
-nothing acted on, refusals offering escapes that did not work. Every one was
-found by accident.
+moment it is read. An artifact can promise something the engine does not do --
+a declared check nothing runs, a summary field nothing produces, a status line
+asserting work that is still open, a menu of outcomes nothing acts on,
+refusals offering escapes that do not work. Each of these was once found by
+accident.
 
 This is a test rather than a tool because it costs no machinery and runs on
 every suite run. It is the standing cost of choosing to put doctrine in forms.
@@ -50,9 +50,8 @@ def _keys(obj, out):
 #   substring sweep of the engine source cannot see that class at all. A key
 #   the engine only ever *writes* satisfies `'"k}" in ENGINE_SRC'`, so
 #   `filler` was declared in all three assemblies, written at five sites,
-#   read by no production code, and passed this test for the engine's whole
-#   life. The reader it did have was a test asserting a value the test itself
-#   had written.
+#   read by no production code, and passed this test. The reader it did have
+#   was a test asserting a value the test itself had written.
 # Rejected: keeping the substring sweep and listing known-write-only keys
 #   beside it. That is the same defect with a maintenance burden: the list
 #   would be written once, by someone who already knew, and the next
@@ -108,9 +107,12 @@ def test_every_assembly_key_is_read_by_the_engine():
 
 
 def test_the_unwired_key_check_fails_on_a_key_that_is_only_written():
-    """The check on the check -- #32's standard, and the one that matters
-    most here, since this instrument was blind to its own class for the
-    engine's whole life. A key written and never read must not pass."""
+    """The check on the check -- the one that matters most here, since a
+    substring sweep is blind to its own class. A key written and never read
+    must not pass.
+
+    See: #32
+    """
     written_only = "\n".join((
         'def f(step):',
         '    entry = {"quezacotl": step.id}',
@@ -118,7 +120,7 @@ def test_the_unwired_key_check_fails_on_a_key_that_is_only_written():
         '    return {"quezacotl": 1}',
     ))
     assert "quezacotl" not in _keys_read_by(written_only)
-    # and the substring sweep this replaced would have passed it
+    # and a substring sweep would have passed it
     assert '"quezacotl"' in written_only
 
     read_too = written_only + "\n\ndef g(e):\n    return e[\"quezacotl\"]\n"
@@ -138,7 +140,7 @@ def test_every_field_kind_is_one_the_engine_handles():
 
 def test_summary_fields_named_in_form_prose_exist():
     """GATE_CLOSE and CLOSE tell the agent what the engine returns for them.
-    Both promised a verdict for a long time before one existed."""
+    Both promise a verdict, so one must exist."""
     built = set(re.findall(r'"([a-z_]+)":', _summary_source()))
     promised = {"verdict": ("verdict",), "cycles": ("cycle", "cycles"),
                 "checks": ("check", "checks"), "amends": ("amend", "amends")}
@@ -159,7 +161,7 @@ def _summary_source():
 def test_every_spine_command_the_engine_prints_uses_a_real_verb():
     """A refusal that names a command which does not do what it says is the
     same defect as one that names none: the agent types it and nothing
-    happens. `submit it: spine {wid}` shipped once, and only re-rendered
+    happens. `submit it: spine {wid}` only re-renders
     status."""
     verbs = {"submit", "note", "amend", "close", "status", "check", "wait", "up"}
     src = (ROOT / "engine" / "cli.py").read_text() + (ROOT / "engine" / "render.py").read_text()
@@ -202,9 +204,9 @@ def test_every_form_a_run_can_reach_loads():
 
 
 def test_every_panel_names_a_form_the_panelist_actually_fills():
-    """A panel declares the form its panelist fills. The engine opened every
-    panelist under one assembly whose form was fixed, so a critic panel
-    declaring CRITIC.toml was handed REVIEW.toml and the key went unread."""
+    """A panel declares the form its panelist fills. A panel's form key must be
+    read: a critic panel declaring CRITIC.toml must not be handed REVIEW.toml
+    with the key unread."""
     src = (ROOT / "engine" / "cli.py").read_text()
     assert 'panelist["form"]' in src or "panelist.get(\"form\")" in src, \
         "nothing reads a panel's declared form"
@@ -217,10 +219,10 @@ def test_every_panel_names_a_form_the_panelist_actually_fills():
 def test_a_panel_entrys_form_lives_under_its_own_workers_skill():
     """A panel entry names both a `form` and a `worker`; the two are one
     claim -- this panelist, this posture -- made in two fields that nothing
-    ties together. The prior check only asks whether `form` exists on disk,
-    which a half-migrated entry still satisfies: move the form and leave the
+    ties together. A check that only asks whether `form` exists on disk
+    is satisfied by a half-migrated entry: move the form and leave the
     worker behind (or the reverse) and the file is still there, just under
-    the wrong skill. That is exactly how a critic panel ended up handed
+    the wrong skill. That is how a critic panel can end up handed
     REVIEW.toml -- docs/DERIVED_IS_CODE.md:20."""
     for a in ASSEMBLIES:
         for seg in tomllib.load(open(a, "rb"))["segment"]:
@@ -253,21 +255,21 @@ def test_the_status_values_the_template_teaches_are_ones_the_engine_reads():
 # instead of going unswept.
 MINT_TARGETS = {
     ("_mint_child", None): ("panel",),                 # a panelist's dispatch
-    # a replan's fresh round now goes through `_perform`'s generic `refill`
+    # a replan's fresh round goes through `_perform`'s generic `refill`
     # verb (`_mint_segment_round(wid, asm, tseg["id"], prefill=fields)`) --
     # `fields` is forwarded whole, not a literal dict this sweep can see, so
     # there is no site left here for gate adjudication's replan to name.
-    # The outlet moved onto `_perform`'s own `rework` verb, where both voices
+    # The outlet is `_perform`'s own `rework` verb, where both voices
     # that can decide a rework reach it: the panel's merged verdict resolving
     # to `rework`, and a conductor form submitting on the step that panel
-    # returned to. `_act_on_verdicts` no longer mints anything itself.
+    # returned to. `_act_on_verdicts` mints nothing itself.
     ("_perform", "outlet"): ("impasse-form",),
     # An ordinary revise (no impasse loop) resolves through the same
-    # declared-outcome table a two-voices step already used -- `_perform`'s
+    # declared-outcome table a two-voices step uses -- `_perform`'s
     # `rework` verb, whose prefill is either the deciding step's own
     # (forwarded, not a literal this sweep can see) or `_panel_judged_rework`'s
     # findings, built there rather than as a literal dict at the mint.
-    # One look (2026-09-25): `incorporate`'s own writer round, minted by
+    # One look: `incorporate`'s own writer round, minted by
     # `_incorporated`'s literal `{"findings": ...}` -- `call-tree` rides in
     # too, but only through a subscript assignment this sweep does not read
     # as a dict-literal key, so it stays off the swept set here. Narrowed to
@@ -275,13 +277,13 @@ MINT_TARGETS = {
     # outcome: understand declares no `rework-form` of its own, so its
     # incorporate refills the step-form (SPEC.toml); plan's own has one
     # (REWORK.toml) -- the same `step-form|rework-form` fallback
-    # `_forms_in_role` already reads for every other rework-shaped mint.
+    # `_forms_in_role` reads for every other rework-shaped mint.
     ("_incorporated", None): (("step-form|rework-form", "understand"),
                               ("step-form|rework-form", "plan")),
     # The stale-gate, mid-queue-drop/remint and replan reviews' shared fresh
     # round: built as a local `prefill = {...}` dict in the one helper every
-    # caller now shares (`_review_the_open_plan`, factored out of
-    # `_settle_execution`'s own staleness branch, g4) -- same reason
+    # caller shares (`_review_the_open_plan`, factored out of
+    # `_settle_execution`'s own staleness branch) -- same reason
     # `_incorporated`'s is -- the `form` it mints against (`review-form`) is
     # a separate keyword on the `_mint_segment_round` call this sweep's
     # `ast.Dict` check does not read a name out of.
@@ -359,7 +361,7 @@ def test_every_prefill_key_the_engine_mints_is_named_by_the_form_that_receives_i
     """Prefill is the orders a step opens with -- `render.status` prints it
     above the fields. A key the engine mints and the receiving form never
     mentions is the menu-of-outcomes defect run backwards: the reader is handed
-    a value and taught nothing about it. `arrival` shipped that way into
+    a value and taught nothing about it, as `arrival` would be in
     run-a-gate's IMPASSE, accurate and unexplained.
 
     Only keys the engine writes by name are swept. A gate spec's keys are the
@@ -398,7 +400,7 @@ def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
         "the line a vocabulary field gets no longer names what it refuses"
     for f in FORMS + [None]:
         # The last pass is a form of nothing but enum fields -- no assembly has
-        # one today, and the header has to be right the day one does.
+        # one, and the header has to be right the day one does.
         form = (forms.load(f) if f else
                 {"imperative": "", "fields": [{"id": "verdict", "kind": "decision",
                                                "note": "pass | revise | escalate.",
@@ -429,7 +431,7 @@ def test_a_field_with_a_vocabulary_does_not_advertise_an_escape_it_refuses():
 # note: `_voice_outcome` (engine/run.py) resolves every panelist's return
 # against `forms.enforced_vocabulary(field)`, critic and reviewer alike, and
 # asserting the two literal words appear in its source would be asserting
-# exactly the hardcoding this issue removed. So the claim held here is the
+# exactly the hardcoding to avoid. So the claim held here is the
 # generic call, and its converse -- that the words themselves are *not* in
 # that source.
 BY_THE_FIELDS_OWN_NOTE = (runmod._voice_outcome, "enforced_vocabulary")
@@ -439,9 +441,8 @@ BY_THE_FIELDS_OWN_NOTE = (runmod._voice_outcome, "enforced_vocabulary")
 # so its ` | ` leaves the opening line yields no vocabulary and enforces
 # nothing, and that is the one way this can fail quietly.
 VOCABULARIES = [
-    # GATE_TRANSITION's `plan-holds` used to be a row here, back when
-    # `_act_on_outcome` hand-read it. It now declares `decides`, so it is
-    # `_outcome`'s field like any other -- excluded from `swept` below and
+    # GATE_TRANSITION's `plan-holds` is not a row here: it declares
+    # `decides`, so it is `_outcome`'s field like any other -- excluded from `swept` below and
     # covered instead by `test_a_declared_outcome_and_its_field_note_are_the_same_list`.
     ("skills/critic/forms/CRITIC.toml", "verdict",
      ["pass", "revise"], BY_THE_FIELDS_OWN_NOTE),
@@ -457,7 +458,7 @@ VOCABULARIES = [
     ("skills/excursion/forms/PROTOTYPE.toml", "branch",
      ["logic", "ui", "measurement"],
      "recorded for the dispatcher; no engine branch reads it"),
-    # g5: the conductor's own ruling on a cut's critical question, read by
+    # The conductor's own ruling on a cut's critical question, read by
     # `_critical_question_differs` -- `_settle_execution`'s own call, never
     # `_outcome`'s, so it is `_check_vocabulary`'s field like the two above
     # rather than a `decides` one.
@@ -558,10 +559,9 @@ def test_a_declared_outcome_and_its_field_note_are_the_same_list():
 
     A third check rides along: every `does` verb an outcome row names is one
     `_perform` actually acts on -- `release`, the field's own default, is the
-    documented no-op and needs no branch to back it. This is the coverage
-    `VOCABULARIES` used to carry for the impasse's `ruling` field, back when
-    `_act_on_impasse` hand-read it; now that ruling is a `decides` field like
-    any other, the same proof belongs on the generic actor.
+    documented no-op and needs no branch to back it. The impasse's
+    `ruling` is a `decides` field like any other, so the same proof belongs
+    on the generic actor.
 
     A panel-only transition submits no form of its own, so `_direct_taught`
     always misses it -- `_act_on_verdicts` synthesizes the decided field from
@@ -638,7 +638,7 @@ def _panel_verdict_taught(asm, panel):
 
 
 def test_the_panels_own_vocabulary_never_drifts_from_the_table_it_answers():
-    """Obligation 12. `test_a_declared_outcome_and_its_field_note_are_the_same_list`
+    """`test_a_declared_outcome_and_its_field_note_are_the_same_list`
     already checks the panel's own vocabulary, but only through its one
     `taught is None and spec.get("panel")` branch -- the panel-only shape,
     exactly one seam in the tree (explore-an-idea's spec transition). At the
@@ -657,7 +657,7 @@ def test_the_panels_own_vocabulary_never_drifts_from_the_table_it_answers():
     since the panel's two words (`pass | revise`) never spans a table that
     also carries `rework`, `up`, and (at review) `close`.
 
-    Review is a `[segment.transition]` table now (ruling, 2026-09-25),
+    Review is a `[segment.transition]` table,
     declaring both its own `panel` and `decides` the same way
     plan-to-execute and consolidate do -- so it is found structurally, with
     no named special case."""
@@ -730,8 +730,8 @@ def test_readmes_gitignore_assumption_is_held_loosely_not_hardcoded():
 
 
 def test_glossary_work_location_drops_the_visible_to_everyone_claim():
-    """The old entry said a work location is 'visible to everyone' -- false
-    once an issue-tier run's location can live inside its own worktree
+    """The entry must not say a work location is 'visible to everyone' -- false
+    when an issue-tier run's location lives inside its own worktree
     instead of the top-level checkout. `root_for` is the ground truth for how
     it is actually found."""
     entry = _glossary_entry(GLOSSARY, "work location")
@@ -752,7 +752,7 @@ def test_glossary_work_location_states_the_artifact_path_convention():
 
 
 def test_glossary_worktree_and_archive_paths_match_the_engine():
-    """The new `worktree` and `archive` entries state literal paths; both
+    """The `worktree` and `archive` entries state literal paths; both
     must match the paths `cli.py` actually builds, not a paraphrase of them."""
     worktree = _glossary_entry(GLOSSARY, "worktree")
     archive = _glossary_entry(GLOSSARY, "archive")
@@ -765,29 +765,27 @@ def test_glossary_worktree_and_archive_paths_match_the_engine():
     # For `issue17.g1`, this produces `.agent-work/archive/issue17/g1/`, not a
     # flat path with a `<work-id>` template. The glossary entry correctly
     # describes this nesting with a worked example; check for that example
-    # instead of the stale template.
+    # instead of the `<work-id>` template.
     assert ".agent-work/archive/issue17/g1" in archive
     assert "<project>" not in worktree
     assert "<project>" not in archive
 
 
 def test_v2_design_drops_the_false_constellation_toml_archive_claim():
-    """Ruling 8 used to say whether a repo commits the archive is a call made
-    in `constellation.toml`. It is not: `constellation.toml` has no archive
-    setting at all, so the claim was false the moment anyone read the file it
-    pointed at."""
+    """Whether a repo commits the archive is not a call made in
+    `constellation.toml`: it has no archive setting at all, so a claim that
+    it does is false the moment anyone reads the file it points at."""
     ruling8 = V2_DESIGN.split("**8. Git is the issue tier's")[1].split("\n\n**9.")[0]
     assert "constellation.toml" not in ruling8
     assert "archive" not in CONSTELLATION_TOML.lower()
 
 
 def test_v2_design_names_the_top_level_checkout_one_way():
-    """Ruling 8 called the same tree `<project>` in one sentence and 'the
-    top-level checkout' in the next; the open-beat table row carried the same
-    `<project>` spelling. One name for one thing, so neither should reappear
+    """The same tree is not called `<project>` in one sentence and 'the
+    top-level checkout' in the next. One name for one thing, so neither should reappear
     anywhere `top-level checkout` is also used for the same tree."""
     assert "<project>" not in V2_DESIGN
-    assert V2_DESIGN.count("top-level checkout") >= 3  # table's open row, table's close row, ruling 8
+    assert V2_DESIGN.count("top-level checkout") >= 3  # table's open row, table's close row, the ruling's text
 
 
 def test_gitignore_actually_covers_the_paths_the_docs_call_gitignored():
@@ -814,12 +812,11 @@ def test_agent_guide_worktrees_row_is_accurate_if_present():
 
 def test_every_role_an_assembly_names_has_a_skill_behind_it():
     """An assembly naming a role with nobody behind it is a promise nothing
-    can fill. `gate-executor` outlived its own removal in four files because
-    this suite checked assembly *keys* and never their values, and the edit
-    that dropped it silently failed to match in every file but one.
+    can fill. A role removed from the tree must not linger in files because
+    this suite checks assembly *keys* and never their values.
 
-    The roster is what is on disk. It was scraped out of the design doc's
-    prose until that document stopped being a source of truth; a role we want
+    The roster is what is on disk, not the design doc's
+    prose; a role we want
     to exist and have not built belongs in a plan, not in a check.
 
     A `skills/<role>/` directory is the whole bar. `run.resolve_skill` reads a
@@ -847,8 +844,8 @@ def test_every_role_an_assembly_names_has_a_skill_behind_it():
 
 
 def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc():
-    """Four claims went false the moment `run-a-gate`'s `conductor` field
-    became `gate-conductor`, and prose has no proof behind it: two skill
+    """Four claims are false now that `run-a-gate`'s `conductor` field
+    is `gate-conductor`, and prose has no proof behind it: two skill
     files an agent reads live mid-run said the implementer conducts a gate,
     and `docs/V2_DESIGN.md` said the assembly on disk still names the
     implementer. Each is pinned the way this file already pins a known-false
@@ -867,42 +864,34 @@ def test_run_a_gates_conductor_field_agrees_with_its_skill_files_and_design_doc(
 
 
 def test_v2_design_drops_the_manual_conductor_mode_sentence():
-    """`o-stale-docs-drop-manual-mode`: manual-conductor mode is deleted, not
-    documented -- the sentence describing a human starting or resuming a
-    dispatched child by hand is gone from `V2_DESIGN.md`'s account of the
-    tier mechanism, not reworded to still describe it."""
+    """Manual-conductor mode does not exist: `V2_DESIGN.md`'s account of the
+    tier mechanism has no sentence describing a human starting or resuming a
+    dispatched child by hand."""
     assert "leaves starting the child" not in V2_DESIGN
     assert "copies the brief's own" not in V2_DESIGN
     assert "dispatches by hand" not in V2_DESIGN
 
 
 # [up-mints-nothing-property]
-# Rationale: four rounds in a row (issue84's plan, rounds 4, 6, 7, 8) each
-#   found one new site claiming a settled `up` adds nothing to the run,
-#   terminates it outright, or advances it straight to its own last step --
-#   `assemblies/`+`skills/` first, then a row's own trailing comment -- and
-#   each was closed in place with a new file name, a new regex alternative,
-#   or a new bespoke file-scoped grep. Round 9 found a fifth site in
-#   `engine/cli.py` itself, outside every one of those sweeps' own declared
-#   directories, which is what showed the *unit* was wrong: the property
-#   this test checks was never actually a claim about corpus
-#   (`assemblies/`, `skills/`) vs. non-corpus text. Rooted at the repository
-#   instead, with the same two exclusions the gate spec names:
-#   `docs/V2_DESIGN.md` (its own line naming a decision the run's answerer
-#   may make after being asked, not a claim about what ruling `up` itself
-#   does) and `.agent-work/` (this run's own working directory, whose
-#   journals and plans are records of what was thought at the time and are
-#   never retroactively corrected -- confirmed to hold the largest number
-#   of matches in the whole tree for exactly this reason). The four phrases
-#   themselves are built from fragments below, joined through a name rather
-#   than literal `+`, so CPython's own constant folding (which collapses
-#   `"a" + "b"` into one string at compile time) does not hand the compiled
-#   `.pyc` a single embedded constant spelling the whole phrase -- that
-#   folding is exactly what made an earlier draft of this same fragment
-#   technique a hit on its own bytecode. Still rooted wrong: rglob walked
-#   the filesystem, not the repository, so it also caught a sibling
-#   issue-tier worktree and generated map output; walking `git ls-files`
-#   drops those for free.
+# Rationale: the property is that no text claims a settled `up` adds nothing
+#   to the run, terminates it outright, or advances it straight to its own
+#   last step. It is a claim about the whole repository, not about corpus
+#   (`assemblies/`, `skills/`) versus non-corpus text: a sweep scoped to
+#   chosen directories misses a site such as `engine/cli.py` itself. So it is
+#   rooted at the repository, with two exclusions: `docs/V2_DESIGN.md` (its
+#   own line naming a decision the run's answerer may make after being
+#   asked, not a claim about what ruling `up` itself does) and `.agent-work/`
+#   (this run's own working directory, whose journals and plans are records
+#   of what was thought at the time and are never retroactively corrected).
+#   The four phrases are built from fragments below, joined through a name
+#   rather than literal `+`, so CPython's own constant folding (which
+#   collapses `"a" + "b"` into one string at compile time) does not hand the
+#   compiled `.pyc` a single embedded constant spelling the whole phrase,
+#   which would make this file a hit on its own bytecode. The walk is
+#   `git ls-files`, not `rglob`: rglob walks the filesystem, not the
+#   repository, and also catches a sibling issue-tier worktree and generated
+#   map output.
+# See: issue84
 def test_no_text_in_the_repository_claims_up_mints_nothing_or_ends_the_run():
     _j = ""  # a name, not a literal -- see the rationale above
     fragments = [

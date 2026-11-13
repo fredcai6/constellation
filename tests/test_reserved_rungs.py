@@ -1,7 +1,7 @@
-"""Reserved rungs: issue166. `SPEC.toml` used to write `map/parents.jsonl`'s
-row at spec time, before any code carried the anchor -- dangling it for the
-whole run and turning the fast suite red for anyone who followed the
-instruction (`test_code_map_parents.py`'s own clean-tree pin). Now the spec
+"""Reserved rungs. `SPEC.toml` does not write `map/parents.jsonl`'s row at
+spec time: before any code carries the anchor it would dangle for the whole
+run and turn the fast suite red for anyone who followed the instruction
+(`test_code_map_parents.py`'s own clean-tree pin). The spec
 only reserves the anchor id and its parent, as structured data
 (`SPEC.toml`'s own `rungs` field); consolidate's `carries` folds it into the
 run's prefill; and the engine writes the row itself, mechanically, at the
@@ -11,7 +11,9 @@ commit, so the pointer and its target land in one commit.
 
 Both tests drive a real `run-an-issue` through a real `run-a-gate` end to
 end -- not the assembly's own field declarations -- the way
-`test_gate_commit.py` and `test_nesting.py` already do.
+`test_gate_commit.py` and `test_nesting.py` do.
+
+See: issue166
 """
 
 import json

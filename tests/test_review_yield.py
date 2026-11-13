@@ -1,5 +1,7 @@
 """`engine/review_yield.py`: a run's own review yield, derived from the
-journal rather than tabulated by hand (#16's first cut).
+journal rather than tabulated by hand.
+
+See: #16
 
 Drives the real `run-an-issue` and `run-a-gate` assemblies, reusing
 `test_nesting.py` and `test_verdict_panels.py`'s own fixtures -- the same
@@ -49,12 +51,11 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
     `revising` is `0` on both rounds, including the one three critics sent
     back with findings. It counts voices whose own word the seam's table
     says *does* something, and plan-to-execute declares both `pass` and
-    `revise` as `release` (ruling 3, 2026-09-02) -- the conductor's own
+    `revise` as `release` -- the conductor's own
     `incorporate` on PLAN_TO_EXECUTE.toml is what sends the round back here, not
     the panel's word. So the head line reads `revise` rather than `2
-    revise`: the verdict is still the panel's, and the count it used to
-    carry was a literal `== "revise"` that agreed with the table at this
-    seam only by accident. `tests/test_verdict_wiring.py` drives a
+    revise`: the verdict is still the panel's, and a count by the literal
+    `== "revise"` would agree with the table at this seam only by accident. `tests/test_verdict_wiring.py` drives a
     non-zero tally under a table whose non-release row is the one a
     panelist answered."""
     wid = "issue19"
@@ -130,8 +131,7 @@ def test_review_yield_renders_two_plan_rounds_then_a_pass(workdir, capsys, monke
 
 
 def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
-    """`run-a-gate`'s review is `work`'s own declared transition now (ruling,
-    2026-09-25), found and named the same way -- `review`, its own id.
+    """`run-a-gate`'s review is `work`'s own declared transition, found and named the same way -- `review`, its own id.
 
     `revising` reads `0` on the revise round for the same reason it does at
     plan-to-execute above: review's own two words both declare `release`
@@ -175,16 +175,15 @@ def test_review_yield_at_the_gate_tier_through_route_toml(workdir, capsys):
 
 
 def test_review_yield_renders_consolidates_findings_with_calls(workdir, capsys):
-    """Follow-up to ruling 3, 2026-09-03: consolidate is a route-form seam
-    now, CONSOLIDATE.toml, the same shape plan-to-execute's own
-    PLAN_TO_EXECUTE.toml already has -- so a round with findings renders its
+    """Consolidate is a route-form seam, CONSOLIDATE.toml, the same shape
+    plan-to-execute's own PLAN_TO_EXECUTE.toml has -- so a round with findings renders its
     call tally the same way plan-to-execute's own round does, not
-    `uncalled`. `explore-an-idea`'s own spec segment is the one seam left
-    without a route form; `uncalled` is what its own findings still render
+    `uncalled`. `explore-an-idea`'s own spec segment is the one seam
+    without a route form; `uncalled` is what its own findings render
     as, unexercised by this file.
 
-    And `revising` is `0` here too: that same follow-up made both of
-    consolidate's panel words `release`, so this seam's table acts on
+    And `revising` is `0` here too: both of
+    consolidate's panel words are `release`, so this seam's table acts on
     neither of them either."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
@@ -296,9 +295,12 @@ def test_review_yield_reports_a_waived_round_with_no_findings_and_the_reason(wor
 
 
 def test_a_round_at_a_panel_only_seam_is_a_round():
-    """#106: explore-an-idea's `spec` seam fires a panel and fills no form.
-    Its steps carry no `form` key and the seam's form reads `""`, and the
-    two spellings of the same absence dropped every round there."""
+    """explore-an-idea's `spec` seam fires a panel and fills no form. Its steps
+    carry no `form` key and the seam's form reads `""`; the two spellings of
+    the same absence must not drop rounds there.
+
+    See: #106
+    """
     asm = runmod.load_assembly("explore-an-idea")
     seg = next(s for s in asm["segment"] if s["id"] == "spec")
     step = next(s for s in runmod.skeleton(asm) if s["id"] == "spec")

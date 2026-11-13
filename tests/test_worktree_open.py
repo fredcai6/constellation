@@ -1,4 +1,4 @@
-"""The issue tier's own git (ruling 8): `spine open`'s root-run path.
+"""The issue tier's own git: `spine open`'s root-run path.
 
 A root run resolves the project's top-level checkout, refuses by name when
 it cannot make a pushed branch and worktree there, and otherwise works
@@ -94,14 +94,14 @@ def test_a_second_root_open_from_inside_the_first_worktree_lands_beside_it(workd
     assert not (workdir / ".worktrees" / "issue17" / ".worktrees").exists()
 
 
-# -- git stays inside the issue tier (ruling 8) --------------------------
+# -- git stays inside the issue tier --------------------------
 
 
 def test_an_idea_run_gets_no_worktree_no_branch_no_push(workdir):
     """`explore-an-idea` has no segment that dispatches gates -- it produces
     a spec, not a diff, and has no gate to commit. Only an issue-shaped
-    assembly (one whose plan dispatches gates) is the issue tier ruling 8
-    scopes git to; everything else works in place, in the checkout it was
+    assembly (one whose plan dispatches gates) is the issue tier
+    git is scoped to; everything else works in place, in the checkout it was
     opened from."""
     before_worktrees = _git(workdir, "worktree", "list").stdout
     before_branches = _git(workdir, "branch", "--list").stdout
@@ -157,7 +157,7 @@ def test_a_push_failure_cleans_up_so_the_retry_is_the_same_command(workdir):
     real_remote = workdir.parent / f"{workdir.name}-remote.git"
     _git(workdir, "remote", "set-url", "origin", str(workdir / "no-such-remote.git"))
 
-    # run-an-issue, not run-a-gate: only the issue tier makes a worktree now,
+    # run-an-issue, not run-a-gate: only the issue tier makes a worktree,
     # so a bare `run-a-gate` root open (never how a real one is opened -- it
     # is always dispatched with --parent) would not reach the push at all.
     argv = ["open", "run-an-issue", "--id", "g1", "--title", "t"]
@@ -195,13 +195,14 @@ def test_push_runs_from_the_toplevel_checkout_so_a_relative_remote_resolves(work
     assert upstream == "origin/issue42"
 
 
-# -- the cut point (#67): a worktree's branch is cut from the remote's own
+# -- the cut point: a worktree's branch is cut from the remote's own
 #    default, not whatever the checkout happens to be standing on ---------
+# See: #67
 
 
 def _push_and_diverge(workdir, remote):
     """Give the bare `origin` a real default branch that is ahead of the
-    checkout's own current branch -- the shape #67's third finding names: a
+    checkout's own current branch -- the shape where a
     root run opened while the checkout stands on some other branch than the
     remote's default. Pushes the checkout's one commit as `main`, advances
     `main` on the remote from a throwaway clone (never through `workdir`

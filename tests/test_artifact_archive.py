@@ -1,16 +1,15 @@
 """Each round keeps its own copy of the artifact it produced.
 
 An artifact field names a file the agent wrote, not one the engine
-materialized: `_check_artifact` reads it, `_measure_artifacts` counts its
-words, and nothing kept it. A rework writing to the same path overwrote the
-spec it was reworking, so the run's record held how the artifact moved (a
-word count per round) and never what it said.
+materialized: `_check_artifact` reads it and `_measure_artifacts` counts its
+words. A rework writing to the same path would overwrite the spec it is
+reworking, so the run's record would hold how the artifact moved (a word
+count per round) and never what it said. The engine takes the copy, under
+the same `_per_step_name` rule the response form beside it takes, so no
+conductor names a `spec-r2.md` by hand and leaves a stale `spec.md` beside
+it with nothing saying which is current.
 
-The workaround was already in the archives twice, invented per-run: issue80
-and issue99 both carry findings citing a `spec-r2.md` a conductor named by
-hand, which leaves a stale `spec.md` beside it with nothing saying which is
-current. The copy is taken by the engine now, under the same
-`_per_step_name` rule the response form beside it takes.
+See: issue80, issue99
 """
 
 import pathlib
@@ -71,7 +70,7 @@ def test_a_submitted_artifact_is_kept_under_the_round_that_wrote_it(workdir, cap
 
 
 def test_a_rework_round_does_not_destroy_the_round_it_reworks(workdir, capsys):
-    """The defect itself: two rounds writing one path. Both copies survive,
+    """Two rounds writing one path: both copies survive,
     each under the round that wrote it."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open("issue17")
@@ -125,17 +124,19 @@ def test_a_null_artifact_answer_copies_nothing(workdir, capsys):
 
 
 def test_a_long_waived_artifact_value_is_not_archived(workdir, capsys):
-    """issue141: `_check_artifact` (pre-journal) treated any string whose
-    leading word is `waived`/`unknown` as a non-answer, but
-    `_measure_artifacts` (post-journal) admitted every string alike and
-    handed it to `_archive_artifact`, whose `is_file()` raises `OSError` --
-    not `False` -- once a path component exceeds the filesystem's 255-byte
-    name limit. A `waived:` reason long enough to trip that crashed after
-    the submit was already journaled (`complete_submit` journals first),
-    exactly what happened live in run issue139. Both call sites now consult
-    `forms.without_nulls`, the same predicate `_mint_gates` already uses, so
-    a null of any length is skipped before it ever reaches a filesystem
-    call -- no crash, and nothing archived."""
+    """`_check_artifact` (pre-journal) treats any string whose leading word
+    is `waived`/`unknown` as a non-answer, so `_measure_artifacts`
+    (post-journal) must too: `_archive_artifact`'s `is_file()` raises
+    `OSError` -- not `False` -- once a path component exceeds the
+    filesystem's 255-byte name limit, and a `waived:` reason long enough to
+    trip that would crash after the submit was already journaled
+    (`complete_submit` journals first). Both call sites consult
+    `forms.without_nulls`, the same predicate `_mint_gates` uses, so a null
+    of any length is skipped before it ever reaches a filesystem call -- no
+    crash, and nothing archived.
+
+    See: issue141, issue139
+    """
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open("issue17")
     cli.main(["issue17", "submit"])

@@ -2,7 +2,7 @@
 
 `evals/test_an_excursion_gets_dispatched_from_a_board_row.py` is the falsifier
 for #43's bet, and a falsifier is only worth the name if its red means one
-thing. Two very different runs used to land on the same `assert []`: a light
+thing. Two very different runs must not land on the same `assert []`: a light
 model that worked row q1 and settled it without ever reaching for an
 excursion -- the finding the eval exists to report -- and a drive killed at
 its budget with q1 never touched, which measures nothing at all. Read the

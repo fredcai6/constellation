@@ -43,14 +43,13 @@ plus two measurement-only fields:
   "res"  internal|external|local|unresolved|literal
   "why"  failure class, present only when res == unresolved
 
-THE LINE BASE IS DECLARED, NOT IMPLIED (defect D1)
+THE LINE BASE IS DECLARED, NOT IMPLIED
 --------------------------------------------------
 `q.line` is written in the base named by `LINE_BASE` below, and every file the
 extractor reads gets an `extraction-window` statement that says so in the store
-itself. Before this the store was 0-based and the schema was silent; the proof
-of the silence was the renderer's bare `+1` at the read site, which a reader who
-trusted the schema had no way to know he needed. Consumers read the declared
-base; they do not add one.
+itself. A silent schema would force a bare `+1` at the read site, which a
+reader who trusted the schema would have no way to know he needed. Consumers
+read the declared base; they do not add one.
 
 The window statement is also the extractor's own coverage boundary: a file that
 failed to parse gets no window, so a reader can tell a fact that is ABSENT FROM
@@ -138,10 +137,9 @@ def signature_of(node):
 ANCHOR = re.compile(r"^[ \t]*#[ \t]*\[([a-z0-9]+(?:-[a-z0-9]+)*)\][ \t]*$")
 
 # [markdown-anchor-is-an-html-comment]
-# Rationale: epic #138 finding 10 -- a purpose chain must be able to root at
-#   one claim in a governing document, not the whole file, and the only
-#   governing documents (`docs/PURPOSE.md`, `standards/approach.md`) are
-#   markdown. `#` opens a heading there, so `ANCHOR`'s own spelling cannot be
+# Rationale: a purpose chain must be able to root at one claim in a
+#   governing document, not the whole file, and the only governing documents
+#   (`docs/PURPOSE.md`, `standards/approach.md`) are markdown. `#` opens a heading there, so `ANCHOR`'s own spelling cannot be
 #   reused as-is above a claim without becoming one. An HTML comment is the
 #   one construct markdown already renders as nothing at all -- not a code
 #   span, not a footnote, nothing a reader ever sees -- so the same payload
@@ -155,6 +153,7 @@ ANCHOR = re.compile(r"^[ \t]*#[ \t]*\[([a-z0-9]+(?:-[a-z0-9]+)*)\][ \t]*$")
 #   `anchor` entry bar a second, differently-shaped id syntax; this keeps
 #   the one shape (`[slug]`) and changes only the comment wrapper around it,
 #   which is exactly the axis `#` and `<!-- -->` already differ on.
+# See: #138
 MD_ANCHOR = re.compile(r"^[ \t]*<!--[ \t]*\[([a-z0-9]+(?:-[a-z0-9]+)*)\][ \t]*-->[ \t]*$")
 
 
@@ -180,9 +179,8 @@ def anchors_in(src, pattern=ANCHOR, is_comment=_is_hash_comment):
     to give a second fact about the same target its own stable id, not to
     replace the first. A single-slug-per-line dict (`out[j + 1] = ...`) silently
     overwrote the earlier one, so the map bound only the last bracket and the
-    rest never became a page anyone could see -- three of them across the
-    tracked corpus at one measured rev, and a `check` run before this fix had
-    nothing to say about any of them.
+    rest never became a page anyone could see (observed: three of them across
+    the tracked corpus, with nothing in `check` to say so).
 
     `pattern`/`is_comment` are the one grammar's two spellings, not two
     grammars: the defaults are Python's (`# [slug]`, `#`-comment lines);
@@ -213,7 +211,7 @@ def md_anchors_in(src):
     return anchors_in(src, pattern=MD_ANCHOR, is_comment=_is_html_comment)
 
 
-#: Gate g7, grammar v0 as ruled by DESIGN_SPEC (the cull test is applied at
+#: Grammar v0 per DESIGN_SPEC (the cull test is applied at
 #: render time, not here): a bare `Word:` paragraph prefix in an ordinary
 #: comment, prior art shape is Go's `Deprecated:` convention. `Rationale:` is
 #: the survivor of the cull test's collapse (see cull-verdict.json).
@@ -222,18 +220,18 @@ def md_anchors_in(src):
 #: a rejected alternative and a reference are different KINDS of fact, not
 #: another flavor of rationale.
 #:
-#: Gate g7 remediation fix 2: `Assumption:`/`Constraint:` ARE recognised
-#: here -- the cull verdict is ALIAS, not retirement (see cull-verdict.json).
-#: The real f1Brainz PR #733 corpus has 4 of 6 tags authored with
-#: `Constraint:`; retiring it silently converted four real, working tags
-#: into inert prose with zero signal. `TAG_KIND_ALIAS` normalizes the KIND
+#: `Assumption:`/`Constraint:` ARE recognised here -- the cull verdict is
+#: ALIAS, not retirement (see cull-verdict.json). The real f1Brainz corpus
+#: has 4 of 6 tags authored with `Constraint:`; retiring it would silently
+#: convert real, working tags into inert prose with zero signal (f1Brainz
+#: PR #733). `TAG_KIND_ALIAS` normalizes the KIND
 #: at the emission site (`tag_check`), so a comment authored with either
 #: retired word still extracts and renders, as `Rationale:`.
 TAG_START = re.compile(
     r"^[ \t]*#[ \t]*(Assumption|Constraint|Rationale|Rejected|See):[ \t]*(.*)$")
 TAG_CONT = re.compile(r"^[ \t]*#[ \t]?(.*)$")
 
-#: The alias mapping fix 2 builds: a RECOGNIZED keyword whose KIND is
+#: The alias mapping: a RECOGNIZED keyword whose KIND is
 #: normalized to its survivor before the statement is ever emitted, so
 #: `render.py:tag_lines` stays exactly as branch-free as the cull test
 #: proved it -- one lookup here, never a dispatch in the renderer.
@@ -302,16 +300,17 @@ _SEE_SYMBOL_SHAPE = re.compile(
 
 
 # [see-targets-lives-in-the-grammar-module]
-# Rationale: this function used to live in `checks.py`, which reads it
-#   forward -- does each target resolve. Epic #138 finding 2 asked `render.py`
-#   to read the SAME `See:` tags backward -- who points at this anchor -- and
-#   a target parser is a fact about the tag GRAMMAR, the same kind of fact
-#   `anchors_in`/`tags_in` above already are, not a fact about checking.
+# Rationale: `checks.py` reads `See:` tags forward -- does each target
+#   resolve -- and `render.py` reads the SAME tags backward -- who points at
+#   this anchor -- and a target parser is a fact about the tag GRAMMAR, the
+#   same kind of fact `anchors_in`/`tags_in` above already are, not a fact
+#   about checking.
 #   `checks.py` and `render.py` are peer consumers of `extract.py`; neither
 #   imports the other, so putting the parser in either one would make the
 #   other reach sideways for it. One parser here, imported both directions,
 #   is what keeps `checks.see_tags_resolve` and `render.map_lines` from ever
 #   reading `See:` targets two different ways.
+# See: #138
 def see_targets(text):
     """Every target `text` (one `See:` tag's authored words, already glued
     across its lines by `tags_in`) names, as `(pos, kind, ...)` in reading
@@ -355,7 +354,7 @@ def see_targets(text):
 
 
 def span_hash(node):
-    """A normalised hash of an entity's own AST subtree (gate g6, stale-tag
+    """A normalised hash of an entity's own AST subtree (for stale-tag
     detection): immune to reformatting -- indentation, line wraps, blank
     lines -- and to comments, by construction, because `ast.dump` never
     encodes source text, whitespace, or position (`include_attributes`
@@ -449,7 +448,7 @@ def doc_body_of(node):
 
     The summary already has its own `documents` statement. The BODY is the
     Args/Returns/Raises/Examples a reader wanted the docstring for, and the
-    store used to drop it."""
+    store would otherwise drop it."""
     doc = ast.get_docstring(node, clean=True)
     if not doc:
         return None
@@ -683,12 +682,12 @@ class Extractor(ast.NodeVisitor):
         self.src = src            # the file's own text, for facts `ast` drops
         self.anchors = anchors_in(src)   # 1-based line -> authored slugs
         self.tags = tags_in(src)         # 1-based line -> authored [{"kind","text"}]
-        # slug -> (owning symbol, span_hash) -- gate g6, collected as anchors
+        # slug -> (owning symbol, span_hash) -- collected as anchors
         # are emitted and read back by run() to diff against the PREVIOUS
         # extraction's own copy of this dict.
         self.anchor_hashes = {}
         # (owning symbol, tag text) -> (kind, span_hash, file, line, col) --
-        # gate g7 remediation fix 1: a tag carries no slug, so its identity
+        # a tag carries no slug, so its identity
         # across two extractions is its own text plus its owner, not an
         # allocator id. Collected the same way `anchor_hashes` is, and read
         # back by run() to diff against the PREVIOUS extraction's copy.
@@ -696,9 +695,9 @@ class Extractor(ast.NodeVisitor):
         self.out = []
         self.scope = Scope("module")
         self.encl = [self.mod + ":"]     # enclosing transformer stack
-        # enclosing DEFINITION NODES, pushed in lockstep with `encl` -- gate
-        # g7 remediation fix 1 needs this (unlike g6's anchor(), which only
-        # ever hashes the node its own slug sits above): a tag above a bare
+        # enclosing DEFINITION NODES, pushed in lockstep with `encl` -- a
+        # tag needs this (unlike anchor(), which only ever hashes the node
+        # its own slug sits above): a tag above a bare
         # statement binds to the ENCLOSING entity/module (`self.here()`),
         # not to that statement, so its staleness hash must cover the
         # enclosing entity's own span, not the statement's. `self.tree`
@@ -996,13 +995,10 @@ class Extractor(ast.NodeVisitor):
         whichever of the two candidate lines (decorator, then `def`) is the
         one that actually carries anchors.
 
-        Gate g6: an anchor is the only authored-identity surface that exists
-        pre-g7 (the real comment-tag vocabulary -- Assumption:/Constraint:/
-        etc. -- is g7's build and reuses this SAME `[slug]` allocator), so
-        this is where a future tag's span gets hashed and persisted. `d.end`
-        already names this node's span in the `contains` statement `g3`
-        emits (`described()`); `span_hash(node)` hashes that same subtree
-        directly rather than re-deriving it from source-text positions."""
+        The anchor's span is hashed and persisted here for stale detection.
+        `d.end` already names this node's span in the `contains` statement
+        (`described()`); `span_hash(node)` hashes that same subtree directly
+        rather than re-deriving it from source-text positions."""
         lines = [node.lineno]
         if getattr(node, "decorator_list", None):
             lines.insert(0, node.decorator_list[0].lineno)
@@ -1021,7 +1017,7 @@ class Extractor(ast.NodeVisitor):
         """Emit any tag paragraph minted directly above `node`, attributed
         to `sym` -- see `tags_in`.
 
-        Gate g7's convention-gap resolution: `sym` is the CALLER's choice, not
+        `sym` is the CALLER's choice, not
         derived here. A whole-function tag (directly above a `def`/`class`)
         is called with the entity's OWN symbol; a tag above a statement
         inside a body is called with `self.here()`, the ENCLOSING entity or
@@ -1030,10 +1026,9 @@ class Extractor(ast.NodeVisitor):
         decorator-aware two-line check as `anchor()`, for the same reason: a
         reader writes the comment above the first decorator, not the `def`.
 
-        Gate g7 remediation fix 1: `span_node` is the node whose span gets
-        HASHED for staleness -- the gate's own rule is "flag when the
-        ENCLOSING body changed while the tag text did not", not "when this
-        exact statement changed". For a whole-function/class tag `span_node`
+        `span_node` is the node whose span gets HASHED for staleness -- the
+        rule is "flag when the ENCLOSING body changed while the tag text did
+        not", not "when this exact statement changed". For a whole-function/class tag `span_node`
         defaults to `node` itself (the entity IS its own enclosing body,
         exactly like `anchor()`); the statement-level call sites
         (`visit_Assign`/`visit_AnnAssign`) pass the enclosing entity/module
@@ -1048,7 +1043,7 @@ class Extractor(ast.NodeVisitor):
                 ln, col = store_line(node.lineno), node.col_offset
                 h = span_hash(span_node)
                 for t in found:
-                    # Gate g7 remediation fix 2: normalize a retired keyword's
+                    # Normalize a retired keyword's
                     # kind to its survivor HERE, the one place a tag becomes a
                     # statement -- not in render.py, which stays branch-free.
                     kind = TAG_KIND_ALIAS.get(t["kind"], t["kind"])
@@ -1227,9 +1222,8 @@ class Extractor(ast.NodeVisitor):
 
         A declaration is a fact about its owner, not an entity: it gets no page,
         and `contains` -- which is what a page is counted from -- is deliberately
-        not used. The store used to carry only a `writes` edge here, which said
-        that a name was assigned and never to what, so a constant reached the map
-        as a bare word.
+        not used. A `writes` edge alone says that a name was assigned and never
+        to what, so a constant would reach the map as a bare word.
 
         Only module and class bodies, matching what the removed stage collected:
         a function-local assignment is a local, not a declared surface."""
@@ -1243,15 +1237,15 @@ class Extractor(ast.NodeVisitor):
         self.anchor(self.child_sym(target.id), node)
 
     def visit_Assign(self, node):
-        # Gate g7: the tag check runs regardless of scope -- unlike declare(),
+        # The tag check runs regardless of scope -- unlike declare(),
         # which only fires at module/class level, a tag above a FUNCTION-LOCAL
         # assignment is the real corpus's own majority shape (5 of 6 tags in
         # f1Brainz PR #733), and it binds to the enclosing entity, not to a
-        # declared name that scope would refuse to record at all. Gate g7
-        # remediation fix 1: the STALENESS hash covers the ENCLOSING entity's
-        # own span (`self.encl_nodes[-1]`), not just this one Assign
-        # statement -- "the tagged statement changed" is not the gate's rule,
-        # "the enclosing body changed" is.
+        # declared name that scope would refuse to record at all. The
+        # STALENESS hash covers the ENCLOSING entity's own span
+        # (`self.encl_nodes[-1]`), not just this one Assign statement --
+        # "the tagged statement changed" is not the rule, "the enclosing body
+        # changed" is.
         self.tag_check(self.here(), node, span_node=self.encl_nodes[-1])
         typ = self.infer_type(node.value)
         self.visit(node.value)
@@ -1379,8 +1373,7 @@ def _target_names(t):
 def run(root, artifacts):
     """Extract the statement store for `root` into `artifacts`. Returns an exit code.
 
-    The prototype read its file list from a handwritten manifest and indexed
-    three hardcoded directories; both are now the discovered mappable corpus.
+    The file list is the discovered mappable corpus.
     """
     global ROOT
     ROOT = str(root)
@@ -1397,13 +1390,13 @@ def run(root, artifacts):
     nrows = 0
     outp = os.path.join(artifacts, STATEMENTS_NAME)
 
-    # Stale-tag detection (gate g6): read what the PREVIOUS extraction into
+    # Stale-tag detection: read what the PREVIOUS extraction into
     # this same `--artifacts` dir said about every anchor's span, before this
     # run overwrites it. Absent on a fresh checkout -- nothing to compare
     # against, so nothing is flagged, which is the correct bootstrap
     # behaviour rather than a false positive on every anchor in a new repo.
     old_hashes = {}
-    # Gate g7 remediation fix 1: the SAME read, extended alongside, for tag
+    # The SAME read, extended alongside, for tag
     # statements -- a tag has no slug, so its identity across two runs is
     # (owning symbol, tag text), not `st["o"]` (which for a tag is its KIND,
     # e.g. "Rationale", not a unique id).
@@ -1465,10 +1458,10 @@ def run(root, artifacts):
         # A slug present in BOTH runs is, by construction, the same "tag" --
         # today an anchor carries no text of its own besides the slug it was
         # minted with, so matching by slug already IS the "tag text did not
-        # change" half of the gate's rule. Any hash delta on a matched slug
-        # is exactly the flag this gate defines. A slug that is new, or that
+        # change" half of the rule. Any hash delta on a matched slug
+        # is exactly the stale flag. A slug that is new, or that
         # disappeared, is a different event (minted / orphaned) and is not
-        # this gate's concern -- see DESIGN_SPEC's Tombstones section.
+        # flagged here -- see DESIGN_SPEC's Tombstones section.
         stale = sorted(slug for slug, meta in new_hashes.items()
                        if slug in old_hashes and old_hashes[slug] != meta[1])
         for slug in stale:
@@ -1480,11 +1473,11 @@ def run(root, artifacts):
             f.write(json.dumps(row) + "\n")
             nrows += 1
 
-        # Gate g7 remediation fix 1: the SAME diff, extended alongside for
+        # The SAME diff, extended alongside for
         # tags -- a (sym, text) key present in BOTH runs means the tag's own
-        # text did not change (the gate's own rule's second half); a hash
+        # text did not change (the second half of the rule); a hash
         # delta on that matched key is the enclosing body changing while the
-        # tag stayed put, exactly the flag this gate defines. A tag whose
+        # tag stayed put, exactly the stale flag. A tag whose
         # text also changed has a different key and simply does not match --
         # not flagged, because the author already revisited it.
         stale_real_tags = sorted(

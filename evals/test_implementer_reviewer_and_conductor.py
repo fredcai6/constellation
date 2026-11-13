@@ -1,6 +1,5 @@
-"""Issue 10 added self-location (a rendered brief a dispatched child can
-actually run) and the first two skills (implementer, reviewer). These evals
-drive each of the three roles that make a gate move -- one agent carrying a
+"""These evals exercise self-location (a rendered brief a dispatched child
+can actually run) and the implementer and reviewer skills. They drive each of the three roles that make a gate move -- one agent carrying a
 gate from its orders alone all the way to close, a reviewer grounding a
 verdict in a spec it was just handed, and a conductor dispatching a child and
 adjudicating what comes back -- and assert on the journal, never on transcript
@@ -9,14 +8,16 @@ gate-conductor's, in one continuous context, because its prompt names no role
 at all: what carries the loop is the dispatch `spine` prints, not any skill's
 claim about who conducts.
 
-Issue 7 added a fourth, on the same implementer: whether the intent layer
-gets authored while the code is being written. That one asserts on the
-generator's own output rather than the journal, because the journal cannot
-tell you what a comment says.
+A fourth, on the same implementer: whether the intent layer gets authored
+while the code is being written. That one asserts on the generator's own
+output rather than the journal, because the journal cannot tell you what a
+comment says.
 
 The lightest model is deliberate, same as the rest of this file's neighbor:
 if a step needs a strong model to be followed, the instruction is at fault,
 not the model.
+
+See: issue10, issue7
 """
 
 import json
@@ -257,8 +258,8 @@ def test_an_implementer_authors_the_intent_layer_as_it_works(checkout):
     but what `spine` tells it, leaves behind a map that has something in it.
 
     Nothing in the prompt mentions anchors, tags or the code map -- and since
-    it no longer names the posture either, the engine's own delivery of it is
-    now part of what this measures. If either the delivery or the guidance
+    it does not name the posture either, the engine's own delivery of it is
+    part of what this measures. If either the delivery or the guidance
     does not carry it, this fails, which is the whole point.
     """
     harness.spine(checkout, "open", "run-a-gate", "--id", "g1")

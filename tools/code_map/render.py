@@ -6,23 +6,17 @@ stays a routing surface as the module count grows.
 
 Importing this module has no side effects: the prototype loaded its stores at
 import time, which made the module unimportable without a built store and
-impossible to run twice against different roots. `load_stores()` now owns that.
+impossible to run twice against different roots. `load_stores()` owns that.
 
-ONE STORE (gate g3). There used to be a second AST pass whose entity keys the
-renderer joined to the store's symbols on (file, line), because the statement
-vocabulary could not say what a definition WAS. It can now, so the pass and the
-join are both gone: a page is keyed by the store symbol itself.
+ONE STORE. A page is keyed by the store symbol itself: the statement
+vocabulary says what a definition IS, so no second AST pass has to be joined
+to the store's symbols on (file, line). The statement extractor is an
+`ast.NodeVisitor`, so a definition inside a `with`, `if`, `try` or `for` block
+is an entity with a page and a caller list.
 
-That removal also closed `tc34`. The second pass descended `node.body` only, so
-a definition inside a `with`, `if`, `try` or `for` block was not an entity at
-all -- no page, no caller list, and no report saying it was missing. The
-statement extractor is an `ast.NodeVisitor` and always reached those
-definitions, so they get pages now.
-
-D1 is FIXED (gate g3): the store declares its line base in every
-`extraction-window` statement, and `source_line` reads that declaration instead
-of compensating with an unexplained `+1`.
-D2 is FIXED (gate g2): `extract.py` names every definition as its enclosing
+The store declares its line base in every `extraction-window` statement, and
+`source_line` reads that declaration instead of compensating with an
+unexplained `+1`. `extract.py` names every definition as its enclosing
 scope's symbol plus its own name.
 
 Output layout:
@@ -49,10 +43,11 @@ REPORT_NAME = "render_report.json"
 # Filenames written at the map ROOT (see render() below) -- named so
 # scripts/map_orient.py's CODE_MAP_INDEX / CODE_MAP_IDS constants can be
 # cross-checked against these instead of drifting apart on two hardcoded
-# literals (#534). map_orient.py cannot import this module directly: it ships
+# literals. map_orient.py cannot import this module directly: it ships
 # standalone into consuming repos that have no tools/code_map at all, so the
 # two sides stay in sync via tests/test_map_orient.py::CodeMapCandidateAlignment
 # instead of a live import.
+# See: #534
 TOP_INDEX_FILENAME = "INDEX.md"
 IDS_FILENAME = "ids.jsonl"
 
@@ -90,10 +85,11 @@ children = collections.defaultdict(list)     # parent symbol -> [(line, child sy
 members_of = collections.defaultdict(list)   # module -> [store symbol]
 page_file = {}                               # store symbol -> page filename
 ids = collections.defaultdict(list)          # authored slug -> [store symbol]
-tags = collections.defaultdict(list)         # gate g7: symbol -> [{"kind","text"}]
-stale_tags = []                              # gate g6: [{"id","s","old_hash","new_hash"}]
+tags = collections.defaultdict(list)         # symbol -> [{"kind","text"}]
+stale_tags = []                              # [{"id","s","old_hash","new_hash"}]
 
-# Epic #138 finding 5: the map's two portions, read for `map_lines` below.
+# The map's two portions, read for `map_lines` below.
+# See: #138
 anchors_of = collections.defaultdict(list)   # store symbol -> [anchor slug], inverting `ids`
 see_backrefs = collections.defaultdict(list) # anchor slug -> [symbol whose See: tag names it]
 parents_map = {}                             # anchor slug -> (parent slug, ...); map/parents.jsonl
@@ -111,10 +107,9 @@ def modof(symbol):
 def source_line(line, base):
     """A store line as the 1-based line the SOURCE FILE has.
 
-    The renderer used to write a bare `+1` here with a comment naming the
-    defect. That compensation was the proof the schema was silent: it was right
-    only for as long as everyone remembered it. The store now declares its base
-    in every `extraction-window` statement and this reads it."""
+    A bare `+1` here would be right only for as long as everyone remembered
+    it. The store declares its base in every `extraction-window` statement
+    and this reads it."""
     return line + (1 - base)
 
 
@@ -130,8 +125,8 @@ def _case_tag(name):
 def assign_page_filenames(keys):
     """store symbol -> page filename, for the symbols of ONE module.
 
-    A page used to be named after its entity alone, so two entities in one
-    module whose names differ only by case resolved to one file: on a
+    A page named after its entity alone would send two entities in one
+    module whose names differ only by case to one file: on a
     case-insensitive filesystem the second write destroyed the first, and the
     map advertised a page a reader could not open.
 
@@ -144,8 +139,7 @@ def assign_page_filenames(keys):
     Deliberately NOT handled: an entity literally named `INDEX`, which still
     lands on its module's own index page. Reserving that stem would make
     `page_accounting`'s only cross-platform falsifier unable to fail, and a
-    check that cannot fail is the thing this gate exists to stamp out. Filed as
-    a triage candidate instead."""
+    check that cannot fail is no check."""
     groups = collections.defaultdict(list)
     for key in keys:
         groups[key.split(":", 1)[1].lower()].append(key)
@@ -166,10 +160,9 @@ def load_stores(artifacts, packages=()):
     deletions it costs.
 
     ONE store. Every fact a page shows -- kind, signature, span, docstring body,
-    values, decorators -- now rides the statement that names the thing, so the
-    second AST pass this used to join against is gone, and with it the join.
-    A page is keyed by the store symbol itself, because there is no longer a
-    second spelling to translate to.
+    values, decorators -- rides the statement that names the thing, so there
+    is no second AST pass to join against. A page is keyed by the store symbol
+    itself, because there is no second spelling to translate to.
 
     Safe to call repeatedly: it resets state first."""
     artifacts = pathlib.Path(artifacts)
@@ -204,7 +197,7 @@ def load_stores(artifacts, packages=()):
                 ids[o].append(s)
                 continue
             if p == "tag":
-                # Gate g7: must be intercepted explicitly, same as "anchored"
+                # Must be intercepted explicitly, same as "anchored"
                 # above -- an unhandled predicate falls through to the
                 # edges/inbound catch-all below and would render as a bogus
                 # cross-module bullet on some entity's page instead of
@@ -213,7 +206,7 @@ def load_stores(artifacts, packages=()):
                 tags[s].append({"kind": o, "text": d["text"]})
                 continue
             if p == "stale-anchor":
-                # Gate g6: must be intercepted explicitly, same as "anchored"
+                # Must be intercepted explicitly, same as "anchored"
                 # above -- an unhandled predicate falls through to the
                 # `edges`/`inbound` catch-all below and would render as a
                 # bogus "stale-anchor cross-module" bullet on some entity's
@@ -223,12 +216,11 @@ def load_stores(artifacts, packages=()):
                                    "old_hash": d["old_hash"], "new_hash": d["new_hash"]})
                 continue
             if p == "stale-tag":
-                # Gate g7 remediation fix 1: a REAL tag's own staleness --
-                # the enclosing body changed while the tag text did not, with
-                # no anchor involved at all. Lands in the SAME `stale_tags`
-                # list/report field/ADVISORY channel g6 established above,
-                # not a second reporting channel -- the review's explicit
-                # requirement.
+                # A REAL tag's own staleness -- the enclosing body changed
+                # while the tag text did not, with no anchor involved at all.
+                # Lands in the SAME `stale_tags` list/report field/ADVISORY
+                # channel as a stale anchor above, not a second reporting
+                # channel.
                 d = st["d"]
                 stale_tags.append({"id": o, "s": s,
                                    "old_hash": d["old_hash"], "new_hash": d["new_hash"]})
@@ -260,7 +252,7 @@ def load_stores(artifacts, packages=()):
             if p in ("calls", "reads"):
                 inbound[o][intern(modof(s))] += 1
 
-    # Epic #138 finding 2/5: `anchors_of`/`see_backrefs` are built from
+    # `anchors_of`/`see_backrefs` are built from
     # `ids`/`tags` HERE, before the render-scope narrowing two blocks down,
     # on purpose -- a `See:` tag authored anywhere in the corpus can point at
     # an anchor inside the narrowed render (`--render-only engine`, say), and
@@ -373,7 +365,7 @@ def doc_block(summary, body):
 
 def tag_lines(key):
     """The entity or module's own why-layer: `Rationale:`/`Rejected:`/`See:`
-    paragraphs the author wrote directly above it (gate g7), one line per
+    paragraphs the author wrote directly above it, one line per
     tag in source order.
 
     ONE loop, no branch on kind, for every tag regardless of which of the
@@ -390,7 +382,7 @@ def tag_lines(key):
     return L
 
 
-#: Epic #138 finding 5: both portions of the map, on the same visual grammar
+#: Both portions of the map, on the same visual grammar
 #: `REFS_PROD_PREFIX`/`REFS_TEST_PREFIX` already established below -- a fixed
 #: prefix, then either the fact or `REFS_NONE`. A reader who already parses
 #: one referenced-by line parses these without a new convention to learn.
@@ -403,17 +395,16 @@ REFS_SEE_PREFIX = "referenced by (See:): "
 # [map-lines-never-omits-once-anchored]
 # Rationale: `tag_lines` above omits its whole section when a key has no
 #   tags, and that is right for tags -- silence there just means nobody wrote
-#   one. It is wrong for the DEFINED portion: `map/parents.jsonl` is empty on
-#   this tree today (nothing writes it yet), so if an anchored key with no
-#   entry rendered nothing, every anchored page in the corpus would look
-#   identical to one that was never checked -- exactly the silent gap epic
-#   #138 opened on. So an anchor with no `parents.jsonl` entry renders as
-#   ORPHAN, plainly, rather than being left out. The gate that DOES apply is
-#   on the ANCHOR, not the tag: a key with no anchor at all has no identity
+#   one. It is wrong for the DEFINED portion: a `map/parents.jsonl` with few
+#   entries would make every anchored page without one look identical to a
+#   page that was never checked -- a silent gap. So an anchor with no `parents.jsonl` entry renders as
+#   ORPHAN, plainly, rather than being left out. The condition that DOES
+#   apply is on the ANCHOR, not the tag: a key with no anchor at all has no identity
 #   `parents.jsonl` could hold an entry for and cannot be a `See:` target
 #   either (`checks.see_tags_resolve` only resolves `[slug]` against a BOUND
 #   anchor) -- for that key this returns `[]`, the one point where this
 #   follows `tag_lines`'s own precedent instead of overriding it.
+# See: #138
 def map_lines(key):
     """Both portions of the map for `key`'s own anchor(s), if it has any: the
     DEFINED portion (`parents_map`, read from `map/parents.jsonl` once per
@@ -503,8 +494,8 @@ REFS_LEGEND = ("counted: calls and reads that resolved to this symbol. "
                "not counted: its own definition, imports, inheritance, "
                "attribute writes, docstring mentions, unresolved references.")
 
-#: `referenced by: none found` used to answer three different questions with
-#: one sentence: nothing calls this, only tests call this, or this itself IS a
+#: A single `referenced by: none found` would answer three different questions
+#: with one sentence: nothing calls this, only tests call this, or this itself IS a
 #: test (pytest, not another module, is what invokes it -- zero inbound there
 #: is the expected state). A reader could not tell which without opening
 #: another page. These two prefixes split the caller list so the split is
@@ -905,17 +896,15 @@ def run(root, artifacts, out, packages=()):
         "ids": len(ids),
         "median_entity_page_lines": sizes[len(sizes) // 2][0] if sizes else 0,
         "largest_5": [[n, k] for n, k in sizes[:5]],
-        # Gate g6 + g7 remediation fix 1: entries whose ENCLOSING body span
-        # changed since the PREVIOUS build while the authored marker's own
-        # identity did not -- an anchor's slug (g6), or a tag's (owner, text)
-        # pair (g7, no anchor required). See extract.py's span_hash/run() for
+        # Entries whose ENCLOSING body span changed since the PREVIOUS build
+        # while the authored marker's own identity did not -- an anchor's
+        # slug, or a tag's (owner, text) pair (no anchor required). See extract.py's span_hash/run() for
         # what changed and what did not.
         "stale_tags": [t["id"] for t in stale_tags],
     }
     print(json.dumps(report, indent=1))
     for slug in duplicates:
-        # An authored mistake, and the run report is where the ruling says it
-        # surfaces. Keeping one silently would leave the mind map pointing at
+        # An authored mistake, and the run report is where it surfaces. Keeping one silently would leave the mind map pointing at
         # whichever definition happened to win.
         print("FAIL duplicate id [%s] claimed by: %s"
               % (slug, ", ".join(sorted(ids[slug]))))
@@ -933,7 +922,6 @@ def run(root, artifacts, out, packages=()):
         json.dump(report, f, indent=1)
     # Stale tags do NOT fail the build: unlike a duplicate id, they are not
     # unambiguous corruption, so failing the build on one would be the same
-    # twitchy tripwire `gb`'s ratio-over-count reasoning warns against --
-    # `gb`'s own ruling scoped only its four ratio-based thresholds, not
-    # this check's severity, but the underlying reasoning carries over.
+    # twitchy tripwire the ratio-over-count reasoning for the size
+    # thresholds warns against.
     return 1 if duplicates else 0

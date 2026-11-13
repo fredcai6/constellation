@@ -3,7 +3,7 @@
 Twelve prior runs chose `ask` 12 times, `read` 24, `trace` 20 and `reproduce`
 7 across 63 understand rows, and an excursion zero times, while the ideas
 board -- which gives every row its own `excursion` column -- dispatched twelve
-off 87. So the column moved onto the understand board. Whether that made the
+off 87. So the column lives on the understand board. Whether that made the
 move *reachable* is a claim about a model's behaviour, and only a model can
 settle it.
 
@@ -50,7 +50,7 @@ def workdir(tmp_path):
 #   put it there. That matters for exactly one column: a fill that omits
 #   `excursion` produces rows without it (`_seed_board` writes what it is
 #   handed), so a hand-written fixture would be presupposing the shape this
-#   eval exists to measure, and would keep passing if gate one were reverted.
+#   eval exists to measure, and would keep passing if the column were removed.
 # Rejected: writing OPEN.toml from scratch with `excursion = ""` typed in. It
 #   is three lines shorter and it tests the fixture instead of the form.
 # See: engine/cli.py `_seed_board`, assemblies/run-an-issue/forms/OPEN.toml
@@ -59,7 +59,7 @@ def seed_open(workdir, wid, seeds):
     loc = harness.run_root(workdir) / ".agent-work" / wid
     p = harness.response_path(workdir, wid)
     head, mark, block = p.read_text().partition("[[questions]]")
-    # `issue` is `kind = "artifact"`: #45's `_check_artifact` (engine/cli.py)
+    # `issue` is `kind = "artifact"`: `_check_artifact` (engine/cli.py, #45)
     # refuses a value that is not a readable path, so the seed has to point
     # at a real file, not a bare label -- the same shape a conductor's own
     # write would take.
@@ -117,10 +117,10 @@ def test_a_row_answerable_only_from_outside_the_repo_gets_an_excursion(workdir):
     literature and other projects' practice say. That excludes `read`,
     `trace`, `reproduce` and `evidence-loop` by construction, because not one
     of them can reach outside the checkout, which leaves `prior-art` as the
-    only move that answers it. (An earlier draft of this row asked for
-    something "answerable only by running something", which `reproduce` and
-    `trace` both satisfy -- it could not separate an excursion from the moves
-    that stay on the board, so it could not fail for the right reason.)
+    only move that answers it. (A row asking for something
+    "answerable only by running something" would not do: `reproduce` and
+    `trace` both satisfy it, so it could not separate an excursion from the
+    moves that stay on the board, and could not fail for the right reason.)
 
     Row B is answerable by reading, and carries no assertion at all. Briefed
     or declined, both pass. Forcing a dispatch where reading works would be a
@@ -148,13 +148,12 @@ def test_a_row_answerable_only_from_outside_the_repo_gets_an_excursion(workdir):
         f"cannot measure anything: {rows}")
 
     # No budget of its own: the harness default is 420s and `[drive-budget]`
-    # holds the reasoning for the number. This call used to cut at 300s on the
-    # argument that both observed drives settled the board in about 90 seconds
-    # and then carried straight on into plan and execute, so the extra minutes
-    # bought nothing. Right about the measurement, wrong about the number: the
-    # two drives came in at 289s and 300.24s, so 300 sat *on* the observed cost
-    # rather than clear of it, and the eval spent as much of its life being
-    # killed at the margin as it did reporting anything. What that costs is not
+    # holds the reasoning for the number. Both observed drives settled the
+    # board in about 90 seconds and then carried straight on into plan and
+    # execute, so extra minutes buy nothing -- but the two drives came in at
+    # 289s and 300.24s, so a cut at 300 would sit *on* the observed cost
+    # rather than clear of it, and the eval would spend as much of its life
+    # being killed at the margin as it did reporting anything. What that costs is not
     # minutes, it is that a red at the margin can always be retried. The
     # ceiling this has to stay under is `engine.cli.CHECK_TIMEOUT` (600s) less
     # the fast suite the proof runs first (34s measured); 420 clears both ends.
@@ -190,7 +189,7 @@ def test_a_row_answerable_only_from_outside_the_repo_gets_an_excursion(workdir):
     #   drives settle the board around 90s and then keep going into plan and
     #   execute, so the cut lands long after the measurement is complete;
     #   failing on it would relabel every real decline as rerun-me, which is
-    #   the retry-to-green this whole gate is against.
+    #   the retry-to-green this eval is against.
     # Rejected: raising the timeout out of `drive` instead. Then the board is
     #   never read, and a cut drive that had already dispatched from q1 -- the
     #   pass this eval is looking for -- would report as a failure.

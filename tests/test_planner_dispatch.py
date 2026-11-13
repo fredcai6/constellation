@@ -1,11 +1,10 @@
 """The plan step is a dispatch, not a local form the conductor fills.
 
-Ruling 6: the conductor stops writing what it will judge. Before this, the
-plan segment declared `worker = "conductor"`, so the issue-conductor
-authored PLAN.toml and then ruled on the panel attacking it. Now the
-segment's first round is minted as a dispatch to `cut-a-gate` -- a fresh
-child, opened cold, whose own conductor is the planner -- so the round the
-issue-conductor rules on was never its own draft.
+The conductor does not write what it will judge. The plan segment's first
+round is minted as a dispatch to `cut-a-gate` -- a fresh child, opened cold,
+whose own conductor is the planner -- so the round the issue-conductor rules
+on is never its own draft. Were the segment `worker = "conductor"`, the
+issue-conductor would author PLAN.toml and then rule on the panel attacking it.
 
 Two things, proven separately, the way `test_brief.py` proves a dispatch
 brief generally: the skeleton mints the shape (structural, no rendering),
@@ -58,7 +57,7 @@ def test_cut_a_gate_is_one_anchored_terminal_step_naming_the_planner():
 def test_plan_segments_dispatch_step_resolves_a_brief_naming_cut_a_gate(workdir, capsys):
     """The shape `open` would mint, minted directly the way `test_brief.py`
     mints an execute-segment dispatch step. The room itself never prints
-    this brief any more (`o-single-dispatch-room`), so this drives the same
+    this brief, so this drives the same
     resolution `_dispatch_descriptor` gives whatever process `wait` goes on
     to start."""
     journal.append("i1", "run", title="t", assembly="run-an-issue")
