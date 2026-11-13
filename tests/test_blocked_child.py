@@ -65,3 +65,13 @@ def test_help_after_a_work_id_or_a_verb_prints_usage_and_touches_nothing(bare_wo
     out = capsys.readouterr().out
     assert "amend close <step-id>" in out and "submit" not in out
     assert journal.read("d1") == before
+
+
+def test_a_failing_check_in_a_dispatched_run_points_up_and_not_at_the_bypass(bare_workdir):
+    from engine import checks
+    journal.append("p1.g1", "run", title="t", assembly="run-a-gate", parent="p1")
+    journal.append("r1", "run", title="t", assembly="run-a-gate")
+    child = checks._failed("p1.g1", "work-1", "proof", "exit 1", 1)
+    root = checks._failed("r1", "work-1", "proof", "exit 1", 1)
+    assert "note blocked" in child and "amend close" not in child
+    assert "amend close work-1" in root

@@ -211,7 +211,8 @@ def test_a_command_the_shell_cannot_find_reads_as_not_resolving(workdir, capsys)
     cli.main([child, "submit"])
     [ran] = _checks(child)
     assert ran["exit"] == 127
-    assert render.proof_readings([ran])[0].startswith("`no-such-command-anywhere --flag`\n"
+    assert render.proof_readings([ran])[0].startswith("gate 1 proof\n"
+                                                    "`no-such-command-anywhere --flag`\n"
                                                     "did not resolve (exit 127)")
 
 
@@ -367,3 +368,18 @@ def test_the_reading_reaches_the_close_summary_apart_from_the_gates_own_checks(w
     ret = runmod.state("issue17")["returns_by_child"][child]
     assert ret["summary"]["proof_trials"] == [{"command": "exit 1", "exit": 1, "output": "", "changed": 0}]
     assert ret["summary"]["checks"] == []
+
+
+def test_a_reading_says_what_a_pass_and_a_missing_file_mean_and_flags_a_repeated_proof():
+    passes = {"field": "gates.1.proof", "command": "pytest tests/a.py", "exit": 0,
+              "output": "3 passed", "changed": 4}
+    missing = {"field": "gates.0.proof", "command": "pytest tests/new.py", "exit": 4,
+               "output": "no tests ran\nERROR: file or directory not found: tests/new.py",
+               "changed": 0}
+    repeat = {**missing, "field": "gates.2.proof"}
+    one, two, three = render.proof_readings([missing, passes, repeat])
+    assert one.startswith("gate 1 proof\n")
+    assert "is not there yet (ERROR: file or directory not found: tests/new.py)" in one
+    assert "a mistyped path fails the same way" in one
+    assert "cannot tell the gate landed" in two
+    assert "same command as gate 1 proof" in three and "closed as stale" in three

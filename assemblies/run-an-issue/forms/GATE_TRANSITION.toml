@@ -126,23 +126,25 @@ which of the five in `standards/approach.md` it serves."""
 
   [[field.item]]
   id = "proof"
-  kind = "check"
+  kind = "proof"
   note = """
-A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised -- one check per obligation. It exercises
-purpose's claim too: a proof that passes while purpose is false has proved
-the wrong thing. Write the exact string you ran, never a description of it:
-this field is shell-executed in the dispatched child, so prose becomes a
-command and fails there, after the work is done. It is what must be true
-when the issue ends, so it runs again at close against the finished tree.
-Reference the command palette (constellation.toml) rather than hardcoding
-where it applies."""
+The exact command to run, never a description of it: the engine runs this
+string through the shell. It must fail now, before the work, and pass only
+once `purpose` is true. A command that passes on an empty diff proves
+nothing, and so does one that covers less than `scope` promised. The engine
+runs it once when you submit and prints what it did; it runs again when the
+gate lands and when the run closes. Name a palette entry
+(`palette:test tests/x.py`) where one applies."""
 
   [[field.item]]
   id = "gate-proof"
-  kind = "check"
+  kind = "proof"
   optional = true
-  note = "Same as PLAN.toml's `gate-proof`: what must be true when this gate lands, never re-run at close. Or waived: none."
+  note = """
+A file or module this gate must leave untouched, as a command:
+`git diff --quiet "${CONSTELLATION_GATE_BASE:?}" -- <paths>`. Most gates
+have none: answer `waived: none`. Runs when you submit and when the gate
+lands, never at close."""
 
   [[field.item]]
   id = "budget"

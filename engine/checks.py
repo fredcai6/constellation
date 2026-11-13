@@ -693,12 +693,24 @@ def _run(cmd, cwd, budget, base=""):
 
 
 def _failed(wid, step_id, fid, cmd, code):
-    """The words a failing check has always refused in: a check is the
-    engine's to run, so a failure is not the agent's answer to correct."""
+    """What a failing check refuses in. The engine runs a check, so the
+    answer is the work, not the form. The second move is for a check that is
+    itself wrong, and it depends on who can rule on that. A dispatched run
+    raises it as a blocked note, which its dispatcher's room prints: the
+    bypass is not offered to the agent whose work just failed. A root run
+    has nobody above it, so its own conductor drops the step, one journaled
+    amend."""
+    head = (f"{fid}: `{cmd}` exited {code}\n"
+            f"  the engine runs this check; it is not yours to fill in. Fix the "
+            f"work until it passes, then submit again.\n")
+    opened = next((e for e in journal.read(wid) if e.get("kind") == "run"), {})
+    if opened.get("parent"):
+        return render.located(
+            head + f"  if the check itself is wrong: spine {wid} note blocked "
+                   f"\"<what is wrong with the check>\" and end your turn")
     return render.located(
-        f"{fid}: `{cmd}` exited {code}\n"
-        f"  a check is run by the engine, not filled in -- make it pass,\n"
-        f"  or drop this step: spine {wid} amend close {step_id} --reason ...")
+        head + f"  if the check itself is wrong, drop this step: "
+               f"spine {wid} amend close {step_id} --reason ...")
 
 
 # [budget-refusal-names-both]

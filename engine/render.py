@@ -109,30 +109,60 @@ def checks(entries):
 _UNPARSED = ("syntax error", "unexpected eof")
 
 
+# What a failing check prints when the thing it names is not there at all.
+# A proof that fails this way fails identically for a mistyped path.
+_MISSING = ("not found", "no such file", "no tests ran", "cannot find", "does not exist")
+
+
 def proof_readings(entries):
-    """One block per proof the cut was trialled with: the command, then what
-    its one run against the tree as it stands says about it."""
+    """One block per proof the cut was trialled with: which proof it is, the
+    command, then what its one run against the tree as it stands says about
+    it. A later gate's proof is run before that gate's work like the first
+    one's, so one that passes here cannot tell its gate landed."""
     out = []
+    seen = {}
     for c in entries or []:
         code, output = c.get("exit"), str(c.get("output") or "")
-        first = next((l for l in output.splitlines() if l.strip()), "").strip()
+        printed = [l.strip() for l in output.splitlines() if l.strip()]
+        first, last = (printed[0], printed[-1]) if printed else ("", "")
         changed = c.get("changed")
         against = ("" if changed is None else
                    f" against {changed} path{'s' if changed != 1 else ''} changed since the cut")
         if code == 0 and changed == 0:
             reading = "passes with no work in the tree (exit 0) -- proves nothing"
         elif code == 0:
-            reading = f"passes (exit 0){against}"
+            reading = (f"passes (exit 0){against} -- before this gate's own work, so it "
+                       "cannot tell the gate landed")
         elif code == -1:
             reading = f"did not finish -- {output.strip() or 'no result'}; not awaited at the cut"
         elif code in (126, 127) or any(w in output.lower() for w in _UNPARSED):
             reading = f"did not resolve (exit {code})" + (f" -- {first}" if first else "")
+        elif any(w in output.lower() for w in _MISSING):
+            reading = (f"resolved, exit {code} -- it fails because something it names "
+                       f"is not there yet ({last}). Right only if this gate creates "
+                       "it: a mistyped path fails the same way")
         elif changed == 0:
             reading = f"resolved, exit {code} -- a real check, failing before the work"
         else:
             reading = f"resolved, exit {code}{against}"
-        out.append(f"`{c.get('command', '')}`\n{reading}")
+        command = c.get("command", "")
+        label = _proof_label(c.get("field", ""))
+        if command in seen and label and seen[command] != label:
+            reading += (f"\nsame command as {seen[command]}: once that gate lands this "
+                        "one passes, and its gate is closed as stale before it runs")
+        seen.setdefault(command, label)
+        out.append((f"{label}\n" if label else "") + f"`{command}`\n{reading}")
     return out
+
+
+def _proof_label(field):
+    """`gates.1.proof` -> `gate 2 proof`: which gate of the cut a trialled
+    proof belongs to, counted the way a reader counts. `""` for a field that
+    is not one of a block list's rows."""
+    parts = str(field).split(".")
+    if len(parts) == 3 and parts[1].isdigit():
+        return f"gate {int(parts[1]) + 1} {parts[2]}"
+    return ""
 
 
 def cycles(entries):
