@@ -11,13 +11,14 @@ skeleton of **segments**, each a worklist of steps ending in a **transition**. E
 CLI, `spine`) says where you are, renders the current form, validates what you hand back, and
 appends everything to a per-run TOML **journal** — state is a fold over the journal, nothing
 else. Transitions look back (*what did we learn — does the plan hold?*) and mint what comes
-next. Runs nest by dispatch: an **epic** run dispatches **issue** runs, an issue run dispatches
-**gate** runs; orders flow down as read-only **prefill**, evidence flows up as **returns**, and
+next. Runs nest by dispatch: an **issue** run dispatches **gate** runs (an epic tier above it
+is designed and not built); orders flow down as read-only **prefill**, evidence flows up as **returns**, and
 nothing else crosses. Every run is addressed by an explicit **work id** (`issue7c3f`,
 `issue7c3f.g1`) and keeps its whole work package at `.agent-work/<work-id>/`; bare `spine`
 lists all open runs with their titles. Each step names the **skill** that fills it — a posture, a few
-hundred words. Any field may be answered `waived: <reason>` or `unknown: <reason>`; every
-check's escape is one journaled step. That's it.
+hundred words. A field with no answer takes `waived: <reason>` or `unknown: <reason>`; a
+decision the run acts on, and a list of blocks, take neither and say so. Every check's escape
+is one journaled step. That's it.
 
 An issue run needs a git checkout with a remote: `open` makes and pushes its worktree's
 branch there, and `close` pushes again to open the PR — nothing below the issue tier touches
@@ -30,7 +31,7 @@ constellation/
   README.md           this page
   docs/PURPOSE.md     what this is for and who it is for
   docs/V2_DESIGN.md   founding design — thesis and rulings; a starting point, not a target sheet
-  engine/             the secretary: rail, forms, journal, install copy
+  engine/             the secretary: the `spine` verbs, forms, rooms, checks, journal
   assemblies/         run templates: run-an-issue, run-a-gate, explore-an-idea, and one per excursion
   skills/<name>/      one posture each: SKILL.md + the forms only that skill fills
   standards/          issue.md · skill.md · prose.md · glossary.md

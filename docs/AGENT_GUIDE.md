@@ -19,9 +19,12 @@ in the **authority block** its run opens with — your principal, what you own, 
 where gaps go. High-level decisions stay with the human. That is the design, not a limit on it.
 
 **Report what you found, never what would fill the field.** A field with no answer takes
-`waived: <reason>` or `unknown: <reason>`, one journaled step. An intentional null is a result
-like any other: you still return it, and you still say why. Missing information, or a question
-your scope cannot answer, goes up the chain as far as the human. The level above may rule on it
+`waived: <reason>` or `unknown: <reason>`, one journaled step. Two kinds of field take neither,
+and their templates say so: a decision the run acts on, and a list of blocks. An intentional
+null is a result like any other: you still return it, and you still say why. Missing
+information, or a question your scope cannot answer, goes up the chain as far as the human: a
+dispatched run raises it with `spine <work-id> note blocked "<question>"` and ends its turn,
+and the run that dispatched it sees the question in its own room. The level above may rule on it
 and send it back down — that is the hierarchy working, not a rebuke.
 
 If what you are asked to do has no visible connection to the run you are in, say so and ask up.
@@ -90,7 +93,7 @@ says what goes in it.
 
 | Path | Holds |
 |---|---|
-| `engine/` + `spine` | the secretary: rail, forms, journal, install copy. |
+| `engine/` + `spine` | the secretary: the `spine` verbs, forms, rooms, checks, journal, install copy. |
 | `assemblies/` | run templates, one directory each |
 | `skills/<name>/` | one posture each: a `SKILL.md` and the forms only that skill fills |
 | `standards/` | what binds writing and issues — see below |

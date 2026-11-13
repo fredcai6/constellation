@@ -1546,7 +1546,7 @@ def _form_filler_brief(wid, st, asm, step, form):
     """The room a form-step filler stands in: `cmd_status`'s own room,
     off the shared `_room_kwargs` derivation, plus the role/tier/runner/tree
     lines a spawned process needs and `cmd_status`'s own live caller does
-    not. No caller yet (gate 4's horizon) -- this is the contract alone."""
+    not. `drive` starts a filler on it."""
     worktree, branch = _tree_info(wid, st)
     root = pathlib.Path(worktree)
     tier = _role_tier(step.get("filler", ""))
@@ -3536,30 +3536,14 @@ def _incorporated(wid, seg, step, fields):
 # [step-pending]
 # Rationale: `_perform`'s `skip` verb already read this exact test inline --
 #   a step in the target segment, not yet folded done, not its terminal
-#   step -- to sweep a segment's own worklist closed. `_queue_pending`
-#   below needs the identical per-step question to ask it in aggregate, over
-#   the execute segment's own worklist; factoring it into one function both
-#   read keeps the test itself in one place rather than two copies drifting
-#   apart the next time either caller's segment-selection logic changes.
+#   step -- to sweep a segment's own worklist closed. Named so every caller
+#   asks the same per-step question.
 def _step_pending(s, st, seg_id):
     """`s` stands in `seg_id`'s own segment, is not folded done, and is not
     its terminal step -- the undone-and-live test `skip` sweeps a segment
-    with, and `_queue_pending` reads over every step in a segment."""
+    with."""
     return (s["segment"] == seg_id and s["id"] not in st["done"]
             and not s.get("terminal"))
-
-
-# [queue-pending]
-# Rationale: whether the execute segment's own worklist still holds a gate
-#   this cut already minted, not yet reached -- read ahead of
-#   `_settle_execution`'s own board-unsettled check so an `advance` that
-#   still has queued gates behind it can keep plan closed rather than
-#   recutting it for every gate in a multi-gate cut, the trust obligation 4
-#   extends to the queue once the first gate in it has landed.
-def _queue_pending(st, seg_id):
-    """True where `seg_id`'s own worklist still holds an undone,
-    non-terminal step -- a gate this cut already minted, not yet reached."""
-    return any(_step_pending(s, st, seg_id) for s in st["steps"])
 
 
 # [later-gate-still-queued]
@@ -4918,7 +4902,7 @@ def _seed_board(template, dest, rows):
 
 # [up-target]
 # Rationale: a bare `up` names no per-assembly target -- unlike `run-a-gate`'s
-#   own two `does = "pause"` / `does = "pause work"` rows, which hand
+#   own two `does = "pause"` rows, which hand
 #   `_pause_gate` a `tseg` a human already picked when the assembly was
 #   written -- so it has to find one itself, from the one thing every
 #   assembly declares regardless of shape: its own segment order. Backward

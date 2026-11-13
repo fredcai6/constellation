@@ -337,7 +337,7 @@ def test_a_childless_form_step_renders_immediately(bare_workdir, capsys):
     assert code == 0
     assert elapsed < 1
     assert "run-a-gate \u00b7 work (1 of 3)" in out
-    assert "Make the change the gate spec above describes" in out
+    assert "Make the change the gate spec in your orders describes" in out
     assert f"your response form: {_response(wid)}" in out
 
 

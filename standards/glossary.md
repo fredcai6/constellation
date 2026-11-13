@@ -239,9 +239,10 @@ is joint. Coining a synonym for a term below is a defect.
   implementer working its interior and the gate-conductor ruling, at the route form, on the
   panel that reviews it.
 - **epic** — one claim too large for a single run, plus the evidence that the claim is true.
-  Runs as run-an-epic under the epic-conductor, dispatching issue runs. Never a list of issues.
-- **wave** — a segment of an epic whose interior dispatches whole issue runs. The epic-conductor cuts
-  a wave from the epic's findings and adjudicates at its transition.
+  Conducted by hand today, its issues opened as issue runs: no assembly or skill for the epic
+  tier exists yet. Never a list of issues.
+- **wave** — a segment of an epic whose interior is whole issue runs. Whoever conducts the epic
+  cuts a wave from its findings and adjudicates at its transition.
 - **finding** — something real that was observed and recorded, and is not yet work. Two
   destinations, never a third (docs/PURPOSE.md): done now, or dropped with its reason recorded
   where a later run can find it. A reviewer's finding a route form calls `rejected: <reason>`,
