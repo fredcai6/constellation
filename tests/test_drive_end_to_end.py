@@ -60,6 +60,9 @@ if m:
     text = re.sub(r'^(\w+) = ""$', _fill_short, text, flags=re.M)
     dest.write_text(text)
     wid = dest.parent.name
+    # A real agent runs the `spine` script, which finds the engine itself;
+    # this stand-in imports it, so it adds the root the same way.
+    sys.path.insert(0, {root!r})
     from engine import cli
     cli.main([wid, "submit"])
 '''
@@ -78,7 +81,9 @@ if m:
 #   simply exits, which is exactly the "dies almost at once" shape the
 #   module docstring's own review-panel paragraph depends on.
 def _e2e_dispatch(root, marker_dir):
-    script = _SCRIPT_TEMPLATE.format(marker_dir=str(marker_dir))
+    script = _SCRIPT_TEMPLATE.format(
+        marker_dir=str(marker_dir),
+        root=str(pathlib.Path(__file__).resolve().parent.parent))
     entry = [sys.executable, "-c", script, "{brief}"]
     pathlib.Path(root, "constellation.toml").write_text(
         '[roles]\nimplementer = "standard"\n\n'

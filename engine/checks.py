@@ -178,7 +178,7 @@ def hand_in(wid, step, fields, commands, check_root, budget):
         "cwd": where, "budget": budget, "result": str(result.resolve()),
         "base": gate_base(wid, where)}),
         encoding="utf-8")
-    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
+    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log, engine=True)
     try:
         code = proc.wait(timeout=HANDBACK)
     except subprocess.TimeoutExpired:
@@ -235,7 +235,7 @@ def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
         "wid": wid, "step": step_id, "commands": commands, "cwd": where,
         "budget": budget, "trial": True, "changed": changed,
         "base": gate_base(wid, where)}), encoding="utf-8")
-    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
+    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log, engine=True)
     try:
         code = proc.wait(timeout=HANDBACK)
     except subprocess.TimeoutExpired:
@@ -250,7 +250,24 @@ def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
     return "done"
 
 
-def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
+# [consumer-env]
+# Rationale: the engine's own root on `PYTHONPATH` is for the engine's own
+#   modules. Left in the environment of a consumer repository's command or
+#   agent, it shadows that repository's packages and breaks its virtualenv.
+def _consumer_env():
+    """This process's environment without the engine's root on `PYTHONPATH`:
+    what a proof command or a dispatched agent runs under."""
+    env = dict(os.environ)
+    root = str(_ROOT)
+    kept = [p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p and p != root]
+    if kept:
+        env["PYTHONPATH"] = os.pathsep.join(kept)
+    else:
+        env.pop("PYTHONPATH", None)
+    return env
+
+
+def _spawn(argv, log, cwd=None, *, bind=None, fills=None, engine=False):
     """The detached runner, generalized to any argv: `Popen` it with output
     captured to `log` and nothing read from the caller's own stdin.
     `start_new_session` puts it in a session of its own, so a harness that
@@ -263,11 +280,13 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
     tree) -- one `Popen` call carrying commitments 6, 17 and 18 for both,
     rather than a second copy of the same five keyword arguments.
 
-    `PYTHONPATH` carries this tree's root rather than a rewritten path:
-    install is a copy, so a module run this way is found the same way in
-    the repo and in an installed copy. Harmless, not just convenient, for an
-    argv that names no Python module at all -- an extra `PYTHONPATH` entry
-    a non-Python harness never looks at costs it nothing.
+    `engine=True` is for the one argv that is this engine's own module (the
+    proof runner, `python -m engine.checks`): it puts this tree's root on
+    `PYTHONPATH` so the module is found from any working directory. Every
+    other process -- a dispatched agent, a form filler -- gets the caller's
+    environment with that root taken out, because the engine's root on a
+    consumer repository's `PYTHONPATH` shadows that repository's own
+    packages and breaks its virtualenv's interpreter.
 
     `bind`, when given, is the id of the child this argv itself runs as --
     stamped into `CONSTELLATION_BOUND` so that child's own work-id
@@ -282,11 +301,12 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
     process's own `submit` of that step can say its work is done (see
     `[filler-ends-at-its-submit]`, engine/cli.py). Never inherited: a
     process this one spawns is not filling that step."""
-    env = {**os.environ,
-           "PYTHONPATH": os.pathsep.join(
-               p for p in (str(_ROOT), os.environ.get("PYTHONPATH", "")) if p),
+    env = {**_consumer_env(),
            "CONSTELLATION_SESSION": os.environ.get(
                "CONSTELLATION_SESSION", str(os.getpid()))}
+    if engine:
+        env["PYTHONPATH"] = os.pathsep.join(
+            p for p in (str(_ROOT), env.get("PYTHONPATH", "")) if p)
     if bind is not None:
         env["CONSTELLATION_BOUND"] = bind
     env.pop(FILLS_ENV, None)
@@ -657,7 +677,7 @@ def gate_base(wid, cwd):
 def _run(cmd, cwd, budget, base=""):
     """(exit, output) for one check; exit `None` when it outran the budget.
     `base` is `gate_base`'s answer, exported as `CONSTELLATION_GATE_BASE`."""
-    env = {k: v for k, v in os.environ.items() if k != "CONSTELLATION_GATE_BASE"}
+    env = {k: v for k, v in _consumer_env().items() if k != "CONSTELLATION_GATE_BASE"}
     if base:
         env["CONSTELLATION_GATE_BASE"] = base
     try:

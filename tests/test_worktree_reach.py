@@ -27,6 +27,10 @@ from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_p
     _dispatch_and_close_plan, _dispatch_plan_critic, \
     _work_the_board, _fill_plan_to_execute
 
+# A dispatched process reaches the engine the way a real agent does: through
+# the `spine` script, which finds the engine itself.
+_SPINE = str(pathlib.Path(__file__).resolve().parent.parent / "spine")
+
 
 def _open_one_gate(wid, issue, proof):
     """Drive a run-an-issue open to one freshly minted gate dispatch step,
@@ -340,11 +344,12 @@ def _bound_probes_dispatch(root, out_dir, parent, step):
         "me = os.environ.get('CONSTELLATION_BOUND', '<unset>')\n"
         "(out / 'bound.txt').write_text(me)\n"
         "def spine(*a, env=None):\n"
-        "    r = subprocess.run([sys.executable, '-m', 'engine.cli', *a],\n"
+        f"    r = subprocess.run([sys.executable, {_SPINE!r}, *a],\n"
         "                       capture_output=True, text=True, env=env)\n"
         "    return f'{r.returncode}\\n{r.stdout}{r.stderr}'\n"
         # 1. its own id, and a further id it dispatches beneath itself
         "(out / 'own.txt').write_text(spine(me))\n"
+        f"sys.path.insert(0, {str(pathlib.Path(_SPINE).parent)!r})\n"
         "from engine import journal\n"
         "sub = me + '.sub'\n"
         "journal.append(sub, 'run', title='t', assembly='run-a-gate')\n"
@@ -475,7 +480,7 @@ def _bound_close_dispatch(root, out_dir, child):
         "out.mkdir(parents=True, exist_ok=True)\n"
         "brief = sys.argv[1]\n"
         "def spine(*a):\n"
-        "    r = subprocess.run([sys.executable, '-m', 'engine.cli', *a],\n"
+        f"    r = subprocess.run([sys.executable, {_SPINE!r}, *a],\n"
         "                       capture_output=True, text=True)\n"
         "    return f'{r.returncode}\\n{r.stdout}{r.stderr}'\n"
         "(out / 'submit.txt').write_text(spine(child, 'submit'))\n"
@@ -538,7 +543,7 @@ def _bound_open_dispatch(root, out_dir, parent, assembly):
         "out.mkdir(parents=True, exist_ok=True)\n"
         "brief = sys.argv[1]\n"
         "def spine(*a):\n"
-        "    r = subprocess.run([sys.executable, '-m', 'engine.cli', *a],\n"
+        f"    r = subprocess.run([sys.executable, {_SPINE!r}, *a],\n"
         "                       capture_output=True, text=True)\n"
         "    return f'{r.returncode}\\n{r.stdout}{r.stderr}'\n"
         "(out / 'open.txt').write_text(\n"
