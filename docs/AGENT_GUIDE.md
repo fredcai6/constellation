@@ -135,6 +135,13 @@ them is a choice: `palette:validate`, or `pytest evals`. They drive a real model
   its note (`advance | rework | up. …`). The engine reads that line and refuses anything else,
   so the sentence the agent is given and the rule it is held to are one string. On any other
   kind the same punctuation is ordinary prose.
+- Writing a field a second form also needs? Word it once. The second form declares
+  `same-as = "<form path>#<field id>"` and takes the field whole, keeping only the keys it
+  writes itself. A note that says "same as PLAN.toml's" points its reader at a form it is
+  never shown.
+- Writing a refusal? Give it the escape that works: `render.refusal` has no default one.
+- Wording a form or a skill? Numbered steps, one rule a sentence, no run history. The reason a
+  rule exists goes in the commit or a code comment; the agent reads the rule.
 - `standards/issue.md` — an observation is a claim about a rev, so run its command against HEAD
   before planning against it. A defect that is real, cheap, and harmless is the easiest work to
   justify and the least worth doing.
