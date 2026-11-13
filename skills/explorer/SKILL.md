@@ -46,6 +46,5 @@ problem, the point, the approach that won and the rivals it beat — and
 leaves implementation to the issues it becomes. Dispositions on the
 critic's findings are the human's, in their words.
 
-Where this does not apply: no reachable human. Explorer has no delegated
-posture. Convergence is the human's alone, and there is no launch order to
-cite in their place.
+Where this does not apply: no reachable human. Convergence is the human's
+alone, and nothing stands in for their word.

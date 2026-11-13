@@ -18,8 +18,8 @@ MAP_DIRNAME = "map"
 
 
 # [map-build-prints-parents-summary]
-# Rationale: `parents.orphan_report`/`dangling_report` already existed with
-#   no caller at any seam -- `docs/DERIVED_IS_CODE.md`'s "unwired derivation
+# Rationale: `parents.orphan_report`/`dangling_report` need a caller at some
+#   seam -- `docs/DERIVED_IS_CODE.md`'s "unwired derivation
 #   is a missing call site, not dead weight." `build()` is that seam:
 #   `constellation.toml`'s `map` entry (its own comment calls it "the
 #   closeout call") runs this function, so printing here is the one place
@@ -28,12 +28,13 @@ MAP_DIRNAME = "map"
 #
 #   Counts only, never the id lists: `parents.main` already prints those on
 #   request, and 169 orphan lines in every build would bury the two numbers
-#   that matter under output nobody reads (epic #138: the defined portion is
-#   currently a known-empty backfill, not a build-time surprise). Neither
-#   number changes `build`'s return value -- `dangling_report`'s own
+#   that matter under output nobody reads (the defined portion is a known
+#   backfill, not a build-time surprise). Neither number changes `build`'s
+#   return value -- `dangling_report`'s own
 #   docstring says a stale reference is "raw material for a ranked backlog,
 #   not a commit-time gate," and the same holds for an orphan: a purpose
 #   graph that can block a build becomes a box-ticking exercise.
+# See: #138
 def _print_parents_summary(root):
     from . import parents
 

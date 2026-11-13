@@ -1,18 +1,20 @@
-"""Each gate's cut answers to the code and spec as they stand (2026-09-26).
+"""Each gate's cut answers to the code and spec as they stand.
 
-Two changes carry it, beside `panel-rounds = "fresh"` (tests/
+Two things carry it, beside `panel-rounds = "fresh"` (tests/
 test_fresh_cut_panel.py):
 
 - A gate carries two proofs. `proof` is what must be true when the issue
   ends: run at the cut, when the gate lands, and again at close.
   `gate-proof` is what must be true when the gate lands -- what it left
   alone -- run at the cut and when the gate lands, never at close. The
-  prose rule that kept such clauses out of `proof` (#201) did not take: 12
-  of 36 gate proofs across the next 12 runs still pinned `git diff --quiet
+  prose rule that keeps such clauses out of `proof` (#201) does not hold:
+  12 of 36 gate proofs across 12 runs still pinned `git diff --quiet
   <cut> -- <paths>`, and issue191's close could not survive one.
 - Every dispatched child is handed what has landed (`_landed`): the
   commits past the run's cut point and the rows already settled, so a
   planner cuts from the state rather than reading the last plan.
+
+See: #201, issue191
 """
 
 import pathlib
@@ -35,7 +37,7 @@ def _fields(path):
 def _gate_item_fields(path):
     """The item fields nested inside PLAN.toml/REWORK.toml's own `gates`
     field -- the one block every gate's `purpose`/`scope`/`proof`/
-    `gate-proof`/... now live in, in place of top-level fields."""
+    `gate-proof`/... live in, not top-level fields."""
     gates = _fields(path)["gates"]
     return {f["id"]: f for f in gates["item"]}
 
@@ -64,9 +66,12 @@ def test_every_form_that_carries_a_gate_spec_carries_both_proofs():
 
 def test_a_gate_proof_runs_when_the_gate_lands_and_never_at_close(
         workdir, capsys, monkeypatch):
-    """issue191 g6: a clause about what the gate left alone went false once a
-    later change touched those paths, and close could not finish. As a
-    `gate-proof` it runs when the gate lands and is never replayed."""
+    """A clause about what the gate left alone goes false once a later
+    change touches those paths, and close cannot finish. As a `gate-proof`
+    it runs when the gate lands and is never replayed.
+
+    See: issue191
+    """
     stub_gh(monkeypatch)
     _to_close_with_g1_satisfied("test -f landed.txt", gate_proof="test ! -f later.txt")
     assert _gate_checks("issue17.g1") == ["test -f landed.txt", "test ! -f later.txt"]
@@ -111,9 +116,9 @@ def test_nothing_has_landed_on_the_opening_cut(workdir, capsys):
 
 
 # -- the base a gate's scope check diffs against -----------------------------
-# issue299 g4 (sports-market-manager, 2026-10-26): every gate-proof diffed
-# `origin/main...HEAD`, so gate N tripped on files gates 1..N-1 had landed on
-# the branch. The engine now names the base: CONSTELLATION_GATE_BASE.
+# A gate-proof diffed against `origin/main...HEAD` would trip gate N on files
+# gates 1..N-1 landed on the branch. The engine names the base:
+# CONSTELLATION_GATE_BASE. See: sports-market-manager issue299
 
 
 def _sh(cwd, *argv):
@@ -162,7 +167,10 @@ def test_a_proof_run_without_a_base_gets_none_rather_than_a_guess():
 
 
 def test_a_reminted_gate_s_commit_is_the_next_gate_s_base(tmp_path):
-    """#231: a reminted gate lands as `issue4.g2-aec88`; the base must see it."""
+    """A reminted gate lands as `issue4.g2-aec88`; the base must see it.
+
+    See: #231
+    """
     import subprocess
     from engine import checks
     def git(*a):
@@ -179,9 +187,13 @@ def test_a_reminted_gate_s_commit_is_the_next_gate_s_base(tmp_path):
 def test_the_previous_issue_s_gate_commit_is_never_this_run_s_base(
         tmp_path, monkeypatch):
     """Issues stacked on one branch: the run's history reaches the last
-    issue's gate commits, and with no gate landed yet the base resolved to
-    one of them. fe47e5e, story_time's issue52 cut, gave issue51's 40d6146,
-    and the first gate's scope diff tripped on the last issue's close."""
+    issue's gate commits, and with no gate landed yet the base must not
+    resolve to one of them, or the first gate's scope diff trips on the
+    last issue's close (observed: story_time's issue52 cut, fe47e5e, gave
+    issue51's 40d6146).
+
+    See: story_time issue52
+    """
     import subprocess
     from engine import checks
     def git(*a):

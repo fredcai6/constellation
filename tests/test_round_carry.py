@@ -1,17 +1,17 @@
-"""Restore what a dispatched plan round no longer carries.
+"""A dispatched plan round carries what the parent needs across the dispatch.
 
-g1 made every round of the plan segment a dispatch: a fresh child run each
-time. That broke two crossings on one boundary. First, `_measure_artifacts`
+Every round of the plan segment is a dispatch: a fresh child run each
+time. That puts two crossings on one boundary. First, `_measure_artifacts`
 (engine/cli.py) records an artifact's length into the *submitting* run's own
-journal -- the dispatched child's, gone the moment it closes -- so the
-parent's own journal, which `render.drift` reads to compare a round against
-the ones before it, never gained an entry; the room printed no movement
-across rounds. Second, `skills/planner/SKILL.md` promises a round's own
-`call-tree` arrives as prefill for the next round's dispatched planner, but
-the rework round's prefill (`_act_on_verdicts`) carried only the panel's
-`findings` -- the tree never crossed.
+journal -- the dispatched child's, gone the moment it closes -- so without a
+fold the parent's own journal, which `render.drift` reads to compare a round
+against the ones before it, would never gain an entry and the room would
+print no movement across rounds. Second, `skills/planner/SKILL.md` promises a
+round's own `call-tree` arrives as prefill for the next round's dispatched
+planner, so the rework round's prefill (`_act_on_verdicts`) must carry it
+beside the panel's `findings`.
 
-Both are closed here: `_fold_measures` (engine/cli.py) re-homes a closing
+Both hold: `_fold_measures` (engine/cli.py) re-homes a closing
 child's own `measure` entries onto the parent step that dispatched it, at
 the return -- under that step's own segment, so `render.drift` (which
 filters by the current step's segment) finds them again. `_act_on_verdicts`
@@ -39,7 +39,7 @@ from test_rework import _fresh_mint, _plan_measures
 def _drive_to_first_round(wid="issue44", title="a plan that grows"):
     """Open a real run-an-issue and drive it to the plan segment's first
     dispatch step, `plan-1` -- the same setup test_rework.py's own drift
-    test used before the crossing broke."""
+    test uses."""
     cli.main(["open", "run-an-issue", "--issue", wid.removeprefix("issue"), "--title", title])
     _fill_open(wid)
     cli.main([wid, "submit"])
@@ -61,7 +61,7 @@ def test_a_parent_holds_the_measure_its_dispatched_round_submitted(workdir, caps
     art.write_text("one two three four five six seven eight nine ten\n")
     _fill_plan(child)
     cli.main([child, "submit"])
-    assert _plan_measures(child) == [10]  # the child's own journal, as before
+    assert _plan_measures(child) == [10]  # the child's own journal
 
     cli.main([child, "close"])
     capsys.readouterr()
@@ -79,8 +79,8 @@ def test_two_rounds_produce_a_drift_the_rooms_renders(workdir, capsys):
     wid = _drive_to_first_round()
 
     # round one: the single planner _mint_segment_round already mints for
-    # every later round (design-it-twice's own three-sibling shape, ruling
-    # 10, shelved -- #96).
+    # every later round (design-it-twice's three-sibling shape is shelved,
+    # #96).
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
     child = f"{wid}.plan-1"
     art = journal.location(child) / "plan.md"
@@ -90,9 +90,9 @@ def test_two_rounds_produce_a_drift_the_rooms_renders(workdir, capsys):
     cli.main([child, "close"])
     capsys.readouterr()
 
-    # one look (2026-09-25): the opening cut's first send-back is an
-    # `incorporate` -- `_dispatch_plan_critic`'s own default now that the
-    # impasse ruling (`rule="rework"`) is gone from this seam
+    # one look: the opening cut's first send-back is an
+    # `incorporate` -- `_dispatch_plan_critic`'s own default, since the
+    # impasse ruling (`rule="rework"`) is not on this seam
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
 
@@ -121,10 +121,10 @@ proof = "true"
     assert _plan_measures(wid) == [10, 12]
 
     # a fresh panel is outstanding right after the round closes -- that
-    # room shows the panel brief, not drift (`_panel_status`, unrelated to
-    # this gate). Drift is visible once the panel passes and releases into
-    # the two-voices transition form: the first step in this segment that
-    # is neither a dispatch nor an outstanding panel.
+    # room shows the panel brief, not drift (`_panel_status`). Drift is
+    # visible once the panel passes and releases into the two-voices
+    # transition form: the first step in this segment that is neither a
+    # dispatch nor an outstanding panel.
     _dispatch_plan_critic(wid, verdict="pass")
     capsys.readouterr()
 
@@ -143,8 +143,8 @@ def test_a_rework_rounds_dispatched_planner_receives_the_prior_call_tree(workdir
                "if gate 2 does not absorb it")
 
     # round one: the single planner _mint_segment_round already mints for
-    # every later round (design-it-twice's own three-sibling shape, ruling
-    # 10, shelved -- #96). The carry this test proves reads the segment's
+    # every later round (design-it-twice's three-sibling shape is shelved,
+    # #96). The carry this test proves reads the segment's
     # own `done` entry for this round.
     cli.main(["open", "cut-a-gate", "--parent", wid, "--step", "plan-1"])
     child = f"{wid}.plan-1"
@@ -164,9 +164,9 @@ proof = "true"
     cli.main([child, "close"])
     capsys.readouterr()
 
-    # one look (2026-09-25): the opening cut's first send-back is an
-    # `incorporate` -- `_dispatch_plan_critic`'s own default now that the
-    # impasse ruling (`rule="rework"`) is gone from this seam
+    # one look: the opening cut's first send-back is an
+    # `incorporate` -- `_dispatch_plan_critic`'s own default, since the
+    # impasse ruling (`rule="rework"`) is not on this seam
     _dispatch_plan_critic(wid, verdict="revise", findings="gap: thin")
     capsys.readouterr()
 

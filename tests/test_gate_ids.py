@@ -1,16 +1,18 @@
 """A gate id names one gate, closed or not.
 
-`_mint_gates` numbers a fresh pair by suffixing on collision -- until #56,
-against live ids only. `amend close` (the mechanism `drop` and `remint`
-both use) drops a step out of the *folded* worklist so the run can move on,
-but the raw journal still holds it. A mint that reads only the folded view
-sees the freed id as available again, and hands it to a second, unrelated
-spec: on #7 the journal came to read step -> amend close -> step for one
+`_mint_gates` numbers a fresh pair by suffixing on collision, against the
+raw journal's ids, not live ones. `amend close` (the mechanism `drop` and
+`remint` both use) drops a step out of the *folded* worklist so the run can
+move on, but the raw journal still holds it. A mint that reads only the
+folded view sees the freed id as available again, and hands it to a second,
+unrelated spec: the journal would read step -> amend close -> step for one
 id, `g2`, naming two different gates. `trace`, `drop <gate-id>` and a later
 `amend close` all address an ambiguous name once that happens.
 
-Both tests below pin DESIRED behaviour: the fixed `_mint_gates` reads ids
-from the raw journal, not the fold, so a closed id stays spent.
+Both tests below hold `_mint_gates` to reading ids from the raw journal, not
+the fold, so a closed id stays spent.
+
+See: #7, #56
 """
 
 from engine import cli, journal, run as runmod
@@ -19,7 +21,7 @@ from test_nesting import (_dispatch_and_close_child, _fill_gate_transition_drop,
 
 
 def test_mint_gates_does_not_reissue_an_amend_closed_id(workdir):
-    """Direct at the changed unit, no plan/critic machinery: mint a gate,
+    """Direct at the unit, no plan/critic machinery: mint a gate,
     amend-close it the way `drop` does, then mint again with no explicit id
     -- the same "default to g1" a remint always asks for. The folded view
     shows the slot as empty; the raw journal does not."""
@@ -48,11 +50,10 @@ def test_mint_gates_does_not_reissue_an_amend_closed_id(workdir):
 
 
 def test_a_dropped_gate_does_not_donate_its_id_to_a_later_plan_round(workdir, capsys):
-    """The real #7/#56 story, end to end: g3 is minted, then dropped before
-    it ever dispatches. A later plan round projects a fresh gate that lands
-    at the position the folded view now counts as next -- the same position
-    g3 held. DESIRED behaviour: the new gate is not named "g3"; that name
-    is already spent, and the journal never carries two step entries under
+    """End to end: g3 is minted, then dropped before it ever dispatches. A
+    later plan round projects a fresh gate that lands at the position the
+    folded view counts as next -- the same position g3 held. The new gate is
+    not named "g3"; that name is already spent, and the journal never carries two step entries under
     it."""
     _mint_n_gates(3)
     capsys.readouterr()
@@ -83,10 +84,13 @@ def test_a_dropped_gate_does_not_donate_its_id_to_a_later_plan_round(workdir, ca
 
 
 def test_a_fresh_round_never_reuses_a_spent_step_id(workdir, capsys, monkeypatch):
-    """sports-market-manager issue312: an incorporate round's release step was
-    minted under the id of a planner step already complete, so it read as
-    done and the run fell through to close. Force the random tag onto a
-    spent id: both of the round's steps still come out unique."""
+    """An incorporate round's release step must not be minted under the id of
+    a planner step already complete, or it reads as done and the run falls
+    through to close. Force the random tag onto a spent id: both of the
+    round's steps still come out unique.
+
+    See: sports-market-manager issue312
+    """
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     capsys.readouterr()
     wid = "issue17"

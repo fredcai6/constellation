@@ -1,94 +1,80 @@
-# Step: spec. Owned by the spec-writer skill; filled by the spec-writer --
-# a distinct hand for this round, not a hat the conductor wears: this step
-# names its own `worker`, which `hat` (engine/run.py) leaves alone, and
-# ASSEMBLY.toml says why the hand is distinct. The understand board is the
-# source; it is not attached. The conductor's `incorporate` at
-# CONSOLIDATE.toml mints this same form again holding the panel's
-# `findings`; its `rewrite` mints it holding `orders` alone, a fresh first
-# cut (`[one-look]`, engine/cli.py).
+# Step: spec. Owned by the spec-writer skill; filled by the spec-writer, a
+# separate hand from the conductor. The understand board is the source. The
+# conductor's `incorporate` mints this form again holding the panel's
+# `findings`; its `rewrite` mints it holding `orders` alone.
 
 imperative = """
-State the problem, and stop there. Read the understand board whole -- every
-row, its answer, its settle -- and write what this run is solving, why it
-serves the project, where it stops, and how anyone would tell it is done.
-That is the whole spec: the plan chooses the next step from it and the
-implementer decides how, each reading the code for themselves, starting at
-the code map (`map/INDEX.md`; `palette:map` builds it where the tree has
-none). Restate what the issue asked and what the board settled in your own
-words -- point at neither, since a reader with no tracker reach must be
-able to say from this alone what is being solved and when it is finished.
-Where your prefill holds `findings`, this is your one pass over a panel's
-review: take what serves the spec, reject what does not, and write the spec
-that results -- the finding is advice, the spec is yours. Where it holds
-`orders` alone, write a fresh spec from them, as a first cut.
-Open with the chain of purpose, and make it resolve rather than read: one
-rung a line, each an anchor id beside the so-that it carries, from the root
-purpose it terminates at -- an anchor living in one of the documents
-`constellation.toml`'s `[roots]` names -- down to what this issue builds. An
-anchor is a line holding nothing but a bracketed kebab slug above what it
-names: `# [rework-rounds]` above a definition, `<!-- [short-loops] -->` above
-a purpose in markdown. A rung's link is one line of `map/parents.jsonl`,
-reading `{"id": "<the rung>", "parents": ["<the rung above it>"]}`. Draw the
-so-thats from the issue body and the board's own rows on why; never invent
-one. The opening of the artifact, not a section.
-Climb one path, not a subtree: the rungs your own obligations need to reach a
-root, and nothing beside them. Neighbouring code stays unmapped until a run
-touches it -- backfill is a detour on the path you are already walking, never
-a cartography project. Where a rung is missing on code that already exists,
-author it: mint the anchor on the definition that carries that purpose out --
-usually a module docstring, sometimes one function -- and write its
-`map/parents.jsonl` line yourself. Never author a rung no code executes: a
-chain that reaches a root in two rungs is complete, and a middle rung
-invented to pad the climb is the defect, not the short ladder. Where the rung
-is this run's own work, landing on code that does not exist yet, reserve it
-instead: name the anchor id in `rungs` below, and the anchor id it sits
-under, so the implementer transcribes an id instead of minting one. The
-engine writes `map/parents.jsonl`'s row itself, the moment that work
-actually lands the anchor, in the same commit -- never write that line by
-hand. A rung you mint sits on code that already exists; a rung you reserve
-names a purpose, not the file that will hold it.
-State every obligation this run makes under its own key: a short, stable key
--- say `o-registry-shared`, lowercase words, no sequence number -- that never
-changes when the list is edited, so a reference to it survives a new pass.
-Every obligation names the purpose it supports by anchor id: a rung on the
-ladder above, or the anchor this run's work will land. An obligation is
-something true when this run is done, observable from outside the code --
-a room says this, an input refuses, a report carries that number -- at the
-grain of the problem. How it is proven, which function carries it, what the
-test is called, what the schema looks like: those are the plan's and the
-implementer's, chosen against the code when they get there. Fewer
-obligations that each say what must be true beat more that say how.
-Obligations are scaffolding: they live in `.agent-work/`, gitignored and
-perishable, and they fall away once the work lands. The purpose stays,
-written into the code -- so never cite an obligation from code, cite the
-purpose it carried, by anchor id.
-Name the boundary too: what this run does not cover -- what the board settled
-as out of scope, and the adjacent work a reader would otherwise assume
-travels with this one. Obligations say what must be true; the boundary says
-where to stop, and a planner that cannot find it cuts gates past it.
-Consolidate's own key-terms and settle fields are not yours to fill or
-restate — this artifact is the whole of your return."""
+State the problem, and stop there. Write one document with four parts, in
+this order.
+
+1. The chain of purpose. Open with it. One rung a line: an anchor id and
+   the so-that it carries, from a root purpose down to what this issue
+   builds. A root is an anchor in one of the documents `constellation.toml`
+   lists under `[roots]`. Take each so-that from the issue and the board's
+   rows on why; never invent one.
+
+2. The problem. What this run is solving and why that serves the project.
+   Read the understand board whole first: every row, its answer, its
+   settle. Restate what the issue asked and what the board settled in your
+   own words. A reader holding only this document must be able to say what
+   is being solved.
+
+3. The obligations. Each is something true when the run is done that
+   someone can observe from outside the code: a room says this, an input
+   is refused, a report carries that number. Give each a short stable key
+   (`o-registry-shared`: lowercase words, no number) and the anchor id of
+   the purpose it serves. Do not name a function, a test, a schema or a
+   formula: how it is built and proven belongs to the plan and the
+   implementer. Prefer few obligations that say what must be true.
+
+4. The boundary. What this run does not cover: what the board settled as
+   out of scope, and adjacent work a reader would otherwise assume comes
+   with it. A planner that cannot find the boundary cuts gates past it.
+
+Rules for the chain of purpose:
+
+- An anchor is a line holding only a bracketed kebab slug, directly above
+  what it names: `# [rework-rounds]` above a definition,
+  `<!-- [short-loops] -->` above a purpose in markdown.
+- A link is one line of `map/parents.jsonl`:
+  `{"id": "<the rung>", "parents": ["<the rung above it>"]}`.
+- Climb one path: the rungs your obligations need to reach a root, and
+  nothing beside them. Leave neighbouring code unmapped.
+- A rung missing on code that already exists: add the anchor on the
+  definition that carries that purpose, and write its `map/parents.jsonl`
+  line yourself.
+- A rung for code this run will write: reserve it in `rungs` below. Do not
+  write its `map/parents.jsonl` line; the engine writes it when the work
+  lands.
+- Never add a rung no code carries out. A chain that reaches a root in two
+  rungs is complete.
+
+Obligations live in `.agent-work/` and fall away once the work lands. The
+purpose stays, in the code. So code cites a purpose by anchor id, never an
+obligation.
+
+Where your orders hold `findings`, this is your one pass over the panel's
+review: take what serves the spec, reject what does not, and write the
+spec that results. Where they hold `orders` alone, write a fresh spec from
+them. The code map (`map/INDEX.md`; `palette:map` builds it where the tree
+has none) is where the planner and implementer start; you do not design
+for them."""
 
 [[field]]
 id = "spec"
 kind = "artifact"
 note = """
-The specification, in the work location (.agent-work/<work-id>/). Point at
-it — never retype it: the imperative above says what it must contain."""
+The path of the specification, in the work location
+(.agent-work/<work-id>/). Give the path; do not paste the document."""
 
 [[field]]
 id = "rungs"
 kind = "plan"
 optional = true
 note = """
-Reserved rungs: one block per anchor this run's own work will land on code
-that does not exist yet. `anchor` is the id this run mints; `parents` is
-the anchor id(s) it sits under, the rung above it on the purpose chain.
-Name it here so the implementer transcribes an id instead of minting one --
-never write `map/parents.jsonl`'s line yourself for one of these: the
-engine writes it the moment the anchor actually lands, in the same commit.
-Leave blank on a run that reserves no anchor of its own -- most gates
-climb through code that already exists and need nothing here."""
+One block per anchor this run's work will land on code that does not exist
+yet. Naming it here lets the implementer copy the id. Leave the field out
+where the run reserves none, which is the usual case."""
 
   [[field.item]]
   id = "anchor"
@@ -96,4 +82,4 @@ climb through code that already exists and need nothing here."""
 
   [[field.item]]
   id = "parents"
-  note = "The anchor id(s) it sits under -- the rung above it. Space-separated if more than one."
+  note = "The anchor id or ids it sits under: the rung above it. Space-separated if more than one."

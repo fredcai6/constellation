@@ -1,12 +1,13 @@
-"""Both portions of the map on one page (epic #138, finding 5): an entity's
-rendered page shows the DEFINED portion (`map/parents.jsonl` -- its parents,
-or ORPHAN when nothing is recorded yet) and the computed reverse of a
-`See:` tag (finding 2) -- who points at this anchor, without anyone
-authoring the reverse edge.
+"""Both portions of the map on one page: an entity's rendered page shows
+the DEFINED portion (`map/parents.jsonl` -- its parents, or ORPHAN when
+nothing is recorded yet) and the computed reverse of a `See:` tag -- who
+points at this anchor, without anyone authoring the reverse edge.
 
-`render.map_lines` is the single new seat both findings share; this file
-drives it through `render.run` end to end, the same altitude
-`test_code_map_anchors_and_see.py` already uses for `checks.see_tags_resolve`.
+`render.map_lines` is the single seat both share; this file drives it
+through `render.run` end to end, the same altitude
+`test_code_map_anchors_and_see.py` uses for `checks.see_tags_resolve`.
+
+See: #138
 """
 
 import json

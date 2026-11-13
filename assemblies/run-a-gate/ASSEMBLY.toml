@@ -6,8 +6,8 @@
 # transition, a two-voices step the same shape as run-an-issue's plan seam:
 # a panel the assembly declares reads the diff, and the conductor disposes of
 # the round on ROUTE.toml. Nobody chooses the readers -- they are written
-# here, so the engine mints them with the round (ruling, 2026-09-25: an
-# agent copying three fixed blocks into a form is work the engine owns).
+# here, so the engine mints them with the round (an agent copying three
+# fixed blocks into a form is work the engine owns).
 
 assembly = "run-a-gate"
 conductor = "gate-conductor"
@@ -19,15 +19,15 @@ step-form = "skills/implementer/forms/IMPLEMENT.toml"
 # This segment has no rework-form, so every refill is another pass at the same
 # diff. Two reworks succeed -- the first and second reviews each send the
 # diff back for another pass -- and the third review's own revise reaches
-# the impasse form instead of minting a fourth round (ruling, 2026-09-02: at
-# most three critic dispatches per artifact).
+# the impasse form instead of minting a fourth round (at most three critic
+# dispatches per artifact).
 impasse-after = 2
 impasse-form = "forms/IMPASSE.toml"
 worker = "implementer"
 model = "standard"
 decides = "ruling"     # IMPASSE.toml's; IMPLEMENT.toml has no such field
 # A ceiling on the rounds this seam sends back in a row within this gate's
-# own run (issue113): counted as the rounds landed since the review last
+# own run (see issue113): counted as the rounds landed since the review last
 # released one -- a `pass` or `close` -- so the count is the loop itself,
 # never the gate's whole history. Outranks `impasse-after` where both
 # would fire on the same send-back.
@@ -61,6 +61,13 @@ anchor = true
 # is no third verdict word -- a root objection is a revise finding -- and
 # `rework` is what carries one back into another implement round.
 decides = "resolution"
+# The conductor that rules here built the diff the panel read. So a reader's
+# `revise` binds: while one stands, this form's answer is `rework`, or `up`
+# to contest it at the run that dispatched the gate. A rework also hands its
+# reader `set-aside`, the findings the conductor did not call blocking, so a
+# reader and not the builder has the last look at them (`[panel-binds]`,
+# engine/cli.py).
+panel-binds = "revise"
 
   [[segment.transition.outcome]]
   value = "pass"
@@ -84,11 +91,12 @@ decides = "resolution"
 
   # One criterion per panelist, the same rule as run-an-issue's panels: three
   # fresh-context readers disagreeing is a panel; one reader holding three
-  # criteria is a reviewer with a checklist. Spec-fit is not a lens here: the
-  # gate's own proof is that check, run at submit and again at close, and on
-  # tennis_elo's first fourteen runs a spec-fit reader sent a round back 2
-  # times in 29. `claims` is the lens every hand-picked fourth reader kept
-  # re-inventing there, and 8 blocking findings no other reader raised.
+  # criteria is a reviewer with a checklist. A separate spec-fit reader sent
+  # a round back 2 times in 29 on tennis_elo's runs, and the panel was
+  # growing. But both remints on story_time's runs were a delivered artifact
+  # that did not show what the spec asked, found by the conductor after all
+  # four readers passed. So `claims` holds it, as the reader that already
+  # opens what the gate writes for a person: no fifth reader.
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
@@ -96,9 +104,8 @@ decides = "resolution"
   criteria = "tests: are these the right tests, or could the work be substantially wrong while they pass -- and does anything watch the important thing pass through the whole project rather than only its pieces"
 
   # `shape` is one question at two scales: placement against the existing
-  # code (the old `simplicity`) and against the plan's call-tree, which the
-  # gate's prefill carries. A separate reader for the call-tree was tried and
-  # folded back -- it was the same judgment (Tommy, 2026-10-23).
+  # code and against the plan's call-tree, which the gate's prefill carries.
+  # A separate reader for the call-tree would make the same judgment twice.
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
@@ -109,12 +116,11 @@ decides = "resolution"
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "claims: is every statement the diff writes -- in docs, reports, comments, printed conclusions, its own change note -- backed by something it ran? Name each claim that says more than the numbers establish, a number carried from somewhere and not reproduced, or a cause stated as fact that nothing tested"
+  criteria = "claims: does what the gate delivers say what was asked, and is every statement in it backed? First open what the gate produces for a person -- a trace, a report, a doc, printed output, a checked-in expectation -- and read it against the words of each obligation in your orders: name each obligation the delivered thing does not show. Then name each statement the diff writes -- in docs, reports, comments, its own change note -- that says more than what it ran establishes: a number carried from somewhere and not reproduced, or a cause stated as fact that nothing tested"
 
   # All eight of story_time's remints came from a conductor running the code
   # after a gate had been through review. A blind standard-tier reader on this
-  # lens found a defect the conductor reminted for in four of five such gates
-  # (2026-11-05 replay);
+  # lens found a defect the conductor reminted for in four of five such gates;
   # on four clean gates its noise was setups no run could reach, hence "reach".
   [[segment.transition.panel]]
   form = "skills/reviewer/forms/REVIEW.toml"
@@ -130,7 +136,7 @@ decides = "resolution"
   form = "skills/reviewer/forms/REVIEW.toml"
   worker = "reviewer"
   model = "standard"
-  criteria = "rework: is each blocking finding in your orders answered by this round's diff, and does anything the rework wrote -- a comment, a rationale, a test predicate -- say something the diff itself made false? Read for those two things only"
+  criteria = "rework: three things only. Is each finding under `findings` in your orders answered by this round's diff? Does anything the rework wrote -- a comment, a rationale, a test predicate -- say something the diff itself made false? And is any finding under `set-aside`, which the builder chose not to fix, a gap that still stands in this diff? Name each one that does"
 
 [[segment]]
 id = "close"

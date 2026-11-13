@@ -1,32 +1,18 @@
-"""One look (ruling, 2026-09-25): run-an-issue's spec and plan seams get a
+"""One look: run-an-issue's spec and plan seams get a
 single round of critic review, never a loop. `incorporate` is the writer's
 own pass over what the panel found -- taken or rejected on its own
 judgement, no second panel reading what comes back; `rewrite` is the escape
 hatch for a round the conductor reads as changing the problem or the chunk,
 a fresh artifact from the conductor's own `orders` alone, judged by a panel
-of its own. `round-cap` is what still
-stops a seam that keeps sending the round back, now built from rewrites
-rather than an impasse loop -- and a round a paused seam's own resume opens
-starts that count over (#177).
+of its own. `round-cap` stops a seam that keeps sending the round back,
+counting rewrites rather than an impasse loop -- and a round a paused seam's
+own resume opens starts that count over.
 
 Drives the real `run-an-issue` assembly end to end through `cli.main`, the
-same style test_nesting.py and test_spec_review.py already use, reusing
+same style test_nesting.py and test_spec_review.py use, reusing
 their fixtures rather than hand-rolling a journal.
 
-KNOWN BLOCKER: `engine/cli.py`'s `_releases(outcome)` (~line 2707) still
-tests the outcome verb against the literal strings `"rework"`/`"pause"`,
-never updated when the ASSEMBLY.toml outcome tables were renamed to
-`incorporate`/`rewrite`. It reads an `incorporate`/`rewrite` outcome as a
-release, so `_check_release_artifacts` wrongly demands the round's blank
-`spec`/`plan` field the moment ANY incorporate or rewrite submits -- before
-`_check_one_look`'s own orders/second-incorporate checks are ever
-reached. Every test in this file drives at least one incorporate or
-rewrite, so every one of them currently fails on that single defect
-(`SystemExit: spec: a release needs it ...` / `plan: a release needs it
-...`), not on anything below. This is reported, not fixed here (engine code
-is out of scope for this file) -- these tests are written to the ruling's
-actual intended behavior and will pass once `_releases` is taught the new
-verbs.
+See: #177
 """
 
 import pathlib
@@ -379,9 +365,12 @@ def test_the_one_rewrite_is_still_incorporated_and_released(workdir, capsys):
 
 def test_a_round_a_resumed_pause_opens_is_not_capped_again_on_the_very_next_send_back(
         workdir, capsys):
-    """#177: the principal's answer is the ruling round-cap exists to
+    """The principal's answer is the ruling round-cap exists to
     obtain, so the round it opens starts the count over -- the very next
-    send-back must not immediately re-trip the cap."""
+    send-back must not immediately re-trip the cap.
+
+    See: #177
+    """
     wid = "issue9"
     _open_to_plan(wid, "9")
     _drive_plan_to_pause(wid)

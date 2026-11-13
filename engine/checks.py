@@ -5,7 +5,7 @@ Two numbers bound one check, and they answer different questions.
 **The handback** is how long `submit` holds its caller. A dispatched agent's
 harness moves any foreground command still running at about 120 seconds into
 the background, the agent's turn ends there, and nothing wakes it -- measured
-on a real `run-a-gate` whose proof slept 150 seconds (#72). The proof itself
+on a real `run-a-gate` whose proof slept 150 seconds. The proof itself
 survived and completed; the caller was taken away from it. So the engine
 returns control first, with a room the agent can act on. The number is the
 engine's own: what a harness does to a foreground command is not something a
@@ -13,10 +13,10 @@ gate spec knows or should declare.
 
 **The proof budget** is how long the proof may run before it is broken rather
 than merely slow. That is what `CHECK_TIMEOUT = 600` was, and 600 is still the
-default -- but a gate spec now declares its own with a `budget` key, because
-one constant for every check in the system is #36, and inventing the handback
-as a second hardcoded constant beside it would have been the same defect
-twice.
+default -- but a gate spec declares its own with a `budget` key, because
+one constant for every check in the system is wrong for some check, and
+inventing the handback as a second hardcoded constant beside it would be the
+same defect twice (#36, #72).
 
 The proof always runs in a detached process of its own, and that process is
 the only writer of the outcome: the `submit` entry on exit 0, a `check` entry
@@ -92,17 +92,18 @@ _ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 # [budget-only-widens]
-# Rationale: #205 -- the planner's `budget` was read as a speed estimate.
-#   Across three repositories' runs most declarations sat under the default
-#   (120, 180, 300 against 600), and the engine enforced each as a kill: a
-#   right proof that took 150s on a loaded host was refused at 120, and no
-#   verb inside the gate can reach the spec to widen it. What the budget
+# Rationale: the planner's `budget` is read as a speed estimate. Across three
+#   repositories' runs most declarations sat under the default (120, 180, 300
+#   against 600), and enforcing each as a kill refuses a right proof that
+#   takes 150s on a loaded host at 120, with no verb inside the gate able to
+#   reach the spec to widen it. What the budget
 #   answers is "broken or slow", and a number under the default can only
 #   call a slow proof broken sooner, so a declaration widens the bound and
 #   never narrows it.
 # Rejected: a verb that amends the budget mid-gate. It repairs a guess after
 #   it has already blocked a gate; with the default as the floor, the guess
-#   no longer blocks.
+#   never blocks.
+# See: #205
 def budget_for(orders):
     """Seconds this step's proof may run: the gate spec's own `budget` where
     it declares a longer one, else the default (`[budget-only-widens]`).
@@ -178,7 +179,7 @@ def hand_in(wid, step, fields, commands, check_root, budget):
         "cwd": where, "budget": budget, "result": str(result.resolve()),
         "base": gate_base(wid, where)}),
         encoding="utf-8")
-    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
+    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log, engine=True)
     try:
         code = proc.wait(timeout=HANDBACK)
     except subprocess.TimeoutExpired:
@@ -195,26 +196,26 @@ def hand_in(wid, step, fields, commands, check_root, budget):
 
 
 # [trial-detached]
-# Rationale: #163's own defect -- a fast suite this repository's own
-#   `[commands]` palette declares takes 168s, `HANDBACK` is 90, and
-#   `_trial_proofs` (engine/cli.py) used to run each `proof` field
-#   synchronously with the command itself killed at
-#   `min(budget, HANDBACK)`, so every correctly written proof that took
-#   longer than the handback read as a fourth, useless reading: "no result
-#   after 90s", the real exit status lost with the process that held it.
-#   `hand_in`'s own shape already separates the two numbers correctly --
+# Rationale: a fast suite this repository's own `[commands]` palette declares
+#   takes 168s and `HANDBACK` is 90. Running each `proof` field synchronously
+#   with the command killed at `min(budget, HANDBACK)` would make every
+#   correctly written proof that took longer than the handback read as a
+#   fourth, useless reading: "no result after 90s", the real exit status
+#   lost with the process that held it.
+#   `hand_in`'s own shape separates the two numbers correctly --
 #   the handback bounds the caller's wait, never the check's own run -- so
 #   the trial is spawned exactly the way `hand_in` spawns a gate's own
 #   checks, through this near-identical twin, and the one place this
 #   diverges from `hand_in` is on purpose: `[trial-proofs]`'s whole point is
 #   that nothing here is ever refused, so this never raises. A proof that
 #   lands within the handback journals its own reading before this
-#   returns, exactly as `_trial_main` always has; one that does not leaves
+#   returns, exactly as `_trial_main` does; one that does not leaves
 #   `check-started` for the route form to find later, the same record
 #   `hand_in` already leaves for a gate's own overrun, marked `trial=True`
 #   so the fold (`engine/run.py`) can tell the two apart -- a plan step's
 #   own submit does not wait on this the way a gate's submit waits on
 #   `hand_in`'s, so the two cannot share one bookkeeping key.
+# See: #163
 def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
     """Spawn every resolved `proof`-kind field this submit carries as one
     detached trial, and wait no longer than the handback for it to land.
@@ -235,7 +236,7 @@ def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
         "wid": wid, "step": step_id, "commands": commands, "cwd": where,
         "budget": budget, "trial": True, "changed": changed,
         "base": gate_base(wid, where)}), encoding="utf-8")
-    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log)
+    proc = _spawn([sys.executable, "-m", "engine.checks", str(payload)], log, engine=True)
     try:
         code = proc.wait(timeout=HANDBACK)
     except subprocess.TimeoutExpired:
@@ -250,7 +251,24 @@ def hand_in_trial(wid, step_id, commands, cwd, budget, changed=None):
     return "done"
 
 
-def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
+# [consumer-env]
+# Rationale: the engine's own root on `PYTHONPATH` is for the engine's own
+#   modules. Left in the environment of a consumer repository's command or
+#   agent, it shadows that repository's packages and breaks its virtualenv.
+def _consumer_env():
+    """This process's environment without the engine's root on `PYTHONPATH`:
+    what a proof command or a dispatched agent runs under."""
+    env = dict(os.environ)
+    root = str(_ROOT)
+    kept = [p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p and p != root]
+    if kept:
+        env["PYTHONPATH"] = os.pathsep.join(kept)
+    else:
+        env.pop("PYTHONPATH", None)
+    return env
+
+
+def _spawn(argv, log, cwd=None, *, bind=None, fills=None, engine=False):
     """The detached runner, generalized to any argv: `Popen` it with output
     captured to `log` and nothing read from the caller's own stdin.
     `start_new_session` puts it in a session of its own, so a harness that
@@ -260,14 +278,16 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
 
     Shared by `hand_in`'s own proof runner (`cwd=None`, inheriting the
     caller's) and `spawn_dispatch`'s child launch (`cwd=` the child's own
-    tree) -- one `Popen` call carrying commitments 6, 17 and 18 for both,
+    tree) -- one `Popen` call serving both,
     rather than a second copy of the same five keyword arguments.
 
-    `PYTHONPATH` carries this tree's root rather than a rewritten path:
-    install is a copy, so a module run this way is found the same way in
-    the repo and in an installed copy. Harmless, not just convenient, for an
-    argv that names no Python module at all -- an extra `PYTHONPATH` entry
-    a non-Python harness never looks at costs it nothing.
+    `engine=True` is for the one argv that is this engine's own module (the
+    proof runner, `python -m engine.checks`): it puts this tree's root on
+    `PYTHONPATH` so the module is found from any working directory. Every
+    other process -- a dispatched agent, a form filler -- gets the caller's
+    environment with that root taken out, because the engine's root on a
+    consumer repository's `PYTHONPATH` shadows that repository's own
+    packages and breaks its virtualenv's interpreter.
 
     `bind`, when given, is the id of the child this argv itself runs as --
     stamped into `CONSTELLATION_BOUND` so that child's own work-id
@@ -282,11 +302,12 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
     process's own `submit` of that step can say its work is done (see
     `[filler-ends-at-its-submit]`, engine/cli.py). Never inherited: a
     process this one spawns is not filling that step."""
-    env = {**os.environ,
-           "PYTHONPATH": os.pathsep.join(
-               p for p in (str(_ROOT), os.environ.get("PYTHONPATH", "")) if p),
+    env = {**_consumer_env(),
            "CONSTELLATION_SESSION": os.environ.get(
                "CONSTELLATION_SESSION", str(os.getpid()))}
+    if engine:
+        env["PYTHONPATH"] = os.pathsep.join(
+            p for p in (str(_ROOT), env.get("PYTHONPATH", "")) if p)
     if bind is not None:
         env["CONSTELLATION_BOUND"] = bind
     env.pop(FILLS_ENV, None)
@@ -299,21 +320,18 @@ def _spawn(argv, log, cwd=None, *, bind=None, fills=None):
 
 
 # [dispatch-failure]
-# Rationale: `o-absent-dispatch-raises` collapses what used to be two axes --
-#   a genuinely absent `dispatch` key read as nothing to spawn and no
-#   failure, every other case a reported, distinguishable failure -- into
-#   one: every way a start can fail to produce a running, journaled process
-#   raises this, absence included. `.reason` is one of the module-level
+# Rationale: starting a child has one axis, not two: every way a start can
+#   fail to produce a running, journaled process raises this, a genuinely
+#   absent `dispatch` key included. `.reason` is one of the module-level
 #   DISPATCH_* constants (not free text) so the four failure inputs stay
 #   distinguishable from each other -- a caller branches on `exc.reason`,
 #   never on `str(exc)`.
 # Rejected: keeping the absent case a silent `None`, with only the other
-#   three raising. That is the two-state rendering `o-single-dispatch-room`
-#   deletes elsewhere in this same run -- a caller that catches
-#   `DispatchFailure` already handles "no journal entry, reason logged" for
-#   three of the four causes, so leaving the fourth a different shape is one
-#   more place the old contract survives after the room it justified is
-#   gone.
+#   three raising. That is a two-state rendering the dispatch rooms in
+#   `engine/cli.py` do not have -- a caller that catches `DispatchFailure`
+#   already handles "no journal entry, reason logged" for three of the four
+#   causes, so leaving the fourth a different shape is one more place for a
+#   second contract to survive.
 class DispatchFailure(Exception):
     """A `spawn_dispatch` attempt that produced no journal entry. `.reason`
     names which of the four failure inputs this was; `.detail` is the free
@@ -336,8 +354,8 @@ _DISPATCH_TOKENS = {"{brief}": "brief", "{runner}": "runner", "{tree}": "tree"}
 # Rationale: `{brief}`/`{runner}`/`{tree}` are matched by exact whole-word
 #   equality, never a substring or a general `{...}` parse -- a word that
 #   merely contains braces (a real args element that happens to have some
-#   other `{token}` in it) is data, not a placeholder, and commitment 2 asks
-#   for whole-word substitution only. Checking the three names directly,
+#   other `{token}` in it) is data, not a placeholder, and the rule is
+#   whole-word substitution only. Checking the three names directly,
 #   rather than stripping braces and looking the stripped name up in a set,
 #   means an unrecognized brace-token (`{host}`, say) simply falls through
 #   to "left untouched" with no special-casing -- it was never one of the
@@ -353,7 +371,7 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
     """Spawn one dispatched child's process from a `[commands]`-shaped
     mapping's `dispatch` entry, substituting `{brief}`, `{runner}` and
     `{tree}` into it as whole argv words, and journal the spawn keyed by
-    `child_id` (commitment 9) -- never by `wid`'s current step, which a
+    `child_id` -- never by `wid`'s current step, which a
     panel step shares across several children.
 
     Returns the journal entry `journal.append` wrote (identity, pid, start
@@ -362,7 +380,7 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
     Raises `DispatchFailure` for every way this can fail to produce a
     running, journaled process: `commands` carries no `dispatch` key at all
     (a repository that has not configured one), the entry is present but
-    not a list (today's single-string `[commands]` shape used verbatim
+    not a list (a single-string `[commands]` shape used verbatim
     would land here), a placeholder in it names one of
     `{brief}`/`{runner}`/`{tree}` but the caller passed `None` for that
     value, or the process itself fails to start (a nonexistent executable,
@@ -371,7 +389,7 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
     there is no window in which a partial entry could land.
 
     `tree` also becomes the spawned process's own working directory
-    (commitment 7) regardless of whether the entry's text uses `{tree}` at
+    regardless of whether the entry's text uses `{tree}` at
     all; `log` is where its stdout and stderr are captured, opened in
     append mode exactly like a check's own log."""
     if "dispatch" not in commands:
@@ -416,9 +434,8 @@ def spawn_dispatch(commands, brief, runner, tree, wid, child_id, log):
 #   different failure mode) has exactly one place to land for a form
 #   filler's own launch, not a second, hand-copied loop that could fall out
 #   of step with `spawn_dispatch`'s.
-# Rejected: rewriting `spawn_dispatch` to call this helper too. The gate
-#   spec that asked for this function is explicit that `spawn_dispatch`
-#   itself, and every one of its existing callers, is untouched this round.
+# Rejected: rewriting `spawn_dispatch` to call this helper too; it and its
+#   existing callers stay as they are.
 def _dispatch_launch(commands, brief, runner, tree, log, fills=None):
     """Substitute `{brief}`/`{runner}`/`{tree}` into the configured
     `dispatch` entry and launch it, returning the live `Popen`. Raises
@@ -500,9 +517,9 @@ def alive(pid):
     and answers "exited"."""
     pid = int(pid)
     # A child that exited but was never waited on is a zombie: `os.kill(pid, 0)`
-    # still succeeds on it, which read a finished harness as `working` and made
-    # a spawn test's answer depend on whether unrelated code had reaped it
-    # first (#101). Reap it if it is ours, then read its state where /proc
+    # still succeeds on it, which would read a finished harness as `working`
+    # and make a spawn test's answer depend on whether unrelated code had
+    # reaped it first (#101). Reap it if it is ours, then read its state where /proc
     # says it; the state letter follows the parenthesised command name, whose
     # own parentheses are why the last `)` is the anchor.
     try:
@@ -528,8 +545,8 @@ def alive(pid):
 
 
 # [trial-at-the-cut]
-# Rationale: #122 -- a plan's `proof` was read by three critics and run by
-#   nobody, so a prose proof failed only after the gate had built its whole
+# Rationale: a plan's `proof` can be read by three critics and run by
+#   nobody, so a prose proof fails only after the gate has built its whole
 #   diff, where no verb could repair it. Running it once where it is
 #   written, against the tree as it stands, is the one place that reading
 #   costs a line. This is a report, never a refusal (`_trial_proofs`,
@@ -537,18 +554,15 @@ def alive(pid):
 #   first failure the way `main`'s own gate-check loop does below -- every
 #   `proof` field this submit carries gets its own run and its own `check`
 #   entry, whatever the ones before it did.
-# Rationale: #163 -- this used to run in the caller's own foreground,
-#   bounded by the smaller of the gate's own `budget` and the handback, so a
-#   proof that was right but slow (this repository's own fast suite, 168s
-#   against a 90s handback) was killed before it could answer and read as a
-#   fourth, useless reading: "no result after 90s". Now it is `hand_in_trial`
-#   that bounds the *caller's wait* at the handback; this function is what
-#   the detached process spawned for that trial runs, and it is bounded only
-#   by `budget` itself -- the planner's own declaration of how long the
+# Rationale: `hand_in_trial` bounds the *caller's wait* at the handback; this
+#   function is what the detached process spawned for that trial runs, and it
+#   is bounded only by `budget` itself -- the planner's own declaration of how long the
 #   proof may run when it is right. A command that genuinely outruns
 #   `budget` still reads as exit `-1`, `main`'s own shape for an overrun --
-#   that reading is real and stays; only the handback's incidental cutoff is
-#   gone.
+#   that reading is real; the handback's cutoff does not apply here. A proof
+#   bounded by the handback instead would be killed while right but slow (this
+#   repository's own fast suite, 168s against a 90s handback).
+# See: #122, #163
 def _trial_main(payload):
     """Run every proof this trial carries, in field order, journaling each as
     a `check` entry exactly as `_trial_proofs` (engine/cli.py) always has --
@@ -592,24 +606,25 @@ def _as_text(stream):
 
 
 # [proofs-run-in-bash]
-# Rationale: #191 -- a proof is written and verified in bash, the shell every
+# Rationale: a proof is written and verified in bash, the shell every
 #   agent's tool runs, and `shell=True` alone runs it in `/bin/sh`, which is
-#   dash on Debian and Ubuntu. tennis_elo issue126's gate proof used `<(...)`:
-#   it passed by hand and exited 2 on every submit, and a minted proof cannot
+#   dash on Debian and Ubuntu. A proof using `<(...)` passes by hand and
+#   exits 2 on every submit (tennis_elo issue126), and a minted proof cannot
 #   be edited. Running it in the shell it was written in makes that
 #   difference impossible instead of reporting it.
 # Rejected: POSIX-only proofs checked at the cut -- a rule every author has
 #   to remember, enforced by a refusal, for a shell nobody writes in.
+# See: #191
 _SHELL = shutil.which("bash")
 
 
 # [gate-base]
-# Rationale: issue299 g4 (sports-market-manager, 2026-10-26) -- an issue-tier
-#   run lands its gates in sequence on one branch, and every planner wrote its
-#   scope check as `git diff --name-only origin/main...HEAD`. Gate N then saw
-#   every file gates 1..N-1 had landed and tripped on files it never touched;
-#   the conductor unblocked g4 by hand and ordered each later gate-proof to
-#   diff against the last gate commit, one human computation per gate. The
+# Rationale: an issue-tier run lands its gates in sequence on one branch, and
+#   a planner writes its scope check as `git diff --name-only
+#   origin/main...HEAD`. Gate N then sees every file gates 1..N-1 landed and
+#   trips on files it never touched (observed in sports-market-manager
+#   issue299 g4), each later gate-proof needing to diff against the last gate
+#   commit, one human computation per gate. The
 #   base is a fact the branch already holds -- the newest commit carrying a
 #   gate's `Work-Id` trailer (`_commit_gate`), else where the run branched off
 #   its cut ref -- so the engine computes it and every check runs with it as
@@ -621,11 +636,12 @@ _SHELL = shutil.which("bash")
 #   read at run time, so the same text is right at every gate and after a
 #   rebase (the trailer survives it; the cut sha does not).
 # Rejected: the run's recorded cut sha for g1 -- a rebase onto a moved main
-#   (issue299 g1 did exactly this) leaves it behind, and `sha..HEAD` would
+#   (issue299 g1 hit this) leaves it behind, and `sha..HEAD` would
 #   then list main's own commits. The merge-base against the cut's ref tracks
 #   the rebase.
 # Rejected: defaulting to `HEAD` -- a gate's own work is uncommitted until the
 #   engine commits it on advance, so HEAD is the base only by that accident.
+# See: sports-market-manager issue299
 def gate_base(wid, cwd):
     """The commit a gate's own diff is measured from: the newest gate commit
     past the run's cut, else the branch point off the ref the run was cut
@@ -657,7 +673,7 @@ def gate_base(wid, cwd):
 def _run(cmd, cwd, budget, base=""):
     """(exit, output) for one check; exit `None` when it outran the budget.
     `base` is `gate_base`'s answer, exported as `CONSTELLATION_GATE_BASE`."""
-    env = {k: v for k, v in os.environ.items() if k != "CONSTELLATION_GATE_BASE"}
+    env = {k: v for k, v in _consumer_env().items() if k != "CONSTELLATION_GATE_BASE"}
     if base:
         env["CONSTELLATION_GATE_BASE"] = base
     try:
@@ -673,21 +689,34 @@ def _run(cmd, cwd, budget, base=""):
 
 
 def _failed(wid, step_id, fid, cmd, code):
-    """The words a failing check has always refused in: a check is the
-    engine's to run, so a failure is not the agent's answer to correct."""
+    """What a failing check refuses in. The engine runs a check, so the
+    answer is the work, not the form. The second move is for a check that is
+    itself wrong, and it depends on who can rule on that. A dispatched run
+    raises it as a blocked note, which its dispatcher's room prints: the
+    bypass is not offered to the agent whose work just failed. A root run
+    has nobody above it, so its own conductor drops the step, one journaled
+    amend."""
+    head = (f"{fid}: `{cmd}` exited {code}\n"
+            f"  the engine runs this check; it is not yours to fill in. Fix the "
+            f"work until it passes, then submit again.\n")
+    opened = next((e for e in journal.read(wid) if e.get("kind") == "run"), {})
+    if opened.get("parent"):
+        return render.located(
+            head + f"  if the check itself is wrong: spine {wid} note blocked "
+                   f"\"<what is wrong with the check>\" and end your turn")
     return render.located(
-        f"{fid}: `{cmd}` exited {code}\n"
-        f"  a check is run by the engine, not filled in -- make it pass,\n"
-        f"  or drop this step: spine {wid} amend close {step_id} --reason ...")
+        head + f"  if the check itself is wrong, drop this step: "
+               f"spine {wid} amend close {step_id} --reason ...")
 
 
 # [budget-refusal-names-both]
-# Rationale: #36 -- "fix the command, or drop this step" offers two escapes
+# Rationale: "fix the command, or drop this step" offers two escapes
 #   that are both wrong for a check that is slow because it is correct, and
 #   the timeout is exactly the case where the command may need nothing done
 #   to it. The refusal has to separate "this command is wrong" from "this
 #   command needs longer" and name the declaration that buys the time, or the
 #   only readings left are the two that damage a correct proof.
+# See: #36
 def _overran(wid, step_id, fid, cmd, budget):
     return render.refusal(
         fid, f"`{cmd}` did not finish in {budget}s, its whole budget -- so "
@@ -699,21 +728,20 @@ def _overran(wid, step_id, fid, cmd, budget):
 
 
 # [proof-output-reaches-the-log]
-# Rationale: #117 -- a failing proof left 232 bytes behind, all of them the
-#   refusal, and which check failed was unrecoverable. On a failing exit the
-#   output was never lost -- `_run` captures it and `main` journals it -- so
-#   what was missing is the output at the path the in-flight room actually
-#   names, which is the only place a reader is told to look. A proof killed at
-#   its budget did lose it outright, and `_run` now takes it off the timeout
-#   too. Every attempt writes its own header here,
-#   whatever the exit, because the log is opened for append (`_spawn`) and a
-#   passing attempt after a failing one otherwise reads as the failure still
-#   standing -- the second half of #117, where the log contradicts the
-#   journal.
+# Rationale: a failing proof that leaves only the refusal (232 bytes) makes
+#   which check failed unrecoverable. On a failing exit the output is not
+#   lost -- `_run` captures it and `main` journals it -- but it has to reach
+#   the path the in-flight room actually names, the only place a reader is
+#   told to look. A proof killed at its budget would lose it outright, so
+#   `_run` takes it off the timeout too. Every attempt writes its own header
+#   here, whatever the exit, because the log is opened for append (`_spawn`)
+#   and a passing attempt after a failing one otherwise reads as the failure
+#   still standing, where the log contradicts the journal.
 # Rejected: truncating the log at the start of each attempt. `_spawn` is
 #   shared with the dispatched-child path, where the accumulated log is the
 #   record, so the fix has to make attempts distinguishable rather than make
 #   the earlier one disappear.
+# See: #117
 def _attempt(fid, cmd, code, output):
     """Print one attempt into the log: what ran, how it ended, and what it
     printed. `code` is `None` for a proof that outran its budget."""

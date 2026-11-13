@@ -1,11 +1,13 @@
 """A proof slower than the caller's turn.
 
-#72, measured: a dispatched agent's harness moves any foreground command still
-running at ~120s into the background and the agent's turn ends there, never
-woken. The engine's process survived and journaled its submit 25 seconds
-later; nobody was left to read it. So the fix is not survival, it is that
-`submit` returns control first -- and #36 is the other half, because the
-number it returns against cannot be one more hardcoded constant.
+A dispatched agent's harness moves any foreground command still running at
+~120s into the background and the agent's turn ends there, never woken. The
+engine's process survives and journals its submit 25 seconds later; nobody is
+left to read it. So the answer is not survival, it is that `submit` returns
+control first -- and the number it returns against cannot be one more
+hardcoded constant.
+
+See: #72, #36
 
 Every test here drives real processes, and keeps them under a couple of
 seconds by making both numbers small.
@@ -50,7 +52,7 @@ def _await(wid, kind, seconds=20):
     raise AssertionError(f"no {kind} entry landed in {seconds}s: {_kinds(wid)}")
 
 
-# -- the common path, unchanged ----------------------------------------------
+# -- the common path --------------------------------------------------------
 
 
 def test_a_proof_that_finishes_inside_the_handback_submits_exactly_as_before(
@@ -200,9 +202,12 @@ def test_a_started_check_whose_process_is_gone_reads_as_work_to_redo(
 
 def test_a_proof_that_outruns_its_budget_refuses_and_names_the_budget(
         bare_workdir, monkeypatch):
-    """#36: "fix the command, or drop this step" are both wrong for a check
+    """"fix the command, or drop this step" are both wrong for a check
     that is slow because it is correct. The refusal separates the two readings
-    and names the declaration that buys the time."""
+    and names the declaration that buys the time.
+
+    See: #36
+    """
     monkeypatch.setattr(checks, "BUDGET", 1)
     _gate("sleep 30")
 
@@ -211,8 +216,8 @@ def test_a_proof_that_outruns_its_budget_refuses_and_names_the_budget(
 
     said = str(e.value)
     assert "did not finish in 1s" in said
-    assert "needs longer" in said and 'budget = "2"' in said   # the new escape
-    assert "amend close" in said                               # and the old one
+    assert "needs longer" in said and 'budget = "2"' in said   # the escape for a slow check
+    assert "amend close" in said                               # and the escape for a wrong one
     assert "submit" not in _kinds("g1")
     assert [x for x in journal.read("g1") if x.get("kind") == "check"][-1]["exit"] == -1
 
@@ -233,9 +238,12 @@ def test_a_gate_spec_declaring_a_longer_budget_is_run_under_it(bare_workdir, mon
 
 
 def test_a_budget_under_the_default_never_narrows_it(bare_workdir, monkeypatch):
-    """#205: planners declared 120 on a proof that takes 150 and the gate was
-    refused with no verb to widen it. A number under the default only calls
-    a slow proof broken sooner, so the default stands."""
+    """A number under the default only calls a slow proof broken sooner, so the
+    default stands. Planners declared 120 on a proof that takes 150 and the
+    gate was refused with no verb to widen it.
+
+    See: #205
+    """
     monkeypatch.setattr(checks, "BUDGET", 600)
     assert checks.budget_for({"budget": "120"}) == 600
     assert checks.budget_for({"budget": "900"}) == 900
@@ -257,9 +265,12 @@ def test_a_budget_that_is_not_seconds_refuses_before_anything_runs(bare_workdir)
 
 def test_a_budget_that_leads_with_seconds_reads_them_and_keeps_its_reason(bare_workdir, monkeypatch):
     """The planner's form asks for a reason beside the budget, so real gate
-    specs read `2400 -- the cold frame fit` (f1brainz-physics issue2.g4,
-    refused at submit with its work done). The leading whole seconds are the
-    declaration; a unit glued to the number is still not seconds."""
+    specs read `2400 -- the cold frame fit` (a gate was refused at submit with its
+    work done). The leading whole seconds are the declaration; a unit glued
+    to the number is still not seconds.
+
+    See: f1brainz-physics issue2
+    """
     monkeypatch.setattr(checks, "BUDGET", 600)
     assert checks.budget_for({"budget": "2400 -- unchanged from the plan's estimate"}) == 2400
     assert checks.budget_for({"budget": "\n900 -- reuses the warm cache\n"}) == 900
@@ -275,9 +286,12 @@ def _log(wid="g1", step="work-1"):
 
 def test_a_failed_proof_leaves_what_it_printed_where_the_room_says(
         bare_workdir, monkeypatch):
-    """#117: the refusal used to be the whole of what a failure left behind,
-    so which check failed was unrecoverable at the one path the in-flight
-    room tells a reader to open."""
+    """The refusal is not the whole of what a failure leaves behind: which check
+    failed is recoverable at the one path the in-flight room tells a reader
+    to open.
+
+    See: #117
+    """
     monkeypatch.setattr(checks, "HANDBACK", 1)
     _gate("echo the-failing-case; exit 4")
     with pytest.raises(SystemExit):        # it fails inside the handback
@@ -291,10 +305,13 @@ def test_a_failed_proof_leaves_what_it_printed_where_the_room_says(
 
 def test_a_passing_attempt_is_told_apart_from_the_failure_before_it(
         bare_workdir, monkeypatch):
-    """#117's second half: the log is appended to, never truncated, so a
+    """The log is appended to, never truncated, so a
     passing attempt has to be distinguishable from the failing one above it
     or the file goes on saying the step failed after the journal says it
-    passed."""
+    passed.
+
+    See: #117
+    """
     monkeypatch.setattr(checks, "HANDBACK", 1)
     _gate("test -f ok && echo it-passes || { echo it-fails; exit 4; }")
     with pytest.raises(SystemExit):        # it fails inside the handback

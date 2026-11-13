@@ -68,7 +68,7 @@ def _open_gate(gid="g1"):
 
 def _review_step(gwid):
     """The id of the current, not-yet-done review step -- generated per
-    round now, minted with the assembly's declared panel rather than by a
+    round, minted with the assembly's declared panel rather than by a
     conductor choosing one."""
     st = runmod.state(gwid)
     return next(s["id"] for s in st["steps"]
@@ -106,9 +106,8 @@ def test_status_renders_one_dispatch_command_per_panelist_with_progress(workdir,
     review = _review_step("g1")
     capsys.readouterr()
 
-    # the room itself never prints a panelist's open command any more
-    # (`o-single-dispatch-room`) -- `_panel_descriptors` is what still
-    # resolves it, for whatever process `wait` goes on to start.
+    # the room itself never prints a panelist's open command --
+    # `_panel_descriptors` is what resolves it, for whatever process `wait` goes on to start.
     st = runmod.state("g1")
     asm = runmod.load_assembly(st["assembly"])
     _child_id, _role, tier, open_cmd, _finish_form = cli._panel_descriptors(
@@ -147,7 +146,7 @@ def test_a_multi_panelist_step_shows_each_returned_or_outstanding(workdir, capsy
     assert "open it:" not in out
 
     # p2's own model override still resolves for whatever process `wait`
-    # goes on to start, even though the room no longer prints it
+    # goes on to start, even though the room does not print it
     st = runmod.state("g2")
     asm = runmod.load_assembly(st["assembly"])
     _child_id, _role, tier2, _open_cmd, _finish_form = cli._panel_descriptors(
@@ -159,10 +158,9 @@ def test_a_multi_panelist_step_shows_each_returned_or_outstanding(workdir, capsy
 
 
 def test_open_panelist_prefills_artifact_and_criteria_with_a_distinct_work_id(workdir, capsys):
-    """The artifact reaches the panelist across a segment boundary now: the
-    review step is minted into its own segment, so the implement round it
-    reads is carried onto that step's prefill at the mint rather than looked
-    up among its segment's own earlier rounds."""
+    """The implement round the panelist reads is carried onto the review
+    step's prefill at the mint rather than looked up among its segment's own
+    earlier rounds."""
     _open_gate()
     review = _review_step("g1")
     capsys.readouterr()
@@ -211,10 +209,9 @@ def test_opening_an_untagged_or_out_of_range_panel_step_refuses(workdir, capsys)
 
 def test_pass_holds_for_the_conductors_form_and_close_proceeds_to_close(workdir, capsys):
     """A pass is inert -- its declared verb is `release`, which mints
-    nothing -- so it no longer walks the gate on by itself: the review step
+    nothing -- so it does not walk the gate on by itself: the review step
     stays open on its own conductor form, and `close` there is what proceeds.
-    One manual step where review used to auto-walk, and the same three steps
-    either way: neither voice mints anything on a clean round."""
+    Neither voice mints anything on a clean round."""
     _open_gate()
     review = _review_step("g1")
     panel = next(s for s in runmod.state("g1")["steps"] if s["id"] == review)["panel"]
@@ -259,7 +256,7 @@ def test_rework_refills_with_every_panelists_findings_concatenated_and_attribute
     # two-voices shape `work`'s own transition declares; only the panel is
     # overridden here, to exercise attribution across more panelists than
     # the assembly's own three defaults. `segment="work"`: `review` is
-    # `work`'s own transition now, not a segment of its own.
+    # `work`'s own transition, not a segment of its own.
     journal.append("g4", "step", id="review", segment="work",
                    form="forms/ROUTE.toml", source="mint",
                    panel=[{"worker": "reviewer", "criteria": "c1"},
@@ -307,16 +304,15 @@ def test_rework_refills_with_every_panelists_findings_concatenated_and_attribute
 
 
 def test_a_gates_impasse_verdict_rides_the_summary_up(workdir, capsys):
-    """There is still no third verdict word: a root objection is a revise
-    finding like any other, so the only way this gate's review ever ends
+    """There is no third verdict word: a root objection is a revise
+    finding like any other, so the only way this gate's review ends
     without a final pass is the loop -- three revises the conductor sends
     back through the transition's own form, the third reaching the impasse
-    (`impasse-after = 2`, ruling 2026-09-02: at most three critic dispatches
+    (`impasse-after = 2`: at most three critic dispatches
     per artifact), `advance` walking the gate on to its own close over the
-    live revise (`up` now pauses rather than closing, so it cannot drive
-    this scenario to a return any more -- see test_pause_gate.py for that
-    path instead). The count is spent on the form's own `rework` now, which
-    is the path the mint moved onto; `_summary` still stamps the panel's own
+    live revise (`up` pauses rather than closing, so it cannot drive
+    this scenario to a return -- see test_pause_gate.py for that
+    path). The count is spent on the form's own `rework`; `_summary` stamps the panel's own
     last merged verdict onto the return, not the conductor's ruling on it,
     so the parent adjudicating sees what the panel actually said."""
     journal.append("issue9", "run", title="t", assembly="run-an-issue")
@@ -389,7 +385,7 @@ def test_a_verdict_outside_the_vocabulary_refuses_at_the_panelists_submit(workdi
 
 
 def test_a_gate_cannot_reach_close_without_review_having_fired(workdir, capsys):
-    """The failure this whole gate exists to close: a suite (or a run) that
+    """The failure this check exists to close: a suite (or a run) that
     never drives review would let a gate close in silence. `close` must
     refuse loudly while review is outstanding, and the worklist must not
     offer `close` as reachable until review completes."""
@@ -400,8 +396,8 @@ def test_a_gate_cannot_reach_close_without_review_having_fired(workdir, capsys):
     st = runmod.state("g1")
     assert st["current"]["id"] == review  # not close -- work-1 and select did not release it
 
-    # Asserting only that the step id appears is what let a wrong escape
-    # survive here once: the message named the right step and offered a
+    # Asserting only that the step id appears is what lets a wrong escape
+    # survive: the message named the right step and offered a
     # fill-or-waive way out that a panel step has no way to use.
     with pytest.raises(SystemExit) as e:
         cli.main(["g1", "close"])
@@ -458,7 +454,7 @@ def test_every_close_refusal_escape_is_a_command_that_runs(workdir, capsys):
 def test_a_returned_amend_still_names_what_was_amended(workdir):
     """render.amends calls itself the whole enforcement of the freeze: the tier
     above reads it and accepts or contests. Rendered from a child's return it
-    dropped the verb and the step id, so the tier above could see that
+    must carry the verb and the step id, or the tier above sees that
     something was amended but never what."""
     from engine import render
     _open_gate()

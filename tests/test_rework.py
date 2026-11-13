@@ -2,7 +2,7 @@
 
 A revise on run-an-issue's plan segment mints REWORK.toml -- the segment's
 `rework-form` -- in place of the step-form; a replan, and a revise on a
-segment without the key, mint the step-form exactly as before. The prefill
+segment without the key, mint the step-form. The prefill
 guard reads the producing step's form, so a rework round's record-only
 ledger (`findings-addressed`, `deleted`) stays out of the next panelist's
 prefill. Drives the real assemblies end to end, like test_nesting.py.
@@ -39,7 +39,7 @@ from test_nesting import (
 
 def _drive_to_revise(wid="issue17", findings="gap: gate 1 is untestable", resolution=None):
     """Open a real run-an-issue, drive it to the plan-to-execute panel, and
-    have the critic say revise. One look (2026-09-25): the conductor's own
+    have the critic say revise. Under one look the conductor's own
     default word after a revise is `incorporate` -- one pass by the planner
     over the panel's findings, dispatched the same way the first cut is,
     with no panel on what it returns. `resolution` lets a caller choose a
@@ -68,7 +68,7 @@ def _fresh_mint(st, segment):
 
 def _dispatch_rework_round(wid, fill_fn=None):
     """Dispatch the plan round current at `wid` -- a rework round or a
-    replan alike, since every round dispatches now -- fill it, submit and
+    replan alike, since every round dispatches -- fill it, submit and
     close the child. `st["current"]` names it, not `_fresh_mint`: a run with
     more than one rework round behind it has more than one minted plan step,
     and only the current one is still open. `fill_fn` defaults to
@@ -120,8 +120,8 @@ def test_replan_mints_the_step_form(workdir, capsys):
 
 def test_a_replan_restarts_the_rework_count(workdir, capsys):
     """The count is of rounds on one artifact, so a replan -- which is a new
-    artifact -- starts it over. The principal ruled this against the
-    alternative of counting every send-back."""
+    artifact -- starts it over. Counting every send-back is the rejected alternative
+    (the principal's decision)."""
     wid = _drive_to_revise()
     asm = runmod.load_assembly("run-an-issue")
     assert runmod.rework_rounds(runmod.state(wid), asm, "plan") == 1
@@ -152,8 +152,8 @@ plan = "%s/plan.md"
 
 def test_revise_without_rework_form_mints_the_step_form(workdir, capsys):
     """run-a-gate's work segment declares no rework-form, so the round the
-    review transition sends back refills with IMPLEMENT.toml exactly as
-    before -- `_dispatch_review` drives both voices, the panel's revise and
+    review transition sends back refills with IMPLEMENT.toml --
+    `_dispatch_review` drives both voices, the panel's revise and
     the conductor form's `rework` that acts on it."""
     cli.main(["open", "run-a-gate", "--id", "g1"])
     _fill_implement("g1", "work-1")
@@ -173,10 +173,10 @@ def test_revise_without_rework_form_mints_the_step_form(workdir, capsys):
 def test_rework_record_only_fields_stay_out_of_the_next_panelists_prefill(workdir, capsys):
     """The guard reads the producing step's form: `_round_artifact` is what
     a panelist's prefill is built from (`_open_child`), and a rework round's
-    ledger is stripped there. No panel reads a plan-seam rework round any
-    more (`panel-rounds = "fresh"`), so the read is made directly against
-    the real round's journal rather than through a panelist that the seam no
-    longer dispatches; the conductor's own route room, by the form's own
+    ledger is stripped there. No panel reads a plan-seam rework round
+    (`panel-rounds = "fresh"`), so the read is made directly against
+    the real round's journal rather than through a panelist that the seam
+    does not dispatch; the conductor's own route room, by the form's own
     words, is meant to see the ledger."""
     wid = _drive_to_revise()
     capsys.readouterr()
@@ -222,18 +222,15 @@ def _plan_measures(wid):
 
 
 def test_the_plan_segments_measures_fold_into_the_parent_each_round(workdir, capsys):
-    """A round is still measured in the dispatched child's own journal
-    first, the same as it always was -- but the return that closes it now
-    folds that measure into the parent, under the step that dispatched the
-    round (`_fold_measures`, engine/cli.py). That is what gives the plan
-    segment's own room something to compare across rounds again, the same
-    way a local segment (run-a-gate's `work`) always could.
+    """A round is measured in the dispatched child's own journal first, and
+    the return that closes it folds that measure into the parent, under the
+    step that dispatched the round (`_fold_measures`, engine/cli.py). That is
+    what gives the plan segment's own room something to compare across
+    rounds, the same way a local segment (run-a-gate's `work`) can.
 
-    Before that fold existed, this test proved the opposite: growth was
-    invisible in this run's own room because every round dispatched and no
-    round of it was ever local. `tests/test_round_carry.py` is the fuller
-    account of the fix; this one stays as the rework-specific case, driven
-    the same way the rest of this module drives everything else.
+    `tests/test_round_carry.py` is the fuller account; this one is the
+    rework-specific case, driven the same way the rest of this module
+    drives everything else.
     """
     wid = "issue44"
     cli.main(["open", "run-an-issue", "--issue", "44", "--title", "a plan that grows"])
@@ -244,8 +241,8 @@ def test_the_plan_segments_measures_fold_into_the_parent_each_round(workdir, cap
     cli.main([wid, "submit"])
 
     # round one: the single planner _mint_segment_round already mints for
-    # every later round (design-it-twice's own three-sibling shape, ruling
-    # 10, shelved -- #96), measured in its own child's journal first, then
+    # every later round (design-it-twice's three-sibling shape is shelved,
+    # #96), measured in its own child's journal first, then
     # folded into the parent at close.
     def _fill_ten_words(w):
         (runmod.journal.location(w) / "plan.md").write_text(
@@ -290,15 +287,15 @@ proof = "true"
     cli.main([rework_child, "close"])
     capsys.readouterr()
 
-    # both rounds are now in the parent's own journal, in order
+    # both rounds are in the parent's own journal, in order
     assert _plan_measures(wid) == [10, 12]
 
 
 # -- 5. one look: incorporate is refused a second time, and an invalid word
-#    is refused outright -- there is no impasse ruling left on this seam
-#    (ruling, 2026-09-25). Repeated send-backs are bounded by round-cap
-#    instead (`_drive_plan_to_pause`, test_nesting.py); `up` is still a
-#    conductor's word here, just answered straight off the route form.
+#    is refused outright -- there is no impasse ruling on this seam.
+#    Repeated send-backs are bounded by round-cap
+#    instead (`_drive_plan_to_pause`, test_nesting.py); `up` is a
+#    conductor's word here, answered straight off the route form.
 
 
 def _fill_rework(wid):
@@ -337,9 +334,8 @@ def _panel_says_revise(wid, findings):
 def test_an_invalid_resolution_refuses_rather_than_releasing_the_step(workdir, capsys):
     """No hand-rolled reader: an unhandled `resolution` is refused by the
     same generic mechanism that refuses CYCLE.toml's `decision` -- the
-    segment's own declared `[[outcome]]` rows. The old impasse ruling had
-    its own version of this test (`ruling = "keep going"`); this is the
-    same guard at the one route form the seam now has."""
+    segment's own declared `[[outcome]]` rows. This is the same guard at the
+    one route form the seam has."""
     wid = "issue17"
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(wid)
@@ -364,7 +360,7 @@ def test_an_invalid_resolution_refuses_rather_than_releasing_the_step(workdir, c
 def test_a_second_incorporate_on_the_same_cut_is_refused(workdir, capsys):
     """`_check_one_look`: the writer gets one pass over the panel's findings;
     a second `incorporate` on the round it returns is refused before the
-    submit lands, the release-or-rewrite fork the ruling actually drew."""
+    submit lands, the release-or-rewrite fork."""
     wid = _drive_to_revise()
     capsys.readouterr()
     _dispatch_rework_round(wid)
@@ -380,13 +376,14 @@ def test_a_second_incorporate_on_the_same_cut_is_refused(workdir, capsys):
 
 
 def test_up_pauses_the_plan_seam_rather_than_releasing(workdir, capsys):
-    """commitment 3's ruling (issue84.g2): `up` stands an ask one tier up
+    """`up` stands an ask one tier up
     (self-minted here: this run's own run-an-issue has no parent) and the
     run stays open, rather than walking to its terminal form the way a bare
-    `release` did. One look (2026-09-25) moved this off a dedicated ruling
-    form onto the seam's own route form -- `up` still carries the panel's
-    findings forward, now through the `calls` table rather than a `why`
-    field of its own."""
+    `release` does. `up` is ruled on the seam's own route form and carries
+    the panel's findings forward through the `calls` table.
+
+    See: issue84
+    """
     wid = "issue17"
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open(wid)
@@ -413,7 +410,7 @@ def test_up_pauses_the_plan_seam_rather_than_releasing(workdir, capsys):
 
 
 def test_up_pauses_the_understand_seam_rather_than_releasing(workdir, capsys):
-    """The same ruling (commitment 3), at `understand`'s own seam -- named
+    """The same pause, at `understand`'s own seam -- named
     separately from the test above since the two segments dispatch their
     rounds differently even though `up` itself is one policy."""
     wid = "issue84"
@@ -450,9 +447,9 @@ def test_up_pauses_the_understand_seam_rather_than_releasing(workdir, capsys):
 def _drive_gate_to_impasse(child="issue17.g1"):
     """Three review revises on one diff, each disposed of on the review
     transition's own conductor form: the first two refill the interior
-    through its `rework`, and the third is the one the outlet takes (ruling,
-    2026-09-02: at most three critic dispatches per artifact -- `work`'s own
-    `impasse-after` is 2). A revise releases on its own now, so the form's
+    through its `rework`, and the third is the one the outlet takes (at most
+    three critic dispatches per artifact -- `work`'s own
+    `impasse-after` is 2). A revise releases on its own, so the form's
     `rework` is the path the mint -- and the count with it -- actually runs
     on. run-a-gate's work segment declares no rework-form, so every refill
     mints the step-form again; the count is of those, and the opening step
@@ -515,7 +512,7 @@ def test_a_gates_rework_mints_the_step_form_again(workdir, capsys):
     assert st["current"]["form"] == "skills/implementer/forms/IMPLEMENT.toml"
     # The findings the displaced round was carrying ride into it, unfiltered:
     # the ruling step carries no `calls` table, so `_blocking_calls` reads
-    # `None` and this caller's prefill is exactly what it always was. Asserted
+    # `None` and this caller's prefill is the unfiltered findings. Asserted
     # on the content, not only on the form -- the neighbouring
     # `test_a_third_revise_mints_the_impasse_form` uses the same shape,
     # and without it a filter that dropped everything would pass here.
@@ -645,10 +642,9 @@ def test_understands_revise_mints_the_step_form_with_findings_as_prefill(workdir
 def test_a_revised_understands_re_minted_transition_carries_its_declared_filler(
         workdir, capsys):
     """`understand` has a real interior (a board), so `_mint_segment_round`'s
-    `fresh` transition dict used to set `filler` only inside the branch a
-    segment with an interior never takes -- CONSOLIDATE's own re-minted round
-    carried no `filler` key at all, though the transition declares one.
-    Confirmed against the assembly's own declared value, the same one
+    `fresh` transition dict sets `filler` for a segment with an interior
+    too -- CONSOLIDATE's own re-minted round carries the `filler` key the
+    transition declares. Confirmed against the assembly's own declared value, the same one
     `skeleton()` gives round one."""
     wid = _drive_understand_to_revise()
     capsys.readouterr()
@@ -663,12 +659,15 @@ def test_a_revised_understands_re_minted_transition_carries_its_declared_filler(
 
 def test_a_revised_understands_re_minted_transition_carries_its_declared_guards(
         workdir, capsys):
-    """#110: the same `fresh` dict that used to drop `filler` also dropped
-    `validates` and `carries`. Both are read as a bare `step.get(...)`, so a
-    re-minted CONSOLIDATE skipped the board check on release and folded no
-    spec into the run's prefill -- silently, with nothing refused and nothing
-    journaled. Confirmed against the assembly's own declared values, the same
-    ones `skeleton()` gives round one."""
+    """The same `fresh` dict carries `validates` and `carries`. Both are read
+    as a bare `step.get(...)`, so a re-minted CONSOLIDATE without them would
+    skip the board check on release and fold no spec into the run's prefill
+    -- silently, with nothing refused and nothing journaled. Confirmed
+    against the assembly's own declared values, the same ones `skeleton()`
+    gives round one.
+
+    See: #110
+    """
     wid = _drive_understand_to_revise()
     capsys.readouterr()
 
@@ -683,8 +682,7 @@ def test_a_revised_understands_re_minted_transition_carries_its_declared_guards(
 
 def test_a_gates_reworked_review_carries_the_conductor_default(workdir, capsys):
     """`work`'s own transition (`review`) declares no `filler` at all -- its
-    re-minted round used to carry none either, leaving `role_of`/`hat` to
-    guess. Confirmed the re-mint carries the same bare `"conductor"` default
+    re-minted round must not leave `role_of`/`hat` to guess: it carries the same bare `"conductor"` default
     `skeleton()` already gives round one's own `review`, minted at `open`."""
     _mint_n_gates(1)
     cli.main(["open", "run-a-gate", "--parent", "issue17", "--step", "g1"])

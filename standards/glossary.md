@@ -48,7 +48,7 @@ is joint. Coining a synonym for a term below is a defect.
   returns to one panel-wide outcome, one of three per-voice/panel kinds — **clean**, **refused**,
   **quiet** — never a merged verdict computed as a bare majority or a hardcoded word. A `clean`
   fold resolves the same way a submitted decision field does — against the transition's own
-  declared `outcome` rows where one names a `decides` field (most panels now hold either verdict
+  declared `outcome` rows where one names a `decides` field (most panels hold either verdict
   open for a conductor's own route form there), or (a panel-only transition with none,
   explore-an-idea's spec) by refilling directly, `impasse-after` rounds of it reaching the
   segment's own impasse form where one is declared. A panel is written once, at the mint that
@@ -116,7 +116,7 @@ is joint. Coining a synonym for a term below is a defect.
   pass over the panel's findings (those called `writer`, where a `calls` table is present),
   the conductor's `orders` ahead of them, taken or rejected on the writer's own judgement. The
   round it mints carries no panel, and a second incorporate on the same artifact refuses: what
-  comes back is released (the one-look ruling, 2026-09-25).
+  comes back is released.
 - **rewrite** — an outcome verb at the same two seams, for a round whose findings — one, or
   several read together, as the conductor judges them against the whole artifact — change which
   problem the run is solving, or the fundamental thing its next step codes. A fresh artifact written from the conductor's `orders` alone, forward-looking, with no findings
@@ -144,23 +144,23 @@ is joint. Coining a synonym for a term below is a defect.
 - **paused marker** — the step `pause` mints in place of the round it decided at: no form, no
   panel, no dispatch, only the positive `paused` key naming the segment the parent's answer
   will resume. Recognized everywhere by that key, never by the absence of the other three,
-  which `amend add --transition` already mints today with no pause behind it at all.
+  which `amend add --transition` mints with no pause behind it at all.
 - **impasse** — a segment ruling reached once its transition has sent the same artifact back
   `impasse-after` times: the segment's own impasse form — not a fresh round — reaches whoever
   conducts it. Declared at run-a-gate's `work`, at 2, the loop itself being the question there.
   run-an-issue's spec and plan seams declare none: a send-back there is **incorporate** or
-  **rewrite**, and neither loops (the one-look ruling, 2026-09-25). `advance`
+  **rewrite**, and neither loops. `advance`
   closes the segment on the artifact as it stands, over a live objection; `rework` is the answer
   only when it names what the round changes that a reading did not; `up` pauses the segment as
   an ask at the run that dispatched it, the same as any other pause.
 - **rewrite-cap** — run-an-issue's spec and plan seams' own ceiling: how many **rewrite**s a
   seam may make before it releases, counted since the last release or since a pause's answer
-  opened a round. At 1 (ruling, 2026-09-25): one major rewrite, then a second becomes an ask
+  opened a round. At 1: one major rewrite, then a second becomes an ask
   at the run's principal — the conductor's to answer only where the run's authority grants it.
 - **round-cap** — a segment property beside `impasse-after`, in a different kind: a ceiling on
   the **round**s a **seam** sends back in a row, counted since the seam last released one
   (`engine/review_yield.py`'s `seam_round_steps_since_release`) — a release starts the count
-  over, and so does a round a pause's answer opened (#177); a fresh artifact or an impasse
+  over, and so does a round a pause's answer opened (see #177); a fresh artifact or an impasse
   ruling does not — where `impasse-after` counts one
   artifact's own rework rounds and resets on a new one. A round with no panel (an incorporated
   round at run-an-issue's seams) counts once its conductor disposes of it. Declared on
@@ -218,8 +218,8 @@ is joint. Coining a synonym for a term below is a defect.
   and journals the result as a `check`, which the conductor's route room reads as one of
   three readings — resolved and failing before the work (healthy), passing on an empty
   diff (proves nothing), or not resolving at all (prose, an unknown palette name) — a
-  report, never a refusal (#122). One outlives the handback and the room says so plainly,
-  naming `wait`, rather than guessing a fourth reading (#163).
+  report, never a refusal (see #122). One outlives the handback and the room says so
+  plainly, naming `wait`, rather than guessing a fourth reading (see #163).
 - **handback** — how long `submit` holds its caller before returning control, 90 seconds, the
   engine's own number and nothing a gate spec declares. A dispatched agent's harness moves a
   foreground command still running at about 120 seconds into the background and the turn ends
@@ -228,7 +228,7 @@ is joint. Coining a synonym for a term below is a defect.
   it appends the outcome, so a passing proof still lands its own submit and a failing one
   still records none. A planner's own trial of a `proof` field past the handback keeps
   running the same way, but the step it belongs to already submitted and is not held open
-  for it — its reading is collected later, at the route form (#163).
+  for it — its reading is collected later, at the route form (see #163).
 - **proof budget** — how long a proof may run before it is broken rather than slow. 600 seconds,
   widened (never narrowed) by a gate spec's `budget` in whole seconds; a proof that
   outruns it is refused. Distinct from the handback, which bounds the caller's wait rather
@@ -239,9 +239,10 @@ is joint. Coining a synonym for a term below is a defect.
   implementer working its interior and the gate-conductor ruling, at the route form, on the
   panel that reviews it.
 - **epic** — one claim too large for a single run, plus the evidence that the claim is true.
-  Runs as run-an-epic under the epic-conductor, dispatching issue runs. Never a list of issues.
-- **wave** — a segment of an epic whose interior dispatches whole issue runs. The epic-conductor cuts
-  a wave from the epic's findings and adjudicates at its transition.
+  Conducted by hand today, its issues opened as issue runs: no assembly or skill for the epic
+  tier exists yet. Never a list of issues.
+- **wave** — a segment of an epic whose interior is whole issue runs. Whoever conducts the epic
+  cuts a wave from its findings and adjudicates at its transition.
 - **finding** — something real that was observed and recorded, and is not yet work. Two
   destinations, never a third (docs/PURPOSE.md): done now, or dropped with its reason recorded
   where a later run can find it. A reviewer's finding a route form calls `rejected: <reason>`,
@@ -277,7 +278,7 @@ is joint. Coining a synonym for a term below is a defect.
   to start itself, through the repository's own `dispatch` command-palette entry — handing that
   harness the same brief its own room renders. Names the step, not the child run it opens nor
   the CLI verb that opens it. The `not dispatched -> working` transition happens only through
-  `wait` now (gate 2) — rendering the step starts nothing.
+  `wait` — rendering the step starts nothing.
 - **liveness** — whether a dispatched child's own process is still there: `checks.alive` read
   against the pid its own `dispatch-started` record carries (a pid this reader may not signal
   reads as alive, the same rule a check's own in-flight proof already reads by). Read per child,
@@ -288,7 +289,7 @@ is joint. Coining a synonym for a term below is a defect.
   (`checkrun.WAIT_BOUND`, overridable with `--for <seconds>`) expires, then renders exactly what
   `status` renders. The **sole** starter of a child never dispatched at all, and the capped
   **restarter** of one gone without returning, up to `checkrun.MAX_STARTS` attempts — no render
-  starts or restarts a child any more (gates 2 and 4).
+  starts or restarts a child.
 - **outstanding** — a dispatch or panel step's child not yet returned, split into the two shapes
   `wait` treats differently: the **startable** case — never dispatched, or dead and short of
   `checkrun.MAX_STARTS` (`_startable`, `engine/cli.py:672`) — where `wait` will start or restart
@@ -323,9 +324,8 @@ is joint. Coining a synonym for a term below is a defect.
 - **spec writer** — the hat the persistent conductor wears to draft the spec, understand's own
   step-form round (`skills/spec-writer/`), distinct from the interrogator hat it wears to work
   the board. Judged by a cold critic panel on the segment's transition, the same panel
-  plan-to-execute's own transition carries. Both of the panel's own words release now (ruling 3's
-  2026-09-03 follow-up): `CONSOLIDATE.toml` is the conductor's own route form here too, the same
-  shape plan-to-execute's `PLAN_TO_EXECUTE.toml` already has. A spec states the problem — what
+  plan-to-execute's own transition carries. Both of the panel's own words release: `CONSOLIDATE.toml` is the conductor's own route form here too, the same
+  shape plan-to-execute's `PLAN_TO_EXECUTE.toml` has. A spec states the problem — what
   is being solved, why, where it stops, how anyone would tell it is done — and gets one look:
   the conductor's **incorporate** hands the writer the panel's findings to take or reject, and a
   **rewrite** starts a fresh spec from the conductor's orders. There is no rework-form: the
@@ -351,8 +351,8 @@ is joint. Coining a synonym for a term below is a defect.
   dispatches on exactly as it would have.
 - **review of the open plan** — the planner's one-look pass over a cut's still-queued gates, no
   panel: a fresh context reads the queue against what has landed and either adjusts it or finds
-  the cut itself needs rework, read by the conductor alone, the same one-look ruling
-  (2026-09-25) an incorporated round already stands alone on. Three things trigger it, never a
+  the cut itself needs rework, read by the conductor alone, the same one-look rule
+  an incorporated round already stands alone on. Three things trigger it, never a
   full replan: a queued gate's own proof reading stale against the tree as it stands; a
   critical question's own answer ruled as differing from what the cut expected; and a drop or
   remint that leaves a later gate of the same cut still queued.

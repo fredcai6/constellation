@@ -1,5 +1,5 @@
-"""`extract.md_anchors_in` -- the anchor grammar's markdown spelling (epic
-#138 finding 10). `anchors_in`'s `# [slug]` cannot be reused as-is above a
+"""`extract.md_anchors_in` -- the anchor grammar's markdown spelling.
+`anchors_in`'s `# [slug]` cannot be reused as-is above a
 markdown claim: `#` opens a heading there, so the same bracket would render.
 `md_anchors_in` calls the same forward-scan through the same `anchors_in`
 with markdown's own wrapper instead -- `<!-- [slug] -->`, a construct
@@ -7,11 +7,13 @@ CommonMark already renders as nothing -- and its own notion of a comment
 line to skip past while scanning forward, which must NOT be "starts with
 `#`": that would skip past a real heading as if it were a comment.
 
-The second half of this file anchors it to the two documents finding 10
-actually places brackets on: `docs/PURPOSE.md`'s own claims and
-`standards/approach.md`'s five. A drift here -- a bracket added, removed, or
-misplaced without updating this file -- is caught by the exact slugs and
-line count asserted below."""
+The second half of this file anchors it to the two documents that carry
+brackets: `docs/PURPOSE.md`'s own claims and `standards/approach.md`'s five.
+A drift here -- a bracket added, removed, or misplaced without updating this
+file -- is caught by the exact slugs and line count asserted below.
+
+See: #138
+"""
 
 import pathlib
 

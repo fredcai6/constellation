@@ -1,14 +1,14 @@
 """The code map's own integrity: an anchor that binds to nothing, and a
 `See:` tag that names a target nothing checks.
 
-Two defects, one shape: the map silently drops what it cannot bind, and
-carries references it never checks resolve. `anchors_in` used to bind a
-LINE to one slug -- two brackets stacked above the same definition
-collided in that dict, and the earlier one vanished with nothing at exit 0
-to say so (`tests/test_code_map.py` covers the map's off-path; this file
-covers its own honesty). `checks.anchor_accounting` is the belt-and-braces
-invariant for what the mechanism fix does not itself guarantee: a bracket
-whose target line the walk never actually visits. `checks.see_tags_resolve`
+Two defects to guard against, one shape: the map silently drops what it
+cannot bind, and carries references it never checks resolve. `anchors_in`
+binds a LINE to a list of slugs, so two brackets stacked above the same
+definition both survive instead of the earlier one vanishing with nothing
+at exit 0 to say so (`tests/test_code_map.py` covers the map's off-path;
+this file covers its own honesty). `checks.anchor_accounting` is the
+belt-and-braces invariant for what that does not itself guarantee: a
+bracket whose target line the walk never actually visits. `checks.see_tags_resolve`
 checks a `See:` tag's `file:line` and backtick-quoted symbol targets
 against the source they claim to name."""
 
@@ -49,8 +49,8 @@ def _extracted_map(tmp_path):
 def test_two_anchors_stacked_above_one_definition_both_bind():
     src = "# [refusal-outranks-every-clean-word]\n# [quiet-needs-every-voice-quiet]\ndef verdict_fold():\n    pass\n"
     bound = extract.anchors_in(src)
-    # Before the fix this was {3: "quiet-needs-every-voice-quiet"} -- a bare
-    # string, the LAST bracket only, the first overwritten with no signal.
+    # A bare string holding the LAST bracket only would overwrite the first
+    # with no signal.
     assert bound == {3: ["refusal-outranks-every-clean-word", "quiet-needs-every-voice-quiet"]}
 
 
@@ -67,7 +67,7 @@ def test_stacked_anchors_each_emit_their_own_anchored_statement(tmp_path):
     statements = [json.loads(line) for line in
                   (artifacts / extract.STATEMENTS_NAME).read_text().splitlines()]
     slugs = sorted(st["o"] for st in statements if st["p"] == "anchored")
-    # Before the fix only the second bracket's slug ever reached the store.
+    # Both brackets' slugs reach the store, not only the second's.
     assert slugs == ["first-fact", "second-fact"]
     assert all(st["s"] == "m:verdict_fold" for st in statements if st["p"] == "anchored")
 
@@ -114,8 +114,8 @@ _JOURNAL_SRC = (
 
 
 def test_see_tag_file_line_paired_with_a_symbol_whose_span_does_not_cover_it(tmp_path):
-    # journal.py's own shape: `append` moved, and the tag still names the
-    # line `stamp` now sits on.
+    # journal.py's own shape: `append` moves, and the tag still names the
+    # line `stamp` sits on.
     (tmp_path / "engine").mkdir()
     (tmp_path / "engine" / "journal.py").write_text(_JOURNAL_SRC, encoding="utf-8")
     tag_text = "`journal.py:1` -- `journal.append`'s own thing."
@@ -133,12 +133,10 @@ def test_see_tag_file_line_paired_with_a_symbol_whose_span_covers_it(tmp_path):
 
 
 def test_the_real_journal_py_see_tag_now_resolves():
-    """The exact defect this run was filed against: `engine/cli.py` used to
-    carry `See: journal.py:119 -- journal.append's own mkdir(...)`, and line
-    119 of `engine/journal.py` is `stamp()`, not `append()`. Reverting the
-    one-line fix in `engine/cli.py` (`journal.py:140` back to `:119`) makes
-    this test fail; restoring it makes this test pass -- the fail-before/
-    pass-after check for defect B's dead reference."""
+    """A `See:` tag in `engine/cli.py` must name the line its symbol sits
+    on: `See: journal.py:119 -- journal.append's own mkdir(...)` would be a
+    dead reference when line 119 of `engine/journal.py` is `stamp()`, not
+    `append()`."""
     root = pathlib.Path(__file__).resolve().parents[1]
     cli_src = (root / "engine" / "cli.py").read_text(encoding="utf-8")
     tags = extract.tags_in(cli_src)

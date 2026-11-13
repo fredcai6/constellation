@@ -18,11 +18,10 @@ what the parent cannot read from it."""
 id = "residue"
 kind = "evidence"
 note = """
-What the parent should know that no recorded field carries. Answer this
-gate's own `direction` first where its orders carry one -- that field is a
-question the plan asked this gate on the next plan round's behalf, and this
-is the only place it is ever answered. Then anything else: an observation
-worth recording, a surprise in the terrain, a check that passes but smells.
+What the parent should know that no recorded field carries: a surprise in
+the terrain, a check that passes but smells, an observation worth keeping.
+If your orders have a `direction` row, it is a question the plan asked this
+gate: answer it first. If they have none, say nothing about it.
 Or waived: none."""
 
 [[field]]

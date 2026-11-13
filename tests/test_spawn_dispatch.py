@@ -1,9 +1,9 @@
 """`checks.spawn_dispatch`, exercised directly -- never through a rendered
-dispatch or panel room, which stays out of scope for this gate.
+dispatch or panel room.
 
 Every process this file starts is a short-lived `python3 -c ...`
 invocation of the test's own choosing, never `claude` or any real harness --
-the wiring that would make a real harness's name matter is next gate's job.
+nothing here depends on a real harness's name.
 """
 
 import json
@@ -77,7 +77,7 @@ def test_placeholders_land_whole_and_untouched_words_pass_through(
 
 
 def test_cwd_is_set_to_tree_even_when_the_entry_never_mentions_tree(bare_workdir):
-    """Commitment 7 holds "regardless of whether the entry's text uses
+    """The spawn holds "regardless of whether the entry's text uses
     {tree}" -- an argv that contains no `{tree}` token at all must still
     spawn its child with `tree` as the working directory. An implementation
     that only threaded `cwd` through inside the branch handling that token
@@ -121,7 +121,7 @@ def test_the_spawned_process_is_detached_in_its_own_session(bare_workdir):
         _await_exit(entry["pid"])   # let it finish rather than leaving it be reaped later
 
 
-# -- exit code decides nothing about the spawn (commitment 8) ------------------
+# -- exit code decides nothing about the spawn ---------------------------------
 
 
 def test_a_nonzero_exit_is_still_a_successful_spawn(bare_workdir):
@@ -165,9 +165,8 @@ def test_a_zombie_reads_as_not_alive(bare_workdir):
 
 
 def test_no_dispatch_key_fails_distinguishably_from_the_other_three(bare_workdir):
-    """`o-absent-dispatch-raises`: an absent `dispatch` key is one of four
-    ways this attempt can fail to produce a running, journaled process, no
-    longer a silent `None` -- it raises with its own reason and journals
+    """An absent `dispatch` key is one of four ways this attempt can fail to
+    produce a running, journaled process, never a silent `None` -- it raises with its own reason and journals
     nothing, the same discipline the other three failure inputs already
     hold."""
     wid = "g1"
@@ -182,7 +181,7 @@ def test_no_dispatch_key_fails_distinguishably_from_the_other_three(bare_workdir
 
 
 def test_a_malformed_entry_fails_distinguishably_from_the_missing_key(bare_workdir):
-    """Today's single-string `[commands]` shape, written under `dispatch` by
+    """A single-string `[commands]` shape, written under `dispatch` by
     mistake, must fail loudly -- and its reason must not collapse into the
     missing-key case's own reason, or a standing misconfiguration would
     render as nothing configured."""
@@ -215,8 +214,8 @@ def test_an_unfilled_placeholder_fails_distinguishably_from_the_other_two(bare_w
 
 
 def test_an_unfilled_brief_or_runner_fails_the_same_way_as_an_unfilled_tree(bare_workdir):
-    """The spec's own change section frames uniform treatment of all three
-    placeholders as the deliberately-chosen, non-obvious correct behavior --
+    """Uniform treatment of all three placeholders is the deliberately-chosen,
+    non-obvious correct behavior --
     `{tree}` is elsewhere described as "optional to use", which makes it the
     tempting special case. This exercises the other two: a missing `brief`
     against an entry using `{brief}`, and a missing `runner` against an
@@ -264,8 +263,8 @@ def test_a_process_that_fails_to_start_fails_distinguishably_too(bare_workdir):
 
 def test_the_four_failure_reasons_are_all_distinguishable(bare_workdir):
     """The reasons a caller branches on, gathered in one place: four
-    distinct sentinels for the four failure inputs -- absence now raises
-    alongside the other three (`o-absent-dispatch-raises`) -- so none of the
+    distinct sentinels for the four failure inputs -- absence raises
+    alongside the other three -- so none of the
     four can be mistaken for another by the time they leave the primitive."""
     reasons = {checks.DISPATCH_ABSENT, checks.DISPATCH_MALFORMED,
                checks.DISPATCH_UNFILLED, checks.DISPATCH_SPAWN_FAILED}

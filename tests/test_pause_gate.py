@@ -1,4 +1,4 @@
-"""`up` pauses a gate rather than ending its run (commitment 9), scoped to
+"""`up` pauses a gate rather than ending its run, scoped to
 run-a-gate's own two `up` rows: `work`'s own impasse ruling and `review`'s
 own route form. An ask lands in the parent as a step it already stands on --
 reordered ahead of the still-live dispatch/adjudicate pair that dispatched
@@ -9,7 +9,7 @@ Drives real `run-a-gate` end to end, the parent seeded directly in the shape
 `_mint_gates` itself produces -- the same shortcut test_verdict_panels.py's
 own single-gate scenarios already take, so this exercises the gate tier's
 real mechanism without also driving the issue tier's understand/plan
-machinery, which this gate does not touch.
+machinery, which this file does not exercise.
 """
 
 import pathlib
@@ -35,7 +35,7 @@ def _seed_two_gates(pwid):
     journal.append(pwid, "run", title="t", assembly="run-an-issue")
     for gid, purpose, proof in (("g1", "fix the parser", "true"),
                                 # `false` -- a real check, failing before any
-                                # work -- not `true`: `g1`'s own advance now
+                                # work -- not `true`: `g1`'s own advance
                                 # checks the next queued gate's proof against
                                 # the tree before trusting it into dispatch
                                 # (`_proof_is_stale`, engine/cli.py), and
@@ -157,17 +157,20 @@ plan-holds = "advance"
 def _drive_to_impasse(pwid, gid, rounds=3):
     """Two implement/review rounds, each revised and reworked, followed by a
     third revise that reaches `work`'s own `impasse-after` threshold
-    (assemblies/run-a-gate/ASSEMBLY.toml, `impasse-after = 2` -- ruling,
-    2026-09-02: at most three critic dispatches per artifact) and mints
+    (assemblies/run-a-gate/ASSEMBLY.toml, `impasse-after = 2` -- at most
+    three critic dispatches per artifact) and mints
     IMPASSE.toml in place of a fourth step-form round -- the same shape
     `test_rework.py`'s own `_drive_gate_to_impasse` drives, adapted to the
     `_seed_two_gates` parent instead of a full run-an-issue mint.
 
-    `rounds` beyond three (issue113's own C2) rules each fresh IMPASSE
+    `rounds` beyond three rules each fresh IMPASSE
     `rework` to continue the loop before driving the next review round --
     `work` declares no `rework-form`, so its own `rework_rounds` never
     resets once tripped, and every round from the third on reaches this
-    same outlet again unless `review`'s own round-cap intercepts first."""
+    same outlet again unless `review`'s own round-cap intercepts first.
+
+    See: issue113
+    """
     child = f"{pwid}.{gid}"
     cli.main(["open", "run-a-gate", "--parent", pwid, "--step", gid])
     for n in range(1, rounds + 1):
@@ -183,11 +186,11 @@ def _drive_to_impasse(pwid, gid, rounds=3):
 
 
 def test_up_from_impasse_carries_why_into_the_ask(workdir, capsys):
-    """scope's other `up` row -- `work`'s own impasse ruling, reached once
+    """The other `up` row -- `work`'s own impasse ruling, reached once
     review has sent the same diff back `impasse-after` times, never through
     `review`'s route form -- maps IMPASSE.toml's own `why` field into the
     ask's `findings` key when `_pause_gate` finds no `calls` table
-    (cli.py:1204-1205). Nothing existing drives this half: every
+    (cli.py:1204-1205). No other test drives this half: every
     `_drive_gate_to_impasse` caller in test_rework.py rules advance, rework
     or filler, never `up`."""
     _seed_two_gates("issue4")
@@ -208,14 +211,14 @@ def test_up_from_impasse_carries_why_into_the_ask(workdir, capsys):
 
 
 def test_up_with_calls_carries_findings_into_the_ask(workdir, capsys):
-    """scope names the review's own `calls` table (or `why`'s fallback) as
-    the content `_pause_gate` maps into the ask's own `findings` key
-    (cli.py:1199-1205) -- commitment 9's own text. `_drive_to_up` only ever
+    """The review's own `calls` table (or `why`'s fallback) is the
+    content `_pause_gate` maps into the ask's own `findings` key
+    (cli.py:1199-1205). `_drive_to_up` only ever
     routes `up` through `_fill_route`, which fills no `calls` table at all,
     so nothing bound proves this mapping survives; the ask that scenario
     mints carries no `findings` key whatsoever. Driven here instead through
     `test_verdict_route.py`'s own `_route_with_calls` helper -- already in
-    the tree, unused until now -- with one `[[calls]]` block, so the ask
+    the tree, -- with one `[[calls]]` block, so the ask
     landing at the parent has something to carry."""
     _seed_two_gates("issue2")
     child = "issue2.g1"
@@ -263,10 +266,10 @@ def test_resuming_a_child_whose_journal_is_gone_notes_rather_than_fabricates_one
 
 
 # ============================================================================
-# `up` the bare command (issue84.g1): `spine <wid> up "<reason>"`, dispatched
+# `up` the bare command: `spine <wid> up "<reason>"`, dispatched
 # beside `status`/`submit`/`note`/`amend`/`close`/`trace` -- as opposed to
-# `up` the outcome *value*, which the tests above still drive through
-# ROUTE.toml / IMPASSE.toml exactly as before. Both resolve to the same
+# `up` the outcome *value*, which the tests above drive through
+# ROUTE.toml / IMPASSE.toml. Both resolve to the same
 # `_pause_gate`; what differs is how the target segment is found (a
 # backward scan over the assembly's own declared order, `_up_target`, for
 # the bare verb; a hand-named `tseg` in ASSEMBLY.toml's `does = "pause"` /
@@ -274,6 +277,7 @@ def test_resuming_a_child_whose_journal_is_gone_notes_rather_than_fabricates_one
 # of `state(wid)["current"]` (`cmd_up` itself; the outcome path needs none,
 # since the deciding submit that reached `does = "pause"` is already
 # journaled by the time `_perform` runs it).
+# See: issue84
 # ============================================================================
 
 
@@ -412,8 +416,8 @@ def test_bare_up_against_understand_matches_at_the_first_position_no_walk(workdi
 
 def test_bare_up_with_no_parent_at_all_mints_a_readable_ask_not_a_silent_note(
         workdir, capsys):
-    """A root run ruling `up` -- (1) of the three previously-silent
-    branches. `_pause_gate`'s reachable-parent check finds no `parent` on
+    """A root run ruling `up` -- (1) of the three branches that must not be
+    silent. `_pause_gate`'s reachable-parent check finds no `parent` on
     the run at all, so the ask self-mints into this run's own journal
     instead of only a `note` nobody but a trace command would read.
 
@@ -529,31 +533,31 @@ def test_bare_up_refuses_when_no_segment_at_or_before_current_has_a_step_form(
 
 
 # ============================================================================
-# The self-mint ordering defect (issue84.g2): a step-form segment's own
+# The self-mint ordering: a step-form segment's own
 # transition mints alongside its round-one interior step (`skeleton()`) --
 # `run-a-gate`'s `work-1`/`select`, `run-an-issue`'s `understand-1`/its own
 # consolidate. Ruling a bare `up` before that round-one step ever submits
 # leaves the transition sitting there untouched, and at plain append order
 # it would still precede the freshly self-minted ask in `_ordered`'s own
 # within-segment order -- `state()["current"]` would resolve to the stale
-# sibling, not the ask. `_pause_gate` now reorders the ask (and its marker)
+# sibling, not the ask. `_pause_gate` reorders the ask (and its marker)
 # ahead of it. Every other test above rules `up` after that round-one step
 # has already submitted (or from a synthetic single-step journal with no
 # sibling at all), so none of them exercise this -- these two do.
+# See: issue84
 # ============================================================================
 
 
 def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdir, capsys):
-    """Drives the sibling-ordering fix end to end, through a real resume --
-    not only the pause moment. A first draft of this fix (issue84.g2's own
-    review found) reordered the ask and its marker ahead of `review`, but
-    `_resume_paused_child`'s own `_mint_segment_round` call plain-appends
-    the fresh round behind whatever already stands in the segment, so once
-    the marker closes the untouched `review` -- only ever leapfrogged, never
-    itself reordered -- resurfaced ahead of the fresh round the same way.
-    This test fails against that first draft and passes against the fix
-    that also carries `review`'s id forward on the marker (`sibling`) so
-    the fresh round gets reordered ahead of it too."""
+    """Drives the sibling ordering end to end, through a real resume --
+    not only the pause moment. Reordering the ask and its marker ahead of
+    `review` is not enough: `_resume_paused_child`'s own
+    `_mint_segment_round` call plain-appends the fresh round behind
+    whatever already stands in the segment, so once the marker closes the
+    untouched `review` -- only ever leapfrogged, never itself reordered --
+    would resurface ahead of the fresh round the same way. The marker
+    therefore carries `review`'s id forward (`sibling`) so the fresh round
+    gets reordered ahead of it too."""
     child_open = ["open", "run-a-gate", "--id", "gzp"]
     cli.main(child_open)
     capsys.readouterr()
@@ -569,7 +573,7 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdi
     assert cur["form"] == "skills/gate-conductor/forms/ASK.toml", (
         "self-mint landed behind its own untouched sibling -- current is %r" % (cur,))
     # `review` is still there, not-done, waiting for the resumed round -- the
-    # fix reorders past it, and never closes or drops it
+    # reorder leaps past it, and never closes or drops it
     review = next(s for s in st["steps"] if s["id"] == "review")
     assert "review" not in st["done"]
     assert review["segment"] == "work"
@@ -590,10 +594,14 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_a_gate(workdi
 
 
 def test_a_resumed_round_is_the_only_round_that_reaches_review(workdir, capsys):
-    """#123: the untouched `review` the pause leapfrogged stayed open beside
-    the fresh round's own. Once the fresh round's own review landed,
-    `current` fell through to the stale one, and submitting it minted a
-    second review round on the same diff. The fresh round supersedes it."""
+    """The untouched `review` the pause leapfrogged must not stay open beside
+    the fresh round's own: once the fresh round's own review landed,
+    `current` would fall through to the stale one, and submitting it would
+    mint a second review round on the same diff. The fresh round supersedes
+    it.
+
+    See: #123
+    """
     cli.main(["open", "run-a-gate", "--id", "gzp"])
     cli.main(["gzp", "up", "the purpose itself is unclear before any round lands"])
     _fill(_response("gzp"), 'answer = "narrow the purpose"\n')
@@ -644,7 +652,7 @@ def test_bare_up_outranks_its_untouched_open_minted_sibling_in_run_an_issue(work
 
 def test_bare_up_at_work_1_with_a_reachable_parent_also_outranks_the_sibling(
         workdir, capsys):
-    """The sibling-ordering defect is not self-mint-only: the marker
+    """Sibling ordering is not self-mint-only: the marker
     `_pause_gate` mints always lands in the *child's own* journal, whether
     or not the ask itself goes to a reachable parent. Ruled at a dispatched
     gate's own `work-1`, before `select` is ever touched, the child's own
@@ -684,7 +692,7 @@ def test_bare_up_at_work_1_with_a_reachable_parent_also_outranks_the_sibling(
 
 
 # ============================================================================
-# The ask's own prefill (commitment 7, issue84.g2): keyed under `"paused"`,
+# The ask's own prefill (issue84): keyed under `"paused"`,
 # not the literal word `"gate"` -- true of a gate's own reachable-parent
 # ask no less than a root run's self-minted one -- and `attempted` never
 # renders blank for want of a `scope`/`purpose` to read.
@@ -717,10 +725,13 @@ def test_pause_prefill_names_what_actually_paused_at_a_root_self_mint(workdir, c
 
 
 def test_ruling_up_from_an_ask_that_resumes_a_gate_keeps_the_ask_owed(workdir, capsys):
-    """#180 (issue156): the conductor, standing on g1's ask, could not answer
-    it and escalated. The ask was the only thing that could resume g1, and
-    `up` closed it -- the principal's answer reached the run and never the
-    gate. The ask stays owed, with the escalation stood in front of it."""
+    """A conductor standing on g1's ask that cannot answer it escalates. The
+    ask is the only thing that can resume g1, so `up` must not close it --
+    the principal's answer would reach the run and never the gate. The ask
+    stays owed, with the escalation stood in front of it.
+
+    See: #180, issue156
+    """
     _seed_two_gates("issue1")
     child = _drive_to_up("issue1", "g1")
     ask = runmod.state("issue1")["current"]
@@ -745,8 +756,11 @@ def test_ruling_up_from_an_ask_that_resumes_a_gate_keeps_the_ask_owed(workdir, c
 
 
 def test_an_answer_that_resumes_a_child_starts_its_start_count_over(workdir):
-    """#180: three starts spent before an ask was answered are not three
-    reasons to refuse the start the answer asks for."""
+    """Three starts spent before an ask was answered are not three
+    reasons to refuse the start the answer asks for.
+
+    See: #180
+    """
     journal.append("d1", "run", title="t", assembly="run-an-issue")
     for _ in range(3):
         journal.append("d1", "dispatch-started", child="d1.g1", pid=1, log="x")

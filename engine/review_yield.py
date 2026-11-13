@@ -1,8 +1,8 @@
 """A run's own review yield: per seam, per round, the panel's verdict, how
 many findings, and how the conductor called each -- read off the journal
 this run and everything it dispatched already hold, never tabulated by
-hand. `docs/DERIVED_IS_CODE.md` is the rule; issue #16's first cut is this
-module -- the same table kept by hand is the defect it replaces.
+hand. `docs/DERIVED_IS_CODE.md` is the rule; this module is the table derived
+rather than kept by hand (#16).
 
 A seam is a panel-bearing transition: a segment whose transition declares a
 panel (run-an-issue's consolidate and plan-to-execute, run-a-gate's review,
@@ -49,12 +49,13 @@ def _seam_form(seg):
 
 
 # [on-seam]
-# Rationale: #106 -- a panel-only transition has no form, and the two sides
-#   of this comparison spelled that absence differently: `_seam_form` says
-#   `""`, and `skeleton()` omits the key, so the step reads `None`. Strict
-#   equality then dropped every round at explore-an-idea's `spec` seam from
-#   the yield and from the round cap. One predicate reads both sides, and
-#   no form is one value on either.
+# Rationale: a panel-only transition has no form, and the two sides of this
+#   comparison spell that absence differently: `_seam_form` says `""`, and
+#   `skeleton()` omits the key, so the step reads `None`. Strict equality
+#   would drop every round at explore-an-idea's `spec` seam from the yield
+#   and from the round cap. One predicate reads both sides, and no form is
+#   one value on either.
+# See: #106
 def _on_seam(step, seg):
     """Whether `step` stands at this seam: in its segment, on its form."""
     return (step.get("segment") == seg["id"]
@@ -66,7 +67,7 @@ def seam_label(seg):
     declares one (run-a-gate's `review`), else the disposing form's own name
     (`consolidate`, `plan-to-execute`) -- the form is the thing a reader
     already knows by that name throughout the tree -- else the segment's own
-    id. Public: issue113's run-level round-cap names the seam in its own ask
+    id. Public: the run-level round-cap names the seam in its own ask
     by this same lookup, never a second one."""
     t = seg.get("transition", {})
     if t.get("id"):
@@ -111,8 +112,8 @@ def _calls(fields):
 #   quiet voice counts as neither, having returned no word the table can act
 #   on.
 # Rejected: counting returns whose leading word is `revise`. Rename that
-#   value in a seam's table and its form's note together -- the rename this
-#   whole issue exists to make free -- and the tally silently reads zero on
+#   value in a seam's table and its form's note together -- a rename the
+#   table is meant to make free -- and the tally silently reads zero on
 #   every round that in fact sent the artifact back.
 def _round(returns, done_entry, panel_forms, table, waived=None):
     """One disposal of one artifact at the seam: the round's own verdict
@@ -158,8 +159,8 @@ def _round(returns, done_entry, panel_forms, table, waived=None):
 # [seam-round-steps]
 # Rationale: `seam_rounds` and `seam_round_steps_since_release` both need
 #   the landed rounds at a seam -- one to tally every verdict for the yield,
-#   the other to cut that list at the seam's last release for issue113's
-#   run-level round-cap. Splitting the predicate out is what lets both read
+#   the other to cut that list at the seam's last release for the run-level
+#   round-cap. Splitting the predicate out is what lets both read
 #   one definition of "a landed round" rather than two copies drifting
 #   apart.
 def _landed_round(st, seg, step):
@@ -200,13 +201,13 @@ def _released(assembly, step, done):
 
 
 # [rounds-since-release]
-# Rationale: issue113's cap exists to catch a seam sending the same plan back
-#   round after round with nothing released -- issue99's nineteen rounds at
-#   plan-to-execute -- and the count it first read was `seam_rounds`, every
-#   round since the run opened. A rolling-horizon run re-enters the plan seam
-#   once per gate by design, so an eight-gate run landed its sixth plan round
-#   with no send-back at all and the cap fired on structure, not churn
-#   (issue811's first run, 2026-09-06, in the conductor's own words). A
+# Rationale: the run-level cap exists to catch a seam sending the same plan
+#   back round after round with nothing released (issue99 saw nineteen rounds
+#   at plan-to-execute). Counting `seam_rounds`, every round since the run
+#   opened, would misfire: a rolling-horizon run re-enters the plan seam
+#   once per gate by design, so an eight-gate run lands its sixth plan round
+#   with no send-back at all and the cap fires on structure, not churn
+#   (observed in issue811's first run). A
 #   release is the seam doing its job; the rounds it has sent back since it
 #   last did are the churn a human wants to hear about. The yield still
 #   reads `seam_rounds`: a reader tallying verdicts wants the whole history,
@@ -216,6 +217,7 @@ def _released(assembly, step, done):
 #   `impasse-after`'s count, and an impasse ruling `rework` keeps the same
 #   artifact -- the cap has to reach past that outlet to the loop of impasse
 #   rulings that is issue99's shape, which only a release ends.
+# See: #113
 def seam_round_steps_since_release(st, seg, assembly):
     """The landed rounds at this seam since it last released, in journal
     order -- `seam_round_steps`'s own list, started over at the most recent
@@ -232,7 +234,7 @@ def seam_round_steps_since_release(st, seg, assembly):
         if not _on_seam(step, seg):
             continue
         # The round a paused seam's answer opened starts the count over: the
-        # answer is the ruling the cap stopped to get (#177).
+        # answer is the ruling the cap stopped to get. See: #177
         if step.get("resumed"):
             since = []
         if _landed_round(st, seg, step):

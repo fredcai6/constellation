@@ -134,7 +134,7 @@ def test_a_run_before_the_plan_segment_refuses_without_walking(bare_workdir, cap
     assert not marker.exists()
 
 
-# -- paused: stop immediately, needing no new mechanism ----------------------
+# -- paused: stop immediately ------------------------------------------------
 
 
 def test_a_paused_run_renders_immediately(bare_workdir, capsys):
@@ -412,8 +412,7 @@ def test_cmd_status_renders_working_for_a_live_filler_pid(bare_workdir, capsys):
     """`cmd_drive`'s own working shape sleeps rather than calling
     `cmd_status`, so nothing above reaches `cmd_status`'s own standalone
     render of the live-pid case -- proven directly here, symmetric to the
-    spent case's own test above, which the working-status render's own
-    committed proof (round 3) never reached."""
+    spent case's own test above."""
     _mint_work_step(wid="f1", filler="implementer")
     proc = _sleeper(5)
     _filler_record("f1", "g1", proc.pid)
@@ -431,15 +430,14 @@ def test_cmd_status_renders_working_for_a_live_filler_pid(bare_workdir, capsys):
 # -- a re-minted transition round's filler carries its role -----------------
 #
 # `test_a_gates_reworked_review_carries_the_conductor_default` (test_rework.py)
-# is what is left of this: `work`'s own transition (`review`) now always
-# mints with a panel of its own (the opening three, or the single `rework:`
-# reader after), never the bare childless conductor form `select` used to be
-# -- so a re-minted round of it is a panel-outstanding step from the moment
-# it exists, and `drive` never reaches its own form-filler branch for it at
-# all (`panel_outstanding` is checked first, `cmd_drive`, engine/cli.py).
-# What this test proved -- a re-mint carries `filler` the same as round one
-# -- is proved there directly, against the step itself, with no drive spawn
-# needed to see it.
+# holds this: `work`'s own transition (`review`) always mints with a panel
+# of its own (the opening three, or the single `rework:` reader after), never
+# a bare childless conductor form -- so a re-minted round of it is a
+# panel-outstanding step from the moment it exists, and `drive` never reaches
+# its own form-filler branch for it at all (`panel_outstanding` is checked
+# first, `cmd_drive`, engine/cli.py). That a re-mint carries `filler` the
+# same as round one is proved there directly, against the step itself, with
+# no drive spawn needed to see it.
 
 
 # -- a terminal form step: rendered and left alone, never filled ------------
@@ -504,9 +502,11 @@ def test_an_issue_tier_ask_stops_drive_without_a_filler(bare_workdir, capsys):
     """An ask `_pause_gate` mints into a root run's own journal -- no parent
     run to carry it to, the shape the round-cap takes at the issue tier --
     is the principal's to fill: `drive` renders it and stops, spawning
-    nothing. issue811's first run (2026-09-06) spawned the run's own
-    conductor into exactly this ask, and it ruled CONTINUE on itself twice
-    before the human saw the question."""
+    nothing. Spawning the run's own conductor into exactly this ask let it
+    rule CONTINUE on itself twice before the human saw the question.
+
+    See: issue811
+    """
     marker = bare_workdir / "spawned"
     _throwaway_filler_dispatch(bare_workdir, marker)
     journal.append("i1", "run", title="t", assembly="run-an-issue")
@@ -588,15 +588,14 @@ def test_for_overrides_the_default_bound(bare_workdir, monkeypatch):
 
 
 def test_a_live_child_does_not_cost_wait_bound_per_pass(bare_workdir, monkeypatch):
-    """The overrun this obligation fixes, proven with `checkrun.WAIT_BOUND`
-    left at its real default (90s), not monkeypatched low -- that
-    monkeypatch, in `test_for_overrides_the_default_bound` just above, is
-    this bug's own existing workaround standing in the suite, not a proof
-    the overrun is gone. Before the fix, `cmd_drive`'s own call into
-    `cmd_wait` carried no bound of its own, so this scenario cost a full
-    `WAIT_BOUND` per pass regardless of `--for` -- measured, `--for 6` ran
-    91.2s. Here `--for 1` must still finish within a poll cycle or two of
-    its own bound."""
+    """`cmd_drive`'s own call into `cmd_wait` carries the `--for` bound,
+    proven with `checkrun.WAIT_BOUND` left at its real default (90s), not
+    monkeypatched low -- the monkeypatch in
+    `test_for_overrides_the_default_bound` just above is a workaround, not
+    a proof the overrun is gone. With no bound of its own, this scenario
+    costs a full `WAIT_BOUND` per pass regardless of `--for` (measured:
+    `--for 6` ran 91.2s). Here `--for 1` must finish within a poll cycle or
+    two of its own bound."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     marker = bare_workdir / "spawned"
     _throwaway_dispatch(bare_workdir, marker)

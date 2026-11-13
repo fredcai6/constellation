@@ -1,9 +1,11 @@
 """A ruling on how chunks are cut outlives the round it was made in.
 
-sports-market-manager issue299/issue312: the conductor ruled the proof
-standard at one plan seam, as `orders`, and every later cut -- a fresh
-planner -- never saw it. PLAN_TO_EXECUTE's `approach` joins the run's
-prefill on any submit, so the next planner child opens holding it.
+When the conductor rules the proof standard at one plan seam, as `orders`,
+every later cut -- a fresh planner -- must still see it. PLAN_TO_EXECUTE's
+`approach` joins the run's prefill on any submit, so the next planner child
+opens holding it.
+
+See: sports-market-manager issue299, issue312
 """
 
 from engine import cli, run as runmod

@@ -43,16 +43,18 @@ def test_load_open():
 
 
 def test_load_consolidate():
-    """Follow-up to ruling 3, 2026-09-03, and one look (2026-09-25):
-    consolidate is the conductor's own route form now, the same shape
+    """Consolidate is the conductor's own route form, the same shape
     PLAN_TO_EXECUTE.toml has -- `resolution` leads, every scalar it
     declares stands before its plan fields (`obligations`, `rungs`, then
-    `calls`, all optional now that an incorporate, a rewrite or an up
+    `calls`, all optional since an incorporate, a rewrite or an up
     reaches this same form with nothing released to record). `rungs`
-    is issue166's reservation transcription: the spec's own `rungs` field,
+    is the reservation transcription: the spec's own `rungs` field,
     carried here so `carries` can fold it into the run's prefill for the
     gate that actually lands the anchor to see -- `engine/cli.py`'s
-    `_land_reserved_rungs`."""
+    `_land_reserved_rungs`.
+
+    See: issue166
+    """
     form = forms.load(CONSOLIDATE)
     assert _ids(form) == ["resolution", "orders", "spec", "key-terms", "settle",
                           "obligations", "rungs", "calls"]
@@ -93,12 +95,12 @@ def test_load_gate_transition():
     # `plan-holds` is a decision because the engine acts on its value, and that
     # kind is what makes its note's alternatives enforced -- see
     # forms.enforced_vocabulary. `critical-question` is a decision for the same
-    # reason (g5): `_critical_question_differs` (engine/cli.py) acts on its
+    # reason: `_critical_question_differs` (engine/cli.py) acts on its
     # `differs` word. `purpose-holds` and `findings` are prose the engine only
     # records: the wide question is shaped by the field, never checked by the
     # engine. `dispositions` is a plan field like `gate-spec` -- the engine
     # mints its rows onto the execution-state board rather than acting on the
-    # field itself, so it carries no enforced vocabulary either (#56); it
+    # field itself, so it carries no enforced vocabulary either; it
     # opens holding the gate's own `claims`, for the conductor to accept or
     # contest.
     assert kinds["purpose-holds"] == "evidence"
@@ -116,7 +118,7 @@ def test_load_gate_transition():
     spec = next(f for f in form["fields"] if f["id"] == "gate-spec")
     assert spec["optional"] is True
     assert [it["id"] for it in spec["item"]] == ["purpose", "scope", "proof", "gate-proof",
-                                                 "budget", "model"]
+                                                 "budget", "model", "direction"]
 
 
 def test_load_gate_close():
@@ -194,9 +196,12 @@ def test_materialize_implement_omits_check_field(tmp_path):
     (GATE_TRANSITION, "gate-spec"),
 ])
 def test_a_command_typed_into_a_minted_proof_slot_reads_back_as_typed(tmp_path, path, table):
-    """#182: an awk clause typed into the proof slot came back from TOML with
-    its backslash-n turned into a newline. The slot a command is typed into
-    holds it byte for byte."""
+    """An awk clause typed into the proof slot must not come back from TOML
+    with its backslash-n turned into a newline. The slot a command is typed
+    into holds it byte for byte.
+
+    See: #182
+    """
     command = r"""awk 'BEGIN{RS="\n## "} /ok/ {f=1} END{exit !f}' LOG.md && test "$(grep -c 'a\.b' f)" -ge 2"""
     dest = tmp_path / "FORM.toml"
     forms.materialize(forms.load(path), dest)
@@ -399,10 +404,13 @@ def test_seeded_row_carries_excursion(tmp_path):
 
 
 def test_a_row_is_labelled_by_its_boards_own_column_in_any_order(tmp_path):
-    """#47, #86: a row's label was its first string, so a column above the
-    real one -- a flat `recommend`, a `verdict` a plan listed first --
-    labelled the row everywhere it rendered. The label is the column the
-    board names its array after, wherever it sits in the row."""
+    """A row's label is not its first string, or a column above the real
+    one -- a flat `recommend`, a `verdict` a plan listed first -- would
+    label the row everywhere it renders. The label is the column the board
+    names its array after, wherever it sits in the row.
+
+    See: #47, #86
+    """
     board = tmp_path / "UNDERSTAND.toml"
     board.write_text('''[[question]]
 id = "q1"

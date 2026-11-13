@@ -1,99 +1,101 @@
 # Step: plan. Owned by the planner skill; filled by the planner.
-# The consolidate's spec and key terms arrive as prefill. An `incorporate`
-# mints REWORK.toml for the next round, so this form is always a first cut --
-# including every later time it is minted: after a gate lands, the next
-# chunk is cut here; a `replan` outcome closes the pending gates and recuts
-# the plan here, and what the gate that forced it learned arrives as
-# `findings` -- the ground the new cut answers to, not an objection to rebut;
-# and a `rewrite` recuts it from the conductor's `orders` alone.
+# The spec, the open obligations and what has landed arrive as prefill. This
+# form is always a first cut: the run's opening cut, the next cut once a
+# queue runs dry, a `replan`, or a `rewrite` from the conductor's `orders`.
+# REWORK.toml and REVIEW_PLAN.toml take the fields below from this file
+# (`same-as`), so a field is worded once.
 
 imperative = """
-Cut every chunk of work toward the spec's done whose path you can see
-clearly, in the order they run: at least one, and as many as the tree and
-the spec let you see -- the whole run, where the whole run is clear. Each
-is a vertical, complete proof of one thing: what the run can take as true
-once it lands, built end to end and verified on its own. Work that can
-only be verified together belongs in one chunk, and every gate pays a full
-plan, panel and review round before its first line of code, so cut each
-chunk as whole as one diff a reviewer can run and read allows. Where the
-path stops being clear, stop the queue there and name why in `direction`:
-what you cannot yet say, and which of the gates you did cut will answer
-it. The engine reopens this segment after every gate while an obligation
-stays open and no gate is still queued, and a queued gate goes back to you
-for review, with no panel, the moment its own proof reads stale against
-the tree -- so a cut that ends early is not a failure, it is the honest
-edge of what you can see. Each cut is chosen from the spec and the tree as
-they stand -- what has landed since the run began arrives as `landed`.
-Where your prefill holds a `call-tree`, it is what the last cut was
-thinking: check its nodes against the code as it stands, mark this cut's
-own nodes THIS GATE, and update the rest with what the run has learned --
-or pivot, where what landed says the structure has changed. Start at the
-code map (`map/INDEX.md`; `palette:map` builds it where the tree has none)
-and read the code it points you to. Purpose says what the run takes as
-true once a gate lands, proof says what verifies it, scope says where, at
-the grain of modules and seams -- the how is the implementer's, who reads
-the same code and chooses it there. `standards/approach.md`, under the
-engine root the brief named, is what this project builds by; name in each
-gate's own `purpose` which of its five it serves. Then lay out the
-call-tree the whole run needs, with every gate you cut marked THIS GATE:
-the architecture the implementers build inside, and the order the
-remaining nodes will be met in. The plan document itself carries the
-approach and the risks that would change it, and stands on its own: the
-panel reads it cold, with the spec and the run's state beside it and no
-earlier plan. Each gate's purpose, scope and proofs are its own block in
-`gates` below, not restated there. Where your prefill holds `orders`
-alone, the last cut is gone: cut fresh from the orders, as a first cut."""
+Cut the next gates toward the spec's done.
+
+1. Read first. Start at the code map (`map/INDEX.md`; `palette:map` builds
+   it where the tree has none), then read the code it points to. Your
+   orders hold the spec, the obligations still open, and `landed`: what has
+   landed since the run began. After a `replan` they also hold `findings`:
+   what the last gate taught. Build on it; it is not an objection to answer.
+
+2. Cut every gate whose path you can see clearly, in the order they run:
+   at least one, and up to the whole run. A gate is one complete, vertical
+   proof of one thing: built end to end and verified on its own. Work that
+   can only be verified together goes in one gate. Make each gate as whole
+   as one diff a reviewer can run and read.
+
+3. Stop the queue where the path stops being clear. Say in
+   `critical-questions` what you cannot yet see and which gate will answer
+   it. A cut that ends early is correct, not a failure: the engine asks for
+   the next cut once the queue is empty.
+
+4. Give every gate a proof that fails now and passes only once that gate's
+   own work is done. A later gate's proof must still fail after the gates
+   ahead of it land, so it names tests that gate adds: its own new test
+   file, or its own test ids. The engine closes a queued gate whose proof
+   already passes.
+
+5. Write the call-tree for the whole run, with each gate's nodes marked.
+   Where your orders hold a `call-tree`, it is the last cut's: check its
+   nodes against the code as it stands and update it, or replace it where
+   what landed changed the structure.
+
+6. Write the plan document: the approach, and the risks that would change
+   it. It stands alone. A panel reads it cold beside the spec, with no
+   earlier plan. Each gate's purpose, scope and proof go in its `gates`
+   block, not in the document.
+
+How each gate gets built is the implementer's choice, made reading the same
+code. Where your orders hold `orders` alone, the last cut is gone: cut
+fresh from them.
+
+If the open obligations are already met and nothing is left to cut, do not
+submit an empty cut. Run `spine <work-id> note blocked "<which obligation,
+and what shows it is met>"` and end your turn: the conductor settles it."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
-The plan document, in this run's work location (.agent-work/<work-id>/).
-Point at it — never retype it: the imperative above says what belongs in
-it and what stays here instead."""
+The path of the plan document, in this run's work location
+(.agent-work/<work-id>/). Give the path; do not paste the document."""
 
 [[field]]
 id = "call-tree"
 kind = "evidence"
 note = """
-The call tree of what the spec's done needs, as an outline with one node
-per function or module: what it owns (the state or decision hidden inside
-it), what it receives, what it returns, and who calls it. Mark each node
-`landed` (its name alone), `THIS GATE`, or `ahead`. Once a round cuts more
-than one gate, a `THIS GATE` node also names which gate, by its own
-position in the round, owns it -- never a predicted engine-assigned id.
-Take the tree down far enough that an implementer could build any node
-against a testable contract, and stop there: the math at the leaves is the
-implementer's.
-THIS GATE's nodes carry full signatures and the results the proof checks;
-`ahead` nodes stay coarse and may merge or move as work lands. The slice is
-the THIS GATE nodes, one vertical path or subtree whose proof stands on its
-own. The implementer receives the whole tree, owns its THIS GATE nodes,
-reshapes their interiors as it sees fit, and raises a change to an edge
-another node relies on as a blocked note. The next cut's planner receives
-this as what the run was thinking and rebuilds the landed part from the
-code. Whoever judges the round reads the slice's nodes closely and the
-`ahead` nodes loosely. `waived: none` for a gate that is one function."""
+An outline of what the spec's done needs, one node per function or module.
+Write it as indented lines; it is shown to every later reader exactly as
+you write it.
+
+For each node: what it owns (the state or decision hidden inside it), what
+it receives, what it returns, and who calls it. Mark each node one of:
+
+  landed      already in the tree. Its name alone is enough.
+  THIS GATE   built by a gate in this cut. Where the cut has several
+              gates, say which by its position: `THIS GATE (g2)`. Give
+              the full signature and the results the proof checks.
+  ahead       later work. Keep it coarse; it may merge or move.
+
+Go down far enough that an implementer could build each THIS GATE node
+against a testable contract, then stop: what is inside a node is the
+implementer's. The implementer owns its THIS GATE nodes and raises a
+change to an edge another node relies on as a blocked note.
+`waived: none` for a cut that is one function."""
 
 [[field]]
 id = "key-terms"
 kind = "evidence"
-note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+note = """
+The terms this work depends on. Each one cites its glossary entry or
+proposes a new entry. Do not coin a synonym for a term that has one."""
 
 [[field]]
 id = "critical-questions"
 kind = "plan"
 optional = true
 note = """
-One block per question this cut cannot yet see past: what the cut cannot
-yet say, which queued gate -- by its own position in this round, e.g. g2,
-never a predicted engine-assigned id -- is expected to answer it, and the
-answer this cut expects. The queue ends at the first gate whose own work
-depends on one of these left open. That gate's own adjudication rules
-whether its actual answer matched or differed; a differing answer reopens
-this plan for one review round, no panel, the same route a stale reading
-already gets. Omit where this cut reaches the whole run and leaves nothing
-open behind it."""
+One block per question this cut cannot yet see past. The queue ends at the
+first gate whose work depends on an unanswered one. When the answering
+gate lands, the conductor rules whether its answer matched what you
+expected; a different answer sends this plan back to you for one review.
+Leave the field out where this cut reaches the whole run."""
 
   [[field.item]]
   id = "question"
@@ -102,40 +104,31 @@ open behind it."""
   [[field.item]]
   id = "gate"
   note = """
-Which queued gate, by its own position in this round (g2, not a predicted
-engine-assigned id), is expected to answer it."""
+Which gate of this cut is expected to answer it, by its position: g1, g2.
+Never a guessed engine id."""
 
   [[field.item]]
   id = "expected-answer"
   note = "The answer this cut expects that gate to find."
 
-# Written last: `materialize` (engine/forms.py) writes a `kind = "plan"`
-# field as a bare `[[gates]]` array-of-tables header, and TOML nests every
-# scalar line after it into that array's last block rather than reading it
-# as a sibling field -- `test_reachable_briefs.py`'s own general guard
-# holds every form in the repo to this, the same reason PLAN_TO_EXECUTE.toml's
-# `calls` field is written last on its own form.
+# Written last: a `kind = "plan"` field renders as a bare `[[gates]]` header,
+# and TOML nests every scalar written after it into that array's last block.
+# tests/test_reachable_briefs.py holds every form to this.
 [[field]]
 id = "gates"
 kind = "plan"
 note = """
-One block per gate this cut queues, in the order they run: at least one,
-and every chunk whose path is clear -- the planner's own call, up to the
-whole run. Releasing the cut queues every block here, in order; once the
-first is accepted the next dispatches on its own, no plan round and no
-panel in between, until the queue runs out or a queued gate's own proof
-reads stale against the tree. Each block is a complete gate: `purpose`,
-`scope`, `proof`, and, when you know them, `gate-proof`, a model override
-and a direction for what it should teach -- the same seven things a
-single-gate cut has always named, now one block per gate rather than one
-set of fields for the whole round."""
+One block per gate, in the order they run. At least one. Releasing the cut
+queues every block: once the first gate is accepted, the next starts with
+no new plan round and no panel, until the queue is empty or a queued
+gate's proof already passes."""
 
   [[field.item]]
   id = "purpose"
   note = """
-What later gates and the run's conclusion will take as true once this
-gate lands -- a claim someone could test, not a summary of what changed.
-Second, which of the five in `standards/approach.md` it serves."""
+What the rest of the run can take as true once this gate lands. Write a
+claim someone could test, not a summary of the change. Then name which of
+the five in `standards/approach.md` it serves."""
 
   [[field.item]]
   id = "scope"
@@ -145,58 +138,51 @@ Second, which of the five in `standards/approach.md` it serves."""
   id = "proof"
   kind = "proof"
   note = """
-A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised. It exercises purpose's claim: a proof that passes while purpose is false has proved
-the wrong thing. Write the exact string to run, never a description of it:
-this field rides into the dispatched child as its own `proof`, shell-executed
-there. This is what must be true when the issue ends. It runs at your
-submit, against the run's tree as it stands, where whoever judges the cut
-reads the result beside it: a real check fails there, before the work; one
-that passes proves nothing; prose does not resolve. A later gate's proof
-names the tests that gate adds -- its own test ids, or a file of its own --
-so it still fails once the gates ahead of it have landed. It runs again when the
-gate lands, and once more when the run closes, against the finished tree
-after every later gate has landed. Reference the command palette
-(constellation.toml) rather than hardcoding where it applies."""
+The exact command that shows `purpose` is true. Write the command itself,
+never a description: the engine runs this string through the shell.
+
+- It fails now, before the work. A command that passes on an empty diff
+  proves nothing.
+- It exercises the claim in `purpose` and covers what `scope` promised.
+- A later gate's proof names tests that gate adds (its own new test file,
+  or its own test ids), so it still fails after the gates ahead of it land.
+- Name a palette entry where one applies: `palette:test tests/x.py`.
+
+The engine runs it when you submit and prints what it did, runs it again
+when the gate lands, and once more when the run closes."""
 
   [[field.item]]
   id = "gate-proof"
   kind = "proof"
   optional = true
   note = """
-The rare boundary this gate must leave intact and later gates need not: a
-file or module the plan has a reason to hold still, named by its own path.
-`waived: none` for most gates, since where the work went is what review reads
-the diff for, and the implementer chooses what else the gate needs to touch.
-The check names only what must stay untouched: `git diff --quiet
-"${CONSTELLATION_GATE_BASE:?}" -- <paths>` (the engine sets the base to the
-last landed gate's commit, the branch point for the first gate; earlier
-gates' files are already behind it). The exact command, like `proof`, run by
-/bin/sh at your submit and when the gate lands, never at close."""
+A file or module this gate must leave untouched, as a command:
+`git diff --quiet "${CONSTELLATION_GATE_BASE:?}" -- <paths>`. The engine
+sets the base to the last landed gate's commit. Name only what must stay
+untouched and why the plan needs it still. Most gates have none: answer
+`waived: none`, because the implementer chooses what the work touches and
+review reads the diff. Runs when you submit and when the gate lands, never
+at close."""
 
   [[field.item]]
   id = "budget"
   optional = true
   note = """
-Seconds past which the proof counts as hung rather than slow. The engine
-allows 600 already, so declare one only for a proof that is right and may
-take longer than that -- a full suite on a busy host, a real build. Whole
-seconds, a bare integer -- not a paragraph of rationale."""
+Seconds the proof may run before it counts as hung. The engine allows 600.
+Declare more only for a proof that is right and slower than that. A whole
+number, nothing else."""
 
   [[field.item]]
   id = "model"
   optional = true
-  note = "Tier override for this gate: light | standard | heavy. Choose one on purpose and say why in `direction`; omit for the assembly default."
+  note = """
+Tier override for this gate: light, standard or heavy. Leave it out for
+the default. If you set one, say why in `direction`."""
 
   [[field.item]]
   id = "direction"
   optional = true
   note = """
-A question this gate is expected to answer for the next plan round, when you
-have one -- naming which gate answers it is what bounds a queue that stops
-short of the whole run. The gate's own close form is asked to answer it in
-`residue`, so write something answerable or leave it out -- `waived: none`
-is the ordinary case for a run's last gate. Not a place for anything else
-you noticed: something outside this gate's own scope is the conductor's to
-call `rejected: <reason>` at the review that follows, and the shape of the
-gates after this one is `call-tree`."""
+One question this gate should answer for the next plan round. The gate
+answers it at its close, so write something answerable. Leave it out where
+there is none. Nothing else goes here."""

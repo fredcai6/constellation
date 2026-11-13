@@ -1,9 +1,9 @@
 """`trace`: the run and everything it dispatched, as one timeline.
 
-The journal has always been an ordered event log and nothing rendered it as
-one, so tracing a defect meant reading raw TOML across several files -- and
-every seam defect this engine has produced lives *between* runs, which no
-single journal shows. These hold the two properties a debugging tool has to
+The journal is an ordered event log; `trace` renders it as one, because
+tracing a defect through raw TOML across several files is slow and every
+seam defect this engine has produced lives *between* runs, which no single
+journal shows. These hold the two properties a debugging tool has to
 have: it shows the seam, and it does not lie about ordering.
 """
 
@@ -92,17 +92,15 @@ def test_trace_of_an_unknown_run_refuses_with_a_way_out(workdir, capsys):
 
 
 def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
-    """`_event`'s return case used to fall back to a hardcoded `plan-holds`
-    key that no return could ever actually carry -- GATE_TRANSITION is
-    filled directly, never dispatched, so it never produces a `return` at
-    all. The replacement reads a stable `decision` key `cmd_close` computes
+    """`_event`'s return case reads a stable `decision` key `cmd_close` computes
     generically, off whatever `decides` field the closing run itself last
-    answered. Proved here against a real one that does reach a return: a
-    gate's own impasse ruling, carried onto the return its close causes --
-    so the render.py change is shown to preserve the trace, not silently
-    empty it. `advance`, not `up`: `up` now pauses the gate rather than
-    closing it, so it no longer reaches a return here at all -- see
-    test_pause_gate.py for that path."""
+    answered, not a hardcoded `plan-holds` key -- GATE_TRANSITION is filled
+    directly, never dispatched, so it never produces a `return` at all.
+    Proved here against a real one that does reach a return: a gate's own
+    impasse ruling, carried onto the return its close causes -- so the
+    trace is shown to be preserved, not silently emptied. `advance`, not
+    `up`: `up` pauses the gate rather than closing it, so it does not reach
+    a return here -- see test_pause_gate.py for that path."""
     child = _drive_gate_to_impasse()  # issue17.g1, four revises deep
     capsys.readouterr()
     _fill(_response(child),
@@ -120,9 +118,8 @@ def test_trace_shows_a_gates_impasse_ruling_on_its_return(workdir, capsys):
     ret = next(l for l in lines
               if l.split()[1] == "issue17" and " return " in l and "issue17.g1" in l)
     # The last `decides` field this run answered before its own close -- not
-    # the impasse ruling any more, since `advance` (unlike the old `up`) mints
-    # ROUTE.toml before this gate reaches GATE_CLOSE, and that is the later
-    # answer `_last_decision` finds.
+    # the impasse ruling, since `advance` mints ROUTE.toml before this gate
+    # reaches GATE_CLOSE, and that is the later answer `_last_decision` finds.
     assert "close" in ret, ret
 
 
@@ -133,7 +130,7 @@ def test_trace_is_not_offered_in_a_rooms_legal_moves(workdir, capsys):
     _mint_first_gate()
     capsys.readouterr()
     cli.main(["issue17"])
-    # A word boundary, not a bare substring: the room now names the run's own
+    # A word boundary, not a bare substring: the room names the run's own
     # worktree path, and pytest's own tmp dir is named after this test
     # function -- "test_trace_is_..." -- which contains "trace" as a
     # substring with no word boundary around it.

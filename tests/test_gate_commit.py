@@ -1,10 +1,11 @@
-"""An accepted gate is one commit on the run's branch (#issue19.g3).
+"""An accepted gate is one commit on the run's branch.
 
-`execute`'s advance outcome used to `release`: the adjudicating step's own
-amend was the record and nothing landed in git. Now it `commit`s -- the
-engine itself stages and commits the gate's own worktree, on the issue's own
-branch, the moment the parent accepts the return. GATE_CLOSE.toml no longer
-asks the implementer to commit by hand; the field it asked for is gone.
+`execute`'s advance outcome `commit`s: the engine itself stages and commits
+the gate's own worktree, on the issue's own branch, the moment the parent
+accepts the return. GATE_CLOSE.toml does not ask the implementer to commit
+by hand.
+
+See: issue19
 
 Every case here reaches a **local bare repository** as `origin`, made fresh
 per test by `gitremote.init_checkout` -- this suite runs constantly and must
@@ -125,10 +126,13 @@ def test_no_gitignore_entry_for_agent_work_still_keeps_it_out_of_the_commit(
         workdir, capsys):
     """`init_checkout` writes `.agent-work/` and `.worktrees/` into the
     checkout's own `.gitignore` -- overwritten here with something that
-    names neither, the shape a real host repository was found in (#issue20:
-    51 files of `.agent-work` landed in a gate's commit because the host's
-    own `.gitignore` never covered it). The engine's own pathspec exclusion
-    is what has to keep the record out from here, not the ignore file."""
+    names neither, the shape a real host repository has (51 files of
+    `.agent-work` landed in a gate's commit because the host's own
+    `.gitignore` never covered it). The engine's own pathspec exclusion
+    is what has to keep the record out from here, not the ignore file.
+
+    See: issue20
+    """
     _mint_first_gate()
     capsys.readouterr()
     worktree = workdir / ".worktrees" / "issue17"
@@ -182,7 +186,10 @@ def test_one_commit_lands_across_a_gates_close_and_its_adjudicate(workdir, capsy
     parent) and the parent's own adjudicate (`execute`'s `advance`, which
     `commit`s) are the two places a commit could come from. Only the second
     one does -- this counts commits on the branch across both and asserts
-    there is exactly one, not the pair a real run once produced (#issue20)."""
+    there is exactly one, not a pair.
+
+    See: issue20
+    """
     _mint_first_gate()
     capsys.readouterr()
     worktree = workdir / ".worktrees" / "issue17"
@@ -199,13 +206,13 @@ def test_one_commit_lands_across_a_gates_close_and_its_adjudicate(workdir, capsy
     assert int(after) - int(before) == 1
 
 
-# -- GATE_CLOSE no longer asks for what the engine now does itself ---------
+# -- GATE_CLOSE does not ask for what the engine does itself ---------------
 
 
 def test_gate_close_no_longer_carries_a_commit_field():
-    """The engine commits the gate itself now, at `execute`'s advance -- the
-    implementer is no longer told to commit by hand before closing, and the
-    field that recorded a hand-made sha is gone with the instruction."""
+    """The engine commits the gate itself, at `execute`'s advance -- the
+    implementer is not told to commit by hand before closing, and there is
+    no field that records a hand-made sha."""
     asm = runmod.load_assembly("run-a-gate")
     form = forms.load(runmod.resolve_form(asm, "forms/GATE_CLOSE.toml"))
     ids = [f["id"] for f in form["fields"]]
@@ -220,9 +227,8 @@ def test_only_executes_advance_outcome_declares_commit_across_every_assembly():
     """`_perform`'s `commit` verb is reachable from any segment's `does`
     string -- what keeps it inside the issue tier's execute segment alone is
     the assemblies' own declarations, not a second list the engine checks
-    against. Walking `runmod.assemblies()` here, rather than asserting the
-    one file this gate touched, is what catches a future outcome anywhere
-    quietly picking up git."""
+    against. Walking `runmod.assemblies()` here, rather than asserting one
+    file, is what catches a future outcome anywhere quietly picking up git."""
     hits = []
     for name in runmod.assemblies():
         asm = runmod.load_assembly(name)
@@ -235,7 +241,7 @@ def test_only_executes_advance_outcome_declares_commit_across_every_assembly():
                     if "commit" in outcome.get("does", ""):
                         hits.append((name, where, outcome["value"]))
     # A remint commits too: the gate it replaces already ran, and its work
-    # stays in the tree (#237).
+    # stays in the tree. See: #237
     assert hits == [("run-an-issue", "execute", "advance"),
                     ("run-an-issue", "execute", "remint")]
 
@@ -250,7 +256,7 @@ def test_commit_journals_a_no_op_on_a_non_issue_tier_run_rather_than_touching_gi
     anything real (`branch=wid` unconditionally, `worktree=cwd`). A commit
     verb reached some other way than `execute`'s advance -- an amend, a
     future assembly -- must still never touch git, but the corollary
-    (docs/V2_DESIGN.md) rules out a refusal here too: `commit` names no
+    (docs/AGENT_GUIDE.md) rules out a refusal here too: `commit` names no
     field the agent could fill or waive, so the guard lands a journaled
     no-op instead and the run advances."""
     cli.main(["open", "explore-an-idea", "--id", "idea1", "--title", "t"])
@@ -269,12 +275,14 @@ def test_commit_journals_a_no_op_on_a_non_issue_tier_run_rather_than_touching_gi
 
 def test_commit_journals_a_no_op_on_an_issue_tier_run_with_no_branch_or_worktree_stamped(
         workdir, capsys):
-    """`issue19` is exactly this shape: opened before the worktree feature
-    existed, its `run` entry carries neither `branch` nor `worktree`.
+    """A run whose `run` entry carries neither `branch` nor `worktree`.
     `_issue_tier` is true here -- it is a `run-an-issue` -- so this reaches
     the second guard, not the first, and must land the same journaled
-    no-op rather than the refusal `commit: ... fill it, or answer waived:`
-    used to print, an escape the agent has no field to take."""
+    no-op rather than a refusal (`commit: ... fill it, or answer waived:`),
+    an escape the agent has no field to take.
+
+    See: issue19
+    """
     journal.append("issue18", "run", title="t", assembly="run-an-issue", conductor="")
     asm = runmod.load_assembly("run-an-issue")
     before = _git(workdir, "rev-parse", "HEAD").stdout.strip()
@@ -302,7 +310,7 @@ def test_advance_after_amend_closing_the_dispatch_step_still_names_the_purpose(
     work itself, then adjudicated `advance` -- and the gate's own commit
     landed with the bare subject `r1.g1:`, its purpose gone. `amend close`
     drops the closed step from `state()["steps"]` entirely (`_apply_amend`),
-    and `_commit_gate` used to look for the gate's purpose only there."""
+    so `_commit_gate` must not look for the gate's purpose only there."""
     _mint_first_gate()
     capsys.readouterr()
     worktree = workdir / ".worktrees" / "issue17"

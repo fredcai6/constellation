@@ -1,15 +1,16 @@
-"""The plan step's artifact is the next gate spec (#27).
+"""The plan step's artifact is the next gate spec.
 
-Before this, gate specs were authored at PLAN_TO_EXECUTE.toml, after the
-critic panel had already released -- so no critic had ever read one, and
-`#7` shipped four unrunnable specs as a result. Now the plan round itself
-cuts the gate (`purpose`, `scope`, `proof`, optional `model`/`direction`)
-plus a `call-tree` of the call structure around it; the critics read the
-whole round, and plan-to-execute projects the gate and its tree forward --
-never a second authoring pass. This drives the real `run-an-issue` assembly
-end to end, the way test_nesting.py does, and pins the three properties the
-gate spec's own scope named: one gate per pass, not k; the tree rides
-forward; and a real artifact path is actually measured.
+A gate spec authored at PLAN_TO_EXECUTE.toml, after the critic panel had
+already released, is one no critic has read (four unrunnable specs shipped
+that way). So the plan round itself cuts the gate (`purpose`, `scope`,
+`proof`, optional `model`/`direction`) plus a `call-tree` of the call
+structure around it; the critics read the whole round, and plan-to-execute
+projects the gate and its tree forward -- never a second authoring pass.
+This drives the real `run-an-issue` assembly end to end, the way
+test_nesting.py does, and holds three properties: one gate per pass, not k;
+the tree rides forward; and a real artifact path is actually measured.
+
+See: #27, #7
 """
 
 import pytest
@@ -170,14 +171,17 @@ proof = "true"
 
 
 def test_artifact_field_pointing_at_a_real_path_is_measured(workdir, capsys):
-    """#45: the `plan` field's note used to describe the document's content
-    -- "the approach, the gates it cuts into...the risks" -- reading like an
-    invitation to write the plan inline rather than name where it lives.
-    `_prose_words` treats the field's value as a path (`Path(...).read_text()`),
+    """The `plan` field's note names where the plan lives rather than
+    describing the document's content ("the approach, the gates it cuts
+    into...the risks"), which reads like an invitation to write the plan
+    inline. `_prose_words` treats the field's value as a path (`Path(...).read_text()`),
     so a value that is prose rather than a path raises `OSError`, is caught,
     and reports zero -- silently, since the engine only records a `measure`
     entry when the count is truthy. Given a real path instead, the words at
-    that path land in the journal."""
+    that path land in the journal.
+
+    See: #45
+    """
     wid = "issue22"
     cli.main(["open", "run-an-issue", "--issue", "22", "--title", "t"])
     _fill_open(wid)
@@ -201,15 +205,17 @@ def test_artifact_field_pointing_at_a_real_path_is_measured(workdir, capsys):
 
 
 def test_an_artifact_field_holding_prose_inline_is_refused_not_measured_zero(workdir, capsys):
-    """#45's fix, the contract half: an agent that ignores the note and
-    writes the plan straight into the field no longer measures zero in
-    silence. `_check_artifact` (engine/cli.py) refuses the submit before
-    anything is journaled -- the same point `_check_vocabulary` refuses at --
-    naming the field and offering the escape every unanswered field gets
-    (fill it with a real path, or answer waived:/unknown:). Before this
-    check existed, this exact submit went through and journaled nothing;
-    see the git history of this test for that shape, which is what made the
-    bug invisible."""
+    """The contract half: an agent that ignores the note and writes the plan
+    straight into the field must not measure zero in silence.
+    `_check_artifact` (engine/cli.py) refuses the submit before anything is
+    journaled -- the same point `_check_vocabulary` refuses at -- naming the
+    field and offering the escape every unanswered field gets (fill it with
+    a real path, or answer waived:/unknown:). Without the check, this exact
+    submit would go through and journal nothing, which would make the
+    failure invisible.
+
+    See: #45
+    """
     wid = "issue23"
     cli.main(["open", "run-an-issue", "--issue", "23", "--title", "t"])
     _fill_open(wid)
@@ -244,7 +250,7 @@ proof = "true"
 def test_an_artifact_field_answered_waived_is_not_refused(workdir, capsys):
     """The null escape every field gets must still work on an `artifact`
     field: `waived:`/`unknown:` are not paths, and `_check_artifact` must
-    stand down for them exactly as `_check_vocabulary` already does on a
+    stand down for them exactly as `_check_vocabulary` does on a
     `decision` field's own vocabulary -- this is the one field kind that
     could plausibly be tempted to refuse a null too, since its whole point
     is that the value must resolve to a file."""
@@ -277,17 +283,19 @@ proof = "true"
 
 
 def test_a_long_waived_plan_still_projects_its_gate(workdir, capsys):
-    """issue141, c-projection-still-fires: a release whose `plan` field is a
-    long `waived:`/`unknown:` value (>= 300 bytes, the shape that used to
-    trip `is_file()`'s `OSError` on the name-length limit) must still mint
-    the round's gate -- the same projection an ordinary release or a short
-    null value already gets. `_projected_source` never reads `plan`'s own
-    content -- it walks the segment's prior rounds for `_GATE_FIELDS` --
-    so nothing about the projection itself should depend on the value's
-    length; before the fix, the crash in `_measure_artifacts` (called
-    before `_mint_projected_gate` in `complete_submit`) never let the round
-    reach that far, exactly what happened live in run issue139 at step
-    `plan-a03a2`."""
+    """A release whose `plan` field is a long `waived:`/`unknown:` value
+    (>= 300 bytes, the shape that trips `is_file()`'s `OSError` on the
+    name-length limit) must still mint the round's gate -- the same
+    projection an ordinary release or a short null value gets.
+    `_projected_source` never reads `plan`'s own content -- it walks the
+    segment's prior rounds for `_GATE_FIELDS` -- so nothing about the
+    projection depends on the value's length; a crash in
+    `_measure_artifacts` (called before `_mint_projected_gate` in
+    `complete_submit`) would keep the round from reaching that far, as
+    happened live in run issue139 at step `plan-a03a2`.
+
+    See: issue141, issue139
+    """
     wid = _drive_to_plan_to_execute()
     capsys.readouterr()
     step_id = runmod.state(wid)["current"]["id"]
@@ -308,15 +316,18 @@ def test_a_long_waived_plan_still_projects_its_gate(workdir, capsys):
 
 
 def test_a_release_with_a_blank_plan_is_refused(workdir, capsys):
-    """#87's silent class: `plan` went optional so a `rework`/`up` -- neither
-    releasing anything -- could leave it blank. The same optional flag let
-    a `pass` leave it blank too and release anyway, `_mint_projected_gate`
+    """`plan` is optional so a `rework`/`up` -- neither releasing anything --
+    can leave it blank. The same optional flag would let a `pass` leave it
+    blank too and release anyway, `_mint_projected_gate`
     finding nothing to project and silently doing nothing -- a round the
     record calls released with no gate behind it.
     `_check_release_artifacts` (engine/cli.py) refuses this before anything
     is journaled, generic off `kind = "artifact"` and `_releases`: the same
     check that lets a `rework`/`up` leave the field blank is what proves a
-    release cannot."""
+    release cannot.
+
+    See: #87
+    """
     wid = _drive_to_plan_to_execute()
     _fill(_response(wid), 'resolution = "pass"\n')
     with pytest.raises(SystemExit) as e:
@@ -341,16 +352,15 @@ def test_an_incorporate_with_a_blank_plan_is_still_accepted(workdir, capsys):
     assert any(e.get("kind") == "submit" for e in journal.read(wid))
 
 
-# -- 6. #87: a release after several sent-back rounds projects the round --
+# -- 6. a release after several sent-back rounds projects the round --
 #         that actually released, not the first or the middle one
 
 
 def _drive_to_several_sent_back_rounds_with_varying_gates(wid="issue17"):
-    """The same shape the old `_drive_to_impasse_with_varying_gates` drove --
-    one plan round, then several more, each cutting a *different*
+    """One plan round, then several more, each cutting a *different*
     purpose/scope, unlike `_fill_plan`'s and `_fill_rework`'s own fixed
-    defaults -- but under one look (ruling, 2026-09-25): plan declares no
-    impasse of its own any more, so the first revise is the writer's own
+    defaults -- under one look: plan declares no impasse of its own, so the
+    first revise is the writer's own
     `incorporate` (spent once per artifact, no panel on the round it mints)
     and every send-back after it is the conductor's own `rewrite` -- a fresh
     cut from orders alone, judged by its own panel. Every fixture upstream
@@ -398,19 +408,20 @@ def _drive_to_several_sent_back_rounds_with_varying_gates(wid="issue17"):
 
 def test_a_release_after_several_sent_back_rounds_projects_the_round_that_released(
         workdir, capsys):
-    """#87, ported off the impasse outlet plan no longer has (ruling,
-    2026-09-25): walking the segment's own prior steps backward instead of
-    reading only the one immediately behind the transition finds the round
-    that actually got released -- the last rewrite -- and this drive gives
-    each of the three rounds its own purpose/scope, so the assertion below
-    actually distinguishes "most recent" from "earliest" or "any": the
-    review's own gap, mutating `reversed(prior)` into a forward walk left
-    this test green until the gates it minted differed round to round.
-    Obligations 4, 5 and 8 are one drive and one test, not three: the
+    """Walking the segment's own prior steps backward, instead of reading
+    only the one immediately behind the transition, finds the round that
+    actually got released -- the last rewrite -- and this drive gives each
+    of the three rounds its own purpose/scope, so the assertion below
+    distinguishes "most recent" from "earliest" or "any": mutating
+    `reversed(prior)` into a forward walk would leave a test green until the
+    gates it minted differed round to round. One drive, one test: the
     dispatch and adjudication pair this produces is numbered as the
     segment's next child and shaped exactly like the pair an ordinary
     release produces, and its prefill carries only the last round's own
-    fields, not the first round's or the middle one's."""
+    fields, not the first round's or the middle one's.
+
+    See: #87
+    """
     wid = _drive_to_several_sent_back_rounds_with_varying_gates()
     capsys.readouterr()
 
@@ -434,8 +445,8 @@ def test_a_release_after_several_sent_back_rounds_projects_the_round_that_releas
 
 
 def test_an_incorporate_on_the_transition_still_projects_nothing(workdir, capsys):
-    """Obligation 6's other half, the one `test_one_gate_minted_per_pass_
-    not_k` (the pass side) doesn't cover: a transition submitted with its
+    """The other half, which `test_one_gate_minted_per_pass_not_k` (the pass
+    side) does not cover: a transition submitted with its
     round sent back releases nothing, so `_projected_source` returns
     `None` -- off `_releases`, before the walk ever runs -- and no gate is
     minted."""
@@ -455,8 +466,7 @@ def _synthetic_projecting_assembly():
     """A `plan` segment whose transition projects into `execute`, and an
     `execute` segment `_mint_gates` can reach -- the minimum shape
     `_projected_source` needs, built by hand because no assembly in the
-    tree can actually reach the walk-finds-nothing case (plan.md's risk
-    note): every real projecting transition sits behind at least one round
+    tree can actually reach the walk-finds-nothing case: every real projecting transition sits behind at least one round
     that filled a gate field, since nothing dispatches it otherwise."""
     return {"segment": [
         {"id": "plan", "transition": {
@@ -469,8 +479,8 @@ def _synthetic_projecting_assembly():
 
 
 def test_the_walk_refuses_where_it_finds_no_round_to_project(workdir, capsys):
-    """Obligation 3: a segment whose only prior round never carried a gate
-    field is the true dead end this whole change is about -- the walk
+    """A segment whose only prior round never carried a gate field is a
+    true dead end -- the walk
     reaches the start of the segment with nothing to show for it, and
     `_check_projection` refuses before the submit is journaled rather than
     minting nothing in silence."""
@@ -491,9 +501,8 @@ def test_the_walk_refuses_where_it_finds_no_round_to_project(workdir, capsys):
 
 
 def test_the_widened_guard_returns_none_off_a_non_transition_step(workdir, capsys):
-    """The guard `_projected_source` replaces used to be a subset of
-    conditions re-derived at each caller; widened now to cover the whole
-    applicability question in one place. A step inside a projecting
+    """`_projected_source` covers the whole applicability question in one
+    place, not a subset of conditions re-derived at each caller. A step inside a projecting
     segment that is not the transition itself -- an ordinary interior
     round -- is not this transition's own release, so `_check_projection`
     stands down rather than tripping on a narrower, hand-copied guard."""
@@ -547,13 +556,16 @@ def test_an_incorporate_then_release_projects_the_reworks_cut(workdir, capsys):
 
 def test_a_fresh_round_never_draws_the_id_of_a_step_already_journaled(
         workdir, capsys, monkeypatch):
-    """sports-market-manager issue312, 2026-10-29: a round's fresh transition
-    drew the id of an earlier, finished planner step. The id read as complete,
-    the run skipped the release, and the conductor's `amend add` release
-    projected the EARLIER cut -- the walk back met that finished step's return
-    under the shared id before the latest round's own. The draw is made
-    against the ids the journal holds, so the shared id cannot be minted and
-    the ordinary release projects the latest cut."""
+    """A round's fresh transition must not draw the id of an earlier,
+    finished planner step: the id would read as complete, the run would
+    skip the release, and the conductor's `amend add` release would project
+    the EARLIER cut -- the walk back meets that finished step's return under
+    the shared id before the latest round's own. The draw is made against
+    the ids the journal holds, so the shared id cannot be minted and the
+    ordinary release projects the latest cut.
+
+    See: sports-market-manager issue312
+    """
     import secrets
     wid = _incorporate_then_rework()
     earlier = next(s["id"] for s in runmod.state(wid)["steps"]

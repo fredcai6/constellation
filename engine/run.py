@@ -80,12 +80,14 @@ def resolve_skill(role):
 #   step IS its terminal names a worker skill outright -- `excursion` on the
 #   four excursion assemblies, `planner` on cut-a-gate, `reviewer` on
 #   give-a-verdict. Reading `terminal` alone let a declared worker be
-#   shadowed by the close-form rule, so the room told an excursion's reader
-#   the form was its principal's and `drive` refused to start anyone on it.
+#   shadowed by the close-form rule, so the room would tell an excursion's
+#   reader the form was its principal's and `drive` would refuse to start
+#   anyone on it.
 #   That is backwards: a conductor opens an excursion precisely so it does
 #   NOT spend its own context answering the row, and the excursion skill is
 #   written to the agent doing the looking ("You are a child run opened from
-#   a board row"), not to the one who sent it. `principal` is a filler value, not a role: no
+#   a board row"), not to the one who sent it. `principal` is a filler
+#   value, not a role: no
 #   `skills/principal/` exists, `_role_tier` never sees it because `drive`
 #   stops first, and `role_of` returns it unwrapped so the room prints no
 #   posture line for a reader who has no skill file.
@@ -120,7 +122,7 @@ def role_of(assembly, step):
 #   issue-conductor wears the interrogator's hat -- because a live principal is
 #   reachable only from the top of the run. A run with a parent has no human
 #   in reach, so it wears the delegated variant where one is written; where
-#   none is, the plain posture, which is the parked state (#15). Scoped to a
+#   none is, the plain posture, which is the parked state. Scoped to a
 #   step whose own filler is still the bare `"conductor"` indirection --
 #   understand's own spec-writer round (a board segment's `step-form`, a
 #   second hand distinct from the board's) already names its worker directly
@@ -128,12 +130,13 @@ def role_of(assembly, step):
 #   board's hat regardless.
 # Rejected: naming the board's own hat `worker`, the field `step-form`
 #   already reads for who fills that round. One segment, one board, one
-#   step-form, but two hands now -- `board-worker` is read nowhere else, so
+#   step-form, but two hands -- `board-worker` is read nowhere else, so
 #   nothing forces it to agree with `worker`, which is the point: they name
 #   different work.
 # Rejected: a worker child driving its parent's board. A child not handed an
 #   id cannot drive its dispatcher's run, by design, and the board is the
 #   parent's own segment.
+# See: #15
 def hat(assembly, step, st):
     """The posture a step is worked under: the filler's, or -- on a board
     segment, while the step's own filler is still bare `"conductor"` --
@@ -151,26 +154,24 @@ def hat(assembly, step, st):
 # Rationale: the count is of rounds on one artifact, not rounds in the run --
 #   `skills/issue-conductor/SKILL.md` conditions its stopping rule on repetition
 #   against the same thing. Which mint is which is a fact the engine holds at
-#   mint time and used to throw away: `_perform`'s own verbs already draw the
+#   mint time: `_perform`'s own verbs already draw the
 #   line (`rework` is another pass at the same artifact, `refill` is a fresh
 #   one -- "the plan recut", "a fresh first cut"), so `_mint_segment_round`
 #   journals `sent_back` and this reads it back.
-# Rejected: deriving it from which form got minted, which is what this did
-#   before -- a step-form mint restarting the count, a rework-form mint
-#   spending it. That only works where a segment declares two forms, so it
-#   silently did nothing at the two segments that declare one: `run-a-gate`'s
-#   `work`, correctly, since every refill there really is another pass at the
-#   same diff -- and `run-an-issue`'s `understand`, wrongly. On issue96's run
-#   the understand round was withdrawn whole by a principal's ruling twice in
-#   an hour, and the count read those replacements as repeats: the outlet
-#   fired having seen no second attempt at anything. The old docstring
-#   justified the one-form case by naming `work` alone, which is the segment
-#   it is true of; the reasoning was written for one segment and generalised
-#   to two.
-# Rejected: giving `understand` a rework-form so the old derivation works
+# Rejected: deriving it from which form got minted -- a step-form mint
+#   restarting the count, a rework-form mint spending it. That only works
+#   where a segment declares two forms, so it silently does nothing at the
+#   two segments that declare one: `run-a-gate`'s `work`, correctly, since
+#   every refill there really is another pass at the same diff -- and
+#   `run-an-issue`'s `understand`, wrongly. On issue96's run the understand
+#   round was withdrawn whole by a principal's ruling twice in an hour, and
+#   the count read those replacements as repeats: the outlet fired having
+#   seen no second attempt at anything.
+# Rejected: giving `understand` a rework-form so a form-based derivation works
 #   there. It needs a whole second form, and a second outcome value so
 #   something still mints the step-form -- machinery to carry a fact the verb
 #   already states.
+# See: #96
 def _rounds(st, seg_id):
     """This segment's own rounds, in journal order -- the steps that carry a
     `sent_back` count, which is every round `skeleton` seeds or
@@ -194,9 +195,9 @@ def rework_rounds(st, assembly, seg_id):
     rounds = _rounds(st, seg_id)
     if rounds:
         return rounds[-1]["sent_back"]
-    # A journal opened before `sent_back` existed carries no round that has
-    # it. Deriving the old way keeps a run that was already in flight when
-    # this landed counting as it did -- removable once no such run is open.
+    # A journal opened before `sent_back` was journaled carries no round that
+    # has it; those runs derive the count from the forms -- removable once no
+    # such run is open.
     seg = next((s for s in assembly["segment"] if s["id"] == seg_id), {})
     rework, step = seg.get("rework-form", ""), seg.get("step-form", "")
     n = 0
@@ -233,8 +234,8 @@ def skeleton(assembly):
     steps = []
     for seg in assembly["segment"]:
         form = seg.get("step-form")
-        # Rationale: `interior` still names two kinds of contents, board or
-        #   worklist -- this branch no longer cares which, only whether a
+        # Rationale: `interior` names two kinds of contents, board or
+        #   worklist -- this branch does not care which, only whether a
         #   step-form was declared. A board segment's own rows are seeded
         #   elsewhere (`_mint`); what changes here is only whether its
         #   step-form also mints an interior step, the way a worklist
@@ -390,8 +391,8 @@ def _panelist_form_ref(assembly, entry):
 #   as a refusal, the same outcome and the same downstream treatment an
 #   ordinary vocabulary-violating return already gets.
 # Rejected: a bare `resolve_form` + `forms.load` pair at each call site. That
-#   is the shape that once left `spine issue57.g4` dead with an uncaught
-#   `FileNotFoundError` after a gate renamed REVIEW_ROUND.toml, reintroduced
+#   is the shape that left `spine issue57.g4` dead with an uncaught
+#   `FileNotFoundError` after a gate renamed REVIEW_ROUND.toml, repeated
 #   at seven sites instead of one.
 # Rejected: raising a `SystemExit` here the way `load_assembly` does for an
 #   unresolvable assembly name. An assembly name is resolved once, against a
@@ -412,7 +413,7 @@ def panel_forms(assembly, step):
 
 # [pair-return-by-pn-index]
 # Rationale: a panel step's several children are each read against their own
-#   history (commitment 11), so a return is attributed to its own panelist by
+#   history, so a return is attributed to its own panelist by
 #   the child id's own `pN` tag -- the same tag `_panel_status` (engine/cli.py)
 #   mints as `f"{wid}.{step['id']}.p{i}"` -- indexed into `panel_forms` the
 #   way every existing reader indexes `step["panel"][N-1]`.
@@ -493,20 +494,20 @@ def voice_outcomes(returns, panel_forms):
 
 
 # [refusal-outranks-every-clean-word]
-# Rationale: obligation 6 binds the seam not to release on a refusal, and a
+# Rationale: the seam must not release on a refusal, and a
 #   clean word from a co-panelist cannot buy that back -- so a refusal from
 #   any voice is the whole panel's result, naming the voice, ahead of any
 #   ranking among the clean words and regardless of precedence among them.
 # [quiet-needs-every-voice-quiet]
 # Rationale: quiet is what a panel folds to only once every voice's own form
 #   declares no vocabulary at all -- design-it-twice's rival-planner panel
-#   (ruling 10, shelved #96) was the tree's one worked example of this before
-#   its `[[segment.panel]]` was deleted; the fold itself is unchanged, so a
-#   future panel-only round with no verdict field still reaches it. One
-#   voice's form declaring a vocabulary takes the whole panel out of quiet
+#   was the tree's one worked example of this; the fold stays, so a future
+#   panel-only round with no verdict field still reaches it. One voice's
+#   form declaring a vocabulary takes the whole panel out of quiet
 #   eligibility even where that voice's own return is clean, so a
 #   no-vocabulary voice paired with a vocabulary voice folds to the
 #   vocabulary voice's clean word, not quiet.
+# See: #96
 def verdict_fold(returns, panel_forms, table):
     """Fold a panel's returns to one panel-wide outcome: `("clean", word)`,
     `("refused", tag)`, or `("quiet", None)` -- three per-voice outcomes
@@ -585,18 +586,18 @@ def verdict_record(outcome):
 #   (`declared_does`), and where a row sits relative to another means
 #   nothing to any existing reader. From here it does, whenever two rows
 #   land on the same disposition -- and every table in the tree that has
-#   such a pair already reads this way unforced, before this gate ever
-#   named it: the word that leaves the round alone sits first, the one that
+#   such a pair already reads this way unforced: the word that leaves the
+#   round alone sits first, the one that
 #   sends it back sits after.
 # Rejected: a panelist's own form -- the note its `verdict` field declares
 #   its alternatives in. Two voices in one panel can be dispatched under
-#   two different forms (commitment 11's own reason a return is paired by
+#   two different forms (which is why a return is paired by
 #   the child's `pN` tag, not by position), so two notes' word orders are
 #   not one order to rank across. The table is one order shared by the
 #   whole panel already, and it is already the argument this function
 #   reads -- no new parameter, no new pairing to get wrong.
 # Rejected: comparing the two words to each other directly. That is the
-#   defect this gate exists to remove.
+#   defect `_table_row_rank` exists to remove.
 def _table_row_rank(table, value):
     """`value`'s position among `table`'s own `[[outcome]]` rows, or `-1`
     where no row names it at all -- lower than any real position, so an
@@ -647,7 +648,7 @@ def declared_does(spec, value):
 #   when the word is `pass`. `release` mints nothing, so folding the step
 #   into `done` on it walks the run past a form nobody was ever stood on;
 #   any other verb mints the next round itself, and the panel finishes the
-#   step alone exactly as before. A refusal and a quiet panel both hold too:
+#   step alone. A refusal and a quiet panel both hold too:
 #   neither is a word the table can act on, and holding is what puts the
 #   round in front of the conductor whose form is standing there -- the one
 #   place a refusal can be ruled on rather than suppressed.
@@ -655,10 +656,10 @@ def declared_does(spec, value):
 #   was true of every table in the tree and true by rule of none of them --
 #   a transition whose own `revise` releases (run-a-gate's review) folds
 #   shut on exactly the round its conductor exists to judge.
-# Rejected: keeping the no-assembly early return this replaced. It read
-#   `merged_verdict(returns) == "pass"`, and every real `state()` call
-#   carries an assembly -- so it guarded an input the fold cannot reach
-#   either, at the cost of one more literal verdict word in `engine/`.
+# Rejected: a no-assembly early return reading `merged_verdict(returns) ==
+#   "pass"`. Every real `state()` call carries an assembly -- so it guards an
+#   input the fold cannot reach either, at the cost of one more literal
+#   verdict word in `engine/`.
 def _two_voices_fold(st, step, returns):
     """`(holds, unreadable)`: whether this two-voices step stays open for its
     own form to complete, and whether the only thing holding it there is a
@@ -671,9 +672,8 @@ def _two_voices_fold(st, step, returns):
         # `None` -- no row at all -- is the fold's own inert default: a step
         # whose own segment declares an impasse ruling rather than a verdict
         # for that word, so no verdict word ever resolves there and the form
-        # completes the step exactly as it always has. design-it-twice's
-        # interior panel (ruling 10, shelved #96) was the tree's one worked
-        # example of this; nothing mints that step any more, but the branch
+        # completes the step. design-it-twice's interior panel was the
+        # tree's one worked example of this; the branch
         # still holds for any future panel-only round shaped the same way.
         # Inert either way is what holds.
         return declared_does(spec, word) in (None, "release"), False
@@ -775,7 +775,7 @@ def state(work_id):
             # same step id, and each must stay attributable to its child.
             # `done` only lands once every expected panelist has answered; a
             # step with no `panel` expects one, so a single-child dispatch
-            # completes on its first (and only) return exactly as before. A
+            # completes on its first (and only) return. A
             # step carrying both a panel and a form is the two-voices
             # transition: the returns are the panel's voice, the form is the
             # conductor's, so a full house only lands in `done` here when the

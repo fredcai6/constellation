@@ -56,10 +56,10 @@ def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, mo
     implement form anywhere. Both keys are present and empty -- a parent
     reading the summary asks for them the same way whatever closed.
 
-    An issue-tier close now pushes and opens a PR before it archives, so
+    An issue-tier close pushes and opens a PR before it archives, so
     `gh` is stubbed (never a real remote) and the closed entry is read off
-    the archive it lands in rather than through `journal.read`, which no
-    longer resolves an id once `close` has swept it there."""
+    the archive it lands in rather than through `journal.read`, which does
+    not resolve an id once `close` has swept it there."""
     wid = "issue19"
     cli.main(["open", "run-an-issue", "--issue", "19", "--title", "t"])
     _fill_open(wid)
@@ -70,8 +70,7 @@ def test_close_summary_keys_are_empty_where_no_step_carried_a_change(workdir, mo
     _dispatch_and_close_plan(wid)
     _drive_plan_to_pause(wid)
     # round-cap pauses this segment rather than releasing it to close
-    # (plan declares no impasse of its own any more, ruling 2026-09-25;
-    # commitment 3, issue84.g2, is what keeps a pause from releasing) --
+    # (plan declares no impasse of its own, and a pause never releases) --
     # this test's own subject is the close summary once the run *does*
     # reach `forms/CLOSE.toml`, not the pause itself, so the ask it minted,
     # and the marker behind it, are amend-closed directly rather than

@@ -1,15 +1,17 @@
-"""Work-id resolution across two roots (#52): a run addresses the same tree
+"""Work-id resolution across two roots: a run addresses the same tree
 whether the caller stands in the top-level checkout or inside the issue
 worktree its work location actually lives in.
 
-Four cwd-relative reads used to disagree the moment a worktree existed:
+Four cwd-relative reads would disagree the moment a worktree existed:
 `journal.location` itself, the ledger's and the rail's open-run scan, the
 check's `palette:` resolution and the subprocess it drives, and a measured
 artifact's stored path. All four are exercised here, driven for real rather
 than read off the source -- and the write side too: `_open_child` must nest
 a freshly dispatched gate or panelist inside its parent's actual worktree,
-never wherever the dispatching shell happens to be standing, or g4's later
+never wherever the dispatching shell happens to be standing, or the later
 archive move cannot find it.
+
+See: #52
 """
 
 import json
@@ -27,16 +29,20 @@ from test_nesting import _fill_implement, _fill_open, _fill_consolidate, _fill_p
     _dispatch_and_close_plan, _dispatch_plan_critic, \
     _work_the_board, _fill_plan_to_execute
 
+# A dispatched process reaches the engine the way a real agent does: through
+# the `spine` script, which finds the engine itself.
+_SPINE = str(pathlib.Path(__file__).resolve().parent.parent / "spine")
+
 
 def _open_one_gate(wid, issue, proof):
     """Drive a run-an-issue open to one freshly minted gate dispatch step,
     with a caller-chosen `proof` -- the shape a check-resolution test needs,
     which `test_nesting._mint_first_gate` does not expose. The proof is the
-    plan round's own field now (#27): it has to ride in through `_fill_plan`,
+    plan round's own field (#27): it has to ride in through `_fill_plan`,
     not a PLAN_TO_EXECUTE.toml block -- a stale `[[gates]]` block there is
     silently ignored rather than refused, which is exactly the trap this
     comment is here to name for the next reader. `_fill_plan_to_execute`
-    (test_nesting.py) is the route form's own conductor fill now (ruling 3):
+    (test_nesting.py) is the route form's own conductor fill:
     `resolution` and, on a pass, the `plan` pointer that projects the gate."""
     cli.main(["open", "run-an-issue", "--issue", issue, "--title", "t"])
     _fill_open(wid)
@@ -51,7 +57,8 @@ def _open_one_gate(wid, issue, proof):
     cli.main([wid, "submit"])
 
 
-# -- an unknown id says where it looked, and refuses loudly (#67) -----------
+# -- an unknown id says where it looked, and refuses loudly -----------
+# See: #67
 
 
 def test_unknown_id_from_a_bare_cwd_says_none_here_and_refuses_nonzero(
@@ -59,7 +66,7 @@ def test_unknown_id_from_a_bare_cwd_says_none_here_and_refuses_nonzero(
     """A subagent's cwd resets between bash calls, so a bare `spine <id>
     note ...` from a conductor thread that never `cd`'d anywhere lands in a
     directory with no `.agent-work` and no `.worktrees` -- the exact shape
-    that used to read as a silently lost note. `none here` says the search
+    that would read as a silently lost note. `none here` says the search
     space was empty, not merely that this one id was not in it."""
     monkeypatch.chdir(tmp_path)
     with pytest.raises(SystemExit) as e:
@@ -189,7 +196,7 @@ def test_measured_artifact_resolves_against_the_runs_own_tree_from_any_cwd(
     not the run's own worktree must still find the real file -- resolved
     against the run's own tree, not doubled against its own work location.
     Proven on the plan segment's own dispatch child, which inherits the
-    parent's tree (ruling 8) exactly the way a gate's child does."""
+    parent's tree exactly the way a gate's child does."""
     cli.main(["open", "run-an-issue", "--issue", "21", "--title", "t"])
     wid = "issue21"
     worktree = workdir / ".worktrees" / wid
@@ -246,7 +253,7 @@ def test_a_gate_dispatched_from_a_cwd_that_is_not_the_parents_worktree_still_nes
 
 
 # -- the brief still names the worktree and the branch ----------------------
-# The room itself never prints this any more (`o-single-dispatch-room`) --
+# The room itself never prints this --
 # `_wait_brief` (test_brief.py) drives the real spawn and hands back what
 # the process actually received.
 
@@ -300,7 +307,8 @@ def test_review_panel_brief_on_a_nested_gate_names_the_parents_worktree_and_bran
     assert f"branch {wid}" in text
 
 
-# -- #112 gate 2: a bound child cannot resolve outside its own subtree -----
+# -- a bound child cannot resolve outside its own subtree -----
+# See: #112
 
 
 def _await(path, seconds=20):
@@ -321,8 +329,8 @@ def _read_probe(path):
 
 # [bound-probes-dispatch]
 # Rationale: one real, test-configured `dispatch` entry, driven through
-#   `cmd_wait`'s own real spawn (`checkrun.spawn_dispatch`) the way #112's
-#   own `repro112.py` is -- never a hand-written `CONSTELLATION_BOUND` this
+#   `cmd_wait`'s own real spawn (`checkrun.spawn_dispatch`) the way
+#   `repro112.py` does (#112) -- never a hand-written `CONSTELLATION_BOUND` this
 #   test sets itself, since the whole point is that the *engine* is the one
 #   stamping it at spawn. The spawned process is a real bound child; every
 #   `spine` call inside the script below is a real subprocess of that
@@ -340,11 +348,12 @@ def _bound_probes_dispatch(root, out_dir, parent, step):
         "me = os.environ.get('CONSTELLATION_BOUND', '<unset>')\n"
         "(out / 'bound.txt').write_text(me)\n"
         "def spine(*a, env=None):\n"
-        "    r = subprocess.run([sys.executable, '-m', 'engine.cli', *a],\n"
+        f"    r = subprocess.run([sys.executable, {_SPINE!r}, *a],\n"
         "                       capture_output=True, text=True, env=env)\n"
         "    return f'{r.returncode}\\n{r.stdout}{r.stderr}'\n"
         # 1. its own id, and a further id it dispatches beneath itself
         "(out / 'own.txt').write_text(spine(me))\n"
+        f"sys.path.insert(0, {str(pathlib.Path(_SPINE).parent)!r})\n"
         "from engine import journal\n"
         "sub = me + '.sub'\n"
         "journal.append(sub, 'run', title='t', assembly='run-a-gate')\n"
@@ -376,13 +385,12 @@ def _bound_probes_dispatch(root, out_dir, parent, step):
 def test_a_bound_childs_probes_resolve_only_its_own_subtree(bare_workdir, capsys):
     """Driven for real against `checkrun.spawn_dispatch`'s own spawn (never
     a hand-set env var): a dispatched child resolves itself and a further
-    id it dispatches beneath itself, unaffected (o2's first half); reading
+    id it dispatches beneath itself, unaffected; reading
     its own dispatching parent three ways -- bare status, `amend close
     <step>`, `close` -- matches a genuinely-never-minted control id's own
-    refusal byte for byte, apart from the id itself (o2's second half, and
-    o3's "no new, differently-worded refusal"); and the bare ledger, every
-    open run listed with none named, never surfaces the parent either (the
-    "listed rather than named" half of o2)."""
+    refusal byte for byte, apart from the id itself (no new,
+    differently-worded refusal); and the bare ledger, every
+    open run listed with none named, never surfaces the parent either."""
     out = bare_workdir / "bound_probes"
     _mint_dispatch_step(wid="d1", child="d1.g1")
     _bound_probes_dispatch(bare_workdir, out, parent="d1", step="g1")
@@ -452,8 +460,9 @@ def test_review_panel_brief_from_inside_a_bound_child_still_names_its_own_branch
     assert f"branch {wid}" in text
 
 
-# -- #112 gate 2, ruling 4: a bound child's own close still reaches its ------
+# -- a bound child's own close still reaches its ------
 # -- dispatching parent (`journal.unbound()`, engine/journal.py) ------------
+# See: #112
 
 
 # [bound-close-dispatch]
@@ -475,7 +484,7 @@ def _bound_close_dispatch(root, out_dir, child):
         "out.mkdir(parents=True, exist_ok=True)\n"
         "brief = sys.argv[1]\n"
         "def spine(*a):\n"
-        "    r = subprocess.run([sys.executable, '-m', 'engine.cli', *a],\n"
+        f"    r = subprocess.run([sys.executable, {_SPINE!r}, *a],\n"
         "                       capture_output=True, text=True)\n"
         "    return f'{r.returncode}\\n{r.stdout}{r.stderr}'\n"
         "(out / 'submit.txt').write_text(spine(child, 'submit'))\n"
@@ -489,7 +498,7 @@ def _bound_close_dispatch(root, out_dir, child):
 
 def test_a_bound_childs_own_close_delivers_its_return_to_its_dispatching_parent(
         bare_workdir, capsys):
-    """RULING 4's required case: without `cmd_close`'s own `journal.unbound()`
+    """Without `cmd_close`'s own `journal.unbound()`
     block, a bound dispatched child's own `close` falls straight to the
     "parent not found" branch -- `journal.exists(st["parent"])` narrowed to
     the child's own subtree never admits the parent that dispatched it. Driven
@@ -520,12 +529,13 @@ def test_a_bound_childs_own_close_delivers_its_return_to_its_dispatching_parent(
         "d1.g1's close never delivered its return into d1's own journal"
 
 
-# -- #112 gate 2 rework: the write guard stays scope-blind ------------------
+# -- the write guard stays scope-blind ------------------
+# See: #112
 
 
 def _bound_open_dispatch(root, out_dir, parent, assembly):
     """A bound child's own dispatched subprocess attempts `open <assembly>
-    --id <parent>` -- the exact shape ruling 2/3 repaired: `cmd_open`'s guard
+    --id <parent>`: `cmd_open`'s guard
     has to read as "is this name already taken", not "can I resolve this id
     from here", or a bound `--id` naming its own parent would slip past it
     and overwrite that parent's journal in place."""
@@ -538,7 +548,7 @@ def _bound_open_dispatch(root, out_dir, parent, assembly):
         "out.mkdir(parents=True, exist_ok=True)\n"
         "brief = sys.argv[1]\n"
         "def spine(*a):\n"
-        "    r = subprocess.run([sys.executable, '-m', 'engine.cli', *a],\n"
+        f"    r = subprocess.run([sys.executable, {_SPINE!r}, *a],\n"
         "                       capture_output=True, text=True)\n"
         "    return f'{r.returncode}\\n{r.stdout}{r.stderr}'\n"
         "(out / 'open.txt').write_text(\n"
@@ -553,7 +563,7 @@ def _bound_open_dispatch(root, out_dir, parent, assembly):
 
 def test_a_bound_childs_open_with_its_parents_id_refuses_and_leaves_the_parents_journal_untouched(
         bare_workdir, capsys):
-    """RULING 2/3's required case, driven for real rather than by hand:
+    """Driven for real rather than by hand:
     reverting the two-line swap (`journal.journal_path(wid).exists()` back
     to `journal.exists(wid)` in `cmd_open`) leaves this silently green while
     the parent's journal gets clobbered in place -- exactly the exposure

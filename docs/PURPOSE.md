@@ -1,8 +1,8 @@
 # Purpose
 
-**Status:** what Constellation is for. Rulings by Tommy, 2026-09-05. `standards/approach.md`
+**Status:** what Constellation is for. `standards/approach.md`
 says how he builds in any repository and travels with the system; this page is about this one.
-`docs/V2_DESIGN.md` says what the system is. Where a mechanism and this page disagree, ask
+`docs/AGENT_GUIDE.md` and the tree say what the system is. Where a mechanism and this page disagree, ask
 before building: one of them is wrong.
 
 ## What this is for

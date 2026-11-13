@@ -2,12 +2,10 @@
 through real runs rather than proved against hand-built returns.
 
 `tests/test_verdict_fold.py` holds the fold's own logic in isolation. This
-file is the other half -- the fold is now the only one there is, so what a
+file is the other half -- the fold is the only one there is, so what a
 seam does with `("clean", word)`, `("refused", tag)` and `("quiet", None)`
 is a question about real journals, real assemblies and real panelist forms,
-and every case below drives one. The differential test that used to stand
-between them (the fold's word against `merged_verdict`'s) went out with
-`merged_verdict`; these are what replaced it.
+and every case below drives one.
 
 Three things a refusal is, and all three arrive here the same way. A word
 the panelist's own form does not declare; a form path that is no longer in
@@ -39,7 +37,7 @@ from test_verdict_panels import (
 )
 
 CRITIC = "skills/critic/forms/CRITIC.toml"
-# The rename this whole issue exists to make free, seen from the fold's side:
+# The rename the fold keeps free, seen from the fold's side:
 # a path a journal already names and the tree no longer has.
 GONE = "skills/critic/forms/CRITIC_RENAMED_AWAY.toml"
 
@@ -69,7 +67,7 @@ def _to_the_consolidate_panel(wid="issue19"):
 
 def test_a_word_consolidates_own_critics_do_not_declare_holds_the_seam_and_names_that_voice(
         workdir, capsys):
-    """Covering item 1. Two critics answer the table's own inert word and a
+    """Two critics answer the table's own inert word and a
     third answers one CRITIC.toml declares nowhere. The seam stays open --
     a refusal is never released past the conductor whose form is standing
     there -- and the room names the voice rather than reporting a word it
@@ -99,20 +97,17 @@ def test_a_word_consolidates_own_critics_do_not_declare_holds_the_seam_and_names
 
 
 def test_the_same_seam_with_every_critic_clean_routes_exactly_as_it_did(workdir, capsys):
-    """Covering item 3, a regression: the rewiring left the ordinary path
-    alone. Three critics answer `revise` -- a word CRITIC.toml declares and
-    consolidate's own table resolves -- and the seam behaves as it did
-    before `verdict_fold` reached it: the step holds for CONSOLIDATE.toml,
-    the room reports no refusal, and the conductor's own `incorporate` (one
-    look, 2026-09-25 -- `rework` is gone from this table) is what mints the
-    fresh spec-writer round.
+    """The ordinary path is unaffected by the fold. Three critics answer
+    `revise` -- a word CRITIC.toml declares and consolidate's own table
+    resolves -- the step holds for CONSOLIDATE.toml, the room reports no
+    refusal, and the conductor's own `incorporate` (one look; `rework` is
+    not a row on this table) is what mints the fresh spec-writer round.
 
     The room's line is `""` rather than the word itself, because
-    consolidate declares both of the panel's words `release` (ruling 3's
-    2026-09-03 follow-up) and an inert word is the quiet class the room has
-    always suppressed. What matters here is that it is not `unreadable`:
+    consolidate declares both of the panel's words `release`
+    and an inert word is the quiet class the room suppresses. What matters here is that it is not `unreadable`:
     every clean word this seam can be answered with resolves through the
-    table, exactly as it did."""
+    table."""
     wid = _to_the_consolidate_panel()
     for n in (1, 2, 3):
         _dispatch_critic(wid, "understand", verdict="revise",
@@ -167,7 +162,7 @@ def _dispatch_spec_critic(wid, step_id, n, verdict, findings="gap: no point"):
 
 
 def test_a_refusal_at_the_panel_only_seam_mints_nothing_and_still_closes(workdir, capsys):
-    """Covering item 4. explore-an-idea's spec transition is the one seam
+    """explore-an-idea's spec transition is the one seam
     whose panel word acts by itself -- `revise` declares `rework`, so a
     revising round mints the next one with no conductor in between. A
     refusal among the voices is not that word and is not any word, so
@@ -182,7 +177,10 @@ def test_a_refusal_at_the_panel_only_seam_mints_nothing_and_still_closes(workdir
     spelling per surface.
 
     The review yield is the third surface that convention is for, and it
-    reaches this seam too: a panel-only round is a round (#106)."""
+    reaches this seam too: a panel-only round is a round.
+
+    See: #106
+    """
     wid, panel = _to_the_spec_panel(capsys)
     journal.append(wid, "return", step=panel, child=f"{wid}.{panel}.p1",
                    fields={"findings": "waived: clean", "verdict": "sound"})
@@ -213,10 +211,9 @@ def test_a_refusal_at_the_panel_only_seam_mints_nothing_and_still_closes(workdir
 
 
 def test_the_same_seam_with_every_voice_revising_still_mints_a_fresh_round(workdir, capsys):
-    """Covering item 5, a regression beside item 4: the panel's own acting
-    word still acts. Three critics answer `revise`, whose row at this seam
-    declares `rework`, and the fresh REWORK round mints off the panel alone
-    exactly as it did before the fold reached `_act_on_verdicts`."""
+    """The panel's own acting word still acts. Three critics answer `revise`,
+    whose row at this seam declares `rework`, and the fresh REWORK round
+    mints off the panel alone."""
     wid, panel = _to_the_spec_panel(capsys)
     for n in (1, 2, 3):
         _dispatch_spec_critic(wid, panel, n, "revise")
@@ -231,7 +228,7 @@ def test_the_same_seam_with_every_voice_revising_still_mints_a_fresh_round(workd
 
 
 def test_a_refused_round_reaches_the_close_summary_and_the_review_yield(workdir, capsys):
-    """Covering items 6 and 7. A gate whose first review round ruled clean
+    """A gate whose first review round ruled clean
     and whose second could not be read, then closed: the close summary
     reports the refusal and the voice, never the clean word the earlier
     round left behind, and the review yield renders the same two words at
@@ -306,11 +303,11 @@ note = "go | stop. The seam's two words, renamed together."
 
 def _renamed_consolidate(tmp_path):
     """run-an-issue's consolidate seam with its own table and its panelists'
-    own vocabulary renamed together -- the rename this issue exists to make
+    own vocabulary renamed together -- the rename the fold keeps
     free, which no seam in the tree can be driven under without editing
     `skills/`. `go` releases; `stop` is the row that acts -- the conductor's
-    own `incorporate` (one look, 2026-09-25; `rework` is no longer a row on
-    this table at all)."""
+    own `incorporate` (one look; `rework` is not a row on
+    this table)."""
     (tmp_path / "RENAMED_CRITIC.toml").write_text(RENAMED_CRITIC)
     asm = runmod.load_assembly("run-an-issue")
     asm["dir"] = tmp_path
@@ -340,20 +337,18 @@ def _renamed_round(tmp_path, words):
 
 def test_the_yields_tally_and_its_head_line_read_the_table_not_the_word_revise(
         workdir, tmp_path):
-    """Covering item 11, both halves.
-
-    `_round`'s `revising` count is the seam's own table read per voice -- a
+    """`_round`'s `revising` count is the seam's own table read per voice -- a
     voice whose word declares anything but the inert `release` is a voice
     sending the round back -- so renaming that row's value and the critics'
-    own note together moves the tally with them. The literal comparison this
-    replaced (`leading_word(...) == "revise"`) would read zero here, on a
+    own note together moves the tally with them. A literal comparison
+    (`leading_word(...) == "revise"`) would read zero here, on a
     round two of three voices sent back.
 
     And one hop further than `_round`: the head line `render._yield_round`
     prints is the round's own verdict record, so it prints the renamed word
     too. A `"pass"` fallback for the not-revising branch -- a bare string
-    literal that nothing compares against, which item 8's own `Eq`/`NotEq`
-    sweep cannot see by construction -- would satisfy every other check in
+    literal that nothing compares against, which the `Eq`/`NotEq`
+    sweep in test_verdict_route.py cannot see by construction -- would satisfy every other check in
     this file and still print the wrong word at every seam whose passing
     value was ever renamed. Asserting neither `pass` nor `revise` appears in
     the rendered table at all is what closes that."""
@@ -386,7 +381,7 @@ def test_the_yields_head_line_names_a_refusal_rather_than_falling_back_to_a_word
 
 
 def test_a_missing_panel_form_on_the_current_step_is_named_not_raised(workdir, capsys):
-    """Covering item 12(a). A journal is append-only, so a step dispatched
+    """A journal is append-only, so a step dispatched
     under a form path outlives that path's rename -- the ordinary, correct
     change `cli._load_form` already guards a step's own form against, for
     the reason its own comment records (a bare `forms.load` once left a real
@@ -420,7 +415,7 @@ def test_a_missing_panel_form_on_the_current_step_is_named_not_raised(workdir, c
 
 def test_a_missing_panel_form_on_a_superseded_step_does_not_walk_the_run_backwards(
         workdir, capsys):
-    """Covering item 12(b), the case the obvious construction misses.
+    """The case the obvious construction misses.
 
     `state()` re-derives every historical two-voices step's own `done` on
     every fold, and a step the panel itself folded shut carries no later
@@ -430,12 +425,11 @@ def test_a_missing_panel_form_on_a_superseded_step_does_not_walk_the_run_backwar
     `awaiting_close` goes false and `cmd_close`'s own pending list names a
     step the run finished long ago. That is the crash's silent twin -- a
     routine rename permanently damaging a run's readability -- and it is
-    exposure this gate itself creates, since the pre-gate fold never read a
-    panelist's form path at all.
+    exposure the fold creates by reading a panelist's form path at all.
 
     The journal is built here rather than driven, because no seam in the
     tree can produce one: every two-voices seam declares both of its panel's
-    words `release`, so none of them folds shut on the panel alone today.
+    words `release`, so none of them folds shut on the panel alone.
     The run below is what one would look like -- an earlier seam closed by
     its panel with no conductor submit behind it, a later seam judged and
     disposed of, and a close form waiting. The command driven against it is
@@ -476,13 +470,13 @@ def test_a_missing_panel_form_on_a_superseded_step_does_not_walk_the_run_backwar
 
 def test_the_design_panels_own_round_reports_nothing_rather_than_a_stale_word(
         workdir, capsys, monkeypatch):
-    """Covering item 13. A panel whose voices are dispatched under a form
+    """A panel whose voices are dispatched under a form
     declaring no `verdict` field at all folds to `("quiet", None)` -- not a
-    refusal, and not a word. design-it-twice's rival-planner panel (ruling
-    10, shelved -- #96) was the tree's one live example of this shape,
+    refusal, and not a word. design-it-twice's rival-planner panel
+    (shelved) was the tree's one live example of this shape,
     dispatched under PLAN.toml; the panel-only step here is hand-built into
     the journal directly instead (the same way the missing-panel-form test
-    above builds its own run), since nothing left in the tree mints one.
+    above builds its own run), since nothing in the tree mints one.
 
     `_summary` is the one site that reaches it: `seam_rounds` visits only
     segments `_seam_segments` admits, and a panel-only interior step is
@@ -491,13 +485,16 @@ def test_the_design_panels_own_round_reports_nothing_rather_than_a_stale_word(
     filter -- it walks every panel-bearing step in journal order with the
     last one winning -- and this run closes with the hand-built quiet panel
     as its last judged round, which is an ordinary journal order rather than
-    a contrived one (a rival-planner round recurred on every rework, before
-    it was shelved).
+    a contrived one (a rival-planner round recurred on every rework while that
+    panel existed).
 
     Two failures are available at that combination and this rules out both:
     rendering the `("quiet", None)` tuple as a string, and carrying the
     understand panel's own clean `pass` forward past a round that settled
-    nothing about a verdict."""
+    nothing about a verdict.
+
+    See: #96
+    """
     wid = "issue13"
     journal.append(wid, "run", title="t", assembly="run-an-issue")
     journal.append(wid, "step", id="understand", segment="understand", anchor=True,

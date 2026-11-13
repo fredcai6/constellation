@@ -1,118 +1,106 @@
-# Anchor: understand → plan. Owned by run-an-issue; filled by the conductor,
-# under the interrogator's own hat -- the spec itself is the spec-writer's
-# round, judged cold by the panel above, not summarized again here.
-# Ruling 3's follow-up (2026-09-03), and one look (2026-09-25): the
-# critic panel reads the opening spec, and a rewrite's fresh one, and rules
-# first -- both of its words release, so nothing advances on the panel's say
-# alone -- and this form is where its round is disposed of. An
-# incorporation's round stands this form alone, with no panel, since the
-# spec-writer has already ruled on every finding it carried. On a release
-# the engine also validates the understand board: an open row refuses, a
-# decision answered without the principal's words refuses; the escape is
-# deferred: <reason>, journaled -- an incorporate, a rewrite or an up does
-# not reach that check, since the board is not done until the spec passes.
+# Anchor: understand -> plan. Owned by run-an-issue; filled by the conductor.
+# The critic panel reads the opening spec, and a rewrite's fresh one; this
+# form is where the conductor rules on what the panel found. An
+# incorporation's round stands here with no panel. On a release the engine
+# also validates the understand board: an open row refuses, and so does a
+# decision answered without the principal's words.
+# PLAN_TO_EXECUTE.toml takes `resolution`, `orders` and `calls` from this
+# file (`same-as`): the two seams rule a panel's round the same way.
 
 imperative = """
-Read the round above and say where it goes. A spec gets one look, and you
-stand between the panel and the spec-writer: the panel finds, you judge
-what it found against the spec as a whole. Call every finding -- `writer`
-where it holds at the spec's grain, `rejected` where it does not hold, is
-not this spec's, or reaches below the grain into how the work gets built.
-A panel's `revise` is its word on its own findings, not a ruling on the
-spec. Then rule the round. Where the findings you kept leave the problem
-standing, `incorporate`: the spec-writer takes or rejects them, and what
-comes back is released here, not read by another panel. Where they change
-which problem this run is solving, or the fundamental thing its next step
-would code -- one finding, or several read together -- `rewrite`, and
-write in `orders` what the spec must say, forward: the fresh spec starts
-from your orders alone, never the last draft or its findings, and gets its
-own look. Where you are standing on a returned spec, release it. On a release (a `pass`, or a `revise` you are not
-sending back) this step will not complete while a row is open on the board
-above, or while a decision is recorded with no words from the principal --
-close what is left there, every row answered, mooted, or deferred with a
-reason -- and record this segment's own bookkeeping below: the glossary and
-what the board's excursions produced, neither of them the spec, both
-staying behind in this run's own record."""
+The panel has read the spec. Rule on its round.
+
+1. Call every finding, in `calls`. You stand between the panel and the
+   spec-writer, and you judge each finding against the spec as a whole:
+   `writer` where it holds at the spec's grain, `rejected: <reason>` where
+   it does not hold, is not this spec's to answer, or is about how the
+   work gets built. The panel's `revise` is its word on its own findings.
+   It is not a ruling on the spec.
+
+2. Rule the round, in `resolution`:
+   - `incorporate` (the default when you kept any finding): the
+     spec-writer takes or rejects the findings you called `writer`. What
+     comes back is released here with no second panel.
+   - `rewrite`: the findings you kept, one or several together, change
+     which problem this run is solving. Write in `orders` what the spec
+     must say. The fresh spec starts from your orders alone and gets its
+     own panel.
+   - release: you kept no finding, or you are standing on a spec that came
+     back from an incorporation. Fill `spec` and the fields after it.
+   - `up`: you cannot rule from here. The run pauses and asks one tier up.
+
+3. On a release, close the board first. This step will not complete while
+   a row is open on the board, or while a decision has no words from the
+   principal: every row is answered, mooted, or deferred with a reason."""
 
 [[field]]
 id = "resolution"
 kind = "decision"
 note = """
-pass | revise | incorporate | rewrite | up. The first two are the panel's
-own words, resolved onto this same table when its verdict returned -- both
-release the round exactly as leaving the fields below filled and submitting
-does. `incorporate` is the spec-writer's one pass over the findings you
-called `writer`, taken or rejected on its own judgement; the spec it
-returns stands here with no panel, and your next word on it is a release,
-or a `rewrite` if the pass itself broke the problem statement -- a second
-incorporate refuses. `rewrite` is a fresh spec, written from your `orders`
-alone, with its own panel: the call for a round whose findings, one or
-several read together, change which problem is solved or what its next
-step codes. A spec gets one rewrite; a second, before this seam releases, becomes an ask
-at the run's principal instead.
-`up` is the round you cannot rule on from here, the issue itself being
-wrong the usual reason: it pauses this segment rather than releasing it,
-your reason standing as an ask one tier up, with whatever it answers
-carried back as the next round's orders."""
+pass | revise | incorporate | rewrite | up.
+
+`pass` and `revise` are the panel's words. Typed here, both release the
+round; `revise` sends nothing back. Use `pass` to release.
+`incorporate`: the writer makes one pass over the findings you called
+`writer`, taking or rejecting each. What it returns comes back to this
+form with no panel. Your next word is then a release, or `rewrite` if the
+pass broke the artifact. A second `incorporate` is refused.
+`rewrite`: a fresh artifact from your `orders` alone, with its own panel.
+An artifact gets one rewrite; a second becomes an ask at the run's
+principal.
+`up`: the round you cannot rule on from here, usually because what the
+artifact answers to is itself wrong. The run pauses; the answer comes
+back as the next round's orders."""
 
 [[field]]
 id = "orders"
 kind = "evidence"
 optional = true
 note = """
-Your own words for the next round. On a `rewrite` they are all the fresh
-spec-writer holds: the problem, the boundary, and what done looks like,
-stated forward -- what the findings established, as ground the spec stands
-on, never as faults in the draft they were about. On an `incorporate` they ride ahead of the findings, as yours.
-`waived: none` where the findings say it all. Never write an order into
-`calls` as if the panel had returned it."""
+Your own words for the next round.
+
+On a `rewrite` they are all the writer gets. State what the artifact must
+say, forward. Use what the findings established as ground to build on; do
+not describe what the last draft got wrong.
+On an `incorporate` they go to the writer ahead of the findings.
+
+`waived: none` where the findings say it all. Never put an order in
+`calls` as if the panel had written it."""
 
 [[field]]
 id = "spec"
 kind = "artifact"
 optional = true
 note = """
-The specification that just passed critique, in this run's work location --
-filled when this round releases (a `pass`, or a `revise` you are not
-sending back) and left blank on an `incorporate`, a `rewrite` or an `up`, since none has
-anything intact to carry. Point at it — never retype it: `carries` puts this
-field in the run's own prefill, which is the only way the plan segment's
-planner and its critics, a different segment entirely, ever see it. The
-name is standards/glossary.md's `spec` — the same one explore-an-idea's own
-SPEC.toml artifact answers to."""
+The path of the specification, in this run's work location. Fill it only
+on a release; leave it blank on `incorporate`, `rewrite` or `up`. Give the
+path; do not paste the document. Every later step reads the spec through
+this field."""
 
 [[field]]
 id = "key-terms"
 kind = "evidence"
 optional = true
 note = """
-This work's load-bearing terms; each cites its glossary entry or proposes a
-new one. Coining a synonym is a defect. Filled on a release, the same as
-`spec`; left blank on any other word."""
+The terms this work depends on. Each one cites its glossary entry or
+proposes a new entry. Do not coin a synonym for a term that has one. Fill
+it only on a release."""
 
 [[field]]
 id = "settle"
 kind = "evidence"
 optional = true
 note = """
-What the board's excursion column produced: every excursion dispatched, the
-one question it answered and what its returns said. `waived: none` where none
-was dispatched -- the one word, not a paragraph saying so; the declines are
-on the board already. The row asks; this reports. It is the only path by which a
-per-row brief reaches the planner, the fresh-context panel, and the next
-reader of the journal — the board stays behind in the work location, and
-these fields are what join the run's prefill. Filled on a release, the same
-as `spec`; left blank on any other word."""
+What the board's excursions produced: each excursion dispatched, the one
+question it answered, and what its returns said. A row that declined an
+excursion is on the board already; do not repeat it here. `waived: none`
+where none was dispatched. This field is how an excursion's result reaches
+the planner and the panel; the board itself stays behind. Fill it only on
+a release."""
 
-# [plan-fields-last]
-# Rationale: `forms.materialize` writes a `kind = "plan"` field as a bare
-#   `[[id]]` array-of-tables header; any scalar field's `key = ""` written
-#   after that header lands inside the array-of-tables' last block under
-#   TOML's own rule for what a headerless key belongs to, not beside it as a
-#   sibling. `resolution`, `spec`, `key-terms` and `settle` -- every scalar
-#   this form declares -- all stand above every one of the form's own plan
-#   fields, `obligations`, `rungs` and `calls`, for the same reason.
-# See: tests/test_reachable_briefs.py
+# Block lists come last: a `kind = "plan"` field renders as a bare `[[id]]`
+# header, and TOML nests every scalar written after it into that array's
+# last block. tests/test_reachable_briefs.py holds every form to this.
 [[field]]
 id = "obligations"
 kind = "plan"
@@ -120,75 +108,63 @@ mints = "board rows"
 board = "execution-state"
 optional = true
 note = """
-One block per obligation the spec makes, verbatim from its own list, cited
-by key. Minted as rows on the execution-state board (EXECUTION_STATE.toml) the
-moment this releases -- every gate's advance reads their dispositions
-afterward to decide whether the run is done, never the spec's prose again.
-Leave blank on a run whose gates already close it out some other way, or on
-any word but a release, where there is no spec settled yet to seed rows from;
-a run that fills nothing here settles trivially, exactly as before this
-board existed."""
+One block per obligation the spec makes, word for word from its own list.
+Each becomes a row on the execution-state board when this round releases,
+and the run is done when every row is disposed. Fill it only on a
+release."""
 
   [[field.item]]
   id = "obligation"
-  note = "One spec obligation, verbatim."
+  note = "One spec obligation, word for word."
 
 [[field]]
 id = "rungs"
 kind = "plan"
 optional = true
 note = """
-One block per anchor the spec reserved, verbatim from its own `rungs`
-field: the anchor id this run's work will land, and the anchor id(s) it
-sits under. `carries` puts this field in the run's own prefill, which is
-the only way a gate's own commit ever sees it -- the engine writes
-`map/parents.jsonl`'s row itself once that gate actually lands the
-anchor; nothing here writes the line by hand. Filled on a release, the
-same as `spec`; left blank on any word but a release, where there
-is nothing intact to carry. Leave blank where the spec reserved none."""
+One block per anchor the spec reserved in its own `rungs` field: the anchor
+id this run's work will land, and the anchor ids it sits under. The engine
+writes the `map/parents.jsonl` row itself once a gate lands the anchor.
+Fill it only on a release. Leave it out where the spec reserved none."""
 
   [[field.item]]
   id = "anchor"
-  note = "The anchor id, verbatim from the spec's own `rungs` field."
+  note = "The anchor id, word for word from the spec's `rungs` field."
 
   [[field.item]]
   id = "parents"
-  note = "The anchor id(s) it sits under, verbatim from the spec's own `rungs` field."
+  note = "The anchor id or ids it sits under, word for word from the spec's `rungs` field."
 
-# `calls` is written last, after every scalar and after `obligations`,
-# because a plan field renders as a bare `[[calls]]` header and every scalar
-# declared after it would nest inside that array's last block instead of
-# standing as its own field (tests/test_reachable_briefs.py holds the whole
-# tree to this). The reading order is the other one: rule the findings,
-# then say where the round goes.
+# `calls` is written last of all, for the reason given above. The reading
+# order is the other one: call the findings, then rule the round.
 [[field]]
 id = "calls"
 kind = "plan"
 optional = true
 note = """
-One block per finding the panel returned -- every one of them gets a
-call, and the call is where the finding goes.
+One block per finding the panel returned. Every finding gets a call.
 
-`writer` -- it holds, at the spec's grain: the problem, its boundary, or
-how anyone would tell it is done. On an `incorporate` it is the
-spec-writer's to take or reject; on a `rewrite` it is ground your `orders`
-state. A finding that the spec itself carries detail below its grain is a
-`writer` finding that deletes.
-`rejected: <reason>` -- it does not hold against the spec as a whole; or
-it is real but not this spec's to answer; or it is detail below the
-spec's grain -- a function, a test, a schema or a formula, which the plan
-and the implementer choose. Fold the reason in after the colon; it never
-becomes work here, and the record is that you called it.
+`writer`: the finding holds at the artifact's own grain. For a spec that
+is the problem, its boundary, or how anyone tells it is done. For a plan
+it is the next chunk, its purpose, its scope, or whether its proof could
+tell it landed. On an `incorporate` the writer takes or rejects it; on a
+`rewrite` your `orders` build on it. A finding that the artifact carries
+detail below its grain is a `writer` finding, and the fix is to delete
+the detail.
 
-An `up` carries the whole table, every call beside its finding, to the
-tier the ask stands at. Quote each finding as it was written rather than
-numbering it: on an `incorporate` the `writer` blocks are literally what
-the spec-writer arrives holding. Leave the field out only where no panel
-returned findings -- an incorporation's round has none."""
+`rejected: <reason>`: the finding does not hold against the artifact as a
+whole, or it is real but not this artifact's to answer, or it is about how
+the work gets built, which the implementer chooses. The reason is
+required. A rejected finding becomes no work here.
+
+Quote each finding as it was written; do not number or summarise it. On an
+`incorporate` the `writer` blocks are exactly what the writer receives. An
+`up` carries the whole table to the tier above. Leave the field out only
+where no panel returned findings."""
 
   [[field.item]]
   id = "finding"
-  note = "The panel's finding as it was written -- quoted, never summarised."
+  note = "The panel's finding as it was written. Quote it; do not summarise."
 
   [[field.item]]
   id = "call"

@@ -1,64 +1,71 @@
 # Step: gate adjudication. Owned by run-an-issue; filled by the conductor.
-# Minted per gate by the plan-to-execute transition; the gate's returns stamp
-# here when the child closes. Not a re-review: the panel already judged
-# whether the work fills the spec, and the gate-conductor has already
-# claimed the obligations the gate was cut against. You judge the gate's
-# purpose -- what the rest of the run takes as true now that this gate has
-# landed -- and whether the plan still holds. Act on the plan, never on
-# the diff.
+# Minted per gate; the gate's returns arrive here when the child closes. Not
+# a re-review: the panel judged the diff, and the gate-conductor claimed the
+# obligations the gate was cut against. The conductor judges the gate's
+# purpose and whether the plan still holds.
 
 imperative = """
 The gate has returned. It judged its obligations; you judge its purpose.
-Open the root that shows what this gate makes true -- the artifact, a check
-you re-run -- then decide whether the plan still holds, and accept or
-contest each obligation the gate claims."""
+
+1. Check the purpose yourself. Open what this gate produces (the artifact,
+   the output a person would read) or re-run a check that exercises the
+   claim in its `purpose`. Read it against the spec's own words. The gate's
+   tests passing is not this check.
+
+2. Rule whether the plan still holds, in `plan-holds`.
+
+3. Accept or contest each obligation the gate claims, in `dispositions`."""
 
 [[field]]
 id = "purpose-holds"
 kind = "evidence"
 note = """
-The claim the rest of the run now takes as true from this gate -- its
-`purpose`, in your orders -- and what showed it: the root you opened or
-the check you ran that exercised that claim itself, not the obligations
-under it. A gate can satisfy every obligation it was cut against and
-still leave its purpose false, and every later gate then measures against
-a claim nobody checked. Where nothing you can open shows the claim, say so
-here; `plan-holds` is where that becomes a ruling."""
+The claim the rest of the run now relies on from this gate (its `purpose`,
+in your orders), and what showed it: the artifact you opened or the check
+you ran that exercised that claim itself. A gate can satisfy every
+obligation it was cut against and still leave its purpose false. If
+nothing you can open shows the claim, say so here and rule on it in
+`plan-holds`."""
 
 [[field]]
 id = "findings"
 kind = "evidence"
 optional = true
 note = """
-What this gate taught the plan, and only where a `replan` or the next gate
-needs it: a `replan` carries this straight into the fresh plan round as its
-own `findings`, the same word PLAN.toml's header uses for a rework round's.
-`waived: none` otherwise -- nineteen fills of about six hundred words each
-crossed into nothing, since no run ever replanned. Your verification of the
-return belongs in the journal as a note, not here."""
+What this gate taught the plan. Fill it only where a `replan`, a `remint`
+or the next cut needs it: it goes to the planner as `findings`.
+`waived: none` otherwise. A record of how you verified the return belongs
+in a journal note, not here."""
 
 [[field]]
 id = "critical-question"
 kind = "decision"
 optional = true
 note = """
-matches | differs: <reason> -- only where the cut's own `critical-questions`
-block named this gate as a question's answerer, by its own position in the
-round. Rule it here, grounded in this gate's own residue: did its actual
-answer match the plan's own expected one, or differ. Never an engine
-string-compare against free text -- yours is the ruling the engine reads.
-Leave blank where this gate answers no question the cut named."""
+matches | differs: <reason>. Fill it only where the cut's
+`critical-questions` named this gate to answer a question. Rule whether
+the gate's actual answer, from its residue, matches the answer the plan
+expected. `differs` sends the open plan back to the planner for one
+review. Leave it blank where this gate answers no question."""
 
 [[field]]
 id = "plan-holds"
 kind = "decision"
 note = """
-advance | remint | drop <gate-id> | replan — on anything but advance, the
-amend is the evidence. Adjudicate the child's amend summary: accept or
-contest each entry. remint fills gate-spec below with the fresh gate; it
-commits this gate's work and closes nothing, since this gate has already
-run and history is not amendable. drop closes the named gate's dispatch and adjudication steps —
-it must be pending, and never this one."""
+advance | remint | drop <gate-id> | replan.
+
+`advance`: the purpose holds. The engine commits the gate and starts the
+next one.
+`remint`: the purpose does not hold and a replacement gate will fix it.
+Fill `gate-spec` below. The gate's work is still committed, because it
+already ran.
+`drop <gate-id>`: close a different, still-pending gate that is no longer
+needed. Never this gate.
+`replan`: the plan itself no longer holds. Every pending gate closes and
+the planner cuts again.
+
+On anything but `advance`, also read the child's amend summary in your
+orders and say which entries you accept or contest."""
 
 [[field]]
 id = "dispositions"
@@ -68,19 +75,16 @@ board = "execution-state"
 drafted-by = "claims"
 optional = true
 note = """
-The gate's own claims, one block per obligation, written into this form
-from its close (GATE_CLOSE.toml's `claims`) before you open it. Accept a
-claim by leaving its block as it stands; contest one by changing its word,
-the reason after the colon. The gate named each root so that you can open
-it. What you do not do is re-derive the claim from the diff: that is the
-gate's work done twice, and it is what crowded out the question
-`purpose-holds` asks. The engine writes each block's word onto the
-matching row of the execution-state board, this gate's own id stamped
-alongside it. Delete a block and its obligation stays open, and the run
-plans another gate for it; a gate that claimed nothing leaves this
-blank. `open:` left standing does the same as a deleted block. A gate
-claims only `satisfied` or `open`; any other word it wrote opens here as
-`open`, since where unfinished work goes is yours to say."""
+The gate's claims, one block per obligation, already written here from its
+close form. Accept a claim by leaving its block as it stands. Contest one
+by changing its word, with the reason after the colon. The gate named a
+root for each claim so that you can open it; do not re-derive the claim
+from the diff.
+
+The engine writes each block's word onto the execution-state board. A
+block you delete, and a block left as `open:`, both leave the obligation
+open, and the run plans another gate for it. A gate that claimed nothing
+leaves this field blank."""
 
   [[field.item]]
   id = "obligation"
@@ -91,11 +95,10 @@ claims only `satisfied` or `open`; any other word it wrote opens here as
   note = """
 satisfied | open: <reason> | deferred: <reason>
 
-`open` keeps the obligation in this run: the plan recuts and the run cannot
-reach its terminal step while one stands. `deferred` says this run is not
-doing it -- another issue has it, it stopped being true, or it never was --
-and the reason says which, naming whoever has it if anyone does. Contest a
-claim by changing its word to what you have found true."""
+`open` keeps the obligation in this run: the plan cuts again, and the run
+cannot close while one stands. `deferred` says this run is not doing it:
+another issue has it, or it stopped being true. The reason says which, and
+names whoever has it."""
 
   [[field.item]]
   id = "root"
@@ -106,50 +109,9 @@ opened instead where you contest."""
 
 [[field]]
 id = "gate-spec"
-kind = "plan"
+same-as = "skills/planner/forms/PLAN.toml#gates"
 optional = true
 note = """
-Only for remint: the fresh gate replacing the one that just ran, same shape
-as a plan-to-execute gate block. Leave empty for advance, drop, or replan —
-an empty spec on a remint is refused."""
-
-  [[field.item]]
-  id = "purpose"
-  note = """
-What later gates and the run's conclusion will take as true once this gate
-lands -- a claim someone could test, not a summary of what changed. Second,
-which of the five in `standards/approach.md` it serves."""
-
-  [[field.item]]
-  id = "scope"
-  note = "Where the change lives, and what is out of bounds."
-
-  [[field.item]]
-  id = "proof"
-  kind = "check"
-  note = """
-A command that passes on an empty diff proves nothing, and so does one that
-covers less than `scope` promised -- one check per obligation. It exercises
-purpose's claim too: a proof that passes while purpose is false has proved
-the wrong thing. Write the exact string you ran, never a description of it:
-this field is shell-executed in the dispatched child, so prose becomes a
-command and fails there, after the work is done. It is what must be true
-when the issue ends, so it runs again at close against the finished tree.
-Reference the command palette (constellation.toml) rather than hardcoding
-where it applies."""
-
-  [[field.item]]
-  id = "gate-proof"
-  kind = "check"
-  optional = true
-  note = "Same as PLAN.toml's `gate-proof`: what must be true when this gate lands, never re-run at close. Or waived: none."
-
-  [[field.item]]
-  id = "budget"
-  optional = true
-  note = "Same as PLAN.toml's `budget`: declare one only for a proof that is right and may run past the engine's 600 seconds. Whole seconds, a bare integer."
-
-  [[field.item]]
-  id = "model"
-  optional = true
-  note = "Tier override for this gate: light | standard | heavy. Choose one on purpose and say why in `direction`; omit for the assembly default."
+Only for `remint`: the gate that replaces the one that just ran, one block.
+Leave it out for advance, drop or replan. A remint with no block is
+refused."""

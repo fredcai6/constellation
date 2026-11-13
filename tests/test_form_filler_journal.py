@@ -1,16 +1,16 @@
-"""Commitment 7's record, and commitment 5's board path -- proven with no
-caller anywhere in the tree yet.
+"""The `form-filler-started` record, and the board path -- proven with no
+caller anywhere in the tree.
 
-`_response_path` already resolved location-independently (`root=None`
-default, unchanged); this gate gives it a `root` keyword so a standalone
-brief built for a filler whose process starts somewhere else can resolve
-it against that tree instead. `_board_path` is the identical idiom applied
-to a segment's board entry, which a prior round left frozen against
-whatever cwd minted it. `_form_filler_records`/`_form_filler_start_counts`
-are the read half of the `form-filler-started` record -- the same
-`{key: record}` / `{key: count}` shapes `_dispatch_records` and
-`_dispatch_start_counts` already give per child, here keyed by step
-instead, since a form-step filler is addressed by the step it fills.
+`_response_path` resolves location-independently (`root=None` default),
+and takes a `root` keyword so a standalone brief built for a filler whose
+process starts somewhere else can resolve it against that tree instead.
+`_board_path` is the identical idiom applied to a segment's board entry,
+which would otherwise stay frozen against whatever cwd minted it.
+`_form_filler_records`/`_form_filler_start_counts` are the read half of the
+`form-filler-started` record -- the same `{key: record}` / `{key: count}`
+shapes `_dispatch_records` and `_dispatch_start_counts` give per child, here
+keyed by step instead, since a form-step filler is addressed by the step it
+fills.
 """
 
 import pathlib
@@ -40,7 +40,7 @@ def _mint_board_step(wid="i1", stored_path=None):
     journal.append(wid, "board", segment="understand", path=path, rows=[])
 
 
-# -- _response_path: unchanged default, new `root` -----------------------
+# -- _response_path: default, and `root` ---------------------------------
 
 
 def test_response_path_with_no_root_resolves_exactly_as_today(bare_workdir):
@@ -124,7 +124,7 @@ def test_form_filler_records_one_entry(bare_workdir):
 def test_form_filler_records_several_steps_and_repeat_starts_on_one_step(bare_workdir):
     """Two different steps, and a second start on one of them -- `records`
     keeps the latest per step, `start_counts` keeps the total, the same
-    split `_dispatch_records`/`_dispatch_start_counts` already draw."""
+    split `_dispatch_records`/`_dispatch_start_counts` draw."""
     _mint_response_step("v1")
     journal.append("v1", "form-filler-started", step="g1", pid=111, log="a.log")
     journal.append("v1", "form-filler-started", step="g2", pid=222, log="b.log")

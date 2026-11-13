@@ -1,28 +1,27 @@
-"""#32's condition, checked the way it is now stated (plan.md, g4).
+"""#32's condition, checked as behaviour.
 
 "No assembly's words appear in `engine/`" is lexical; what it stands for is
 behavioural -- the engine does not branch on an assembly's identity and does
 not embody an assembly's naming convention. A name-scan supports that claim,
-it does not establish it: four were written for this plan and each went
-blind to a category it did not anticipate -- a quoted-string grep that could
+it does not establish it: each name-scan goes blind to a category it did
+not anticipate -- a quoted-string grep that could
 not see an f-string, a literal-dict AST walk that could not see a forwarded
 prefill, a literal scan over functions holding no literal at all.
 
-This file holds the two lexical checks anyway, because seven of the nine
-symbols round 4 named happen to be caught by them incidentally, and because
+This file holds the two lexical checks anyway, because most of the listed
+symbols happen to be caught by them incidentally, and because
 a structural (AST) check and a raw-text (unquoted) check fail for different
 reasons -- one is blind to a name mentioned only in a string, the other is
 blind to nothing, including comments, which is why the source they scan
 carries no dead name to trip on. Neither is the proof; `palette:validate`
 driving a real run through the real engine is.
 
-The nine-symbol list g1-g3's own scope named is already stale by the time
-this gate runs: `_GATE_ADJUDICATION_FORM` (g2's own change log) was deleted
-and the list never named it; `_MINTS` (g3's own change log: "Replaced ...
-with `_BOARD_MINT` ... and a new `_mintable(asm)`") was less deleted than
-split -- one literal survives on purpose (`_BOARD_MINT`, "board rows", the
-one mint value that is the engine's own), the rest now derives. The list
-below is re-measured against engine/ as it stands, not copied from the plan.
+The symbol list is measured against engine/ as it stands:
+`_GATE_ADJUDICATION_FORM` is deleted and listed; `_MINTS` is split -- one
+literal survives on purpose (`_BOARD_MINT`, "board rows", the one mint value
+that is the engine's own), the rest derives.
+
+See: #32
 """
 
 import ast
@@ -34,12 +33,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ENGINE_PATHS = sorted((ROOT / "engine").glob("*.py"))
 ENGINE_SRC = "\n".join(p.read_text() for p in ENGINE_PATHS)
 
-# Every one of these was, at some point in #32, a function or module-level
-# constant in engine/cli.py that hand-read or hardcoded run-an-issue's or
-# run-a-gate's own conventions -- the id-suffix pairing, the hardcoded
-# adjudication form, the hardcoded `plan-holds`/`gate-spec` field names, the
-# hardcoded `mints` enum. All nine are gone; `_GATE_ADJUDICATION_FORM` is the
-# tenth name, real and deleted, that the plan's own list never carried.
+# Every one of these names a function or module-level constant that would
+# hand-read or hardcode run-an-issue's or run-a-gate's own conventions -- the
+# id-suffix pairing, the hardcoded adjudication form, the hardcoded
+# `plan-holds`/`gate-spec` field names, the hardcoded `mints` enum. None may
+# reappear in engine/ (See: #32).
 DEAD_SYMBOLS = {
     "_impasse_segment",
     "_act_on_impasse",
@@ -52,22 +50,21 @@ DEAD_SYMBOLS = {
     "_GATE_ADJUDICATION_FORM",
 }
 
-# Assembly-held field names the engine used to hand-read by their literal
-# string. Not "-adjudicate" (a cosmetic mint-time id label now, read by
-# nothing -- kept, see the gate's close) and not "plan-holds"/"run-a-gate"/
+# Assembly-held field names the engine must not hand-read by their literal
+# string. Not "-adjudicate" (a cosmetic mint-time id label, read by
+# nothing) and not "plan-holds"/"run-a-gate"/
 # "run-an-issue" (each still appears, legitimately, in a comment citing the
 # real case a mechanism was built for -- kept on the same grounds assembly
 # names in comments always are). These two never had a legitimate reason to
-# survive anywhere, comment or code, and re-measuring confirms they do not.
+# survive anywhere, comment or code.
 DEAD_STRINGS = {"gate-spec", "learned"}
 
 
 def _defined_and_referenced_names(src):
     """Every identifier a module actually binds or reads: function and class
     names, every assignment target, and every `Name`/`Attribute` a body
-    touches. `ast` sees none of this inside a comment -- a symbol's own
-    history can still be told there (`# ... used to be handled by ...`)
-    without that telling tripping the very check its absence is proving."""
+    touches. `ast` sees none of this inside a comment, so a comment may
+    still name a symbol without tripping the check its absence is proving."""
     found = set()
     for node in ast.walk(ast.parse(src)):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
@@ -80,8 +77,7 @@ def _defined_and_referenced_names(src):
 
 
 def test_the_nine_symbols_round_4_named_are_structurally_gone():
-    """AST-based, so a name mentioned only in a comment (explaining what a
-    symbol used to be called) does not count as the symbol surviving, and a
+    """AST-based, so a name mentioned only in a comment does not count as the symbol surviving, and a
     name reached only through an attribute or reassignment still does."""
     for path in ENGINE_PATHS:
         names = _defined_and_referenced_names(path.read_text())
@@ -107,12 +103,11 @@ def test_the_dead_names_do_not_appear_even_as_raw_text():
 GLOSSARY = ROOT / "standards" / "glossary.md"
 HEADWORD = re.compile(r"^- \*\*([^*]+)\*\*", re.MULTILINE)
 
-# Every term this migration makes load-bearing: the outcome mechanism itself,
-# its two engine-read keys, and every verb g1 and g2 taught `_perform`.
+# Every load-bearing term: the outcome mechanism itself, its two
+# engine-read keys, and every verb `_perform` knows.
 # `release` needs no verb word and is still a verb every row can name.
 # `step-form`/`rework-form` have no entries of their own, and the adjudication
-# form is read the same structural way -- this gate's call is to match that
-# precedent rather than break it, so it is deliberately not in this set.
+# form is read the same structural way, so it is deliberately not in this set.
 LOAD_BEARING_TERMS = {
     "outcome", "decides", "release", "refill", "rework", "skip", "remint", "close",
     "transition",  # dual-sense, on the same grounds as `anchor` -- the noun already had it
@@ -120,10 +115,11 @@ LOAD_BEARING_TERMS = {
 
 
 def test_every_load_bearing_term_has_a_glossary_headword():
-    """Round 4 found the promise `standards/glossary.md` makes is unchecked:
-    neither the fast suite nor the evals open the file, and the only test
-    that touches it (`tests/test_install.py`) asserts it exists, not that it
-    says anything. A glossary entry with no check is a promise nothing keeps."""
+    """The promise `standards/glossary.md` makes needs a check: neither the
+    fast suite nor the evals would otherwise open the file, and the only
+    other test that touches it (`tests/test_install.py`) asserts it exists,
+    not that it says anything. A glossary entry with no check is a promise
+    nothing keeps."""
     headwords = set(HEADWORD.findall(GLOSSARY.read_text()))
     missing = LOAD_BEARING_TERMS - headwords
     assert not missing, f"no glossary headword for {missing}"
@@ -147,12 +143,9 @@ def _note(form, field_id):
     return next(f for f in fields if f["id"] == field_id)["note"]
 
 
-# test_the_plan_imperative_names_the_critics_real_inputs was deleted here:
-# the one-look ruling (2026-09-25) rewrote PLAN.toml's imperative to no
-# longer name the critic or the implementer's "from the gate spec alone"
-# bar at all (a planner reads the code map now, not a promise about what a
-# fresh-context reader gets), so the sentence this test scoped itself to no
-# longer exists -- there is no clear counterpart to rewrite it onto.
+# PLAN.toml's imperative does not name the critic or the implementer's "from
+# the gate spec alone" bar (a planner reads the code map, not a promise about
+# what a fresh-context reader gets), so no test scopes itself to that sentence.
 
 
 def test_the_open_forms_issue_note_offers_no_tracker_branch():

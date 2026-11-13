@@ -3,10 +3,10 @@
 `close` is the only move in this engine whose effect lands in a run other
 than the one you are standing in. Every other move's result is visible in
 the room you are already in; this one's is not, so the engine has to say it.
-Until it did, a conductor drove a child to close, watched the return land,
-and had nowhere to go -- the returns-up half of the dispatch seam, missing.
+Unannounced, a conductor that drove a child to close and watched the return
+land would have nowhere to go -- the returns-up half of the dispatch seam.
 
-Four sites say it now, and the strongest test here is behavioural: the
+Four sites say it, and the strongest test here is behavioural: the
 command `close` prints is run, and it must land the conductor on the step
 the return unblocked.
 """
@@ -62,8 +62,8 @@ def test_the_continue_command_actually_lands_on_the_unblocked_step(workdir, caps
     line = next(l for l in capsys.readouterr().out.splitlines() if "continue there:" in l)
     cmd = line.split("continue there:", 1)[1].strip().split()
 
-    # not `workdir`: the run this continues into now works inside the
-    # worktree `open` made for it (ruling 8), which is where the process
+    # not `workdir`: the run this continues into works inside the
+    # worktree `open` made for it, which is where the process
     # already stands -- exactly where a dispatched child's own shell would be.
     r = subprocess.run(cmd, capture_output=True, text=True, env={},
                        cwd=pathlib.Path.cwd(), timeout=20)
@@ -119,8 +119,8 @@ def test_awaiting_close_names_who_the_returns_go_to(workdir, capsys):
 
 
 def test_a_root_run_awaiting_close_claims_no_dispatcher(workdir, capsys):
-    """A root run has nobody upstream. The old text said returns go "to
-    whoever dispatched this run" on every run alike, which was untrue for
+    """A root run has nobody upstream. Text saying returns go "to
+    whoever dispatched this run" on every run alike would be untrue for
     exactly the runs a human opens by hand."""
     _mint_first_gate()
     _dispatch_and_close_child("issue17", "g1")
@@ -164,7 +164,7 @@ def test_a_missing_parent_offers_no_command_to_run(workdir, capsys):
 
 def test_the_parents_returns_block_names_the_child(workdir, capsys):
     """With several gates in flight, which one came back is the first thing
-    the conductor needs, and the engine has held it all along."""
+    the conductor needs, and the engine holds it."""
     _mint_first_gate()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()

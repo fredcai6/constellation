@@ -26,9 +26,8 @@ from engine import run as runmod
 # Rationale: an eval names a palette tier, never a provider's model id --
 #   the same indirection assemblies and gate specs already use, so a shop
 #   that swaps its light model swaps it in one file. The tier is a parameter
-#   because it was previously a literal inside this function, which made
-#   "run this one eval on a stronger model" a harness edit rather than an
-#   argument at the call site.
+#   so "run this one eval on a stronger model" is an argument at the call
+#   site, not a harness edit.
 # Rejected: an eval passing a model id straight through to `claude`. That is
 #   the one thing constellation.toml exists to stop leaking into artifacts.
 # [headless]
@@ -49,7 +48,7 @@ def tier_model(tier="light"):
 
 def init_checkout(workdir):
     """Make `workdir` a git checkout with a commit and a local bare remote
-    named `origin` -- `spine open`'s root-run path (ruling 8) refuses one
+    named `origin` -- `spine open`'s root-run path refuses one
     with neither, and every eval that opens a root run needs somewhere real
     to point at without ever reaching a live remote. Call after `workdir`
     already carries whatever else the eval seeds it with (a `retry.py`, a
@@ -72,13 +71,13 @@ def init_checkout(workdir):
 
 
 # [eval-run-root]
-# Rationale: `spine open` on a root run now makes a worktree beside
-#   `workdir` and works inside it (ruling 8), so `workdir` itself is only
+# Rationale: `spine open` on a root run makes a worktree beside
+#   `workdir` and works inside it, so `workdir` itself is only
 #   ever right for the *first* `open` -- every call after that has to land
 #   in whatever worktree that run's own id already lives in. Each eval here
 #   drives exactly one run per workdir, so "the one worktree there is" is
 #   unambiguous; picking the right one among several is the two-root
-#   resolution a later gate owns, not a distinction these evals need yet.
+#   resolution, not a distinction these evals need.
 # Rejected: threading a work id through every helper here instead. `drive`
 #   has none to thread -- the model is handed a directory and a prompt, not
 #   a work id -- so the resolution has to work from `workdir` alone.
@@ -98,15 +97,16 @@ def spine(workdir, *args):
 
 
 # [harness-response-path-via-engine]
-# Rationale: `_response_path` (engine/cli.py) now names a step's response
+# Rationale: `_response_path` (engine/cli.py) names a step's response
 #   form for the step as well as the form, so a fixture spelling `OPEN.toml`
-#   is exactly the #118 defect these evals would otherwise carry into a real
+#   is exactly the defect these evals would otherwise carry into a real
 #   drive -- silently, since a stale path just never gets read rather than
 #   raising. Resolving it is a pure read with no side effect on the run, so
 #   it takes the same `os.chdir` shape `state()` already uses to call the
 #   engine in-process, rather than shelling out to `spine` and parsing the
 #   room it prints back -- one fewer subprocess, and nothing to keep in sync
 #   with `render.status`'s own wording.
+# See: #118
 def response_path(workdir, work_id):
     """Where `work_id`'s current step takes its answer -- asked of the
     engine (`_response_path`, engine/cli.py) rather than spelled, the same
@@ -123,15 +123,15 @@ def response_path(workdir, work_id):
 
 
 # [drive-budget]
-# Rationale: 240s was the default until a measured run took 289 and was
-#   killed mid-step. A killed `claude` leaves the journal standing on the
+# Rationale: a 240s default would kill a measured run that takes 289
+#   mid-step. A killed `claude` leaves the journal standing on the
 #   step it was working, which is indistinguishable from an agent that
-#   stalled -- so the old default did not slow an eval down, it fabricated a
-#   failure and named the agent for it. 420 clears the slowest run seen by a
+#   stalled -- so too short a default does not slow an eval down, it
+#   fabricates a failure and named the agent for it. 420 clears the slowest run seen by a
 #   wide margin; a genuinely hung run is still bounded, by the suite runner
 #   rather than by clipping the runs that are merely long.
-# Rejected: raising it at each call site. What was wrong was the default, so
-#   every eval that never passed a timeout stayed wrong.
+# Rejected: raising it at each call site. The default is what must be right,
+#   since every eval that never passes a timeout inherits it.
 # Rationale: overrunning the budget is a result, not an infrastructure error,
 #   so the timeout is caught here rather than raised. A propagating
 #   TimeoutExpired ends the test on this call, the assertion below it never
@@ -177,7 +177,7 @@ def drive(workdir, prompt, timeout=420, tier="light"):
         cut = f"\n\n# cut off after {timeout}s -- the model was still working\n"
     # Keep the whole thing. What `r.stdout` holds is the agent's closing
     # summary -- the least reliable artifact in the run, and the only one
-    # these evals used to fail with. Debugging from a self-report is the
+    # a failing eval would otherwise have. Debugging from a self-report is the
     # believe-the-record failure the issue-conductor skill exists to warn against.
     # [transcript-survives-its-own-close]
     # Rationale: `d`, captured before the drive, is the run's worktree while
@@ -187,9 +187,7 @@ def drive(workdir, prompt, timeout=420, tier="light"):
     #   line runs. Re-resolving here falls back to `workdir` itself exactly
     #   the way `run_root` already does when no worktree exists -- the first
     #   directory this file ever offers, and always present. Found by
-    #   `test_rolling_horizon.py`'s own drive actually reaching `closed`;
-    #   no eval before it ever drove a run through its own close, so this
-    #   path was never exercised.
+    #   `test_rolling_horizon.py`'s own drive actually reaching `closed`.
     # Rejected: writing the transcript into the (now-gone) worktree path
     #   regardless, catching the error. A silently dropped transcript is the
     #   one artifact a failing eval's `evidence()` depends on to say what the
@@ -277,7 +275,7 @@ def prefill(workdir, work_id, **fields):
 
 def form_text(workdir, work_id):
     """The text of `work_id`'s own current response form -- named for the
-    step now (#118), so read through `response_path` rather than a filename
+    step (#118), so read through `response_path` rather than a filename
     a caller supplies."""
     p = response_path(workdir, work_id)
     return p.read_text() if p.exists() else ""

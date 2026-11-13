@@ -1,26 +1,27 @@
-"""Execution state: the engine, not the conductor, decides the run is done
-(#56, g5).
+"""Execution state: the engine, not the conductor, decides the run is done.
 
-`execute`'s `advance` outcome used to `commit` alone, so a run walked to
-CLOSE the moment its worklist of gates ran dry -- whether or not anything the
-spec committed to was ever satisfied. Now consolidate seeds a second board,
-execution-state, from the spec's own numbered commitments; every gate's
-advance reads it (`settle`, alongside `commit`) and either refills the plan
-segment for another round, while an obligation is still `open`, or mints
-nothing and lets the run walk on, once every row is disposed.
+`execute`'s `advance` outcome does `commit; settle`, not `commit` alone,
+so a run does not walk to CLOSE the moment its worklist of gates runs dry
+-- whether or not anything the spec committed to was ever satisfied.
+Consolidate seeds a second board, execution-state, from the spec's own
+numbered commitments; every gate's advance reads it (`settle`, alongside
+`commit`) and either refills the plan segment for another round, while an
+obligation is still `open`, or mints nothing and lets the run walk on, once
+every row is disposed.
 
-The board mechanism itself (`engine/boards.py`) is largely unchanged -- this
-is the same mechanism pointed at a second file, seeded through the existing
-`_BOARD_MINT` path (`_mint`, `engine/cli.py`). What's new here is the lookup
-that finds the right file now that two boards exist, and the one verb,
-`_settle_execution`, that reads dispositions and refuses nothing: any
-settling status -- `satisfied` or `deferred` -- counts as settled, and any
-other holds the run open (`boards.unsettled` is the shared read; see
-`tests/test_disposition.py`).
+The board mechanism itself (`engine/boards.py`) is the same mechanism
+pointed at a second file, seeded through the `_BOARD_MINT` path (`_mint`,
+`engine/cli.py`). What is specific here is the lookup that finds the right
+file now that two boards exist, and the one verb, `_settle_execution`, that
+reads dispositions and refuses nothing: any settling status -- `satisfied`
+or `deferred` -- counts as settled, and any other holds the run open
+(`boards.unsettled` is the shared read; see `tests/test_disposition.py`).
 
 Every test here drives the real `run-an-issue` assembly end to end, reusing
 `test_nesting`'s fixtures rather than a shortcut -- the behaviour under test
 is what the engine does at a real `advance`, not a unit in isolation.
+
+See: #56
 """
 
 import pathlib
@@ -90,11 +91,10 @@ def _dispose(wid, status):
 
 
 def test_an_undisposed_obligation_refills_plan_rather_than_closing(workdir, capsys):
-    """DESIRED behaviour, the whole point of this gate: a spec's obligation
-    left `open` on the execution-state board means the run is not done, so
-    `advance` -- after committing the gate that just proved out -- refills
-    the plan segment for another round instead of letting the worklist
-    running dry walk the run to CLOSE.toml."""
+    """A spec's obligation left `open` on the execution-state board means
+    the run is not done, so `advance` -- after committing the gate that just
+    proved out -- refills the plan segment for another round instead of
+    letting the worklist running dry walk the run to CLOSE.toml."""
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -114,18 +114,17 @@ def test_an_undisposed_obligation_refills_plan_rather_than_closing(workdir, caps
     assert st["current"]["form"] != "forms/CLOSE.toml"
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round
 
 
 # -- every obligation disposed walks the run on to close ---------------------
 
 
 def test_every_obligation_disposed_walks_to_close(workdir, capsys):
-    """DESIRED behaviour: once the execution-state board carries no `open`
-    row, `settle` mints nothing and the run reaches its terminal step --
-    the same shape `test_advance_performs_no_amends`
-    (tests/test_nesting.py) already pins for a run that seeds no
-    execution-state board at all."""
+    """Once the execution-state board carries no `open` row, `settle` mints
+    nothing and the run reaches its terminal step -- the same shape
+    `test_advance_performs_no_amends` (tests/test_nesting.py) holds for a
+    run that seeds no execution-state board at all."""
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -144,9 +143,9 @@ def test_every_obligation_disposed_walks_to_close(workdir, capsys):
 def test_a_disposition_carrying_a_reason_still_counts_as_settled(workdir, capsys):
     """The engine reads dispositions and refuses nothing: `deferred:
     <reason>` is exactly as settled as `satisfied` -- neither the word nor
-    the reason after it is checked against anything. DESIRED behaviour,
-    the same predicate as the test above, exercised on the disposition
-    words #56's spec names explicitly rather than only the shortest one."""
+    the reason after it is checked against anything. The same predicate as
+    the test above, exercised on the disposition words #56's spec names
+    explicitly rather than only the shortest one."""
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -165,13 +164,13 @@ def test_a_disposition_carrying_a_reason_still_counts_as_settled(workdir, capsys
 
 
 def test_board_lookup_finds_the_right_file_with_two_board_segments_present(workdir, capsys):
-    """`_mint`'s board seeding used to grab the first `interior == "board"`
-    segment positionally -- correct while run-an-issue held one, silently
-    wrong the moment it holds two. `open`'s `questions` field and
-    consolidate's `obligations` field now each name their own target
-    (`board = "understand"` / `"execution-state"`); this pins that neither
-    field's rows land in the other's file, with both board segments live on
-    the same run at once."""
+    """`_mint`'s board seeding does not grab the first `interior == "board"`
+    segment positionally -- that is only correct while run-an-issue holds
+    one, and silently wrong once it holds two. `open`'s `questions` field
+    and consolidate's `obligations` field each name their own target
+    (`board = "understand"` / `"execution-state"`); neither field's rows
+    land in the other's file, with both board segments live on the same run
+    at once."""
     _mint_first_gate_with_obligation(obligation="Obligation, not a question.")
     capsys.readouterr()
 
@@ -199,16 +198,18 @@ def test_board_lookup_finds_the_right_file_with_two_board_segments_present(workd
 
 def test_dropping_the_last_pending_gate_still_refills_plan_over_an_open_obligation(
         workdir, capsys):
-    """THE FIX (#95): `drop <gate-id>`'s outcome used to `close` alone, so
-    dropping the run's last pending gate emptied execute's worklist without
-    ever touching `advance` -- the one outcome that used to read the
-    execution-state board. The run walked to CLOSE.toml reporting itself
-    done while the seeded obligation sat `open`, undisposed. `does = "close;
-    settle"` reads the board on the drop route too: closing the last
-    pending gate still finds the obligation open and refills plan for
-    another round, the same shape
-    `test_an_undisposed_obligation_refills_plan_rather_than_closing` pins for
-    the advance route."""
+    """`drop <gate-id>`'s outcome is `close; settle`, not `close` alone:
+    dropping the run's last pending gate empties execute's worklist without
+    touching `advance`, so without `settle` the run would walk to CLOSE.toml
+    reporting itself done while the seeded obligation sat `open`,
+    undisposed. `does = "close; settle"` reads the board on the drop route
+    too: closing the last pending gate still finds the obligation open and
+    refills plan for another round, the same shape
+    `test_an_undisposed_obligation_refills_plan_rather_than_closing` holds
+    for the advance route.
+
+    See: #95
+    """
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -248,7 +249,7 @@ def test_dropping_the_last_pending_gate_still_refills_plan_over_an_open_obligati
     assert st["current"]["form"] != "forms/CLOSE.toml"
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round
 
 
 # -- a worklist emptied outside every outcome verb still settles at close ----
@@ -256,27 +257,26 @@ def test_dropping_the_last_pending_gate_still_refills_plan_over_an_open_obligati
 
 def test_a_worklist_emptied_outside_every_outcome_verb_still_settles_at_close(
         workdir, capsys, monkeypatch):
-    """THE FIX (#143): `_settle_execution` only ever fires from inside the
-    execute segment's own outcome table -- `advance`'s `commit; settle` and
-    `drop <gate-id>`'s `close; settle` (#95) above. Both routes need a gate
-    that actually reaches its own adjudication. `spine <wid> amend close
-    <step-id> --reason ...` -- `cmd_close`'s own escape for a step stuck on
-    a pending gate -- closes a step directly, with no outcome table and no
+    """`_settle_execution` fires from inside the execute segment's own
+    outcome table -- `advance`'s `commit; settle` and `drop <gate-id>`'s
+    `close; settle` above. Both routes need a gate that actually reaches
+    its own adjudication. `spine <wid> amend close <step-id> --reason ...`
+    -- `cmd_close`'s own escape for a step stuck on a pending gate --
+    closes a step directly, with no outcome table and no
     `_settle_execution` call anywhere in the loop: the same shape any
-    future defect between a journal write and its own follow-on mint
-    reproduces (#141 was one cause of that; #143 is the gap independent of
-    cause). Amend-closing execute's only pending pair empties its worklist
-    that way, so `issue17` reaches CLOSE.toml with its one obligation still
-    `open` and nothing left in execute able to close it -- run `issue139`'s
-    own shape, reproduced here by a different, general-purpose route rather
-    than the one crash #141 already closed off. `cmd_close` is where every
-    route to the terminal step converges; this pins that it reads the board
+    defect between a journal write and its own follow-on mint reproduces.
+    Amend-closing execute's only pending pair empties its worklist that
+    way, so `issue17` reaches CLOSE.toml with its one obligation still
+    `open` and nothing left in execute able to close it. `cmd_close` is
+    where every route to the terminal step converges; it reads the board
     there too, refilling plan instead of finalizing (and archiving) a run
     that reports itself done over an open obligation. `gh` is stubbed
     (`gitremote.stub_gh`) so a run that this check fails to catch would
-    actually reach `_publish` and archive clean -- the real shape
-    of the bug, not a run saved by a `gh` call failing for an unrelated
-    reason."""
+    actually reach `_publish` and archive clean -- not a run saved by a
+    `gh` call failing for an unrelated reason.
+
+    See: #143, #141, issue139
+    """
     stub_gh(monkeypatch)
     _mint_first_gate_with_obligation()
     capsys.readouterr()
@@ -312,10 +312,10 @@ def test_a_worklist_emptied_outside_every_outcome_verb_still_settles_at_close(
     assert st["current"]["form"] != "forms/CLOSE.toml"
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round
 
 
-# -- #74: a satisfied row is rechecked at close ------------------------------
+# -- a satisfied row is rechecked at close ------------------------------------
 
 
 def _to_close_with_g1_satisfied(proof, gate_proof=""):
@@ -348,9 +348,12 @@ def _to_close_with_g1_satisfied(proof, gate_proof=""):
 
 def test_a_satisfied_obligation_a_later_change_broke_is_open_again_at_close(
         workdir, capsys, monkeypatch):
-    """#74: the gate proved its obligation, and something after it undid the
+    """The gate proved its obligation, and something after it undid the
     proof. Close runs that proof again, and the row it no longer holds up is
-    open -- the run recuts its plan rather than closing on a false word."""
+    open -- the run recuts its plan rather than closing on a false word.
+
+    See: #74
+    """
     stub_gh(monkeypatch)
     _to_close_with_g1_satisfied("test -f landed.txt")
     assert runmod.state("issue17")["awaiting_close"]
@@ -369,10 +372,13 @@ def test_a_satisfied_obligation_a_later_change_broke_is_open_again_at_close(
 
 
 def test_a_reopened_obligation_names_the_moves_and_they_work(workdir, capsys, monkeypatch):
-    """issue87: close reopened a row whose substance still held, and the
-    conductor's way past it was a hand edit to the board. Close names the
+    """Close reopens a row only when its substance no longer holds, and the
+    conductor's way past it is not a hand edit to the board. Close names the
     moves -- a note and `up` -- and both are open from where it leaves the
-    run."""
+    run.
+
+    See: issue87
+    """
     stub_gh(monkeypatch)
     _to_close_with_g1_satisfied("test -f landed.txt")
     (journal.root_for("issue17") / "landed.txt").unlink()
@@ -403,9 +409,12 @@ def test_a_satisfied_obligation_whose_proof_still_passes_closes(workdir, capsys,
 
 
 def test_an_amended_proof_is_the_one_close_re_runs(workdir, capsys, monkeypatch):
-    """issue165: a ruling corrected a released gate's proof bar. The amend
-    carries the ruling, and close re-runs the corrected text rather than
-    reopening the obligation on the stale one."""
+    """A ruling corrects a released gate's proof bar. The amend carries the
+    ruling, and close re-runs the corrected text rather than reopening the
+    obligation on the stale one.
+
+    See: issue165
+    """
     stub_gh(monkeypatch)
     _to_close_with_g1_satisfied("test -f landed.txt")
     root = journal.root_for("issue17")

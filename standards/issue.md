@@ -57,8 +57,9 @@ record what is unresolved and what would settle it — thinking out loud, not wo
 
 ## Epic
 
-An epic is what a `run-an-epic` run opens from, as an issue is what a `run-an-issue` run opens
-from: one claim too large for a single run to hold, plus the evidence that the claim is true.
+An epic is one claim too large for a single run to hold, plus the evidence that the claim is
+true. No assembly runs an epic yet: whoever holds it, today the human, conducts it by hand and
+opens its issues as `run-an-issue` runs.
 
 - **The claim** — one sentence naming a defect in the system rather than in a file. A defect
   statable against one file is an issue.
@@ -69,6 +70,6 @@ from: one claim too large for a single run to hold, plus the evidence that the c
 - **Findings** — measured, recorded, and not yet work. A finding becomes work by being cut into
   a wave; it never becomes work by aging.
 
-The epic-conductor cuts a wave from the findings, dispatches those issue runs, and adjudicates at the
-wave transition before cutting the next. A finding enters a wave when it re-measures true and
+Whoever conducts the epic cuts a wave from the findings, opens those issue runs, and adjudicates
+at the wave transition before cutting the next. A finding enters a wave when it re-measures true and
 someone can name the run that goes wrong without it. An epic may `stop` with findings unfiled.

@@ -1,27 +1,26 @@
 """Every call in the route forms' vocabulary says where the finding goes.
 
 Run-an-issue's two one-look seams (`understand`, `plan`) share one
-vocabulary now (ruling, 2026-09-25): `writer` is a finding that holds at the
+vocabulary: `writer` is a finding that holds at the
 artifact's grain -- it rides into the incorporate round the writer takes or
 rejects on its own judgement -- and `rejected: <reason>` is the record that
-it was called and never becomes work here. `severe` is gone (Tommy,
-2026-09-30): whether a round is rewritten is the conductor's reading of the
-round as a whole, several findings read together as often as one, so it
-lives in the resolution and the rewrite's `orders`, never in one finding's
-call. Run-a-gate's own ROUTE.toml keeps its
-older vocabulary unchanged -- its review seam still gets more than one look
--- but a finding has two destinations now, never a third (ruling,
-2026-09-25, docs/PURPOSE.md): `beyond` is gone from every route form's
-vocabulary, and what it named -- real, but not this seam's to answer -- is
-a `rejected: <reason>` like any other.
+it was called and never becomes work here. There is no `severe`: whether a
+round is rewritten is the conductor's reading of the round as a whole,
+several findings read together as often as one, so it lives in the
+resolution and the rewrite's `orders`, never in one finding's call.
+Run-a-gate's own ROUTE.toml has its own vocabulary -- its review seam still
+gets more than one look -- but a finding has two destinations, never a
+third (docs/PURPOSE.md): `beyond` is in no route form's vocabulary, and
+what it would name -- real, but not this seam's to answer -- is a
+`rejected: <reason>` like any other.
 
 And a call outside the vocabulary refuses. `_check_vocabulary` reaches a
 form's own fields and stops there, so the one value the engine acts on from
-inside a `kind = "plan"` row was never checked: `_blocking_calls` used to
-compare against the literal `"blocking"`, so a typo read as not-blocking and
-dropped its finding from the round's orders in silence; `_check_calls` is
-what closes that now, read off each item's own declared vocabulary -- which
-is also what refuses `beyond` outright: the word simply is not one of them.
+inside a `kind = "plan"` row needs its own check: a typo would read as
+not-blocking and drop its finding from the round's orders in silence;
+`_check_calls` does that, read off each item's own declared vocabulary --
+which is also what refuses `beyond` outright: the word simply is not one of
+them.
 """
 
 import pathlib
@@ -93,8 +92,7 @@ def test_the_two_one_look_forms_declare_the_same_call_vocabulary(workdir):
 def test_run_a_gates_route_form_keeps_its_own_older_call_vocabulary(workdir):
     """Run-a-gate's review seam still gets more than one look, so ROUTE.toml
     is deliberately not folded into the one-look forms' shared vocabulary
-    above -- the ruling that shrank understand and plan to one look left it
-    alone. Its own vocabulary lost `beyond` the same way theirs did."""
+    above. Its own vocabulary has no `beyond` either."""
     form = formsmod.load(ROOT / GATE_ROUTE_FORM)
     calls = next(f for f in form["fields"] if f["id"] == "calls")
     item = next(i for i in calls["item"] if i["id"] == "call")
@@ -107,10 +105,9 @@ def test_run_a_gates_route_form_keeps_its_own_older_call_vocabulary(workdir):
 
 
 def test_an_unknown_call_word_refuses_rather_than_reading_as_not_writer(workdir, capsys):
-    """The silent default this closes: `_blocking_calls` used to test the
-    literal word `"blocking"`, so anything else was quietly non-blocking and
-    its finding never reached the round's orders. `_check_calls` refuses
-    before the submit lands now, read off the item's own declared
+    """A call outside the vocabulary is never read as quietly non-blocking,
+    which would keep its finding out of the round's orders. `_check_calls`
+    refuses before the submit lands, read off the item's own declared
     vocabulary -- so this fires the same way whether or not the resolution
     itself (`incorporate`) is one this round could legally take."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
@@ -128,10 +125,10 @@ def test_an_unknown_call_word_refuses_rather_than_reading_as_not_writer(workdir,
 
 
 def test_a_beyond_call_is_refused_at_submit(workdir, capsys):
-    """The third destination is gone from the vocabulary, not merely
-    discouraged: `beyond` is no longer a word any route form declares, so
+    """The third destination is absent from the vocabulary, not merely
+    discouraged: `beyond` is not a word any route form declares, so
     `_check_calls` refuses it exactly as it refuses any other undeclared
-    word -- there is nothing left to carry it anywhere."""
+    word."""
     cli.main(["open", "run-an-issue", "--issue", "17", "--title", "t"])
     _fill_open("issue17")
     cli.main(["issue17", "submit"])
@@ -172,7 +169,7 @@ def test_a_rejected_call_carries_nothing_into_the_incorporate_round(workdir, cap
 
 
 def test_a_severe_call_is_refused_at_submit(workdir, capsys):
-    """Severity left the per-finding call the way `beyond` did: no route
+    """Severity is not a per-finding call, like `beyond`: no route
     form declares it, so `_check_calls` refuses it like any undeclared word.
     A conductor who reads the round as a rewrite says so in `resolution`
     and states the synthesis in `orders`."""

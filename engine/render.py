@@ -93,46 +93,77 @@ def checks(entries):
 #   own note already names: a proof that passes on an empty diff proves
 #   nothing. And a proof that never became a command -- the shell could not
 #   find it (127, 126), could not parse it (a syntax error, issue116's
-#   apostrophe), or the palette had no such entry -- is #122's defect, read
+#   apostrophe), or the palette had no such entry -- is the unrun-proof defect, read
 #   where it can still be sent back. A proof past its bound is the fourth,
 #   said as what happened rather than guessed at. The first two are
 #   readings of a tree with no work in it, and a proof field is trialled
 #   wherever a form carries one -- at a rework cut, at a gate's
 #   adjudication -- so each trial carries the tree it ran against, measured
 #   (`[trial-measures-its-tree]`, engine/cli.py), and a tree carrying work
-#   reads as its exit and that count (#181).
+#   reads as its exit and that count.
 # Rejected: a fifth reading for "failed for the right reason". Whether exit
 #   1 was the test the planner meant or a typo in a path is the conductor's
 #   to read off the output, not a classification a shell exit can carry.
+# See: #122, #181
 # What bash says when it cannot parse a proof: `syntax error` for a stray
 # token, `unexpected EOF` for an unterminated quote.
 _UNPARSED = ("syntax error", "unexpected eof")
 
 
+# What a failing check prints when the thing it names is not there at all.
+# A proof that fails this way fails identically for a mistyped path.
+_MISSING = ("not found", "no such file", "no tests ran", "cannot find", "does not exist")
+
+
 def proof_readings(entries):
-    """One block per proof the cut was trialled with: the command, then what
-    its one run against the tree as it stands says about it."""
+    """One block per proof the cut was trialled with: which proof it is, the
+    command, then what its one run against the tree as it stands says about
+    it. A later gate's proof is run before that gate's work like the first
+    one's, so one that passes here cannot tell its gate landed."""
     out = []
+    seen = {}
     for c in entries or []:
         code, output = c.get("exit"), str(c.get("output") or "")
-        first = next((l for l in output.splitlines() if l.strip()), "").strip()
+        printed = [l.strip() for l in output.splitlines() if l.strip()]
+        first, last = (printed[0], printed[-1]) if printed else ("", "")
         changed = c.get("changed")
         against = ("" if changed is None else
                    f" against {changed} path{'s' if changed != 1 else ''} changed since the cut")
         if code == 0 and changed == 0:
             reading = "passes with no work in the tree (exit 0) -- proves nothing"
         elif code == 0:
-            reading = f"passes (exit 0){against}"
+            reading = (f"passes (exit 0){against} -- before this gate's own work, so it "
+                       "cannot tell the gate landed")
         elif code == -1:
             reading = f"did not finish -- {output.strip() or 'no result'}; not awaited at the cut"
         elif code in (126, 127) or any(w in output.lower() for w in _UNPARSED):
             reading = f"did not resolve (exit {code})" + (f" -- {first}" if first else "")
+        elif any(w in output.lower() for w in _MISSING):
+            reading = (f"resolved, exit {code} -- it fails because something it names "
+                       f"is not there yet ({last}). Right only if this gate creates "
+                       "it: a mistyped path fails the same way")
         elif changed == 0:
             reading = f"resolved, exit {code} -- a real check, failing before the work"
         else:
             reading = f"resolved, exit {code}{against}"
-        out.append(f"`{c.get('command', '')}`\n{reading}")
+        command = c.get("command", "")
+        label = _proof_label(c.get("field", ""))
+        if command in seen and label and seen[command] != label:
+            reading += (f"\nsame command as {seen[command]}: once that gate lands this "
+                        "one passes, and its gate is closed as stale before it runs")
+        seen.setdefault(command, label)
+        out.append((f"{label}\n" if label else "") + f"`{command}`\n{reading}")
     return out
+
+
+def _proof_label(field):
+    """`gates.1.proof` -> `gate 2 proof`: which gate of the cut a trialled
+    proof belongs to, counted the way a reader counts. `""` for a field that
+    is not one of a block list's rows."""
+    parts = str(field).split(".")
+    if len(parts) == 3 and parts[1].isdigit():
+        return f"gate {int(parts[1]) + 1} {parts[2]}"
+    return ""
 
 
 def cycles(entries):
@@ -142,11 +173,24 @@ def cycles(entries):
 
 
 def blocks(entries):
-    """One line per returned block -- a child's own `[[field]]` rows,
-    GATE_CLOSE.toml's `claims` the first -- each value beside its key, so a
-    list of tables never prints as a Python repr."""
-    return [", ".join(f"{k} {v}" for k, v in e.items()) if isinstance(e, dict) else str(e)
-            for e in entries or []]
+    """One item per returned block -- a child's own `[[field]]` rows,
+    GATE_CLOSE.toml's `claims` the first. Each block opens with `- ` and
+    gives one `key: value` a line, wrapped under its key, so a list of
+    tables reads as a list and never as a Python repr or one run-on line."""
+    out = []
+    for e in entries or []:
+        if not isinstance(e, dict):
+            out.append(f"- {e}")
+            continue
+        lines = []
+        for k, v in e.items():
+            lead = "- " if not lines else "  "
+            lines.append(textwrap.fill(
+                f"{k}: {' '.join(str(v).split())}", WIDTH - 10,
+                break_on_hyphens=False, initial_indent=lead,
+                subsequent_indent="    "))
+        out.append("\n".join(lines))
+    return out
 
 
 def prior_drops(entries):
@@ -162,14 +206,38 @@ def prior_drops(entries):
     return out
 
 
+class Verbatim(str):
+    """A one-line value `_pairs` prints under its label exactly as given,
+    never wrapped: a command the reader copies."""
+
+
+# [pairs-keep-structure]
+# Rationale: a value written on several lines was written that way on purpose
+#   -- a call-tree outline, a list of obligations, a scope broken per file.
+#   Folding it into one wrapped paragraph erased the indentation that says
+#   which line belongs under which, and a reader then rebuilt the outline by
+#   guessing. A multi-line value prints under its label as it was written.
+#   A blank value prints nothing: a label with no value tells a reader only
+#   that there is something it was not told.
 def _pairs(rows, indent="    "):
-    """Aligned label/value lines, wrapped under the label."""
+    """Aligned label/value lines. A one-line value wraps beside its label; a
+    multi-line value prints under its label with its own line breaks and
+    relative indentation; a blank value is left out."""
+    rows = [(k, "" if v is None else v if isinstance(v, Verbatim) else str(v))
+            for k, v in rows or []]
+    rows = [(k, v) for k, v in rows if v.strip()]
     if not rows:
         return ""
     pad = max(len(k) for k, _ in rows) + 2
     out = []
     for k, v in rows:
-        body = textwrap.fill(" ".join(str(v).split()), WIDTH - len(indent) - pad,
+        lines = textwrap.dedent(v.strip("\n")).rstrip().split("\n")
+        if len(lines) > 1 or isinstance(v, Verbatim):
+            out.append(f"{indent}{k}")
+            out.extend(f"{indent}  {line.rstrip()}" if line.strip() else ""
+                       for line in lines)
+            continue
+        body = textwrap.fill(" ".join(v.split()), WIDTH - len(indent) - pad,
                              break_on_hyphens=False) or ""
         first, *rest = body.split("\n") or [""]
         out.append(f"{indent}{k.ljust(pad)}{first}")
@@ -196,6 +264,16 @@ def preamble(st, blocked=(), position=None):
         out.append(f"  BLOCKED — {b.get('text','')}".rstrip())
         out.append(located(f"  resume with: spine {wid} note resumed {b.get('id','')}"))
         out.append("")
+    # An answered block: the question this run raised and what came back.
+    # The answer is orders, so it prints where the run starts reading.
+    asked = {n.get("id"): n for n in st.get("notes") or []
+             if n.get("kind_detail") == "blocked"}
+    for n in st.get("notes") or []:
+        if (n.get("kind_detail") == "resumed" and n.get("about") in asked
+                and str(n.get("text", "")).strip()):
+            out.append(f"  YOU ASKED — {asked[n['about']].get('text', '')}".rstrip())
+            out.append(_para(f"ANSWER — {n['text']}"))
+            out.append("")
     return out
 
 
@@ -215,11 +293,11 @@ NOTE_KINDS = ("blocked", "resumed", "observation", "decision")
 
 # [legal-moves-names-the-kinds]
 # Rationale: `note` takes its kind as a required first argument, and the line
-#   offering the verb used to render `spine <wid> note ...` -- so the one
-#   room that offers the move named none of the five words that make it
-#   legal, and the refusal naming them arrived only after the whole note had
-#   been typed and parsed, echoing a paragraph back inside an error. Every
-#   other command this file renders is typeable as printed; this one was not.
+#   offering the verb rendering `spine <wid> note ...` would leave the one
+#   room that offers the move naming none of the five words that make it
+#   legal, and the refusal naming them would arrive only after the whole note
+#   had been typed and parsed, echoing a paragraph back inside an error. Every
+#   other command this file renders is typeable as printed; this one must be too.
 # Rejected: a `<kind>` placeholder. A placeholder in argument position is the
 #   guess `_off_the_board` already refuses to make a reader perform.
 # Rejected: defaulting the kind when it is omitted. Only `blocked` and
@@ -297,13 +375,13 @@ def outstanding_line(wid, count, name_wait, step_id=None, two_voices=False):
     that is already gone has nothing left for `wait` to poll -- and a
     dispatch or panel room does not when every unresolved child in it is
     already gone and spent -- a configured room's gone-but-not-spent child
-    carries no respawn command of its own any more (that is `wait`'s to run
-    now, not a row's own brief). `step_id` is given only by a dispatch or
+    carries no respawn command of its own (that is `wait`'s to run, not a
+    row's own brief). `step_id` is given only by a dispatch or
     panel room, never by the in-flight room (whose own step has no board
     row to drop); when it
     is given and nothing is live or startable, the bare count is replaced
     by the ruling escape instead -- once a child is spent there is still
-    one thing left for a reader to do about it. The same rule now decides
+    one thing left for a reader to do about it. The same rule decides
     which escape that is: a dispatch step, or a panel step with no form of
     its own to lose, still names dropping the step, since `amend close`
     costs it nothing more. A `two_voices` panel step is also its
@@ -371,7 +449,7 @@ def posture(role):
 # Rationale: `render.brief` and `render.status`'s own standalone-brief branch
 #   say the identical four things about a child -- who it is, what posture
 #   it reads, what tier and runner it runs under, which tree it inherits --
-#   and a wording change to any of those lines used to have to land twice,
+#   and a wording change to any of those lines would have to land twice,
 #   by hand, in step. One function, two callers, so it lands once or not at
 #   all. `written_at` is taken as a parameter rather than computed here
 #   (`posture(role)`) because `render.status` already prints its own,
@@ -411,10 +489,12 @@ def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
     plus the engine root a form's `standards/...` citation resolves from. This is the text a
     conductor hands its harness -- nothing else should be needed to start.
     It names no `open` command: the engine mints the child's run itself
-    before starting the process (`o-child-never-opens-its-own-run`).
+    before starting the process.
     """
+    skill = runmod.resolve_skill(role)
     lines = [f"  brief -- {child_id}"]
-    lines += _dispatch_lines(role, tier, runner, worktree, branch, written_at=posture(role))
+    lines += _dispatch_lines(role, tier, runner, worktree, branch,
+                             written_at=f"{skill} -- printed in full below" if skill else "")
     # A spawned child's first move: all 76 of story_time's reviewers spent
     # theirs hunting for this command, on the way to 14 mechanical tool calls
     # in 33. What a child needs first rides the brief.
@@ -425,6 +505,17 @@ def brief(child_id, role, tier, runner, finish_form="", worktree="", branch=""):
         lines.append(f"    finishing:   fill {finish_form}, then: {close_cmd}")
     else:
         lines.append(f"    finishing:   {close_cmd}")
+    # The posture rides in the brief itself. As a path to go and read, some
+    # children read it late or never (observed in story_time: gate-conductors
+    # at their 62nd call, or not at all), and every one spent a call on it.
+    if skill:
+        try:
+            text = pathlib.Path(skill).read_text(encoding="utf-8").strip()
+        except OSError:
+            text = ""
+        if text:
+            lines += ["", "  your posture", ""]
+            lines += [f"  {line}".rstrip() for line in text.splitlines()]
     return "\n".join(lines)
 
 
@@ -552,7 +643,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            returns_from="", role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
            filler_status="", waived=None, proofs=(), proof_wait=None,
-           drops=()):
+           drops=(), runs_as=None, briefed_role=""):
     """The room description.
 
     `proofs` is `proof_readings`' own lines for the cut this room disposes
@@ -611,8 +702,8 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
     out = preamble(st, blocked, position)
 
     if st.get("awaiting_close"):
-        # A root run has no dispatcher, so the old unconditional "returns to
-        # whoever dispatched this run" was untrue exactly half the time.
+        # A root run has no dispatcher, so an unconditional "returns to
+        # whoever dispatched this run" would be untrue exactly half the time.
         does = (f"closing is what stamps your returns to {destination(onward_to)}"
                 if onward_to else "closing is what writes the record")
         out.append(_para(f"Every step is done. The run is not finished until it "
@@ -625,7 +716,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("  This run is closed. Its record is in "
                    f".agent-work/{wid.replace('.', '/')}/journal.toml")
         if onward_to:
-            # Deliberately not "its step is now complete": a panel step takes
+            # Deliberately not "its step is complete": a panel step takes
             # one return per panelist, so that is false for every panelist but
             # the last. Name the destination, hand over one command, and let
             # the room at the other end describe itself.
@@ -638,9 +729,28 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         return "\n".join(out)
 
     if prefill:
-        out.append("  your orders")
-        out.append(_pairs(list(prefill.items())))
-        out.append("")
+        orders = dict(prefill)
+        # A panelist's criteria is the one question it was sent to answer.
+        # It opens the room, ahead of the orders it is answered against: as
+        # one more row among them it sat some 470 lines down a reviewer's
+        # room, below the whole call-tree.
+        criteria = str(orders.pop("criteria", "") or "").strip()
+        if criteria:
+            out.append("  your criteria -- the one question you answer")
+            out.append(_para(criteria, indent="    "))
+            out.append("")
+        rows = []
+        for key, value in orders.items():
+            rows.append((key, value))
+            if (runs_as or {}).get(key):
+                # A command is something to copy: on its own line, never
+                # wrapped.
+                rows.append((f"{key} runs as", Verbatim(runs_as[key])))
+        shown = _pairs(rows)
+        if shown:
+            out.append("  your orders")
+            out.append(shown)
+            out.append("")
 
     out.extend(drift([m for m in st.get("measures", [])
                       if m.get("segment") == (st["current"] or {}).get("segment")]))
@@ -739,7 +849,11 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("")
 
     written_at = posture(role)
-    if written_at:
+    if written_at and role and role == briefed_role:
+        # The brief that started this run printed this posture in full.
+        out.append(f"  your posture:       {runmod.resolve_skill(role)} -- "
+                   "printed in your brief; no need to read it again")
+    elif written_at:
         out.append(f"  your posture:       {written_at}")
     if filler_status == "working":
         # No "fill it, then submit" beside a live pid -- the same
@@ -805,8 +919,6 @@ def escape_for(vocab, verb="fill"):
             else f"{verb} it, or answer  {NULLS}")
 
 
-FILL_OR_NULL = escape_for(())
-
 
 # [the-escape-is-located-the-why-is-not]
 # Rationale: `located` rewrites the bare word `spine` into an absolute path so
@@ -819,18 +931,19 @@ FILL_OR_NULL = escape_for(())
 #   So the split is by role and is structural: the escape is the engine's own
 #   command and is always located; `field_id` and `why` are where the agent's
 #   own text lands and are never located.
-# Rejected: an opt-in for callers with agent text to protect (this was a
-#   `quoting=` parameter, briefly). It fixed the site it was written for and
-#   left four more that nobody remembered to convert -- `_check_id`'s work id,
-#   `_amend_add`'s segment, and `_outcome`'s two -- which is #81, and is the
-#   same fix-the-site-not-the-class failure the defect itself came from. An
-#   opt-in a caller can forget is not a guarantee.
+# Rejected: an opt-in for callers with agent text to protect (a `quoting=`
+#   parameter). It fixes the site it is written for and leaves others that
+#   nobody remembers to convert -- `_check_id`'s work id, `_amend_add`'s
+#   segment, and `_outcome`'s two -- the same fix-the-site-not-the-class
+#   failure the defect itself comes from. An opt-in a caller can forget is
+#   not a guarantee.
 # Rejected: narrowing the regex instead. The rewrite is correct everywhere it
 #   is applied to engine-authored strings, and the shapes it must keep
 #   matching include a bare trailing `spine` with no arguments ("open runs:
 #   spine") -- there is no lexical rule separating that from prose. The
 #   defect is which text is routed through it, not how it matches.
-def refusal(field_id, why, escape=FILL_OR_NULL):
+# See: #81
+def refusal(field_id, why, escape=""):
     """A refusal names what failed and how to get past it -- no lecture.
 
     The escape is a parameter because it is not always the same one. A board
@@ -844,6 +957,10 @@ def refusal(field_id, why, escape=FILL_OR_NULL):
     words intact -- see [the-escape-is-located-the-why-is-not]. A `why` that
     wants to print a command belongs in the escape, which is where a reader
     looks for one anyway.
+
+    There is no default escape. `FILL_OR_NULL` was one, and eleven refusals
+    inherited it where it was irrelevant (`amend needs --reason`) or itself
+    refused (a block list): a caller names the escape that works, or none.
     """
     return f"{field_id}: {why}" + (f"\n  {located(escape)}" if escape else "")
 

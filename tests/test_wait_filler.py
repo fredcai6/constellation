@@ -2,10 +2,12 @@
 working on the current step, and the filler itself is told its step is done
 once that step is no longer current, instead of being handed the next room.
 
-Measured before this file existed (tennis_elo, 2026-09-24): issue71's select
-filler, spawned on a heavy runner, read the next room after its own submit
-as its own, then called `wait` 197 times in 30 minutes while a later step's
-filler worked -- `wait` rendered at once beside a live filler.
+Observed in tennis_elo: issue71's select filler, spawned on a heavy runner,
+read the next room after its own submit as its own, then called `wait` 197
+times in 30 minutes while a later step's filler worked -- `wait` rendered at
+once beside a live filler.
+
+See: tennis_elo issue71
 
 Every process this file starts is a short-lived `python3 -c ...`.
 """

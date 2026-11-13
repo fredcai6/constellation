@@ -1,17 +1,13 @@
-"""`run.verdict_fold`: the fold logic obligations 1, 2, 4 and 5 need, proved
-in isolation against hand-built returns, panelist forms and outcome tables.
+"""`run.verdict_fold`: the fold logic, proved in isolation against
+hand-built returns, panelist forms and outcome tables.
 Three inputs, not two: a panel's returns, the panelist form each voice was
 dispatched under (positional with `step["panel"]`), and the deciding
 segment's own outcome table, shaped like `run.deciding_spec`'s own second
 return value.
 
-The differential test that stood here -- the fold's clean word against
-`merged_verdict`'s, for every declared panel in the tree -- went out with
-`merged_verdict` itself. Its job was to hold the new fold to the old logic
-while nothing called the new one; `tests/test_verdict_wiring.py` now drives
-the real, and only, fold through real seams instead, which is the stronger
-claim and needs no second implementation of the two-word logic to compare
-against.
+`tests/test_verdict_wiring.py` drives the real, and only, fold through real
+seams, which is the stronger claim and needs no second implementation of the
+two-word logic to compare against.
 """
 
 from engine import run as runmod
@@ -100,10 +96,11 @@ def test_case_7_form_declares_no_verdict_field_resolves_quiet_never_refused():
 def test_case_7_multi_voice_panel_folds_to_quiet_when_every_form_is_wordless():
     # The single-voice case above is not the whole rule: a multi-voice panel
     # -- every voice dispatched under a form with no `verdict` field at all,
-    # design-it-twice's rival-planner panel (shelved, #96) having been the
-    # tree's one worked example -- must fold panel-wide to quiet too, not
-    # just a lone voice. A fold that only recognized quiet for a single-voice
-    # panel would pass the case above but fail this one.
+    # design-it-twice's rival-planner panel (shelved) was the tree's one
+    # worked example -- must fold panel-wide to quiet too, not just a lone
+    # voice. A fold that only recognized quiet for a single-voice panel
+    # would pass the case above but fail this one.
+    # See: #96
     returns = [_ret("w.step.p1", verdict="anything"), _ret("w.step.p2", fields={})]
     outcome = runmod.verdict_fold(returns, [NO_VERDICT_FORM, NO_VERDICT_FORM], PASS_REVISE_TABLE)
     assert outcome == ("quiet", None)
@@ -198,7 +195,7 @@ def test_case_11_ranking_follows_declared_does_not_the_word_revise():
 
 def test_case_12_undeclared_word_does_not_outrank_declared_release():
     # The table names a row for one word and none at all for the other --
-    # `declared_does` answers `None` for the second, which this gate rules
+    # `declared_does` answers `None` for the second, which is ruled
     # the same inert class as an explicit "release" row, never a class
     # above it. The declared row must still win the tie it is actually in.
     table_missing_a_row = {"outcome": [{"value": "pass", "does": "release"}]}

@@ -19,9 +19,12 @@ in the **authority block** its run opens with — your principal, what you own, 
 where gaps go. High-level decisions stay with the human. That is the design, not a limit on it.
 
 **Report what you found, never what would fill the field.** A field with no answer takes
-`waived: <reason>` or `unknown: <reason>`, one journaled step. An intentional null is a result
-like any other: you still return it, and you still say why. Missing information, or a question
-your scope cannot answer, goes up the chain as far as the human. The level above may rule on it
+`waived: <reason>` or `unknown: <reason>`, one journaled step. Two kinds of field take neither,
+and their templates say so: a decision the run acts on, and a list of blocks. An intentional
+null is a result like any other: you still return it, and you still say why. Missing
+information, or a question your scope cannot answer, goes up the chain as far as the human: a
+dispatched run raises it with `spine <work-id> note blocked "<question>"` and ends its turn,
+and the run that dispatched it sees the question in its own room. The level above may rule on it
 and send it back down — that is the hierarchy working, not a rebuke.
 
 If what you are asked to do has no visible connection to the run you are in, say so and ask up.
@@ -48,10 +51,12 @@ anything else, and a change to a form is real work.
 **The decision procedure for every keep/kill call: structure that shapes an agent's thinking
 stays; structure that audits an agent's behavior goes.** When a change would add a check on
 what an agent did, look first for the field or imperative that would have shaped what it did
-instead. `docs/V2_DESIGN.md` states the thesis in full, along with the corollary that settles
-calls the thesis alone cannot. A second test decides whether a mechanism is ours rather than
-merely legitimate: name which of the five in
-`standards/approach.md` the mechanism serves.
+instead. Where that test alone cannot settle a call, its corollary does: **a check may exist
+only if its escape is one journaled step available to the agent being checked.** `waived:
+<reason>` passes it; a multi-step handshake to get past a check does not. A command check that
+verifies work is audit-shaped by the test, yet it stays, because its escape is one step. A
+second test decides whether a mechanism is ours rather than merely legitimate: name which of
+the five in `standards/approach.md` the mechanism serves.
 
 That test decides what belongs in the system. A second question decides what is worth doing
 now: **does fixing this change what an agent does at a step, or what a human sees when it
@@ -90,7 +95,7 @@ says what goes in it.
 
 | Path | Holds |
 |---|---|
-| `engine/` + `spine` | the secretary: rail, forms, journal, install copy. |
+| `engine/` + `spine` | the secretary: the `spine` verbs, forms, rooms, checks, journal, install copy. |
 | `assemblies/` | run templates, one directory each |
 | `skills/<name>/` | one posture each: a `SKILL.md` and the forms only that skill fills |
 | `standards/` | what binds writing and issues — see below |
@@ -106,7 +111,6 @@ says what goes in it.
 |---|---|
 | `docs/AGENT_GUIDE.md` | this guide — purpose, layout, documentation map |
 | `docs/PURPOSE.md` | what Constellation is for, what measures its machinery, and what good enough means |
-| `docs/V2_DESIGN.md` | the founding design: thesis, rulings, and the reasoning behind them. A starting point, not a target sheet; where it and the tree differ, the tree is right and the passage goes. |
 | `docs/ENGINE_NOTES.md` | mechanics the spec does not state — not doctrine |
 | `docs/DERIVED_IS_CODE.md` | why anything the engine can compute is computed by the engine, not written down as a rule for an agent to apply |
 | `standards/approach.md` | how Tommy builds, in any repository: the five, and the two rules at the human seam |
@@ -132,6 +136,17 @@ them is a choice: `palette:validate`, or `pytest evals`. They drive a real model
   its note (`advance | rework | up. …`). The engine reads that line and refuses anything else,
   so the sentence the agent is given and the rule it is held to are one string. On any other
   kind the same punctuation is ordinary prose.
+- Writing a field a second form also needs? Word it once. The second form declares
+  `same-as = "<form path>#<field id>"` and takes the field whole, keeping only the keys it
+  writes itself. A note that says "same as PLAN.toml's" points its reader at a form it is
+  never shown.
+- Writing a refusal? Give it the escape that works: `render.refusal` has no default one.
+- Wording a form or a skill? Numbered steps, one rule a sentence.
+- Writing anything that stays in the tree (code, comment, docstring, test, form, skill, doc)?
+  Carry the why, not the story: a definition's header holds `Rationale:`, `Rejected:` and a
+  `See: #NNN` line pointing at the issue or run the why came from. What changed, in which run
+  or commit, and a ruling's date go in the commit message. `standards/prose.md` rules 14
+  and 15.
 - `standards/issue.md` — an observation is a claim about a rev, so run its command against HEAD
   before planning against it. A defect that is real, cheap, and harmless is the easiest work to
   justify and the least worth doing.

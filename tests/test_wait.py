@@ -2,29 +2,27 @@
 child or an outstanding proof, then print exactly what `status` would have --
 it renders no view of its own.
 
-Gate 2 (commitments 13-15) makes `wait` the sole spawner of a child:
-`_dispatch_child` is a pure read now, and `cmd_wait`'s own pre-loop makes
-one spawn attempt, through `_spawn_outstanding`, per child in `child_ids`
-that is neither already returned nor already carrying a `dispatch-started`
-record -- before the poll loop ever runs. Rendering starts nothing any
-more, in `engine/` or in this file: every mechanics case that used to prove
-a render's own spawn (`test_dispatch_wiring.py`'s own "spawned once",
-"failed spawn logged", "working row reached only by a prior spawn", the
-three-panelist scenario, and the absence-vs-failed-attempt contrast) moved
-here with the call they now depend on (commitment 34).
+`wait` is the sole spawner of a child: `_dispatch_child` is a pure read,
+and `cmd_wait`'s own pre-loop makes one spawn attempt, through
+`_spawn_outstanding`, per child in `child_ids` that is neither already
+returned nor already carrying a `dispatch-started` record -- before the poll
+loop ever runs. Rendering starts nothing, in `engine/` or in this file:
+every mechanics case that proves a spawn ("spawned once", "failed spawn
+logged", "working row reached only by a prior spawn", the three-panelist
+scenario, and the absence-vs-failed-attempt contrast) lives here with the
+call it depends on.
 
 Three things this file exists to prove that a shallower suite would miss:
 the mechanism actually blocks and unblocks -- not merely that it never
-blocks on the rooms that were never in scope; that `cmd_wait` itself is
+blocks on the rooms where it should not; that `cmd_wait` itself is
 what starts a never-dispatched child and journals it, proven against a
 real, test-configured `dispatch` entry rather than a hand-written
-`_record` standing in for one; and the guard-gap this round's own fix
-closes -- a child already returned but carrying no `dispatch-started`
+`_record` standing in for one; and the guard gap -- a child already returned but carrying no `dispatch-started`
 record (standing in for one opened by hand and already finished) must not
 be spawned a second time by `cmd_wait`'s own pre-loop.
 
 Scenarios that only need an already-outstanding child to exist -- the
-block/unblock mechanics, the bound, commitment 2's equality proof -- still
+block/unblock mechanics, the bound, the equality proof --
 mint a `dispatch-started` record directly, by hand, since nothing about
 those depends on how the record got there.
 
@@ -60,13 +58,13 @@ from test_explore import explore, _spine
 #   opportunistically reaps every finished one (`subprocess._cleanup`).
 #   Under the full suite, some other test's own spawn can land in that exact
 #   window and reap this one first, which is exactly what made a "working"
-#   assertion flaky here (round 3's own finding). A brief sleep after the
+#   assertion flaky here. A brief sleep after the
 #   marker write keeps the pid genuinely alive -- not merely un-reaped --
 #   for comfortably longer than the poll cycles `wait`'s own block loop runs
 #   against it and the render that follows them.
 # Rejected: asserting on `_dispatch_entries` alone and skipping the "working"
-#   word. That would stop proving commitment 12's own liveness read at all,
-#   which is the one thing these spawn-mechanics tests were extended to check.
+#   word. That would stop proving the liveness read at all,
+#   which is the one thing these spawn-mechanics tests check.
 def _throwaway_dispatch(root, marker_dir):
     """A `constellation.toml` naming a `dispatch` entry that runs the real
     python executing this test session -- never `claude` -- drops one file
@@ -213,10 +211,10 @@ def _submitted_proof(wid, proof, **spec):
 
 def test_a_proof_in_flight_holds_until_it_lands_then_renders_the_next_step(
         bare_workdir, capsys, monkeypatch):
-    """The contract `wait` used to refuse for a proof: it now blocks while
+    """`wait` blocks while
     the detached runner is still going, and unblocks the moment that runner
     journals its own `submit` -- releasing well before the 90s round-trip a
-    caller used to have to re-render for by hand, and landing the run on
+    caller would otherwise have to re-render for by hand, and landing the run on
     its own next step, not the in-flight room it started in."""
     monkeypatch.setattr(checkrun, "HANDBACK", 0.1)
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
@@ -270,7 +268,7 @@ def test_a_proof_that_fails_mid_wait_stops_waiting_and_reflects_the_failure(
     entry, never a `submit`) -- `wait`'s own predicate is `runmod.in_flight`,
     which a `check` entry clears exactly as a `submit` does, so a failing
     proof releases `wait` the same way a passing one does, onto a room that
-    now shows the failure rather than the step having advanced."""
+    shows the failure rather than the step having advanced."""
     monkeypatch.setattr(checkrun, "HANDBACK", 0.1)
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     wid = "g1"
@@ -337,16 +335,16 @@ def test_a_childless_form_step_renders_immediately(bare_workdir, capsys):
     assert code == 0
     assert elapsed < 1
     assert "run-a-gate \u00b7 work (1 of 3)" in out
-    assert "Make the change the gate spec above describes" in out
+    assert "Make the change the gate spec in your orders describes" in out
     assert f"your response form: {_response(wid)}" in out
 
 
 def test_a_palette_with_no_dispatch_entry_renders_immediately(bare_workdir, capsys):
     """`bare_workdir` seeds no `constellation.toml` at all -- the room
     still renders, and nothing is ever outstanding for `wait` to see.
-    `o-absent-dispatch-raises` means the attempt is not a silent no-op any
-    more: it is caught the same way a malformed entry's failure already is,
-    and the reason lands in this child's own log."""
+    An absent `dispatch` entry is not a silent no-op: the attempt is caught
+    the same way a malformed entry's failure is, and the reason lands in
+    this child's own log."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
 
     began = time.monotonic()
@@ -359,18 +357,18 @@ def test_a_palette_with_no_dispatch_entry_renders_immediately(bare_workdir, caps
     # an unconfigured repository never mints through this path at all --
     # `_dispatch_entries` above only reads the parent's own
     # `dispatch-started` records, never whether the child's own run got
-    # minted, so this checks the other half directly (`o-mint-follows-start`).
+    # minted, so this checks the other half directly.
     assert not journal.exists("d1.g1")
     log = journal.location("d1") / "dispatch.g1.log"
     assert log.is_file()
     assert checkrun.DISPATCH_ABSENT in log.read_text(encoding="utf-8")
 
 
-# -- commitment 5: an excursion never reaches wait's predicate ---------------
+# -- an excursion never reaches wait's predicate ---------------
 
 
 def test_wait_never_polls_an_excursions_board_row(explore):
-    """The board's own `i1` row now carries a live, un-returned excursion --
+    """The board's own `i1` row carries a live, un-returned excursion --
     `wait`'s branch order never looks at a board at all, so this renders
     exactly as the childless-form case above does."""
     _spine("open", "find-prior-art", "--parent", explore, "--row", "i1")
@@ -383,12 +381,12 @@ def test_wait_never_polls_an_excursions_board_row(explore):
     assert elapsed < 1
 
 
-# -- gate 2's own move: `wait` is the one thing that starts a child --------
+# -- `wait` is the one thing that starts a child --------
 
 
 def test_wait_spawns_a_never_dispatched_dispatch_child_then_blocks_on_it(
         bare_workdir, capsys, monkeypatch):
-    """Commitments 13-15, the dispatch-step half: nothing in this test
+    """The dispatch-step half: nothing in this test
     renders the room before `wait` runs, and no `dispatch-started` record
     exists when it starts -- so the record found afterwards is one
     `cmd_wait`'s own pre-loop wrote, through a real, test-configured
@@ -399,7 +397,7 @@ def test_wait_spawns_a_never_dispatched_dispatch_child_then_blocks_on_it(
     (it really cycled) and well below the `--for` bound (the return, not
     the deadline, is what released it).
 
-    Gate 1 (`o-child-never-opens-its-own-run`) also proves itself here: the
+    A spawned child never opens its own run, also proved here: the
     child's own run already exists (`_spawn_outstanding` minted it, not the
     spawned process itself), the brief that process was actually handed
     carries no "open it:" line, and `wait`'s own stdout carries no trace of
@@ -489,11 +487,10 @@ def test_wait_never_respawns_a_dispatch_child_that_already_returned(
         bare_workdir, capsys):
     """The guard half `_spawn_outstanding`'s own check cannot make on its
     own: it reads only `dispatch-started` records and has no notion of a
-    `return` at all, so the `returns_by_child` half now lives inside
+    `return` at all, so the `returns_by_child` half lives inside
     `_startable`, read from `_spawn_outstanding`'s own call to it -- not
     beside `_wait_spawn`'s own call, which carries no guard of its own at
-    all. A child opened by hand (`spine open ... --parent ...`, still legal
-    until gate 4's room-text rewrite) and already returned carries no
+    all. A child opened by hand (`spine open ... --parent ...`) and already returned carries no
     record -- without that half it would read as never-started and `wait`
     would start a second, redundant process for work already done.
 
@@ -562,7 +559,7 @@ def test_wait_never_respawns_a_panelist_that_already_returned(
 
 def test_a_failed_spawn_is_reported_not_crashed_and_its_reason_is_logged(
         bare_workdir, capsys):
-    """Today's single-string `[commands]` shape under `dispatch` -- the
+    """A single-string `[commands]` shape under `dispatch` -- the
     malformed-entry case `checks.DispatchFailure` raises for -- must not
     escape `wait`: the call completes normally, nothing is journaled, and
     the reason lands in the child's own log rather than nowhere. With no
@@ -582,7 +579,7 @@ def test_a_failed_spawn_is_reported_not_crashed_and_its_reason_is_logged(
     assert elapsed < 1
     assert "d1.g1" in out
     assert _dispatch_entries("d1") == []        # no running process, no journal entry
-    assert not journal.exists("d1.g1")          # `o-mint-follows-start`: no mint for a failed start
+    assert not journal.exists("d1.g1")          # no mint for a failed start
     log = journal.location("d1") / "dispatch.g1.log"
     assert log.is_file()
     assert checkrun.DISPATCH_MALFORMED in log.read_text(encoding="utf-8")
@@ -596,11 +593,11 @@ def test_a_failed_spawn_is_reported_not_crashed_and_its_reason_is_logged(
 
 
 def test_an_unfilled_placeholder_leaves_no_mint_behind(bare_workdir, capsys):
-    """`o-mint-follows-start`'s third cause: a recognized placeholder the
+    """Third cause of a failed start: a recognized placeholder the
     caller supplied no value for. Through the ordinary `wait` path `tree`
     is always a real path (`_tree_info` never gives it `None`), so this
-    drives `_spawn_outstanding` directly -- the one caller this obligation's
-    own end state actually covers -- with `tree=None` against an entry that
+    drives `_spawn_outstanding` directly -- the one caller that can pass it
+    -- with `tree=None` against an entry that
     names `{tree}`, to prove the same catch/log/no-mint discipline holds for
     this cause too."""
     entry = [sys.executable, "-c", "pass", "{tree}"]
@@ -623,7 +620,7 @@ def test_an_unfilled_placeholder_leaves_no_mint_behind(bare_workdir, capsys):
 
 
 def test_a_process_that_fails_to_start_leaves_no_mint_behind(bare_workdir, capsys):
-    """`o-mint-follows-start`'s fourth cause: the entry is well-formed and
+    """Fourth cause of a failed start: the entry is well-formed and
     every placeholder is filled, but the executable itself does not exist --
     the one cause that requires an actual attempt to detect, so this is the
     one case that proves the mint really does wait for the launch to
@@ -646,13 +643,12 @@ def test_a_process_that_fails_to_start_leaves_no_mint_behind(bare_workdir, capsy
 
 def test_not_dispatched_from_absence_and_from_a_failed_attempt_both_log_their_reason(
         bare_workdir, capsys):
-    """`o-absent-dispatch-raises` collapses the distinction this used to
-    draw: a spawn attempt against a wholly absent `dispatch` entry renders
+    """A spawn attempt against a wholly absent `dispatch` entry renders
     the same word a malformed one does -- "not dispatched" both times -- and
-    now logs its own reason exactly as a malformed entry's attempt already
-    did, rather than leaving no trace at all. `d1` here sees no
+    logs its own reason exactly as a malformed entry's attempt does, rather
+    than leaving no trace at all. `d1` here sees no
     `constellation.toml` at all (the absent case); `d2` sees a malformed
-    `[commands]` `dispatch` (today's single-string shape, not a list).
+    `[commands]` `dispatch` (a single-string shape, not a list).
     Both are driven through `wait`, since that is the only caller that
     attempts a spawn at all."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
@@ -681,13 +677,12 @@ def test_a_panel_of_three_spawns_only_its_one_genuinely_outstanding_child(
     """Extends `test_brief.py`'s own `_mint_panel_step` shape to three
     panelists, each in a different state: p1 already returned, p2 already
     carries `checkrun.MAX_STARTS` `dispatch-started` records whose pid
-    (999999) reads as dead -- gone and spent, so this gate's own restart
+    (999999) reads as dead -- gone and spent, so the restart
     guard must not touch it either -- p3 is genuinely outstanding. One
     `wait` must spawn exactly the one startable child -- not the returned
     one, and not the spent one -- leaving exactly one new journal record
     and one new log file, both keyed to p3's own child id, and the room it
-    renders afterwards must report all three siblings' own state
-    (commitment 11)."""
+    renders afterwards must report all three siblings' own state."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     marker = bare_workdir / "spawned"
     _throwaway_dispatch(bare_workdir, marker)
@@ -731,12 +726,11 @@ def test_a_panel_of_three_spawns_only_its_one_genuinely_outstanding_child(
 
 def test_a_working_childs_row_omits_the_brief_and_every_command(
         bare_workdir, capsys, monkeypatch):
-    """Commitment 14: printing a manual dispatch command beside a live pid
-    is the exact double-dispatch commitment 19 exists to prevent, so a
+    """Printing a manual dispatch command beside a live pid
+    is the exact double dispatch to prevent, so a
     working child's row carries none of a brief's own ingredients -- no
-    role, no tier, no runner, no `open it:` line (commitment 23's other
-    half). The row is reached only by a prior spawn, which after this gate
-    is `wait`'s own: the room asserted on here is the one `wait` renders
+    role, no tier, no runner, no `open it:` line. The row is reached only by
+    a prior spawn, which is `wait`'s own: the room asserted on here is the one `wait` renders
     when its bound expires with the child it started still alive."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     marker = bare_workdir / "spawned"
@@ -755,12 +749,12 @@ def test_a_working_childs_row_omits_the_brief_and_every_command(
     assert "runner" not in out
 
 
-# -- gate 4: `wait` restarts a gone-but-not-spent child itself, capped -------
+# -- `wait` restarts a gone-but-not-spent child itself, capped -------
 
 
 def test_wait_restarts_a_dead_pid_dispatch_child_then_blocks_on_its_new_pid(
         bare_workdir, capsys, monkeypatch):
-    """Commitments 23-27: a single dead-pid `dispatch-started` record with
+    """A single dead-pid `dispatch-started` record with
     no return is gone but not spent (`checkrun.MAX_STARTS` is 3, and this
     child carries only one), so `_startable` reads true and `cmd_wait`'s
     own pre-loop restarts it -- a real, second process, through the same
@@ -770,7 +764,7 @@ def test_wait_restarts_a_dead_pid_dispatch_child_then_blocks_on_its_new_pid(
     already proves for a first start, and releases on the child's `return`,
     not the bound -- and since `WAIT_POLL` cycles several times before that
     return lands, a second, wrongly-repeated restart attempt within this
-    same call would have dropped a second marker file (commitment 25)."""
+    same call would drop a second marker file."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
     marker = bare_workdir / "spawned"
     _throwaway_dispatch(bare_workdir, marker)
@@ -858,9 +852,8 @@ def test_wait_restarts_with_the_resume_command_once_the_runs_already_exists(
     (`tests/test_dispatch_wiring.py`), but proven against the process
     `wait` actually spawns rather than only the rendered text: this
     child's run was already opened by hand once before its harness died.
-    `_wait_spawn` no longer calls `_respawn_cmd` at all -- per
-    `o-child-never-opens-its-own-run`, "no separate case for either" a
-    fresh dispatch or a restart, so the restarted process's own brief
+    `_wait_spawn` makes no separate case for a fresh dispatch or a
+    restart, so the restarted process's own brief
     carries no "open it:" line at all, matching the fresh-dispatch case
     rather than being handed `spine {child_id}` to run again."""
     monkeypatch.setattr(checkrun, "WAIT_POLL", 0.05)
@@ -932,7 +925,7 @@ def test_wait_blocks_on_a_live_panelist_and_unblocks_on_its_return(
 
 
 def test_wait_unblocks_when_the_childs_pid_dies_mid_block(bare_workdir, monkeypatch):
-    """Commitment 3's third way to stop blocking: the child's pid dies with
+    """The third way to stop blocking: the child's pid dies with
     no return landed, so it is gone rather than outstanding and `wait` stops
     well inside `--for`.
 
@@ -964,7 +957,7 @@ def test_wait_unblocks_when_the_childs_pid_dies_mid_block(bare_workdir, monkeypa
 
 
 def test_a_dead_pid_record_with_no_return_is_gone_not_outstanding(bare_workdir, capsys):
-    """Commitment 3's own distinction, on the path that never has to poll at
+    """The same distinction, on the path that never has to poll at
     all: a dead-pid record with no return is gone, not outstanding, so
     `wait` renders immediately rather than blocking for even one cycle."""
     _mint_dispatch_step(wid="d1", child="d1.g1")
@@ -1027,12 +1020,12 @@ def test_the_bounds_own_expiry_exits_0_with_a_child_still_outstanding(
     proc.wait()
 
 
-# -- commitment 2: the room is status's own, not a view of wait's -----------
+# -- the room is status's own, not a view of wait's -----------
 
 
 def test_waits_output_is_exactly_what_status_prints_for_the_same_state(
         bare_workdir, capsys, monkeypatch):
-    """Commitment 2 whole: `wait` is `status` with a block in front of it,
+    """`wait` is `status` with a block in front of it,
     renders no view of its own, and adds no state to the room. The state is
     held identical across the two reads -- one dispatch step, one already
     journaled `dispatch-started` record whose pid is still live at both

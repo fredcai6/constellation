@@ -22,14 +22,15 @@ _SETTLED = ("satisfied", "deferred")
 # Rationale: an execution-state row is done in this run (`satisfied`), not
 #   this run's (`deferred: <reason>`), or still this run's to do -- `open`,
 #   with or without a reason. Only the two settling words let a run close;
-#   any other status holds it open, so a word nobody defined (issue165's
-#   gate wrote `handed-off`) or one a board wrote before the vocabulary
-#   collapsed to three (`owed:`) keeps the work in view instead of dropping
-#   it. Three readers share this (`_settle_execution`, `_open_obligations`,
-#   `_landed` -- `engine/cli.py`), all on the execution-state board.
+#   any other status holds it open, so a word nobody defined (a gate wrote
+#   `handed-off`) or a retired one (`owed:`) keeps the work in view instead
+#   of dropping it. Three readers share this (`_settle_execution`,
+#   `_open_obligations`, `_landed` -- `engine/cli.py`), all on the
+#   execution-state board.
 # Rejected: listing the words that hold a run open. Every settling word
 #   the board ever had beside `satisfied` came from a gate reaching for
 #   everyday English, and each new one settled its row silently.
+# See: #165
 def unsettled(row) -> bool:
     """True unless `row`'s status is `satisfied` or `deferred: <reason>`."""
     status = str(row.get("status", "open"))
@@ -62,14 +63,15 @@ def rows(board_path) -> list[dict]:
 
 
 # [label-is-the-array-name]
-# Rationale: #47, #86 -- a row's label was the first string after its id and
-#   status, so any column typed or seeded above the real one (a flat
-#   `recommend`, a `verdict` a plan dict happened to list first) became the
-#   label in every render, and file order was the only thing holding it.
+# Rationale: a row's label read as the first string after its id and
+#   status would let any column typed or seeded above the real one (a flat
+#   `recommend`, a `verdict` a plan dict happened to list first) become the
+#   label in every render, with file order the only thing holding it.
 #   Every board names its array after its label column -- `[[question]]`
 #   holds `question`, `[[idea]]` holds `idea`, `[[obligation]]` holds
 #   `obligation` -- so the label is read by that name and order means
 #   nothing.
+# See: #47, #86
 def column(board_path) -> str:
     """The column that labels this board's rows: its array's own name."""
     return _array(board_path)[0]

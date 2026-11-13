@@ -1,6 +1,5 @@
-"""Issue 10 added self-location (a rendered brief a dispatched child can
-actually run) and the first two skills (implementer, reviewer). These evals
-drive each of the three roles that make a gate move -- one agent carrying a
+"""These evals exercise self-location (a rendered brief a dispatched child
+can actually run) and the implementer and reviewer skills. They drive each of the three roles that make a gate move -- one agent carrying a
 gate from its orders alone all the way to close, a reviewer grounding a
 verdict in a spec it was just handed, and a conductor dispatching a child and
 adjudicating what comes back -- and assert on the journal, never on transcript
@@ -9,14 +8,16 @@ gate-conductor's, in one continuous context, because its prompt names no role
 at all: what carries the loop is the dispatch `spine` prints, not any skill's
 claim about who conducts.
 
-Issue 7 added a fourth, on the same implementer: whether the intent layer
-gets authored while the code is being written. That one asserts on the
-generator's own output rather than the journal, because the journal cannot
-tell you what a comment says.
+A fourth, on the same implementer: whether the intent layer gets authored
+while the code is being written. That one asserts on the generator's own
+output rather than the journal, because the journal cannot tell you what a
+comment says.
 
 The lightest model is deliberate, same as the rest of this file's neighbor:
 if a step needs a strong model to be followed, the instruction is at fault,
 not the model.
+
+See: issue10, issue7
 """
 
 import json
@@ -69,10 +70,9 @@ def _mint_gate_pair(workdir, wid, gid, purpose, scope, proof, model=""):
 
 
 def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
-    """The loop closes from what the room prints: submit, name the lenses
-    that read the diff, dispatch the panel that mints, act on its verdict,
-    close. Six beats now, not five -- `select` sits between implement and
-    review -- and no engine or skill knowledge in the prompt, only the work
+    """The loop closes from what the room prints: submit, wait for the
+    panel the assembly declares, rule on its round, close. No engine or
+    skill knowledge in the prompt, only the work
     id and the outcome to reach, so the same agent walks from the
     implementer's form to the gate-conductor's without ever being told
     either name."""
@@ -92,15 +92,13 @@ def test_an_implementer_completes_a_gate_from_its_orders_alone(workdir):
     st = harness.state(workdir, "g1")
     assert st["closed"], (
         f"the gate never closed on its own orders.{harness.evidence(workdir, 'g1', r)}")
-    assert {"work-1", "select", "close"} <= st["done"].keys(), (
+    assert {"work-1", "review", "close"} <= st["done"].keys(), (
         f"a step along the way was skipped: {sorted(st['done'])}"
         f"{harness.evidence(workdir, 'g1', r)}")
-    # the review the agent selected: minted at `select`, so its id is not a
-    # name this assertion can spell -- what is checked is that a panel it
-    # chose actually read the diff and returned
-    reviews = [s for s in st["steps"] if s["segment"] == "review" and s.get("panel")]
+    # the declared panel actually read the diff and returned
+    reviews = [s for s in st["steps"] if s.get("panel")]
     assert reviews and all(s["id"] in st["done"] for s in reviews), (
-        f"no review round was selected, fired and disposed of: "
+        f"no review round was fired and disposed of: "
         f"{[(s['id'], s.get('form')) for s in st['steps']]}"
         f"{harness.evidence(workdir, 'g1', r)}")
     assert st["returns"].get(reviews[-1]["id"]), (
@@ -260,8 +258,8 @@ def test_an_implementer_authors_the_intent_layer_as_it_works(checkout):
     but what `spine` tells it, leaves behind a map that has something in it.
 
     Nothing in the prompt mentions anchors, tags or the code map -- and since
-    it no longer names the posture either, the engine's own delivery of it is
-    now part of what this measures. If either the delivery or the guidance
+    it does not name the posture either, the engine's own delivery of it is
+    part of what this measures. If either the delivery or the guidance
     does not carry it, this fails, which is the whole point.
     """
     harness.spine(checkout, "open", "run-a-gate", "--id", "g1")

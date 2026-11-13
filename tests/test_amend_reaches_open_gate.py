@@ -1,9 +1,11 @@
-"""#214: a proof ruled at the parent reaches a gate child that is already open.
+"""A proof ruled at the parent reaches a gate child that is already open.
 
-issue299's g3 asked up on a proof that could never pass; the conductor
-amended it at the parent, and the resumed round's hand-in re-ran the old text
-from the child's own prefill and blocked again. The child's check now reads
-the binding proof off its parent's current gate step.
+The child's check reads the binding proof off its parent's current gate step,
+not from its own prefill: a conductor that amends a proof at the parent after
+the child asked up on one that could never pass must see the resumed round's
+hand-in run the amended text.
+
+See: #214
 """
 
 import pytest
@@ -80,8 +82,11 @@ def _to_released_gate(proof, gate_proof):
 
 
 def test_a_gate_proof_amended_before_dispatch_is_the_one_the_child_checks(workdir, capsys):
-    """issue223's g2: a ruling made at release widened the gate's boundary
-    before it dispatched. The amended gate-proof is what the child checks."""
+    """A ruling made at release can widen the gate's boundary before it
+    dispatches. The amended gate-proof is what the child checks.
+
+    See: issue223
+    """
     _to_released_gate("true", "test -f old-boundary.txt")
     cli.main(["issue17", "amend", "proof", "g1", "--gate-proof", "test -f ruled.txt",
               "--reason", "n1: the ruling widened the boundary"])
@@ -100,8 +105,11 @@ def test_a_gate_proof_amended_before_dispatch_is_the_one_the_child_checks(workdi
 
 
 def test_a_bound_child_still_reads_the_ruling_made_at_its_parent(workdir, capsys, monkeypatch):
-    """#230: the child runs with CONSTELLATION_BOUND set to itself, which puts
-    the parent out of scope; the ruled proof must still reach it."""
+    """The child runs with CONSTELLATION_BOUND set to itself, which puts
+    the parent out of scope; the ruled proof must still reach it.
+
+    See: #230
+    """
     child = _to_open_gate("test -f ruled.txt")
     (journal.root_for("issue17") / "other.txt").write_text("x\n")
     _fill_implement(child, "implement")

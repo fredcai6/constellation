@@ -53,8 +53,7 @@ def test_a_fresh_install_resolves_every_shipped_role_with_no_refusal(tmp_path, m
     table -- not the source tree's, even though this process still has the
     source tree's `engine` package imported. Every filler `runmod.skeleton`
     mints, across every shipped assembly, must resolve -- the same
-    enumeration this obligation's own spec used to find the three roles
-    that did not."""
+    enumeration that finds a role that does not."""
     dest = tmp_path / "dest"
     install.install(dest)
     monkeypatch.chdir(dest)
@@ -99,7 +98,7 @@ def test_running_twice_is_idempotent(tmp_path):
 
     second, second_links = install.install(dest)
 
-    # Every engine-owned bundle is replaced again, exactly as before; the one
+    # Every engine-owned bundle is replaced again; the one
     # reader-owned entry reports that it stood down rather than that it copied.
     assert [e for e in first if e[0] != "constellation.toml"] == \
            [e for e in second if e[0] != "constellation.toml"]
@@ -209,10 +208,13 @@ def test_engine_imports_nothing_from_tools():
     that is not licence for the engine to reach into it. Static, not an
     import check, on purpose: a bad import three functions deep is dead
     until the runtime shape that calls it exists, and this catches it
-    before that -- issue166's own `_land_reserved_rungs` first shipped
-    exactly this, `from tools.code_map import parents`, reading `anchor_ids`
-    and `read_parents` for a check `engine/` now does with `git grep` and a
-    JSONL read of its own instead."""
+    before that -- `_land_reserved_rungs` once did exactly this, `from
+    tools.code_map import parents`, reading `anchor_ids` and `read_parents`
+    for a check `engine/` does with `git grep` and a JSONL read of its own
+    instead.
+
+    See: issue166
+    """
     root = pathlib.Path(install.__file__).resolve().parent.parent
     bad = [p.name for p in sorted((root / "engine").glob("*.py"))
           if _TOOLS_IMPORT.search(p.read_text(encoding="utf-8"))]

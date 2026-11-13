@@ -8,16 +8,15 @@ build one brief gathering the child id, its role, where that role is
 written, the resolved tier and runner, and what finishing means -- proven
 for a gate dispatch (role: the dispatched assembly's own conductor) and for
 a panelist (role: its own `worker`, which need not match the assembly's).
-`o-single-dispatch-room` means the room itself never prints this brief any
-more -- no row carries a hand-typed command, ever -- so the one reader left
-for it is the process `wait` actually starts; `_wait_brief` below drives
+The room itself never prints this brief -- no row carries a hand-typed
+command, ever -- so the one reader of it is the process `wait` actually starts; `_wait_brief` below drives
 that spawn against a real, test-configured `dispatch` entry and hands back
 what the spawned process was actually given.
 
 Third: wherever a role is announced -- a dispatch brief, a panelist brief,
 or the room an agent stands in -- the rendered line names the file the
 posture is written in and says to read it. A role with no SKILL.md gets no
-line, because naming a file that is not there is this defect inverted.
+line, because naming a file that is not there points at nothing.
 """
 
 import pathlib
@@ -31,8 +30,8 @@ from test_nesting import _response
 def _wait_brief(wid, root):
     """Drive `wait` against a real, test-configured `dispatch` entry and
     return the brief text the spawned process actually received -- the one
-    place a dispatched child's ingredients still reach a reader now that no
-    room ever prints one (`o-single-dispatch-room`). Imported from
+    place a dispatched child's ingredients reach a reader, since no room
+    prints one. Imported from
     `test_wait` locally: that module imports `_mint_dispatch_step`/
     `_mint_panel_step` from here, so a module-level import the other
     direction would be circular.
@@ -173,9 +172,8 @@ def test_gate_dispatch_role_is_the_dispatched_assemblys_conductor(bare_workdir, 
 def test_panelist_role_is_its_own_worker_not_the_assemblys_conductor(bare_workdir, capsys):
     """give-a-verdict's own conductor is `reviewer`; a panel entry can name a
     different worker (a focused panelist), and the brief must show that
-    entry's own role rather than the assembly's -- the reconciliation this
-    issue's plan notes was already made, proven by giving the two different
-    values and checking which one renders."""
+    entry's own role rather than the assembly's -- proven by giving the two
+    different values and checking which one renders."""
     _mint_panel_step(worker="implementer")
     capsys.readouterr()
 
@@ -230,8 +228,7 @@ def _posture_text(line):
     prefix that substring with different labels ("  your posture:" vs the
     room's own column), so comparing whole lines would fail on the label,
     not the posture."""
-    idx = line.index(next(w for w in line.split() if w.endswith("SKILL.md")))
-    return line[idx:]
+    return next(w for w in line.split() if w.endswith("SKILL.md"))
 
 
 def _assert_delivered(line, role):
@@ -243,12 +240,13 @@ def _assert_delivered(line, role):
     assert path.is_absolute(), f"{path} is not absolute"
     assert path == REPO / "skills" / role / "SKILL.md", f"{path} is not under the install root"
     assert path.is_file(), f"{path} does not exist"
-    assert "read it" in line, f"the line names a file but never says to read it: {line}"
+    assert any(w in line for w in ("read it", "printed in full below", "printed in your brief")), \
+        f"the line names a file but never says to read it or where it is printed: {line}"
 
 
 def test_dispatch_brief_names_where_the_dispatched_role_is_written(bare_workdir, capsys):
-    """The defect in this issue's title: the child was told a role name and
-    never told where that role is written. The role here is run-a-gate's own
+    """The child is told where its role is written, not only the role name.
+    The role here is run-a-gate's own
     conductor, so the file named follows the assembly's `conductor` field."""
     _mint_dispatch_step()
     capsys.readouterr()
@@ -269,11 +267,10 @@ def test_panelist_brief_names_where_its_own_role_is_written(bare_workdir, capsys
 
 def test_panelist_brief_names_no_file_for_a_role_that_has_no_skill(bare_workdir, capsys):
     """A panelist worker with no SKILL.md gets no posture line: naming one
-    anyway would be this issue's own defect inverted -- a path to nothing.
-    Proven against a fixture role rather than a rostered one with no
-    directory today: pinning to a real role re-arms the staleness trap this
-    test used to be, where a later SKILL.md for that role flips it green for
-    the wrong reason instead of failing loudly."""
+    anyway would be a path to nothing. Proven against a fixture role rather
+    than a rostered one with no directory today: pinning to a real role
+    sets a staleness trap, where a later SKILL.md for that role flips the
+    test green for the wrong reason instead of failing loudly."""
     _mint_panel_step(worker="ghostwriter")
     capsys.readouterr()
 
@@ -310,8 +307,8 @@ def test_the_room_names_no_file_for_a_filler_that_has_no_skill(workdir, capsys):
     """The room a filler with no SKILL.md stands in: silence, not a path to
     nothing. Proven against a fixture role, the same way the panelist case
     above is -- every rostered role either has a directory today or is one
-    decision away from getting one, and pinning to a real one re-arms the
-    staleness trap this test used to be."""
+    decision away from getting one, and pinning to a real one sets a
+    staleness trap."""
     _mint_work_step(filler="ghostwriter")
     capsys.readouterr()
 
@@ -331,8 +328,7 @@ def test_the_room_names_no_file_for_a_filler_that_has_no_skill(workdir, capsys):
 
 
 def test_a_critic_panelists_room_names_the_critics_posture(workdir, capsys):
-    """The defect this gate exists to correct: a critic panel entry's
-    dispatched child must stand in a room naming `skills/critic/SKILL.md`,
+    """A critic panel entry's dispatched child must stand in a room naming `skills/critic/SKILL.md`,
     not give-a-verdict's own conductor (`reviewer`)."""
     _mint_panel_step(worker="critic")
     capsys.readouterr()
@@ -346,7 +342,7 @@ def test_a_critic_panelists_room_names_the_critics_posture(workdir, capsys):
 
 
 def test_the_brief_and_the_room_name_the_same_posture_for_the_same_child(bare_workdir, capsys):
-    """The invariant the stamp buys and no other test states: the panel
+    """The invariant the stamp buys: the panel
     step's brief renders the posture from the panel entry's `worker`, and
     the panelist's own room -- once opened -- renders it from the child's
     stamped `filler`. Those two answers cannot diverge, or a child is told
@@ -357,9 +353,8 @@ def test_the_brief_and_the_room_name_the_same_posture_for_the_same_child(bare_wo
     brief_line = _posture_line(_wait_brief("g9", bare_workdir))
     _assert_delivered(brief_line, "critic")
 
-    # `wait` above already minted the panelist's own run (`o-mint-follows-
-    # start`); its own room renders the identical posture off its stamped
-    # `filler`.
+    # `wait` above already minted the panelist's own run; its own room
+    # renders the identical posture off its stamped `filler`.
     capsys.readouterr()
     cli.main(["g9.review.p1"])
     room_line = _posture_line(capsys.readouterr().out)
@@ -369,7 +364,7 @@ def test_the_brief_and_the_room_name_the_same_posture_for_the_same_child(bare_wo
 
 
 def test_a_reviewer_panelist_is_unmoved_by_a_neighboring_critic(workdir, capsys):
-    """The stamp must not have moved every panelist to whatever the last
+    """The stamp must not move every panelist to whatever the last
     entry said. Proven with a critic entry ahead of the reviewer entry in
     the same panel, both opened: a stamp that quietly defaulted every child
     to give-a-verdict's literal `reviewer` filler (what a no-op does) is

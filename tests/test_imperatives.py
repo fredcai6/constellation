@@ -43,8 +43,8 @@ def _speaks(out):
     prose = " ".join(l.strip() for l in out.splitlines()
                      if l.strip() and SPINE not in l and "  " not in l.strip())
     # A sentence ends a word, not an identifier: the dot in `g1.review.p1` is
-    # not speech, and taking it for speech is how this sweep first failed to
-    # catch a room it was written to catch.
+    # not speech, and taking it for speech would let this sweep miss a room it
+    # exists to catch.
     return bool(re.search(r"[a-z]{2}\.(?=\s|$)", prose)) and len(prose.split()) >= 10
 
 
@@ -102,12 +102,11 @@ def _dispatch_review_here():
     _dispatch_review("g1")
 
 
-# -- the two sentences that were missing --------------------------------------
+# -- the two sentences every room needs ---------------------------------------
 
 
 def test_a_dispatch_step_never_says_the_reader_is_the_one_who_runs_it(workdir, capsys):
-    """`o-honest-room-text`'s own proof: the room's imperative no longer
-    offers the reader the option to run the child themselves, and a "not
+    """The room's imperative does not offer the reader the option to run the child themselves, and a "not
     dispatched" child's row carries no hand-typed command to start it --
     `spine <work-id> wait` is the only move named, whether or not the
     palette is configured."""
@@ -122,7 +121,7 @@ def test_a_dispatch_step_never_says_the_reader_is_the_one_who_runs_it(workdir, c
 
 
 def test_a_panel_step_never_says_the_reader_is_the_one_who_runs_it(workdir, capsys):
-    """The panel-step half: the panel's verdict is still named as the
+    """The panel-step half: the panel's verdict is named as the
     panel's own to give, but no row offers the reader a command to run a
     panelist by hand."""
     from test_brief import _mint_panel_step
@@ -168,15 +167,13 @@ def test_a_brief_imperative_ends_on_a_move_the_reader_makes(workdir):
     was coming to give, and stopped. Two of five runs, the trace showing no
     child ever opened.
 
-    A passive tail on an imperative reads as permission to stop acting. This
-    used to be checked by banning the word "wait" outright, but `spine
-    <work-id> wait` is now the real, typeable command that starts a child --
-    the word itself can no longer be the thing forbidden. What was always
-    meant is narrower: the imperative must not *end* on a passive tail, a
+    A passive tail on an imperative reads as permission to stop acting. The
+    word "wait" cannot be banned outright, since `spine <work-id> wait` is
+    the real, typeable command that starts a child. The rule is narrower: the imperative must not *end* on a passive tail, a
     trailing "wait"/"hold"/"monitor"/"expect" with no move attached. A named
     command is not a passive tail, so DISPATCH and PANEL naming `spine
-    <work-id> wait` still pass; the old PANEL draft, which trailed off on a
-    bare "wait for its verdict", would not have. The exemption is
+    <work-id> wait` pass; a PANEL that trailed off on a bare "wait for its
+    verdict" would not. The exemption is
     structural, not a bare substring check -- see `_ends_on_a_move` and its
     own three coverage cases below, which is what proves that a sentence
     merely mentioning "spine" alongside a passive word, with no real
@@ -192,8 +189,8 @@ def test_a_passive_tail_beside_the_bare_word_spine_still_fails():
     """The exemption admits a named command, not co-occurrence: this last
     sentence contains both a passive-tail word ("wait") and the bare word
     "spine", but no `spine <work-id> wait`-shaped command -- exactly the
-    "Then wait for spine to notify you" shape this gate's own review caught
-    as a false pass under the old bare-substring check."""
+    "Then wait for spine to notify you" shape, which a bare-substring check
+    would pass falsely."""
     assert not _ends_on_a_move("Carry the child through. Then wait for spine to notify you.")
 
 
@@ -205,12 +202,11 @@ def test_a_last_sentence_naming_the_real_spine_wait_command_passes():
 
 
 def test_a_real_command_does_not_excuse_a_second_dangling_passive_tail():
-    """The regression this gate's second review round caught: a last
-    sentence naming a genuine `spine <work-id> wait` command *and* a
-    separate, unattached passive tail elsewhere in the same sentence. The
-    old bare-OR predicate passed this, because the command's mere presence
-    satisfied one half of the OR regardless of the dangling tail. Fixed,
-    it must fail -- every passive-tail match has to lie inside a
+    """A last sentence naming a genuine `spine <work-id> wait` command *and*
+    a separate, unattached passive tail elsewhere in the same sentence. A
+    bare-OR predicate would pass this, because the command's mere presence
+    would satisfy one half of the OR regardless of the dangling tail. It
+    must fail -- every passive-tail match has to lie inside a
     named-command match, not just some match existing somewhere."""
     assert not _ends_on_a_move(
         "Carry the child through. Run spine <work-id> wait yourself, "
@@ -221,11 +217,10 @@ def test_the_implementer_skill_no_longer_repeats_the_room(workdir):
     """Doctrine belongs at the point of use. Once the panel step says it,
     the skill saying it too is a second copy with the usual fate.
 
-    The second assertion used to be a word ratchet -- "< 222, the skill
-    should have shrunk, not grown" -- which measured the wrong thing twice
-    over: it passes a skill that repeats the room in fewer words, and it
-    fails a skill that grows for a reason issue 14 never had in view. What
-    repeating the room looks like is the panel step's own vocabulary turning
+    The second assertion is not a word ratchet ("the skill should have
+    shrunk, not grown"), which measures the wrong thing twice over: it
+    passes a skill that repeats the room in fewer words, and it fails a
+    skill that grows for another reason. What repeating the room looks like is the panel step's own vocabulary turning
     up here; how large the skill may get is a budget, and it has exactly one
     definition (tests/test_promises.py).
     """

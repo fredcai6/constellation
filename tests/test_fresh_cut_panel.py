@@ -1,27 +1,27 @@
 """Each fresh artifact gets one cold read, and a pass over its findings gets
-none (one look, 2026-09-25; every fresh cut, 2026-09-26).
+none.
 
 One declaration on `assemblies/run-an-issue/ASSEMBLY.toml` carries it on
 both seams: `panel-rounds = "fresh"` mints a transition's critic panel on
 each fresh artifact -- the run's opening spec or cut, a `rewrite`'s, a
 replan's, the re-cut after each gate lands -- while an `incorporate`'s round
-and a resumed round stand the conductor's route form alone. It replaced
-`opening`, which panelled the run's first cut alone: every later gate's cut
-went unread, and planners wrote them as amendments to the first. There
-is no free round to police any more either: `_check_one_look` refuses a
-second `incorporate` of the same artifact outright, in place of the old
-`impasse-after = 0` ruling-on-the-first-send-back mechanism, which was
-removed along with the impasse outlet itself on these two seams.
+and a resumed round stand the conductor's route form alone. Panelling the
+run's first cut alone would leave every later gate's cut unread, and
+planners write them as amendments to the first. There is no free round to
+police: `_check_one_look` refuses a second `incorporate` of the same
+artifact outright, with no `impasse-after` outlet on these two seams.
 
-The first outside run is the evidence for one look: the understand seam
-ran three panel rounds and four of round 3's five findings were introduced
-fixing round 2's. The 2026-09-26 re-measure is the evidence for panelling
-each gate's cut: across 12 runs, 30 later cuts went to the conductor alone,
-and issue191's fifth planner read the third gate's plan and wrote "earlier
-plans' facts still hold and are not repeated".
+The evidence for one look is an outside run: the understand seam ran three
+panel rounds and four of round 3's five findings were introduced fixing
+round 2's. The evidence for panelling each gate's cut is a re-measure
+across 12 runs: 30 later cuts went to the conductor alone, and issue191's
+fifth planner read the third gate's plan and wrote "earlier plans' facts
+still hold and are not repeated".
 
-This file pins the declarations the engine reads and the shape of every
+This file holds the declarations the engine reads and the shape of every
 later plan or understand round.
+
+See: issue191
 """
 
 import pytest
@@ -81,7 +81,7 @@ def test_a_re_cut_after_a_gate_lands_gets_the_full_panel(workdir, capsys):
     route = fresh[1]
     assert route["form"] == "forms/PLAN_TO_EXECUTE.toml"
     assert route["panel"] == _seg("plan")["transition"]["panel"]
-    # the opening round's own transition still carries the panel it had
+    # the opening round's own transition carries the panel
     assert len(next(s for s in st["steps"] if s["id"] == "plan")["panel"]) == 3
 
 
@@ -112,10 +112,9 @@ def test_an_incorporated_round_stands_with_no_panel_on_either_seam(workdir, caps
 
 
 def test_both_seams_declare_no_free_round():
-    """One look (2026-09-25) replaces the old `impasse-after = 0` ruling --
-    the first send-back was the ruling itself, on a form dedicated to it.
-    Both segments dropped `impasse-after` (and the impasse outlet)
-    entirely: `_check_one_look` now refuses a second `incorporate` of the
+    """One look: the first send-back is the ruling itself, on a form
+    dedicated to it. Neither segment declares `impasse-after` (or an
+    impasse outlet): `_check_one_look` refuses a second `incorporate` of the
     same artifact outright, in code rather than in a conductor's ruling.
     The ceiling here is `rewrite-cap = 1`: one major rewrite, then an ask
     -- `round-cap` stays on run-a-gate's review alone."""
@@ -129,8 +128,8 @@ def test_both_seams_declare_no_free_round():
 
 
 def test_a_second_incorporate_of_the_same_artifact_is_refused(workdir, capsys):
-    """`_check_one_look` is what replaced `impasse-after = 0`'s ruling-on-
-    the-first-send-back: an `incorporate` is legal once per artifact, and a
+    """`_check_one_look` stands where a ruling-on-the-first-send-back would:
+    an `incorporate` is legal once per artifact, and a
     second one on the same round is refused before the submit lands, rather
     than reaching an outlet a conductor rules on."""
     journal.append("i1", "run", title="t", assembly=ASM)

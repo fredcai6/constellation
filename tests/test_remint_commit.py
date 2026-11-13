@@ -1,5 +1,8 @@
-"""#231's second half: the gate a remint replaces leaves work uncommitted;
-the replacement's landing commit must carry it, under the replacement's trailer."""
+"""The gate a remint replaces leaves work uncommitted; the replacement's
+landing commit must carry it, under the replacement's trailer.
+
+See: #231
+"""
 
 from engine import cli, checks, journal, run as runmod
 from test_gate_commit import _dispatch_and_close_child_with_diff, _git

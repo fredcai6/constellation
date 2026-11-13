@@ -1,25 +1,25 @@
-"""Disposition: the conductor's own hand for the mechanism g5 built (#56, g1).
+"""Disposition: the conductor's own hand on the execution-state board.
 
-g5 seeded the execution-state board from the spec's own obligations and
-taught `settle` to end the run once every row carries something other than
-`open` -- but no form ever asked anyone to *record* a disposition, so
-`settle` found every row open forever and a run with a real spec could
-never close on its own. The mechanism was complete except for the hand that
-moves it. (The board's words are now `open`, `satisfied` and `deferred`;
-a gate claims only the first two -- see the tests near the end of this
-file.)
+The board is seeded from the spec's own obligations, and `settle` ends the
+run once every row carries something other than `open`. A form must also ask
+someone to *record* a disposition, or `settle` finds every row open forever
+and a run with a real spec can never close on its own. (The board's words
+are `open`, `satisfied` and `deferred`; a gate claims only the first two --
+see the tests near the end of this file.)
 
-GATE_TRANSITION.toml gains one field, `dispositions`: a `plan` field like
+GATE_TRANSITION.toml carries one field, `dispositions`: a `plan` field like
 `obligations` on CONSOLIDATE.toml, minted through the same board-writing
 path (`_seed_board`, `engine/cli.py`) rather than a second row-writer --
 only the merge that finds each named row and folds the conductor's word
-onto it (`_mint`'s new `_DISPOSE_MINT` branch) is new. `_settle_execution`
-itself, and the board template, are g5's and untouched.
+onto it (`_mint`'s `_DISPOSE_MINT` branch) is its own. `_settle_execution`
+itself, and the board template, do not change.
 
 Every test here drives the real `run-an-issue` and `run-a-gate` assemblies
 end to end, reusing `test_nesting`'s and `test_execution_state`'s own
 fixtures rather than a shortcut -- the behaviour under test is what the
 engine does at a real adjudication, not a unit in isolation.
+
+See: #56
 """
 
 import pytest
@@ -83,11 +83,11 @@ def _answer_drafted_adjudication(wid, **answers):
 
 def test_a_disposition_recorded_at_adjudication_lands_on_the_matching_board_row(
         workdir, capsys):
-    """DESIRED behaviour, and it fails before this gate: GATE_TRANSITION.toml
-    declared no `dispositions` field, so nothing an agent typed under that
-    name ever reached `_mint` -- the board stayed `open` no matter what the
-    filled response said. With the field declared, submitting one lands the
-    conductor's word, and this gate's own id, on the obligation it named."""
+    """GATE_TRANSITION.toml declares a `dispositions` field, so what an
+    agent types under that name reaches `_mint` -- without it the board
+    would stay `open` no matter what the filled response said. Submitting
+    one lands the conductor's word, and this gate's own id, on the
+    obligation it named."""
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -109,11 +109,10 @@ def test_a_disposition_recorded_at_adjudication_lands_on_the_matching_board_row(
 
 def test_a_gate_that_disposes_the_last_open_obligation_walks_the_run_to_close(
         workdir, capsys):
-    """DESIRED behaviour, and it fails before this gate: with no way to
-    record a disposition, `settle` found the one obligation still `open`
-    forever, so the run could refill `plan` but never reach CLOSE.toml. The
-    same gate, adjudicated with a disposition this time, lets `settle` see
-    the board clear and the run walk on."""
+    """With no way to record a disposition, `settle` would find the one
+    obligation `open` forever, so the run could refill `plan` but never
+    reach CLOSE.toml. A gate adjudicated with a disposition lets `settle`
+    see the board clear and the run walk on."""
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -131,13 +130,10 @@ def test_a_gate_that_disposes_the_last_open_obligation_walks_the_run_to_close(
 
 
 def test_an_obligation_left_unnamed_still_plans_another_gate(workdir, capsys):
-    """DESIRED behaviour, restated with the new field in play rather than
-    absent: this already held under g5 alone (`test_execution_state.py`'s
-    own first test, with no `dispositions` field to omit), and the scope for
-    this gate is explicit that naming every obligation is not required --
-    the engine still refuses nothing. This pins that the addition does not
-    change what an un-named row does: it is exactly as open, and the run
-    plans exactly the same fresh round, as before this field existed."""
+    """Naming every obligation is not required -- the engine refuses
+    nothing. The `dispositions` field does not change what an un-named row
+    does (`test_execution_state.py`'s own first test holds the same with no
+    field to omit): it stays open, and the run plans a fresh round."""
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -162,20 +158,20 @@ def test_an_obligation_left_unnamed_still_plans_another_gate(workdir, capsys):
 
 # -- the gate claims; the issue-conductor accepts or contests ------------
 #
-# The first run of this engine elsewhere adjudicated obligations at the issue
-# tier -- the gate's own question, answered a second time with a bigger
-# model -- and never asked whether the gate's purpose held. Now the gate
-# claims each obligation at close (GATE_CLOSE.toml's `claims`), the claims
-# open GATE_TRANSITION.toml's `dispositions` already written, and the board
-# path `_mint`'s `_DISPOSE_MINT` branch walks is untouched: what changed is
-# who writes the first draft, not how the row is written.
+# Adjudicating obligations at the issue tier would only be the gate's own
+# question answered a second time with a bigger model, and never ask whether
+# the gate's purpose held. So the gate claims each obligation at close
+# (GATE_CLOSE.toml's `claims`), the claims open GATE_TRANSITION.toml's
+# `dispositions` already written, and the board path `_mint`'s
+# `_DISPOSE_MINT` branch walks is the same either way: the gate writes the
+# first draft, the conductor accepts or contests it.
 
 
 def test_a_gates_orders_carry_the_open_obligations_by_row_id(workdir, capsys):
-    """A claim is keyed by the board's own row id, and the only place that
-    id reached a gate before was the planner's prose. Now a child of a run
+    """A claim is keyed by the board's own row id, so a child of a run
     holding an execution-state board opens with the open rows in its
-    orders, id beside text, under `obligations`."""
+    orders, id beside text, under `obligations`, rather than the id reaching
+    a gate only through the planner's prose."""
     _mint_first_gate_with_obligation()
     capsys.readouterr()
 
@@ -262,15 +258,15 @@ def test_a_contested_claim_writes_the_conductors_word_not_the_gates(workdir, cap
 # -- open: a gate's claim that it did not do the work ------------------
 #
 # A gate knows whether it did the work, not where unfinished work goes.
-# Issue #112's run measured the cost of a gate settling a row it had not
-# built: gate 1 claimed `deferred: ... explicitly left for gate 2 by this
-# gate's own scope text`, the conductor accepted it, and the run drained to
-# CLOSE.toml with two of its three obligations unbuilt. issue165 (tennis_elo)
-# did it again with `handed-off`, and sports-market-manager #219 with
-# `deferred`. A gate claims `satisfied` or `open: <reason>`; any other word
-# opens in the adjudication's draft as `open`, and only the conductor types
-# `deferred`. `boards.unsettled` is what `_settle_execution` and
-# `_open_obligations` (engine/cli.py) both read.
+# A gate settling a row it had not built has a cost: in one run, gate 1
+# claimed `deferred: ... explicitly left for gate 2 by this gate's own scope
+# text`, the conductor accepted it, and the run drained to CLOSE.toml with
+# two of its three obligations unbuilt; the same happened with `handed-off`
+# and with `deferred` elsewhere (See: #112, issue165). A gate claims
+# `satisfied` or `open: <reason>`; any other word opens in the
+# adjudication's draft as `open`, and only the conductor types `deferred`.
+# `boards.unsettled` is what `_settle_execution` and `_open_obligations`
+# (engine/cli.py) both read.
 
 
 def _accept_claim(disposition, edit=None):
@@ -294,7 +290,7 @@ def _recut():
     assert st["current"]["form"] != "forms/CLOSE.toml"
     fresh_plan = next(s for s in st["steps"]
                       if s["segment"] == "plan" and s.get("source") == "mint")
-    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round, ruling 6 intact
+    assert fresh_plan["dispatches"] == "cut-a-gate"  # a real round
     return fresh_plan
 
 
@@ -310,12 +306,14 @@ def test_an_open_claim_refills_plan_rather_than_closing(workdir, capsys):
 
 
 def test_a_gates_deferred_claim_drafts_as_open(workdir, capsys):
-    """#219: a gate claimed `deferred:` for work its own reason gave to a
-    later gate, and the conductor accepted the draft. The draft now opens
-    that claim as `open`, the gate's words kept, so accepting it as it
-    stands keeps the work in this run. Fails against the engine that copied
-    the gate's word into the draft verbatim: the row settles and the run
-    reaches CLOSE.toml."""
+    """A gate that claims `deferred:` for work its own reason gives to a
+    later gate must not get that accepted by default: the draft opens that
+    claim as `open`, the gate's words kept, so accepting it as it stands
+    keeps the work in this run. Copying the gate's word into the draft
+    verbatim would settle the row and the run would reach CLOSE.toml.
+
+    See: #112, #219, issue165
+    """
     rows = _accept_claim("deferred: the exposure report is its own gate (G4)")
     capsys.readouterr()
 
@@ -341,7 +339,7 @@ def test_an_open_obligation_still_rides_the_next_dispatch_orders(workdir, capsys
 ])
 def test_each_settling_word_the_conductor_writes_walks_the_run_to_close(
         workdir, capsys, disposition):
-    """The companion pin: `satisfied` and a `deferred` the conductor types
+    """The companion check: `satisfied` and a `deferred` the conductor types
     at adjudication settle the row, and the run walks to close."""
     rows = _accept_claim("satisfied", edit=('disposition = "satisfied"',
                                             f'disposition = "{disposition}"'))

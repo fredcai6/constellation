@@ -40,11 +40,22 @@ one pass over your own draft against the rules below before you return it.
     on its board and in `spine <work-id> note observation ...` entries, which fold to the
     run's notes and reach no later reader.
 
+**Text in the tree carries the why, not the story.**
+
+14. Say what is true and why, in the present tense. A non-trivial definition carries its why in
+    its header: `Rationale:` for what drives the design, `Rejected:` for an alternative and why
+    it loses. Often the why was learned from something that happened: point at it with a
+    `See:` line (`See: #122` for an issue in this repository, `See: story_time issue64` for a
+    run), so a reader can read more.
+15. The narration of change is not a why. What a thing used to be, which run, gate or commit
+    changed it, and the date of a ruling go in the commit message, which the repository keeps.
+    Keep a ruling's reason; drop its date.
+
 **Structure serves the reader.**
 
-14. Open on the substance and lead with the point when the reader needs it fast; let the
+16. Open on the substance and lead with the point when the reader needs it fast; let the
     context follow.
-15. Give the background that helps; cut what only repeats.
+17. Give the background that helps; cut what only repeats.
 
 ## Dials, not laws
 

@@ -1,7 +1,7 @@
 """tools/code_map/parents.py -- the map's DEFINED portion: which purpose a
 definition serves.
 
-Epic #138, finding 1. Everything else the map holds is either code or
+Everything else the map holds is either code or
 computed from code; the parent link is not -- which purpose a definition
 serves is authored, never derived, so it lives in its own committed file
 rather than in the gitignored statement store or page tree render.py builds.
@@ -11,8 +11,10 @@ slug>", "parents": ["<id>", ...]}`. A pure hierarchy -- a DAG, since a
 definition may serve more than one purpose -- with no side links, no edge
 types, no annotations. Nothing here MINTS a parents entry; this module only
 reads what is already written and reports where the defined portion and the
-tree disagree. Nothing writes parents yet -- that is finding 2 -- so on a
-freshly checked-out tree this module's own orphan report names every anchor.
+tree disagree. On a freshly checked-out tree with no parents written, this
+module's own orphan report names every anchor.
+
+See: #138
 
 Stdlib only, matching the rest of `tools/code_map` (see `__init__.py`'s own
 constraint): CI installs pytest and coverage and nothing else.
@@ -63,8 +65,8 @@ def read_parents(path):
 #   set: `Extractor.anchor()` only ever fires from the handful of visitor
 #   methods that call it (a class, a function, a module/class-level
 #   assignment), so an anchor comment sitting above anything else parses
-#   under the grammar and never reaches the store, silently (epic #138's
-#   own evidence: "three anchors extract to nothing"). That gap is a
+#   under the grammar and never reaches the store, silently (observed: "three
+#   anchors extract to nothing"). That gap is a
 #   different, narrower finding (the check set's own "silent anchor
 #   near-miss"). This module's job is the DEFINED portion against what an
 #   author can legally write an anchor above, so it reads the grammar
@@ -87,9 +89,9 @@ def anchor_ids(root):
 
 
 # [parents-root-claims-resolve-as-parents]
-# Rationale: every purpose chain terminates at a root claim (epic #138
-#   finding 10), and all eleven of those live in markdown (`<!-- [slug]
-#   -->`, `extract.md_anchors_in`) -- `docs/PURPOSE.md` and
+# Rationale: every purpose chain terminates at a root claim, and all eleven
+#   of those live in markdown (`<!-- [slug] -->`, `extract.md_anchors_in`) --
+#   `docs/PURPOSE.md` and
 #   `standards/approach.md`, named by `constellation.toml`'s `[roots]
 #   documents`, never hardcoded here (that table's own comment says why:
 #   `standards/approach.md` travels to other repositories, `docs/PURPOSE.md`
@@ -105,6 +107,7 @@ def anchor_ids(root):
 #   walked. Extending the corpus to every tracked `.md` file would change
 #   what the map renders and reaches far past what dangling resolution
 #   needs.
+# See: #138
 def root_claim_ids(root):
     """Every markdown anchor id minted in `constellation.toml`'s `[roots]
     documents` -- the purpose chain's root set, read from config rather than
@@ -137,7 +140,7 @@ def root_claim_ids(root):
 def orphan_report(anchors, parents):
     """Anchor ids present in `anchors` with no entry in `parents`.
 
-    Absence means orphan (epic #138, finding 1): nothing is seeded, so a
+    Absence means orphan: nothing is seeded, so a
     freshly-checked-out `parents.jsonl` orphans every anchor in the tree.
     Raw material for a later ranked backlog -- this never refuses."""
     return sorted(set(anchors) - set(parents))

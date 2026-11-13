@@ -1,17 +1,16 @@
-"""End to end through the new understand -> plan -> execute cycle, on a real
+"""End to end through the understand -> plan -> execute cycle, on a real
 light model. Everything else in this repo can go green on a tree where the
-new cycle is unreachable, because nothing renders the command that reaches
+cycle is unreachable, because nothing renders the command that reaches
 it -- that was #43's own lesson, measured on `test_an_excursion_gets_
 dispatched_from_a_board_row.py`, and it is why this file drives the real CLI
 instead of asserting on the assembly's TOML.
 
-This pins DESIRED behaviour, not current: the whole new cycle -- a spec
-crystallized and passed by a cold critic panel, a one-gate plan cut by a
-single planner and passed by its own critic panel, the gate itself
-dispatched from a projection of that plan, its adjudication disposing the
-spec's own obligations, and the engine settling the run closed because
-every obligation now carries a disposition -- is the thing this wave
-built. Before it, none of this existed to drive.
+This pins DESIRED behaviour: the whole cycle -- a spec crystallized and
+passed by a cold critic panel, a one-gate plan cut by a single planner and
+passed by its own critic panel, the gate itself dispatched from a
+projection of that plan, its adjudication disposing the spec's own
+obligations, and the engine settling the run closed because every
+obligation carries a disposition.
 
 No subagent dispatch is available to the single driven session either, the
 same constraint a conductor without one is under: every panelist and every
@@ -26,20 +25,15 @@ model. A single drive plays every role because that is what one agent
 working this room alone actually does -- a conductor with subagents would
 fan them out, but the room is exactly as sufficient either way.
 
-Sizing the drive: a smaller slice of this same cycle (board through the
+Sizing the drive: a smaller slice of this cycle (board through the
 spec's own cold panel) has measured 96s, 289s and 348s in this repo, on the
 excursion eval's own drive. This test walks the whole cycle -- that same
 segment, plus the plan segment's own round and its critic panel, plus the
 gate itself and its review, plus adjudication and close -- so 300s is not
 the number to reuse: two hand runs of this exact test, both driving
-correctly the whole way under design-it-twice's three-sibling round one
-(ruling 10, shelved -- #96) -- three planner siblings, a real revise round
-on a genuine finding, three more critics -- still had not reached the
-gate's own review by 300s. The drive budget below is sized from that
-heavier measurement, not the smaller one; design-it-twice's removal only
-lightens the cycle further (one planner dispatch where three ran before),
-so the budget stays a safe upper bound rather than a stale one. It is why
-the assertions below -- mirroring the excursion eval's own -- separate "cut
+correctly the whole way, still had not reached the gate's own review by
+300s. The drive budget below is sized from that heavier measurement, not
+the smaller one. It is why the assertions below -- mirroring the excursion eval's own -- separate "cut
 off before the run ever closed, so this measured nothing conclusive" from a
 real finding. A drive that is merely slow is retried; a drive that finished
 on its own and still did not close, or closed with an obligation left open,
@@ -65,7 +59,7 @@ from evals import harness
 # shells out to a real `gh` binary in a real child process, which
 # monkeypatch never touches. This eval needs its own interception, on
 # PATH, ahead of whatever real `gh` the host has -- never acceptable to
-# reach even once, the same ruling `stub_gh` states for the fast suite.
+# reach even once, the same rule `stub_gh` states for the fast suite.
 # Rejected: skipping the close step and asserting one short of it. Closing
 # on the obligation board is the very claim this eval exists to check; an
 # assertion that stops short of `closed` would pass on a run that never
@@ -124,12 +118,12 @@ type = "fact"
 #   worktree in the same call, the moment `close` actually succeeds --
 #   `tests/gitremote.py`'s own `read_archived` helper says outright that
 #   `journal.root_for` cannot see an archived id afterward, because it is
-#   simply not at either place that function looks. A first draft of this
-#   eval read through `harness.state` and `harness.run_root` unconditionally
-#   and would have raised on `None.get("closed")` the one time the drive
-#   actually reached the finish line -- caught only by hand-driving the
-#   real #63 proof run through the same `close`, never by the fast suite.
-#   Every read below checks the archive first for exactly that reason.
+#   simply not at either place that function looks. Reading through
+#   `harness.state` and `harness.run_root` unconditionally would raise on
+#   `None.get("closed")` the one time the drive actually reaches the finish
+#   line, which the fast suite never exercises. Every read below checks the
+#   archive first for exactly that reason.
+# See: #63
 # Rejected: asserting one step short of `closed` (e.g. "awaiting close") to
 #   dodge the archive. That is the same shortcut `_FAKE_GH`'s own docstring
 #   already rejected -- closing on the obligation board is the claim.
@@ -181,9 +175,9 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
       than being hand-patched around something broken and walked to a
       terminal state that looks identical from the outside;
     - a gate really ran, proved by the engine's own commit on the run's
-      branch rather than by a path existing: `gate_children` used to glob
-      `g*/journal.toml` without reading it, and counted a hand-written
-      26-byte stub as a gate that ran;
+      branch rather than by a path existing: `gate_children` reads
+      `g*/journal.toml` rather than only globbing it: a hand-written
+      26-byte stub is not a gate that ran;
     - the execution-state board carries no row still `open` -- every
       obligation the spec made is disposed, not merely that the run
       stopped;
@@ -229,19 +223,11 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
 
     # Rationale: mirrors the excursion eval's own split, but on `closed`
     #   rather than on whether a gate was ever minted -- measured directly:
-    #   a real drive of this same prompt and tier, under design-it-twice's
-    #   three-sibling round one (ruling 10, shelved -- #96), reached g1's own
-    #   review panelist (spec, its cold panel, the plan segment's own
-    #   three-sibling round and its own second panel, the gate dispatched and
-    #   its implement step submitted) and was still short of `closed` at the
-    #   budget below. The single-planner round this gate leaves standing is
-    #   only lighter, so the same budget still bounds it.
-    #   That last inference was wrong, and the budget that rode on it was
-    #   480s. Measured 2026-09-12, three consecutive drives of this prompt
+    #   three consecutive drives of this prompt
     #   at this tier all reached `closed` and passed every assertion below,
-    #   in 772s, 850s and 1233s -- so the cycle a light model can carry end
-    #   to end had simply outgrown its clock, and this eval had been
-    #   reporting "rerun it" every time rather than anything about the
+    #   in 772s, 850s and 1233s -- so a short clock is outgrown by the cycle
+    #   a light model can carry end to end, and a too-short budget makes this
+    #   eval report "rerun it" every time rather than anything about the
     #   cycle. 1800 clears the slowest of the three by half again. Re-measure
     #   before trusting it: the spread across those three is 60%, so a
     #   cycle that grows will reach the budget here long before the number
@@ -250,10 +236,10 @@ def test_the_cycle_turns_end_to_end_on_a_real_issue(workdir):
     #   the cycle is sound -- everything observed up to the cut was correct
     #   -- so cut-off-and-not-closed is retried rather than failed; only a
     #   drive that finished on its own (or one that did close) is graded.
-    # Rejected: gating retry on "no gate ever ran" instead. That measured
-    #   nothing on the run above: a gate had already been dispatched,
-    #   implemented and sent to review, and the assertions below would have
-    #   failed on r1.g1 not being closed -- a true statement about the
+    # Rejected: gating retry on "no gate ever ran" instead. That measures
+    #   nothing on a run where a gate has already been dispatched,
+    #   implemented and sent to review: the assertions below would fail
+    #   on r1.g1 not being closed -- a true statement about the
     #   clock, reported as if it were a finding about the cycle.
     if not closed and harness.unfinished(r):
         stopped = harness.unfinished(r)

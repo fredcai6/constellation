@@ -1,9 +1,8 @@
-"""Commitment 5's brief, in two halves: the wording `_dispatch_lines` now
+"""The form-filler brief, in two halves: the wording `_dispatch_lines`
 shares between `render.brief` and `render.status`'s standalone branch, and
 `_form_filler_brief`, the standalone room a form-step filler stands in --
 built from the same `_room_kwargs` derivation `cmd_status` uses so the two
-never drift. No caller of `_form_filler_brief` exists yet (gate 4's
-horizon): this proves the contract alone.
+never drift. This proves the contract alone.
 """
 
 import pathlib
@@ -88,7 +87,7 @@ def _materialized(st, step, form, wid, root=None):
     return dest
 
 
-# -- render.brief: unchanged, now built from the shared `_dispatch_lines` ----
+# -- render.brief: built from the shared `_dispatch_lines` -------------------
 
 
 def test_brief_matches_dispatch_lines_construction_with_tree():
@@ -98,13 +97,19 @@ def test_brief_matches_dispatch_lines_construction_with_tree():
                          "GATE_CLOSE.toml", worktree=worktree, branch=branch)
 
     expected = render._dispatch_lines(role, tier, runner, worktree, branch,
-                                      written_at=render.posture(role))
+                                      written_at=f"{runmod.resolve_skill(role)} -- printed in full below")
     lines = text.splitlines()
     assert lines[0] == "  brief -- d1.g1"
     assert lines[1:1 + len(expected)] == expected
     assert not any("open it:" in l for l in lines)
-    assert lines[-1] == (f"    finishing:   fill GATE_CLOSE.toml, then: "
-                         f"{render.located('spine d1.g1 close')}")
+    finishing = (f"    finishing:   fill GATE_CLOSE.toml, then: "
+                 f"{render.located('spine d1.g1 close')}")
+    assert finishing in lines
+    # the posture itself follows the header, in full
+    posture = lines[lines.index("  your posture"):]
+    assert lines.index(finishing) < lines.index("  your posture")
+    skill = pathlib.Path(runmod.resolve_skill(role)).read_text().strip().splitlines()
+    assert [l.strip() for l in posture[2:]] == [l.strip() for l in skill]
 
 
 def test_brief_matches_dispatch_lines_construction_without_tree():
@@ -112,7 +117,7 @@ def test_brief_matches_dispatch_lines_construction_without_tree():
     text = render.brief("g9.review.p1", role, tier, runner, "REVIEW.toml")
 
     expected = render._dispatch_lines(role, tier, runner, "", "",
-                                      written_at=render.posture(role))
+                                      written_at=f"{runmod.resolve_skill(role)} -- printed in full below")
     lines = text.splitlines()
     assert lines[1:1 + len(expected)] == expected
     assert not any(l.strip().startswith("tree ") for l in lines)
@@ -227,7 +232,7 @@ def _shared_body(text):
     -- the part of the room neither caller's own roots or additions touch.
 
     The board's own path line is normalized before comparing: it is the one
-    other line commitment 5 deliberately makes the two callers disagree on
+    other line the two callers deliberately disagree on
     -- `cmd_status` trusts whatever the board's stored entry says, unresolved,
     while `_form_filler_brief` re-resolves it absolute against its own root.
     Everything else on that line, and every other line, must still agree.
@@ -377,8 +382,7 @@ def test_form_filler_brief_board_path_ignores_a_stale_stored_directory(workdir):
 
 
 def test_form_filler_brief_resolves_absolute_paths_for_a_run_nested_in_a_worktree(workdir):
-    """A run whose `.agent-work` lives inside a sibling worktree (ruling 8's
-    own shape) rather than directly under this checkout -- `_tree_info`'s
+    """A run whose `.agent-work` lives inside a sibling worktree rather than directly under this checkout -- `_tree_info`'s
     own `journal.root_for` finds it there, and `_form_filler_brief`'s paths
     must follow, not fall back to this checkout's own root."""
     wt = workdir / ".worktrees" / "nested"
@@ -411,10 +415,13 @@ def _room(wid):
 
 
 def test_a_form_that_already_carries_answers_says_so(workdir):
-    """#26: a stopped agent's response form is adopted by whoever stands on
-    the step next -- deliberate (`_response_path`), and silent until now, so
-    a panelist read a complete critique of a superseded artifact as its own
-    blank form."""
+    """A stopped agent's response form is adopted by whoever stands on the
+    step next -- deliberate (`_response_path`) -- so the room says what the
+    form already holds, lest a panelist read a complete critique of a
+    superseded artifact as its own blank form.
+
+    See: #26
+    """
     _mint_work_step()
     dest, _ = _room("v1")
     dest.write_text('change = "the diff"\ndeviations = "waived: none"\n',

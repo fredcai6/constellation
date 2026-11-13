@@ -70,22 +70,15 @@ anchored as it is written. An existing project gets reworked a path at a time. T
 169 anchors and no rows at all (`python3 -m tools.code_map.parents`, rev 3a46f47). That number
 comes down through runs doing their own work, not through a run that maps for its own sake.
 
-## Never cite an obligation from code — cite the purpose it carried
+## Never cite an obligation, or a run, from code — cite the purpose it carried
 
 An obligation is scaffolding: it distills a spec into items an implementer can act on, and it
 falls away once the implementation lands. Obligations live in `.agent-work/`, gitignored and
-perishable. The code outlives them, so a comment that cites one points into a directory that is
-already gone.
+perishable. The code outlives them, so a comment that cites one, by key or by number, points
+into a directory that is already gone. The same holds for a gate id, a plan's name, or a
+commitment number: each belongs to one run's paperwork.
 
-`engine/` holds 44 such comments at rev 3a46f47 — 34 in `cli.py`, 7 in `checks.py`, 2 in
-`run.py`, 1 in `render.py` (`grep -c commitment engine/*.py`) — saying things like *this is the
-read half of commitment 7's contract*. Each is broken twice over. The specs they cite were in
-`.agent-work/` and are gone, and they address by sequence number, an addressing scheme this
-repo abandoned when a commitment gained a key that survives a rework (commit 0f0ef79). Someone
-pushed the obligation's number into the code instead of the purpose it carried.
-
-Write what the contract *is*, anchor it, and let the row carry the link upward. Those 44 get
-fixed as backfill when a run touches that area, not as a sweep.
+Write what the contract *is*, anchor it, and let the row carry the link upward.
 
 ## Nothing refuses
 

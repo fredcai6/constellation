@@ -1,11 +1,13 @@
-"""#237, from story_time issue57, 62 and 64: what settle does once a gate's
-adjudication lands, read from the execution-state board first.
+"""What settle does once a gate's adjudication lands, read from the
+execution-state board first.
 
 - every row settled: the queue closes, whatever was still in it;
 - a remint of the cut's last gate: its fresh gate answers the open rows,
   so no plan round is minted beside it, and the gate that ran is committed;
 - a remint whose gate-spec is the form's own example left blank is a remint
   with no spec, and refuses.
+
+See: #237, story_time issue57, issue62, issue64
 """
 
 import pathlib
@@ -28,7 +30,10 @@ def _plan_steps_after(wid, before):
 
 
 def test_an_advance_that_settles_every_row_closes_the_queue(workdir, capsys):
-    """issue62: g2 landed what g3 was cut for, and g3 still dispatched."""
+    """g2 lands what g3 was cut for, and g3 is still dispatched.
+
+    See: story_time issue62
+    """
     _mint_n_gates_with_obligation(3)
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -47,9 +52,12 @@ def test_an_advance_that_settles_every_row_closes_the_queue(workdir, capsys):
 
 def test_a_remint_of_the_last_gate_mints_no_plan_round_and_commits_the_gate(
         workdir, capsys):
-    """issue57: the remint recut the plan beside its own fresh gate, and the
-    cut that came back was a duplicate the board later dropped by hand. The
-    gate that ran stayed uncommitted until the conductor committed it."""
+    """A remint must not recut the plan beside its own fresh gate: the cut that
+    came back was a duplicate the board had to drop by hand. The gate that
+    ran must be committed, not left uncommitted for the conductor.
+
+    See: story_time issue57
+    """
     _mint_first_gate_with_obligation()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -75,8 +83,11 @@ def test_a_remint_of_the_last_gate_mints_no_plan_round_and_commits_the_gate(
 
 
 def test_a_remint_from_the_blank_example_block_refuses(workdir, capsys):
-    """issue57: an edit to the form never landed, the example `[[gate-spec]]`
-    block went in with every field blank, and the remint went through."""
+    """An edit to the form that never landed leaves the example `[[gate-spec]]`
+    block with every field blank; the remint must refuse, not go through.
+
+    See: story_time issue57
+    """
     _mint_first_gate_with_obligation()
     _dispatch_and_close_child("issue17", "g1")
     capsys.readouterr()
@@ -95,5 +106,5 @@ proof = \'\'\'
 ''')
     with pytest.raises(SystemExit) as e:
         cli.main(["issue17", "submit"])
-    assert "remint needs a new gate spec" in str(e.value)
+    assert "remint needs the replacement gate" in str(e.value)
     assert len(journal.read("issue17")) == before

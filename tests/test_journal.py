@@ -60,7 +60,7 @@ def test_interleaved_appenders_land_in_order_and_file_parses(monkeypatch):
     assert [e["seq"] for e in entries] == list(range(6))
     assert [e["session"] for e in entries] == ["alice", "bob"] * 3
     # file stays parseable (read() itself round-trips via tomllib; this just
-    # confirms shape, since read() would have raised on a torn file)
+    # confirms shape, since read() would raise on a torn file)
     assert len(entries) == 6
 
 

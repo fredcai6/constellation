@@ -1,11 +1,10 @@
-"""Ruling 10, shelved (#96): design-it-twice's three-sibling round one is
-gone from `assemblies/run-an-issue/ASSEMBLY.toml` -- the plan segment
-declares no `panel` any more, so round one is a single planner's dispatch,
+"""Design-it-twice's three-sibling round one is not in
+`assemblies/run-an-issue/ASSEMBLY.toml` -- the plan segment declares no
+`panel`, so round one is a single planner's dispatch,
 exactly the shape `_mint_segment_round` already mints for every round after
 the first.
 
-Two groups, both pinning the single-planner shape as DESIRED behaviour (what
-this gate's deletion leaves standing):
+Two groups, both pinning the single-planner shape as DESIRED behaviour:
 
 1. Structural -- what `skeleton()` and the assembly declare, no journal: the
    plan segment carries no `panel`, and round one's own interior step
@@ -16,10 +15,12 @@ this gate's deletion leaves standing):
 
 The interior-step panel-and-form shape (`two_voices`, engine/run.py, holding
 for any step carrying both a `panel` and a `form`, round or transition alike)
-is pinned directly against `run.state` in `test_verdict_route.py` now --
-round one's own step never carried a `form` beside its `panel`, so nothing in
-this tree ever exercised that combination through a real assembly, and
-nothing here promises three planners any more.
+is pinned directly against `run.state` in `test_verdict_route.py` --
+round one's own step carries no `form` beside a `panel`, so nothing in
+this tree exercises that combination through a real assembly, and
+nothing here promises three planners.
+
+See: #96
 """
 
 from engine import cli, journal, run as runmod
@@ -86,7 +87,7 @@ def test_an_incorporation_round_also_dispatches_a_single_planner(workdir, capsys
     """A revise on round one, ruled `incorporate` on the route form, mints
     the planner's one pass through `_mint_segment_round` -- one
     planner, addressed the plain dispatch way (`plan-<n>`, never `.pN`), the
-    same shape round one now takes too."""
+    same shape round one takes too."""
     wid = _drive_to_plan_round_one()
     _dispatch_and_close_plan(wid, "plan-1")
     capsys.readouterr()

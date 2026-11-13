@@ -30,8 +30,8 @@ def _fill(path, text):
 
 
 def _write_spec_md(wid):
-    """The real file `spec = "SPEC.md"` must point at: #45's
-    `_check_artifact` refuses a value that is not a readable path.
+    """The real file `spec = "SPEC.md"` must point at: `_check_artifact`
+    refuses a value that is not a readable path.
     `journal.root_for` resolves an id with no worktree of its own to the
     top-level cwd, so a bare filename like this fixture's own `SPEC.md`
     lands there, not under the work location -- same as the engine sees
@@ -94,11 +94,11 @@ def test_an_excursions_form_is_its_workers_not_its_principals(explore):
     the one who sent it. So the room must not tell that reader the form is its
     principal's, and `drive` must be willing to start a filler on it.
 
-    `terminal` alone used to decide this, which let the close-form rule shadow
-    a worker the assembly names outright: find-prior-art's one step is both its
-    terminal and its work, and declares `filler = "excursion"`. The room said
-    "none -- this form is the run's principal's to fill" and nothing would
-    start anyone on it."""
+    `terminal` alone must not decide this, or the close-form rule shadows a
+    worker the assembly names outright: find-prior-art's one step is both its
+    terminal and its work, and declares `filler = "excursion"`. A room that
+    said "none -- this form is the run's principal's to fill" would leave
+    nothing to start anyone on it."""
     out, _ = _spine("open", "find-prior-art", "--parent", explore, "--row", "i1")
     child = out.split()[1]
 
@@ -130,9 +130,9 @@ def test_a_second_excursion_off_one_row_gets_its_own_id(explore):
 def test_usage_names_the_row_form(explore):
     """USAGE documents both ways a child is opened, not just the step form.
 
-    The step form was there and the row form was not, so the whole of
-    `--row` -- the only way an excursion is ever opened -- was undocumented
-    in the one place an agent looks when it does not know a verb."""
+    The whole of `--row` -- the only way an excursion is ever opened -- is
+    documented in the one place an agent looks when it does not know a verb,
+    not only the step form."""
     assert "--parent <id> --row <row-id>" in cli.USAGE
     assert "excursion" in cli.USAGE
     for word in ("the row is the brief", "completes no step"):
@@ -194,10 +194,10 @@ def _to_rework(explore):
     assert _current(explore)["form"] == "forms/REWORK.toml"
     # The critics' own findings ride into that round verbatim -- this caller
     # submits no `calls` table, so `_blocking_calls` reads `None` and the
-    # carry-everything behaviour is untouched. Same shape
+    # carry-everything behaviour holds. Same shape
     # `test_rework.py::test_revise_mints_rework_form_with_findings_as_prefill`
-    # and `test_spec_review.py` already assert; without it this file only ever
-    # checked which form came next.
+    # and `test_spec_review.py` assert; this checks more than which form came
+    # next.
     assert "gap: no point" in _current(explore)["prefill"]["findings"]
 
 
@@ -238,12 +238,15 @@ def test_amend_add_transition_takes_the_panel_the_assembly_declares_today(explor
 
 
 def test_round_cap_undeclared_never_pauses_the_spec_seam(explore):
-    """issue113's C5: `spec` is the one seam left declaring no `round-cap` at
-    all (spec.md's out-of-scope list), and it already has no impasse outlet
+    """`spec` is the one seam declaring no `round-cap` at all (spec.md's
+    out-of-scope list), and it has no impasse outlet
     of its own -- "every disposition here is the human's" (ASSEMBLY.toml).
     Driven seven rounds deep, well past the five that stop `understand`,
     `plan` and `review`, nothing here pauses: an undeclared cap changes
-    nothing about how a run resolves."""
+    nothing about how a run resolves.
+
+    See: issue113
+    """
     _to_rework(explore)  # round 1, landed
     for n in range(2, 8):  # rounds 2..7, six more landed rounds
         _write_spec_md(explore)

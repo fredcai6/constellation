@@ -1,6 +1,6 @@
-"""Close archives, sweeps and opens the PR (issue19.g4).
+"""Close archives, sweeps and opens the PR.
 
-`cmd_close`'s root-run path now pushes the branch, opens the PR through
+`cmd_close`'s root-run path pushes the branch, opens the PR through
 `gh`, moves the work location into the top-level checkout's own archive,
 and only then removes the worktree -- in that order, because the work
 location lives inside the worktree and would otherwise be destroyed along
@@ -10,7 +10,7 @@ swept with no PR and no defined recovery.
 
 Every case here reaches a **local bare repository** as `origin`, and `gh`
 is stubbed on argv (`gitremote.stub_gh`) exactly the way
-`tests/test_eval_harness.py` already stubs `claude` -- this suite runs
+`tests/test_eval_harness.py` stubs `claude` -- this suite runs
 constantly and a test that could open a real pull request against this
 repo is not a test, it is an accident waiting for a contributor.
 """
@@ -36,7 +36,7 @@ def _drive_issue_to_awaiting_close(wid="issue17"):
     """Two gates, the first replanned into the second and that one advanced
     -- `execute`'s terminal (CLOSE.toml) is only reachable once every
     dispatched gate has returned and been adjudicated. One plan round cuts
-    one gate now, so a second gate takes a real second round (`replan`),
+    one gate, so a second gate takes a real second round (`replan`),
     not a second block in the same cut."""
     _mint_first_gate(wid)
     _dispatch_and_close_child(wid, "g1")
@@ -116,7 +116,10 @@ def test_the_pr_close_opens_is_a_draft_carrying_the_runs_disposition(
 
 
 def test_close_adopts_a_pr_already_open_on_the_branch(workdir, capsys, monkeypatch):
-    """#176: a conductor opened the PR by hand. It is the run's PR."""
+    """A conductor opened the PR by hand. It is the run's PR.
+
+    See: #176
+    """
     _drive_issue_to_awaiting_close()
     capsys.readouterr()
     calls = []
@@ -131,8 +134,11 @@ def test_close_adopts_a_pr_already_open_on_the_branch(workdir, capsys, monkeypat
 
 
 def test_close_adopts_a_pr_the_principal_already_merged(workdir, capsys, monkeypatch):
-    """tennis_elo issue163: the PR was merged before close ran. It is the
-    run's PR, and close finishes rather than asking for a second one."""
+    """The PR was merged before close ran. It is the run's PR, and close
+    finishes rather than asking for a second one.
+
+    See: tennis_elo issue163
+    """
     _drive_issue_to_awaiting_close()
     capsys.readouterr()
     calls = []
@@ -161,8 +167,11 @@ def test_a_pr_closed_unmerged_is_set_aside_and_close_opens_one(workdir, capsys, 
 
 def test_a_run_with_no_commits_past_its_cut_closes_with_no_pr_and_no_branch(
         workdir, capsys, monkeypatch):
-    """#176: a run that ends with no change -- ruled not needed -- has nothing
-    to publish. It archives its record and its empty branch goes."""
+    """A run that ends with no change -- ruled not needed -- has nothing
+    to publish. It archives its record and its empty branch goes.
+
+    See: #176
+    """
     _drive_issue_to_awaiting_close()
     capsys.readouterr()
     worktree = workdir / ".worktrees" / "issue17"
@@ -292,11 +301,13 @@ def test_a_non_issue_tier_close_never_reaches_git_or_gh(workdir, capsys, monkeyp
 
 def test_an_issue_tier_run_with_no_branch_or_worktree_stamped_closes_without_archiving(
         workdir, capsys, monkeypatch):
-    """`issue19`'s exact shape (opened before the worktree feature existed):
-    `_issue_tier` is true, but neither `branch` nor `worktree` names
+    """A run stamped with no worktree: `_issue_tier` is true, but neither `branch` nor `worktree` names
     anything real. `cmd_close` must close ordinarily, never reach git or
     `gh` -- the corollary rules out a refusal here, since neither condition
-    names a field the agent could fill or a fix within its reach."""
+    names a field the agent could fill or a fix within its reach.
+
+    See: issue19
+    """
     journal.append("issue18", "run", title="t", assembly="run-an-issue", conductor="")
     journal.append("issue18", "step", id="close", segment="execute", terminal=True,
                    anchor=True, form="forms/CLOSE.toml", filler="conductor")

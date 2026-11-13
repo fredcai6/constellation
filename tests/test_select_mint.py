@@ -1,17 +1,15 @@
 """The impasse guard that decides whether a `rework` was decided at a
 panel-bearing transition.
 
-`select` and its `panelists` mint are gone (ruling, 2026-09-25): `work`'s own
-transition -- `review` -- is a declared two-voices step now, the same shape
+`work`'s own transition -- `review` -- is a declared two-voices step, the same shape
 as run-an-issue's plan seam, and its panel is the assembly's own three
 readers on the opening round or the single `rework:` reader after
 (`[rework-panel]`, engine/cli.py). `test_gate_declared_panel.py` covers that
 declaration directly.
 
-What is left here is the regression `_panel_judged_rework` guards against:
+What is checked here is what `_panel_judged_rework` guards against:
 `_drive_gate_through` drives the real forms to a third revise, which is the
-only way to see whether the guard still recognizes the review step once it
-moved from a `select`-minted step in its own segment to `work`'s own
+only way to see whether the guard recognizes the review step as `work`'s own
 declared transition.
 """
 
@@ -54,22 +52,21 @@ def _drive_gate_through(gid, rounds):
 
 
 def test_a_third_route_decided_rework_still_reaches_the_impasse_form(workdir, capsys):
-    """The bug this gate inherited and fixes. `_panel_judged_rework` decides
+    """`_panel_judged_rework` decides
     whether a rework was decided at a panel-bearing transition -- if it was,
     the fresh round carries the panel's findings and spends the segment's
     `impasse-after` count, and the third one gets the outlet instead of a
-    third round (`impasse-after = 2`, ruling 2026-09-02: at most three
+    third round (`impasse-after = 2`: at most three
     critic dispatches per artifact).
 
-    Its guard used to compare the deciding step's own segment against the
-    rework verb's *target* segment, and its form against that segment's
-    statically declared transition form. Both halves were trivially true
-    while review and work were one segment and the verb was bare. Both fail
-    the moment review is its own segment (`does = "rework work"` names a
-    target, and review's transition declares no static form at all), so the
-    guard returned `(None, "")` for the exact step it exists to recognize,
-    the count never advanced, and the outlet silently stopped firing -- a
-    gate looping forever with nothing to rule on the loop.
+    The guard must not compare the deciding step's own segment against the
+    rework verb's *target* segment, nor its form against that segment's
+    statically declared transition form: with review its own segment
+    (`does = "rework work"` names a target, and review's transition declares
+    no static form at all) both comparisons fail, the guard returns
+    `(None, "")` for the exact step it exists to recognize, the count never
+    advances, and the outlet silently stops firing -- a gate looping forever
+    with nothing to rule on the loop.
 
     Driven through the real forms to a third revise, which is the only way
     to see it: every earlier round looks identical whether the guard works or
@@ -110,9 +107,9 @@ def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, ca
     fresh = st["current"]
     assert fresh["form"] == "skills/implementer/forms/IMPLEMENT.toml"
     # The ruling's own prefill, carried forward -- not re-derived findings.
-    # Stated as three claims rather than one equality: the equality also
-    # pinned the conductor's `why` being dropped, which is #107's defect, and
-    # a fresh round now arrives holding the ruling that created it, ahead of
+    # Stated as three claims rather than one equality: the equality would also
+    # pin the conductor's `why` being dropped (a defect, #107), and
+    # a fresh round arrives holding the ruling that created it, ahead of
     # the findings that caused the impasse.
     assert fresh["prefill"]["findings"].endswith(impasse["prefill"]["findings"])
     assert fresh["prefill"]["findings"].startswith("[conductor] ")
@@ -121,20 +118,19 @@ def test_the_guard_reads_the_step_alone_and_never_the_impasse_ruling(workdir, ca
     # the ruling walked out of the wall rather than into it: the guard
     # returned no outlet for a step with no panel, so a third round was
     # minted where a further panel-judged rework would have hit the outlet
-    # again -- ruling 2's latch, driven the rest of the way below
+    # again -- the count's latch, driven the rest of the way below
     assert runmod.rework_rounds(st, runmod.load_assembly("run-a-gate"), "work") == 3
 
 
 def test_the_next_revise_after_an_impasse_rework_re_latches_immediately(workdir, capsys):
-    """Ruling 2 (2026-09-02): the count latches. `rework_rounds` counts every
+    """The count latches. `rework_rounds` counts every
     mint since the last step-form mint with no exception for where the mint
     came from, so the impasse ruling's own `rework` -- which mints a fresh
     round without spending through `_panel_judged_rework`'s own guard --
     still leaves the count at 3, already past `impasse-after` (2). The very
     next revise on that fresh round therefore reaches the impasse form again
-    immediately, with no fresh allowance of rounds: the engine already does
-    this (`rework_rounds` is never reset by an impasse), so this drives it
-    rather than building it."""
+    immediately, with no fresh allowance of rounds: `rework_rounds` is never reset by
+    an impasse."""
     _drive_gate_through("g1", 3)
     capsys.readouterr()
     _fill(_response("g1"),

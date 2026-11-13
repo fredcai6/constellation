@@ -1,162 +1,62 @@
-# Step: the planner's one-look review of a queue that closed before it all
-# ran. Owned by the planner skill; filled by the planner. `_settle_execution`
-# (engine/cli.py) mints this form, in place of PLAN.toml or REWORK.toml, on
-# a mid-queue remint or drop, a critical question that came back different,
-# or a queued gate whose own proof already reads stale: never a panel's
-# finding, so no panel reads what this round returns either.
+# Step: the planner's review of a queue that closed before all of it ran.
+# Owned by the planner skill; filled by the planner. The engine mints this
+# form in place of PLAN.toml when a queued gate's proof already passes, a
+# critical question came back different, or a gate was reminted or dropped
+# with later gates still queued. No panel reads what this round returns.
+# The shared fields are PLAN.toml's (`same-as`).
 
 imperative = """
-`stale` below says why the queue closed before the rest of it ran: a gate
-was reminted or dropped, a critical question came back different from what
-the plan expected, or the gate due next already answers its own proof or
-could not run it. `closed-queue` names every block it held, in order,
-exactly as the plan that queued them wrote each one. `taught` is the
-conductor's account of what the last gate showed and how, and `findings`
-what the conductor took from it for the plan -- ground this cut answers to,
-not an objection to rebut. Before you cut anything, work out what that says
-about the plan itself: what it assumed that turned out false, what kind of
-gap this instance is one example of, and which remaining gates rest on the
-same assumption or could not tell if the same kind of gap sat in their own
-work. Open the code that decides it, and for a stale proof the root the
-staleness points at: what made the proof already true, or why it would not
-run. Then cut what the run still needs from here, the same bar as any other
-cut: at least one gate, and every chunk whose path is clear, each a complete
-proof of one thing -- purpose, scope, proof, and the rest, one block per
-gate in `gates` below. Nothing `closed-queue` held survives into the new
-queue except what you write again here on purpose; a block you do not repeat
-is gone, and one you do repeat you have checked against what the run now
-knows. The plan document itself carries the approach and the risks that
-would change it, and stands on its own: it states what the run knows now and
-reads whole to a cold reader, since no panel reads this twice. Where your
-prefill holds a `call-tree`, it is what the closed queue was thinking: check
-its nodes against the code and what it taught, mark this cut's own nodes
-THIS GATE, and update the rest -- or pivot, where what it taught says the
-structure changed."""
+The queue closed before the rest of it ran. Your orders say why:
+
+- `stale`: the reason. A gate was reminted or dropped, a critical question
+  came back different from what the plan expected, or the next gate's
+  proof already passes or could not run.
+- `closed-queue`: every gate block the queue still held, in order, as the
+  plan wrote it.
+- `taught` and `findings`: what the conductor saw the last gate show, and
+  what it took from that for the plan. Treat them as ground to build on,
+  not as objections to answer.
+
+1. Before you cut, work out what this says about the plan. What did it
+   assume that turned out false? Which remaining gates rest on the same
+   assumption? Open the code that decides it. For a proof that already
+   passes, find what made it true.
+
+2. Cut what the run still needs, to the same bar as any cut: every gate
+   whose path is clear, each one complete proof of one thing. Nothing in
+   `closed-queue` carries over on its own. A block you want to keep you
+   write again here, checked against what the run now knows.
+
+3. Update the call-tree in your orders against the code as it stands.
+
+4. Write the plan document so it states what the run knows now and reads
+   whole to someone who saw no earlier plan.
+
+If the open obligations are already met and nothing is left to cut, do not
+submit an empty cut. Run `spine <work-id> note blocked "<which obligation,
+and what shows it is met>"` and end your turn: the conductor settles it."""
 
 [[field]]
 id = "plan"
 kind = "artifact"
 note = """
-The plan document this round edited, in this run's work location
-(.agent-work/<work-id>/). Point at it — never retype it: the imperative
-above says what belongs in it."""
+The path of the plan document this round wrote, in this run's work
+location (.agent-work/<work-id>/). Give the path; do not paste the
+document."""
 
 [[field]]
 id = "call-tree"
-kind = "evidence"
-note = """
-The call tree of what the spec's done needs, as an outline with one node
-per function or module: what it owns (the state or decision hidden inside
-it), what it receives, what it returns, and who calls it. Mark each node
-`landed` (its name alone), `THIS GATE`, or `ahead`. Once a round cuts more
-than one gate, a `THIS GATE` node also names which gate, by its own
-position in the round, owns it -- never a predicted engine-assigned id.
-Take the tree down far enough that an implementer could build any node
-against a testable contract, and stop there: the math at the leaves is the
-implementer's.
-THIS GATE's nodes carry full signatures and the results the proof checks;
-`ahead` nodes stay coarse and may merge or move as work lands. The slice is
-the THIS GATE nodes, one vertical path or subtree whose proof stands on its
-own. The implementer receives the whole tree, owns its THIS GATE nodes,
-reshapes their interiors as it sees fit, and raises a change to an edge
-another node relies on as a blocked note. The next cut's planner receives
-this as what the run was thinking and rebuilds the landed part from the
-code. Whoever judges the round reads the slice's nodes closely and the
-`ahead` nodes loosely. `waived: none` for a gate that is one function."""
+same-as = "skills/planner/forms/PLAN.toml"
 
 [[field]]
 id = "key-terms"
-kind = "evidence"
-note = "This work's load-bearing terms; each cites its glossary entry or proposes a new one. Coining a synonym is a defect."
+same-as = "skills/planner/forms/PLAN.toml"
 
 [[field]]
 id = "critical-questions"
-kind = "plan"
-optional = true
-note = """
-One block per question this cut cannot yet see past: what the cut cannot
-yet say, which queued gate -- by its own position in this round, e.g. g2,
-never a predicted engine-assigned id -- is expected to answer it, and the
-answer this cut expects. The queue ends at the first gate whose own work
-depends on one of these left open. That gate's own adjudication rules
-whether its actual answer matched or differed; a differing answer reopens
-this plan for one review round, no panel, the same route a stale reading
-already gets. Omit where this cut reaches the whole run and leaves nothing
-open behind it."""
+same-as = "skills/planner/forms/PLAN.toml"
 
-  [[field.item]]
-  id = "question"
-  note = "What the cut cannot yet see past this point in the queue."
-
-  [[field.item]]
-  id = "gate"
-  note = """
-Which queued gate, by its own position in this round (g2, not a predicted
-engine-assigned id), is expected to answer it."""
-
-  [[field.item]]
-  id = "expected-answer"
-  note = "The answer this cut expects that gate to find."
-
-# Written last: `materialize` (engine/forms.py) writes a `kind = "plan"`
-# field as a bare `[[gates]]` array-of-tables header, and TOML nests every
-# scalar line after it into that array's last block rather than reading it
-# as a sibling field -- `test_reachable_briefs.py`'s own general guard
-# holds every form in the repo to this.
+# Written last: see PLAN.toml's own note on why a block list comes last.
 [[field]]
 id = "gates"
-kind = "plan"
-note = """
-One block per gate this round queues, in the order they run: at least one,
-and every chunk whose path is clear. Same shape as PLAN.toml's `gates` --
-purpose, scope, proof, and, when you know them, gate-proof, a model
-override and a direction."""
-
-  [[field.item]]
-  id = "purpose"
-  note = "What this gate accomplishes, and why the plan needs it."
-
-  [[field.item]]
-  id = "scope"
-  note = "Where the change lives, and what is out of bounds."
-
-  [[field.item]]
-  id = "proof"
-  kind = "proof"
-  note = """
-Same as PLAN.toml's `proof`: the exact command to run, never a description,
-referencing the command palette (constellation.toml) -- one that proves
-nothing on an empty diff, a diff short of `scope`, or the tree the gates
-ahead of it leave: name the tests this gate adds. What must be true when
-the issue ends: run at submit, when the gate lands, and again at close."""
-
-  [[field.item]]
-  id = "gate-proof"
-  kind = "proof"
-  optional = true
-  note = """
-Same as PLAN.toml's `gate-proof`: the rare boundary this gate must leave
-intact, named by its own paths, `git diff --quiet
-"${CONSTELLATION_GATE_BASE:?}" -- <paths>`. Run at submit and when the gate
-lands, never at close. `waived: none` for most gates."""
-
-  [[field.item]]
-  id = "budget"
-  optional = true
-  note = """
-Same as PLAN.toml's `budget`: declare one only for a proof that is right and
-may run past the engine's 600 seconds. Whole seconds, a bare integer."""
-
-  [[field.item]]
-  id = "model"
-  optional = true
-  note = "Tier override for this gate: light | standard | heavy. Choose one on purpose and say why in `direction`; omit for the assembly default."
-
-  [[field.item]]
-  id = "direction"
-  optional = true
-  note = """
-A question this gate is expected to answer for the next plan round, when you
-have one. The gate's own close form is asked to answer it in `residue`, so
-write something answerable or leave it out -- `waived: none` is the ordinary
-case for a run's last gate."""
+same-as = "skills/planner/forms/PLAN.toml"
