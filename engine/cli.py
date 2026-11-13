@@ -2094,6 +2094,7 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
     return {
         "prefill": prefill,
         "runs_as": _runs_as(prefill, root if root is not None else journal.root_for(wid)),
+        "briefed_role": _briefed_role(wid, st),
         "returns": returns,
         "returns_from": child or disposed,
         "proofs": proofs,
@@ -2124,6 +2125,15 @@ def _room_kwargs(wid, st, asm, step, form, dest, root=None):
 #   engine reports, the conductor decides.
 # Rejected: killing the process from `close`. The engine is a secretary, never
 #   a guard, and a pid read from a journal is not one it may signal.
+def _briefed_role(wid, st):
+    """The role whose posture this run's brief printed in full: a dispatched
+    run's own conductor. `""` for a root run, which had no brief."""
+    if not st.get("parent"):
+        return ""
+    opened = next((e for e in journal.read(wid) if e.get("kind") == "run"), {})
+    return opened.get("conductor", "")
+
+
 # [runs-as]
 # Rationale: orders name a proof by its palette entry (`palette:test x`), and
 #   the reader has to run it. Left unresolved, 44 of 55 reviewers on

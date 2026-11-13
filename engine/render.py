@@ -205,6 +205,11 @@ def prior_drops(entries):
     return out
 
 
+class Verbatim(str):
+    """A one-line value `_pairs` prints under its label exactly as given,
+    never wrapped: a command the reader copies."""
+
+
 # [pairs-keep-structure]
 # Rationale: a value written on several lines was written that way on purpose
 #   -- a call-tree outline, a list of obligations, a scope broken per file.
@@ -217,7 +222,8 @@ def _pairs(rows, indent="    "):
     """Aligned label/value lines. A one-line value wraps beside its label; a
     multi-line value prints under its label with its own line breaks and
     relative indentation; a blank value is left out."""
-    rows = [(k, "" if v is None else str(v)) for k, v in rows or []]
+    rows = [(k, "" if v is None else v if isinstance(v, Verbatim) else str(v))
+            for k, v in rows or []]
     rows = [(k, v) for k, v in rows if v.strip()]
     if not rows:
         return ""
@@ -225,7 +231,7 @@ def _pairs(rows, indent="    "):
     out = []
     for k, v in rows:
         lines = textwrap.dedent(v.strip("\n")).rstrip().split("\n")
-        if len(lines) > 1:
+        if len(lines) > 1 or isinstance(v, Verbatim):
             out.append(f"{indent}{k}")
             out.extend(f"{indent}  {line.rstrip()}" if line.strip() else ""
                        for line in lines)
@@ -636,7 +642,7 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
            returns_from="", role="", verdict="",
            row_returns=None, tier="", runner="", worktree="", branch="",
            filler_status="", waived=None, proofs=(), proof_wait=None,
-           drops=(), runs_as=None):
+           drops=(), runs_as=None, briefed_role=""):
     """The room description.
 
     `proofs` is `proof_readings`' own lines for the cut this room disposes
@@ -736,7 +742,9 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         for key, value in orders.items():
             rows.append((key, value))
             if (runs_as or {}).get(key):
-                rows.append((f"{key} runs as", runs_as[key]))
+                # A command is something to copy: on its own line, never
+                # wrapped.
+                rows.append((f"{key} runs as", Verbatim(runs_as[key])))
         shown = _pairs(rows)
         if shown:
             out.append("  your orders")
@@ -840,7 +848,11 @@ def status(st, form, response_path, prefill=None, returns=None, blocked=(),
         out.append("")
 
     written_at = posture(role)
-    if written_at:
+    if written_at and role and role == briefed_role:
+        # The brief that started this run printed this posture in full.
+        out.append(f"  your posture:       {runmod.resolve_skill(role)} -- "
+                   "printed in your brief; no need to read it again")
+    elif written_at:
         out.append(f"  your posture:       {written_at}")
     if filler_status == "working":
         # No "fill it, then submit" beside a live pid -- the same

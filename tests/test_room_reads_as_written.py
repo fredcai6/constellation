@@ -53,7 +53,20 @@ def test_a_palette_name_prints_with_the_command_it_runs_as(tmp_path):
     runs_as = cli._runs_as(prefill, tmp_path)
     assert runs_as == {"proof": "python3 -m pytest -q tests/x.py"}
     room = _room(prefill, runs_as=runs_as)
-    assert "proof runs as  python3 -m pytest -q tests/x.py" in room
+    assert "    proof runs as\n      python3 -m pytest -q tests/x.py\n" in room
+
+
+def test_a_resolved_command_is_never_wrapped(tmp_path):
+    long = "PYTHONPATH=src:. /a/very/long/path/to/python -m pytest -q -p no:cacheprovider " * 3
+    room = _room({"proof": "palette:test"}, runs_as={"proof": long.strip()})
+    assert f"      {long.strip()}\n" in room
+
+
+def test_a_dispatched_run_is_not_sent_to_reread_the_posture_its_brief_printed():
+    room = _room({"purpose": "p"}, role="reviewer", briefed_role="reviewer")
+    assert "printed in your brief" in room and "read it before you start" not in room
+    other = _room({"purpose": "p"}, role="implementer", briefed_role="gate-conductor")
+    assert "read it before you start" in other
 
 
 def test_a_palette_name_the_palette_lacks_prints_no_runs_as_row(tmp_path):

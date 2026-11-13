@@ -242,7 +242,7 @@ def _assert_delivered(line, role):
     assert path.is_absolute(), f"{path} is not absolute"
     assert path == REPO / "skills" / role / "SKILL.md", f"{path} is not under the install root"
     assert path.is_file(), f"{path} does not exist"
-    assert "read it" in line or "printed in full below" in line, \
+    assert any(w in line for w in ("read it", "printed in full below", "printed in your brief")), \
         f"the line names a file but never says to read it or where it is printed: {line}"
 
 
